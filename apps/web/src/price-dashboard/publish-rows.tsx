@@ -458,7 +458,7 @@ function DifferenceCell({ text }: { readonly text: string }) {
 }
 
 /** ↺, drawn by the stylesheet: the button's name is its words alone. */
-function RevertButton({
+export function RevertButton({
   target,
   name,
   onRevert,

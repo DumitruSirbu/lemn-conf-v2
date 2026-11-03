@@ -26,7 +26,7 @@ import type {
 import { planRestore, type VersionDetailInput } from "./publish-model";
 import { publishTextRefusalCodeOf } from "./publish-text-refusal";
 
-// A client over memory for builds that show samples. Loaded only outside production, next to `publish-sample.ts`.
+// A client over memory, for tests: it holds the sample the publish screens are drawn from in them.
 
 /** What a sample desk starts from: the dashboard's state, and the archived books a restore may name by version id. */
 export interface SampleDeskStart {

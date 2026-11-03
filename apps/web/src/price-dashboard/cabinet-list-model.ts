@@ -6,6 +6,7 @@ import {
 } from "@lemnaria/configurator-domain";
 
 import { isCountOfBani } from "./format-lei";
+import { countPendingPrices } from "./pending-price-count";
 import type { DashboardDraftWire } from "./price-dashboard-wire-contract";
 
 // What the cabinet list is drawn from, and the pure rules that turn it into rows. Nothing here reads the price book or
@@ -114,12 +115,9 @@ function namesRule(change: DraftChange, ruleId: string): boolean {
   return isCabinetAddress && address.ruleId === ruleId;
 }
 
-/**
- * The number the header and the menu show: every change the draft holds, whatever it changes (the depth rule and a
- * bulk action's every field count with the cabinet prices).
- */
+/** The number the header and the menu show: what `pendingPriceCountOf` counts in the draft's changes. */
 export function pendingPriceCountOf(draft: DashboardDraftWire): number {
-  return draft.changes.length;
+  return countPendingPrices(draft.changes);
 }
 
 export function rowsOf(input: CabinetListInput): readonly CabinetRow[] {

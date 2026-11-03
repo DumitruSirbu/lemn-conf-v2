@@ -8,6 +8,7 @@ import type { PriceBook } from "@lemnaria/configurator-domain";
 import { FormNotice } from "@/account/account-form-parts";
 import type { AppLocale } from "@/i18n/routing";
 import { isolated } from "@/staff/bidi-isolate";
+import { raiseStaffSessionExpired } from "@/staff/staff-session-expiry";
 import { dayOf } from "@/staff/staff-kitchen-dates";
 import { StaffShell, type StaffShellContext } from "@/staff/staff-shell";
 
@@ -17,8 +18,9 @@ import type {
 } from "./price-dashboard-wire-contract";
 import { type PublishClient, type RestoreOutcome } from "./publish-client";
 import { orFailed } from "./async-seams";
-import { defaultPublishClient } from "./default-publish-client";
-import { RestoreDialog } from "./publish-dialogs";
+import { FETCHING_PUBLISH_CLIENT } from "./fetching-publish-client";
+import { pendingPriceCountOf } from "./cabinet-list-model";
+import { RestoreDialog, type RestoreFailure } from "./publish-dialogs";
 import {
   describeVersionDiff,
   planRestore,
@@ -34,11 +36,9 @@ export interface VersionDetailScreenProps {
   readonly locale: AppLocale;
   readonly context: StaffShellContext;
   readonly input: VersionDetailInput;
-  /** What writes. Left out, the build's own: an in-memory one outside production, one that fails inside it. */
+  /** What writes. Left out, the routes'. */
   readonly client?: PublishClient | undefined;
 }
-
-type RestoreFailure = "save-failed" | "conflict" | "not-found";
 
 interface RestoreState {
   readonly draft: DashboardDraftWire;
@@ -57,10 +57,7 @@ export function VersionDetailScreen({
   input,
   client: suppliedClient,
 }: VersionDetailScreenProps) {
-  const client = useMemo(
-    () => suppliedClient ?? defaultPublishClient({ kind: "version", input }),
-    [suppliedClient, input],
-  );
+  const client = suppliedClient ?? FETCHING_PUBLISH_CLIENT;
   const restoreButtonRef = useRef<HTMLButtonElement>(null);
   const [restore, setRestore] = useState<RestoreState>({
     draft: input.draft,
@@ -87,12 +84,13 @@ export function VersionDetailScreen({
       versionId: input.version.versionId,
       draftRevision: restore.draft.draftRevision,
     }).then((answer) => {
+      if (answer.outcome.kind === "session-ended") raiseStaffSessionExpired();
       setRestore((held) => settled(held, answer));
     });
   }, [client, input.version.versionId, restore.draft.draftRevision]);
   const shell = {
     ...context,
-    pendingPriceCount: restore.draft.changes.length,
+    pendingPriceCount: pendingPriceCountOf(restore.draft),
   };
   return (
     <StaffShell locale={locale} page="publish" context={shell}>
@@ -175,6 +173,9 @@ function settled(held: RestoreState, answer: RestoreAnswer): RestoreState {
       };
     case "version-not-found":
       return { ...idle, failure: "not-found" };
+    case "candidate-refused":
+      return { ...idle, failure: "candidate-refused" };
+    case "session-ended":
     case "failed":
       return { ...idle, failure: "save-failed" };
   }

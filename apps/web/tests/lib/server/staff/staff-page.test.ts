@@ -6,8 +6,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { CurrentSession } from "@/lib/server/account/current-session";
 import { SESSION_COOKIE_NAME } from "@/lib/server/account/session-cookie";
-import { SAMPLE_PUBLISH_PAGE } from "@/price-dashboard/publish-sample";
 import type { StaffPage } from "@/staff/staff-shell";
+
+/** The seeded fake world every page test reads holds no draft. */
+const SEEDED_WORLD_PENDING_PRICES = 0;
 
 /**
  * The staff gate must answer what the signed-in page gate answers for the same page, so the staff area is not a second,
@@ -272,7 +274,7 @@ describe("readStaffPage shows the staff frame to staff and to no one else", () =
           "defaults",
           "publish",
         ],
-        pendingPriceCount: SAMPLE_PUBLISH_PAGE.state.draft.changes.length,
+        pendingPriceCount: SEEDED_WORLD_PENDING_PRICES,
       },
     });
   });

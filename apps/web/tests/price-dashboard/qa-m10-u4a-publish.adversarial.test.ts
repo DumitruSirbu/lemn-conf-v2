@@ -49,7 +49,10 @@ describe("a class the hardware screens created, as the publish review reads the 
     expect(reading.kind).toBe("ready");
     if (reading.kind !== "ready") return;
     const rows = rowsOf(CREATED_CLASS);
-    expect(reading.view.changeCount).toBe(1 + HARDWARE_RATE_FIELDS.length);
+    expect(
+      reading.view.changeCount,
+      "the class and its rates are one change",
+    ).toBe(1);
     expect(reading.view.canPublish).toBe(true);
     expect(
       rows.flatMap((row) =>

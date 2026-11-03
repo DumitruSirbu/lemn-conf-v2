@@ -1,14 +1,12 @@
 // Adversarial QA of how the publish page's screens are reached and sheeted: which screen each answer of the page's read becomes, that a
-// phone-sized page cannot be pushed sideways by what the follow-ups draw, and that nothing sends a write the sample
-// client alone would take in a production build.
+// phone-sized page cannot be pushed sideways by what the follow-ups draw.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { isValidElement } from "react";
 
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { publishScreenOf } from "@/app/[locale]/staff/catalog/_lib/publish-read-screen";
-import { defaultPublishClient } from "@/price-dashboard/default-publish-client";
 import { SAMPLE_PUBLISH_PAGE } from "@/price-dashboard/publish-sample";
 import {
   PublishScreen,
@@ -66,35 +64,6 @@ describe("the screen each answer of the page's read becomes", () => {
     expect(isValidElement(screen) && screen.type).toBe(
       PublishUnavailableScreen,
     );
-  });
-});
-
-describe("a production build", () => {
-  it("writes nothing through the unreadable-draft screen: the discard is answered as a failure, and no sample is built", async () => {
-    vi.stubEnv("NODE_ENV", "production");
-    try {
-      const client = defaultPublishClient({ kind: "unreadable" });
-
-      expect(
-        await client.discardDraft({ expectedDraftRevision: "r", scope: "all" }),
-      ).toEqual({ kind: "failed" });
-    } finally {
-      vi.unstubAllEnvs();
-    }
-  });
-
-  it("answers every page of the history as unreadable rather than as an empty history", async () => {
-    vi.stubEnv("NODE_ENV", "production");
-    try {
-      const client = defaultPublishClient({
-        kind: "publish",
-        input: SAMPLE_PUBLISH_PAGE,
-      });
-
-      expect(await client.readVersionPage(2)).toEqual({ kind: "failed" });
-    } finally {
-      vi.unstubAllEnvs();
-    }
   });
 });
 

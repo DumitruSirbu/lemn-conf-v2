@@ -37,7 +37,7 @@ export default async function HistoryPage({ params }: HistoryPageProps) {
     locale,
     page: "publish",
     signedIn: async (shell) => {
-      const read = await readPublishPage(locale);
+      const read = await readPublishPage();
       return publishScreenOf({
         read,
         locale,

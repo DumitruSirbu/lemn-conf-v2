@@ -1,19 +1,17 @@
-// Wave U5b of M10 at 1440 x 900 with a pointer: the publish page "Publicare prețuri", its history tab and one version's
-// page, against frames D7A to D8C of the dashboard mock-up (docs/design/mockups/Lemnaria Dashboard.dc.html).
+// Waves U5b and U5c of M10 at 1440 x 900 with a pointer: the publish page "Publicare prețuri", its history tab and one
+// version's page, against frames D7A to D8C of the dashboard mock-up (docs/design/mockups/Lemnaria Dashboard.dc.html).
 //
-// WHICH SERVER THIS FILE HOLDS ON. The page's working surface is a sample that only `next dev` draws: `readPublishPage`,
-// `readVersionDetail` and the screen's own client answer "unavailable" in a production build, which is what CI serves
-// (`playwright.config.ts` starts `next start` whenever `CI` is set). So the tests of the sample skip themselves under
-// `CI`, and one test of the production build asserts the honest unavailable screen there. The sample is held in the
-// browser's memory by the screen, so no write of these tests reaches a server, and a reload starts from the same sample.
+// WHICH SERVER THIS FILE HOLDS ON. Both: the pages read the server's own draft and history, in a development server and in
+// the production build that CI serves, and write through the dashboard's routes. Each test that needs a pending draft
+// seeds it through those routes (`seedPendingDraft`) and the hooks below empty it again.
 //
-// NOT REACHABLE ON THE SAMPLE, so not asserted here: the discard dialog (it is offered only for a draft that cannot be
-// listed, and the sample's draft always lists), the refusal list of a publish the catalogue refused, the history pager
-// (4 versions on pages of 20), the "Se publică…" frame (the in-memory client answers at once) and the failed-publish
-// notice. The wave that wires the page to its routes (U5c) is where they become drivable.
+// NOT DRIVEN HERE, and why. No test publishes, and none restores: a publish moves the active version for every other spec
+// of the same server, and the server holds one version. So the success of a publish, the history pager (more than one page
+// of versions), an archived version's page with its restore, the refusal list of a publish the catalogue refused, a draft
+// that cannot be read and the "Se publică…" frame are covered by the DOM and route-contract tests, and their proof against
+// a database waits for the Z gate.
 //
-// The draft is ONE draft in the e2e server's memory and this file takes the lock the dashboard's specs share, although
-// the sample does not touch it: the frame's reads of it are the server's.
+// The draft is ONE draft in the e2e server's memory and this file takes the lock the dashboard's specs share.
 import {
   countStaffFixturesForTests,
   removeStaffFixturesForTests,
@@ -23,7 +21,6 @@ import { expect, type Locator, type Page } from "@playwright/test";
 import {
   expectPendingCount,
   isBrowsersNoteOfA404,
-  shootViewport,
 } from "./support/cabinet-detail-page";
 import {
   discardDraft,
@@ -33,12 +30,10 @@ import {
 } from "./support/price-dashboard-session";
 import { holdPriceDraft, releasePriceDraft } from "./support/price-draft-lock";
 import {
-  ACTIVE_VERSION,
-  ARCHIVED_VERSION,
   describeFocus,
   dialogOf,
   diffRows,
-  FIRST_VERSION,
+  EDITABLE_PRICES_IN_SEED,
   heightOf,
   HISTORY_PATH,
   measureOpenField,
@@ -48,21 +43,19 @@ import {
   noticeOf,
   openPublish,
   openVersion,
+  PENDING_IN_SEED,
+  readVersions,
   pageOf,
-  plainText,
   provisionalSwitch,
   publishButton,
   PUBLISH_PATH,
-  RUN_UNDER_CI,
-  RUN_UNDER_NEXT_DEV,
   RUSSIAN_PUBLISH_PATH,
   restoreButton,
   revertButtons,
-  SERVER_IS_PRODUCTION_BUILD,
-  VERSIONS_IN_SAMPLE,
+  seedPendingDraft,
   versionNameField,
   startsWithNewValue,
-  versionPath,
+  versionPathOf,
   wordsBrokenIn,
   wordsOf,
   type Words,
@@ -79,9 +72,6 @@ import {
 const DESKTOP = { width: 1440, height: 900 } as const;
 const WIDTHS_OF_THE_DESKTOP_LINE = [900, 1024, 1280, 1440, 1920] as const;
 const LOCALES = ["ro", "ru"] as const;
-/** What the sample's draft holds: the frame's count, and the sections it fills. */
-const PENDING_IN_SAMPLE = 8;
-const EDITABLE_PRICES_IN_SAMPLE = 3;
 /** Where the three prices that can be corrected stand among the rows: the cabinet's, the hinge's and the rack's. */
 const ROWS_OF_THE_EDITABLE_PRICES = [0, 5, 6] as const;
 const SHORT_WAIT_MS = 3_000;
@@ -130,58 +120,12 @@ test.describe("the publish page at desktop 1440", () => {
     );
   });
 
-  test.describe("a production build (CI)", () => {
-    test.skip(!SERVER_IS_PRODUCTION_BUILD, RUN_UNDER_CI);
-
-    test("the three pages answer the unavailable screen inside the frame, with no list, panel or count", async ({
-      page,
-    }) => {
-      const unavailable = romanian("accountForm.unavailableTitle");
-      const paths = [
-        PUBLISH_PATH,
-        HISTORY_PATH,
-        versionPath(ARCHIVED_VERSION),
-        RUSSIAN_PUBLISH_PATH,
-      ];
-
-      for (const path of paths) {
-        await page.goto(path);
-
-        const expected = path.startsWith("/ru/")
-          ? wordsOf("ru")("accountForm.unavailableTitle")
-          : unavailable;
-        await expect(
-          page.getByText(expected, { exact: true }),
-          path,
-        ).toBeVisible();
-        await expect(page.getByTestId("staff-nav"), path).toBeVisible();
-        for (const testId of [
-          "publish-page",
-          "version-detail",
-          "diff-table",
-          "version-history",
-          "staff-pending-prices",
-        ]) {
-          await expect(
-            page.getByTestId(testId),
-            `${testId} at ${path}`,
-          ).toHaveCount(0);
-        }
-        await expect(
-          page
-            .getByRole("main")
-            .locator('button:not([data-testid="staff-menu-button"])'),
-          `no button in the page of ${path}`,
-        ).toHaveCount(0);
-        await expectNoSidewaysScroll(page, path);
-      }
-      await shootForReview(page, "1440-publish-unavailable-production");
-    });
-  });
-
-  test.describe("the sample surface (next dev)", () => {
-    test.skip(SERVER_IS_PRODUCTION_BUILD, RUN_UNDER_NEXT_DEV);
+  test.describe("over the dashboard's routes", () => {
     const words = wordsOf("ro");
+
+    test.beforeEach(async ({ context }) => {
+      await seedPendingDraft(context);
+    });
 
     test.describe("D7A: the pending list", () => {
       test("the table and the panel stand side by side, the frame counts the draft, and nothing scrolls sideways", async ({
@@ -195,14 +139,14 @@ test.describe("the publish page at desktop 1440", () => {
             name: romanian("priceDashboard.publish.title"),
           }),
         ).toBeVisible();
-        await expectPendingCount(page, PENDING_IN_SAMPLE);
-        await expect(diffRows(page)).toHaveCount(PENDING_IN_SAMPLE);
+        await expectPendingCount(page, PENDING_IN_SEED);
+        await expect(diffRows(page)).toHaveCount(PENDING_IN_SEED);
         const table = await page.getByTestId("diff-table").boundingBox();
         const nameField = await versionNameField(page, words).boundingBox();
         const button = await publishButton(
           page,
           words,
-          PENDING_IN_SAMPLE,
+          PENDING_IN_SEED,
         ).boundingBox();
         expect(table, "the table is drawn").not.toBeNull();
         expect(nameField, "the version name is drawn").not.toBeNull();
@@ -245,7 +189,7 @@ test.describe("the publish page at desktop 1440", () => {
         await openPublish(page);
 
         await expect(newValueButtons(page, words)).toHaveCount(
-          EDITABLE_PRICES_IN_SAMPLE,
+          EDITABLE_PRICES_IN_SEED,
         );
         const inBulkGroup = page
           .getByTestId("diff-group")
@@ -289,7 +233,7 @@ test.describe("the publish page at desktop 1440", () => {
           /4\s030\s*lei/,
         );
         await expect(button).toBeFocused();
-        await expectPendingCount(page, PENDING_IN_SAMPLE);
+        await expectPendingCount(page, PENDING_IN_SEED);
         await expect(diffRows(page).first()).toContainText("+70");
       });
 
@@ -366,7 +310,7 @@ test.describe("the publish page at desktop 1440", () => {
             described,
             "the reason is the one the field names, so it is read with it",
           ).not.toBeNull();
-          await expectPendingCount(page, PENDING_IN_SAMPLE);
+          await expectPendingCount(page, PENDING_IN_SEED);
           await field.press("Escape");
           await expect(
             nouCellOf(diffRows(page).first()),
@@ -390,7 +334,7 @@ test.describe("the publish page at desktop 1440", () => {
           field,
           "the draft's own value closes the field",
         ).toHaveCount(0);
-        await expectPendingCount(page, PENDING_IN_SAMPLE);
+        await expectPendingCount(page, PENDING_IN_SEED);
         await expect(nouCellOf(diffRows(page).first())).toContainText(
           /4\s020\s*lei/,
         );
@@ -398,12 +342,15 @@ test.describe("the publish page at desktop 1440", () => {
 
       test("typing the active price removes the row, and focus goes to the arrow now standing where the row stood", async ({
         page,
+        context,
       }) => {
         for (
           let position = 0;
-          position < EDITABLE_PRICES_IN_SAMPLE;
+          position < EDITABLE_PRICES_IN_SEED;
           position += 1
         ) {
+          await discardDraft(context);
+          await seedPendingDraft(context);
           await openPublish(page);
           const arrows = revertButtons(page);
           const rowsBefore = await diffRows(page).count();
@@ -428,7 +375,7 @@ test.describe("the publish page at desktop 1440", () => {
           await expect(diffRows(page), `price ${String(position)}`).toHaveCount(
             rowsBefore - 1,
           );
-          await expectPendingCount(page, PENDING_IN_SAMPLE - 1);
+          await expectPendingCount(page, PENDING_IN_SEED - 1);
           expect(
             await page.evaluate(
               () => document.activeElement?.getAttribute("aria-label") ?? null,
@@ -476,7 +423,7 @@ test.describe("the publish page at desktop 1440", () => {
       }) => {
         await openPublish(page);
         await versionNameField(page, words).fill(VERSION_NAME);
-        const publish = publishButton(page, words, PENDING_IN_SAMPLE);
+        const publish = publishButton(page, words, PENDING_IN_SEED);
         await expect(publish, "nothing is unsent yet").not.toHaveAttribute(
           "aria-disabled",
           "true",
@@ -516,7 +463,7 @@ test.describe("the publish page at desktop 1440", () => {
       }) => {
         await openPublish(page);
         await versionNameField(page, words).fill(VERSION_NAME);
-        const publish = publishButton(page, words, PENDING_IN_SAMPLE);
+        const publish = publishButton(page, words, PENDING_IN_SEED);
         const buttons = newValueButtons(page, words);
         const fields = newValueField(page, words);
         await buttons.first().click();
@@ -543,7 +490,7 @@ test.describe("the publish page at desktop 1440", () => {
         page,
       }) => {
         await openPublish(page);
-        const publish = publishButton(page, words, PENDING_IN_SAMPLE);
+        const publish = publishButton(page, words, PENDING_IN_SEED);
 
         for (const blank of BLANK_NAMES) {
           await versionNameField(page, words).fill(blank);
@@ -573,7 +520,7 @@ test.describe("the publish page at desktop 1440", () => {
         ).toHaveCount(0);
       });
 
-      test("a name of 81 characters, one with a direction control, and one that shows nothing are refused when the question is confirmed; 80 is published", async ({
+      test("a name of 81 characters, one with a direction control, and one that shows nothing are refused when the question is confirmed; 80 reaches the question", async ({
         page,
       }) => {
         const refused: readonly {
@@ -593,9 +540,9 @@ test.describe("the publish page at desktop 1440", () => {
             reason: romanian("priceDashboard.publish.versionNameEmpty"),
           },
         ];
+        await openPublish(page);
+        await confirmableDraft(page, words);
         for (const { name, reason } of refused) {
-          await openPublish(page);
-          await confirmableDraft(page, words);
           await versionNameField(page, words).fill(name);
 
           await askAndConfirmPublish(page, words);
@@ -605,14 +552,17 @@ test.describe("the publish page at desktop 1440", () => {
             JSON.stringify(name),
           ).toBeVisible();
           await expect(noticeOf(page), "nothing was published").toHaveCount(0);
-          await expect(diffRows(page)).toHaveCount(PENDING_IN_SAMPLE - 1);
+          await expect(diffRows(page)).toHaveCount(PENDING_IN_SEED - 1);
         }
 
-        await openPublish(page);
-        await confirmableDraft(page, words);
         await versionNameField(page, words).fill("n".repeat(MAX_NAME_LENGTH));
-        await askAndConfirmPublish(page, words);
-        await expect(noticeOf(page)).toBeVisible();
+        await publishButton(page, words, PENDING_IN_SEED - 1).click();
+        await expect(
+          dialogOf(page),
+          "the longest name is accepted as far as the question",
+        ).toBeVisible();
+        await page.keyboard.press("Escape");
+        await expect(dialogOf(page)).toHaveCount(0);
       });
     });
 
@@ -622,7 +572,7 @@ test.describe("the publish page at desktop 1440", () => {
       }) => {
         await openPublish(page);
         await versionNameField(page, words).fill(VERSION_NAME);
-        const publish = publishButton(page, words, PENDING_IN_SAMPLE);
+        const publish = publishButton(page, words, PENDING_IN_SEED);
 
         await publish.click();
 
@@ -655,16 +605,16 @@ test.describe("the publish page at desktop 1440", () => {
 
         await expect(dialog).toHaveCount(0);
         await expect(publish, "focus returns to what asked").toBeFocused();
-        await expectPendingCount(page, PENDING_IN_SAMPLE);
-        await expect(diffRows(page)).toHaveCount(PENDING_IN_SAMPLE);
+        await expectPendingCount(page, PENDING_IN_SEED);
+        await expect(diffRows(page)).toHaveCount(PENDING_IN_SEED);
       });
 
-      test("ticking it turns the confirmation on, and Publish makes the version active with the notice and the version at the top of the history", async ({
+      test("ticking it turns the confirmation on, and Esc then closes it with nothing published", async ({
         page,
       }) => {
         await openPublish(page);
         await versionNameField(page, words).fill(VERSION_NAME);
-        await publishButton(page, words, PENDING_IN_SAMPLE).click();
+        await publishButton(page, words, PENDING_IN_SEED).click();
         const dialog = dialogOf(page);
         await dialog.getByRole("checkbox").check();
         const confirm = dialog.getByRole("button", {
@@ -672,9 +622,11 @@ test.describe("the publish page at desktop 1440", () => {
         });
         await expect(confirm).not.toHaveAttribute("aria-disabled", "true");
 
-        await confirm.click();
+        await page.keyboard.press("Escape");
 
-        await expectPublished(page, words, ACTIVE_VERSION + 1);
+        await expect(dialog).toHaveCount(0);
+        await expect(noticeOf(page)).toHaveCount(0);
+        await expectPendingCount(page, PENDING_IN_SEED);
       });
     });
 
@@ -685,7 +637,7 @@ test.describe("the publish page at desktop 1440", () => {
         await openPublish(page);
         await confirmableDraft(page, words);
         await versionNameField(page, words).fill(VERSION_NAME);
-        const count = PENDING_IN_SAMPLE - 1;
+        const count = PENDING_IN_SEED - 1;
         const publish = publishButton(page, words, count);
 
         await publish.click();
@@ -726,42 +678,14 @@ test.describe("the publish page at desktop 1440", () => {
         await expect(dialog, "Cancel closes it as Esc does").toHaveCount(0);
         await expectPendingCount(page, count);
       });
-
-      test("Publish makes the version active: the notice names it, the history lists it first and the older one is archived, and the draft is empty", async ({
-        page,
-      }) => {
-        await openPublish(page);
-        await confirmableDraft(page, words);
-        await versionNameField(page, words).fill(VERSION_NAME);
-
-        await askAndConfirmPublish(page, words);
-
-        await expectPublished(page, words, ACTIVE_VERSION + 1);
-        await shootForReview(page, "1440-d7f-published");
-      });
-
-      test("after publishing, focus is not dropped to the page body: the notice that says so is where a keyboard user is", async ({
-        page,
-      }) => {
-        await openPublish(page);
-        await confirmableDraft(page, words);
-        await versionNameField(page, words).fill(VERSION_NAME);
-
-        await askAndConfirmPublish(page, words);
-
-        await expect(noticeOf(page)).toBeVisible();
-        expect(
-          await describeFocus(page),
-          "focus after the confirmation closed and the pending list went away: the publish button it returns to is gone, " +
-            "and `use-focus-when-lost` is told of a discarded or conflicting notice only (publish-page.tsx noticeThatReplacesTheQuestion)",
-        ).not.toBe("body");
-      });
     });
 
     test.describe("D7D: nothing left to publish", () => {
       test("taking back every row by the keyboard walks focus from arrow to arrow, then lands on the empty page's heading; the frame has no count", async ({
         page,
+        context,
       }) => {
+        const held = await readVersions(context);
         await openPublish(page);
         await revertButtons(page).first().focus();
 
@@ -785,8 +709,8 @@ test.describe("the publish page at desktop 1440", () => {
         await expect(page.getByTestId("staff-pending-prices")).toHaveCount(0);
         await expect(
           page.getByTestId("version-row"),
-          "D7D: the latest three versions",
-        ).toHaveCount(3);
+          "D7D: the latest three versions, or all there are",
+        ).toHaveCount(Math.min(3, held.length));
         await expect(provisionalSwitch(page)).toBeVisible();
         await shootForReview(page, "1440-d7d-empty");
       });
@@ -795,141 +719,76 @@ test.describe("the publish page at desktop 1440", () => {
     test.describe("D8A: the history", () => {
       test("the versions are listed newest first with the preparing row on top, and no pager is drawn for one page", async ({
         page,
+        context,
       }) => {
+        const held = await readVersions(context);
         await openPublish(page, HISTORY_PATH);
 
         const versions = page.getByTestId("version-row");
-        await expect(versions).toHaveCount(VERSIONS_IN_SAMPLE);
+        await expect(versions).toHaveCount(held.length);
         await expect(versions.first()).toHaveAttribute("data-state", "active");
-        await expect(versions.nth(1)).toHaveAttribute("data-state", "archived");
+        await expect(versions.first()).toContainText(
+          String(held[0]?.sequenceNumber),
+        );
         await expect(page.getByTestId("version-row-pending")).toContainText(
           romanian("priceDashboard.history.statePreparing"),
         );
         await expect(
           page.getByTestId("version-pager"),
-          "four versions on pages of twenty: one page, no pager",
+          "fewer versions than a page holds: no pager",
         ).toHaveCount(0);
         await expectNoSidewaysScroll(page, "the history at 1440");
         await shootForReview(page, "1440-d8a-history");
       });
 
-      test("a version's row opens that version's page", async ({ page }) => {
+      test("a version's row opens that version's page", async ({
+        page,
+        context,
+      }) => {
+        const [newest] = await readVersions(context);
         await openPublish(page, HISTORY_PATH);
 
-        await page.getByTestId("version-row").nth(1).click();
+        await page.getByTestId("version-row").first().click();
 
         await expect(page).toHaveURL(
-          new RegExp(`${versionPath(ARCHIVED_VERSION)}$`),
+          new RegExp(`${versionPathOf(newest?.versionId ?? "")}$`),
         );
         await expect(page.getByTestId("version-detail")).toBeVisible();
       });
     });
 
-    test.describe("D8B and D8C: one version", () => {
-      test("an archived version is read-only: its diff has no field, no pencil and no arrow, and its columns are the two versions", async ({
+    test.describe("D8B: one version", () => {
+      test("the first version, which is the active one, has no diff and no restore, and nothing in it can be edited", async ({
         page,
+        context,
       }) => {
-        await openVersion(page, ARCHIVED_VERSION);
-
-        await expect(diffRows(page).first()).toBeVisible();
-        await expect(
-          page.getByTestId("version-detail").locator("input"),
-        ).toHaveCount(0);
-        await expect(revertButtons(page)).toHaveCount(0);
-        await expect(
-          page.getByTestId("version-detail").locator("[class*='priceButton']"),
-        ).toHaveCount(0);
-        await expect(page.getByTestId("version-detail")).toContainText(
-          romanian("priceDashboard.history.columnInVersion", {
-            versionId: "2",
-          }),
+        const [only] = await readVersions(context);
+        expect(only?.sequenceNumber, "the server holds version 1 first").toBe(
+          1,
         );
-        await expect(
-          page.getByRole("button", {
-            name: romanian("priceDashboard.history.restoreAction", {
-              versionId: String(ARCHIVED_VERSION),
-            }),
-          }),
-        ).toBeVisible();
-        await expectNoSidewaysScroll(page, "version 3 at 1440");
-        await shootForReview(page, "1440-d8b-archived");
-      });
+        await openVersion(page, only?.versionId ?? "");
 
-      test("the active version has the diff and no restore; the first version has no diff and, being archived, the restore", async ({
-        page,
-      }) => {
-        await openVersion(page, ACTIVE_VERSION);
-        await expect(diffRows(page).first()).toBeVisible();
-        await expect(
-          restoreButton(page, ACTIVE_VERSION),
-          "D8C is for an archived version only",
-        ).toHaveCount(0);
-        await expect(revertButtons(page)).toHaveCount(0);
-        await shootForReview(page, "1440-d8b-active");
-
-        await openVersion(page, FIRST_VERSION);
         await expect(diffRows(page)).toHaveCount(0);
         await expect(
           page.getByText(romanian("priceDashboard.history.firstVersion")),
         ).toBeVisible();
-        await expect(restoreButton(page, FIRST_VERSION)).toBeVisible();
-      });
-
-      test("D8C: Restore opens on Cancel, Esc closes with nothing added and focus back, and the confirmation adds the prices to the pending list", async ({
-        page,
-      }) => {
-        await openVersion(page, ARCHIVED_VERSION);
-        const ask = page.getByRole("button", {
-          name: romanian("priceDashboard.history.restoreAction", {
-            versionId: String(ARCHIVED_VERSION),
-          }),
-        });
-        await ask.click();
-        const dialog = dialogOf(page);
         await expect(
-          dialog.getByRole("button", {
-            name: romanian("priceDashboard.common.cancel"),
-          }),
-        ).toBeFocused();
+          restoreButton(page, only?.sequenceNumber ?? 1),
+          "D8C is for an archived version only",
+        ).toHaveCount(0);
+        await expect(revertButtons(page)).toHaveCount(0);
         await expect(
-          dialog.getByRole("heading", {
-            name: romanian("priceDashboard.history.restoreTitle", {
-              versionId: String(ARCHIVED_VERSION),
-            }),
-          }),
-        ).toBeVisible();
-        await shootForReview(page, "1440-d8c-restore");
-        await expectFocusStaysInside(page, dialog);
-
-        await page.keyboard.press("Escape");
-
-        await expect(dialog).toHaveCount(0);
-        await expect(ask).toBeFocused();
-        await expect(page.getByTestId("restore-notice")).toHaveCount(0);
-        await expectPendingCount(page, PENDING_IN_SAMPLE);
-
-        await ask.click();
-        await dialogOf(page)
-          .getByRole("button", {
-            name: romanian("priceDashboard.common.addToPending"),
-          })
-          .click();
-
-        await expect(page.getByTestId("restore-notice")).toBeVisible();
-        await expect(dialogOf(page)).toHaveCount(0);
-        await expect(
-          page.getByTestId("staff-pending-prices"),
-          "the frame's count follows the restore",
-        ).toBeVisible();
+          page.getByTestId("version-detail").locator("input"),
+        ).toHaveCount(0);
+        await expectNoSidewaysScroll(page, "version 1 at 1440");
+        await shootForReview(page, "1440-d8b-first");
       });
 
       test("a version nobody holds is the framework's 404, and nothing else is reported by the page", async ({
         page,
         pageErrors,
       }) => {
-        const response = await page.goto(
-          `${PUBLISH_PATH}/sample-version-00000099`,
-        );
+        const response = await page.goto(`${PUBLISH_PATH}/${"A".repeat(21)}`);
 
         expect(response?.status()).toBe(404);
         await expect(page.getByTestId("version-detail")).toHaveCount(0);
@@ -959,7 +818,7 @@ test.describe("the publish page at desktop 1440", () => {
           }),
         ).toBeVisible();
         await expect(newValueButtons(page, russian)).toHaveCount(
-          EDITABLE_PRICES_IN_SAMPLE,
+          EDITABLE_PRICES_IN_SEED,
         );
         // Frame D2R: cabinet names stay Romanian on the Russian route until the official translation.
         await expect(
@@ -967,7 +826,7 @@ test.describe("the publish page at desktop 1440", () => {
           "the Russian page keeps a cabinet's Romanian name",
         ).toContainText(wordsOf("ro")("catalog.entries.base-cabinet"));
         await versionNameField(page, russian).fill("Ноябрьские цены");
-        await publishButton(page, russian, PENDING_IN_SAMPLE).click();
+        await publishButton(page, russian, PENDING_IN_SEED).click();
         await expect(
           dialogOf(page).getByRole("heading", {
             name: russian("priceDashboard.publish.provisionalOffTitle"),
@@ -1050,11 +909,11 @@ async function confirmableDraft(page: Page, words: Words): Promise<void> {
     provisionalSwitch(page),
     "the switch follows the draft",
   ).toHaveAttribute("aria-checked", "true");
-  await expect(publishButton(page, words, PENDING_IN_SAMPLE - 1)).toBeVisible();
+  await expect(publishButton(page, words, PENDING_IN_SEED - 1)).toBeVisible();
 }
 
 async function askAndConfirmPublish(page: Page, words: Words): Promise<void> {
-  await publishButton(page, words, PENDING_IN_SAMPLE - 1).click();
+  await publishButton(page, words, PENDING_IN_SEED - 1).click();
   await dialogOf(page)
     .getByRole("button", {
       name: romanian("priceDashboard.publish.confirmAction"),
@@ -1075,31 +934,4 @@ async function expectFocusStaysInside(
       `after ${key}`,
     ).toBe(true);
   }
-}
-
-/** The published notice, the history with the new version first and the old one archived, and an empty draft. */
-async function expectPublished(
-  page: Page,
-  words: Words,
-  sequenceNumber: number,
-): Promise<void> {
-  const notice = noticeOf(page);
-  await expect(notice).toBeVisible();
-  expect(plainText(await notice.innerText())).toContain(
-    plainText(
-      words("priceDashboard.publish.publishedTitle", {
-        versionId: String(sequenceNumber),
-        versionName: VERSION_NAME,
-      }),
-    ),
-  );
-  const versions = page.getByTestId("version-row");
-  await expect(versions).toHaveCount(VERSIONS_IN_SAMPLE + 1);
-  await expect(versions.first()).toHaveAttribute("data-state", "active");
-  await expect(versions.nth(1)).toHaveAttribute("data-state", "archived");
-  await expect(versions.first()).toContainText(String(sequenceNumber));
-  await expect(page.getByTestId("staff-pending-prices")).toHaveCount(0);
-  await expect(page.getByTestId("version-row-pending")).toHaveCount(0);
-  await expectNoSidewaysScroll(page, "the published history");
-  await shootViewport(page, `1440-published-${String(sequenceNumber)}`);
 }

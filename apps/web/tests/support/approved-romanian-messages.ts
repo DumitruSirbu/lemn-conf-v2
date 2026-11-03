@@ -2294,7 +2294,10 @@ export const APPROVED_ROMANIAN_MESSAGES = {
         "Ce ai pregătit nu mai poate fi afișat sau publicat. Prețurile active nu s-au schimbat. Poți renunța la ciornă și o iei de la capăt.",
       staleDraftTitle: "Unele prețuri pregătite nu mai pot fi aplicate",
       staleDraftBody:
-        "Lista nu poate fi afișată, pentru că ce ai pregătit nu se mai potrivește cu prețurile active. Prețurile active nu s-au schimbat. Poți renunța la ciornă și o iei de la capăt.",
+        "Ce ai pregătit nu se mai potrivește cu prețurile active, așa că nu poate fi publicat. Prețurile active nu s-au schimbat. Poți renunța la modificările de mai jos una câte una sau la toată ciorna.",
+      staleChangeKept: "{name}: modificare pregătită.",
+      staleChangeWholeDraftOnly:
+        "{name}: nu se poate anula singură, doar împreună cu toată ciorna.",
       unchangedDraftTitle: "Ce ai pregătit nu diferă de prețurile active",
       unchangedDraftBody:
         "Modificările pregătite se anulează între ele, așa că lista nu are ce arăta și nu e nimic de publicat. Prețurile active nu s-au schimbat. Poți renunța la ciornă și o iei de la capăt.",
@@ -2355,6 +2358,8 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       // approval as drafted (OQ-11). The Russian is an agent draft, unapproved under ADR 0095 decision 2, never pinned.
       versionNotFound:
         "Versiunea nu mai există sau nu poate fi citită. Nimic nu s-a adăugat la „De publicat”.",
+      restoreCandidateRefused:
+        "Prețurile din această versiune nu pot fi adăugate: lista care ar rezulta nu trece verificarea catalogului. Nimic nu s-a adăugat la „De publicat”.",
       // Drafted, not approved: the Romanian is the agent's draft of wave U5's visual-round copy, pending the owner's
       // approval as drafted (OQ-11). The Russian is an agent draft, unapproved under ADR 0095 decision 2, never pinned.
       restoreReplaces:

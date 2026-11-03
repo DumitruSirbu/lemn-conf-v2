@@ -2,6 +2,8 @@
 
 import { useCallback, useMemo, useState } from "react";
 
+import { raiseStaffSessionExpired } from "@/staff/staff-session-expiry";
+
 import type {
   CandidateRefusalWire,
   DashboardDraftWire,
@@ -11,7 +13,7 @@ import type {
   PublishTextRefusalCode,
 } from "./price-dashboard-wire-contract";
 import { orFailed } from "./async-seams";
-import { defaultPublishClient } from "./default-publish-client";
+import { FETCHING_PUBLISH_CLIENT } from "./fetching-publish-client";
 import type { PriceDraftClient } from "./price-draft-client";
 import {
   type PublishBlock,
@@ -24,6 +26,11 @@ import {
   type PendingDraftReading,
   type PublishPageInput,
 } from "./publish-model";
+import {
+  judgePendingDeletions,
+  type DeletionJudgement,
+} from "./publish-deletions";
+import { staleChangesOf, type StaleChangeView } from "./stale-draft";
 import { useUnsentAmounts, type ReportUnsentAmount } from "./unsent-amounts";
 import { useDiscardDraft, type DiscardControl } from "./use-discard-draft";
 import {
@@ -68,6 +75,10 @@ export interface PublishDesk {
   readonly state: DashboardStateWire;
   readonly history: VersionHistory;
   readonly reading: PendingDraftReading;
+  /** The draft's changes one by one, when it no longer makes a book; empty otherwise. */
+  readonly staleChanges: readonly StaleChangeView[];
+  /** Whether the draft's deletions can be published; the page asks it before it sends a publish. */
+  readonly deletion: DeletionJudgement;
   readonly view: PublishView;
   readonly versionName: string;
   readonly nameRefusal: PublishTextRefusalCode | undefined;
@@ -105,10 +116,7 @@ export function usePublishDesk({
   initialView,
   client: suppliedClient,
 }: DeskInput): PublishDesk {
-  const client = useMemo(
-    () => suppliedClient ?? defaultPublishClient({ kind: "publish", input }),
-    [suppliedClient, input],
-  );
+  const client = suppliedClient ?? FETCHING_PUBLISH_CLIENT;
   const draftClient = useMemo(() => draftClientOf(client), [client]);
   const priceDraft = usePriceDraft({
     initial: input.state,
@@ -131,6 +139,26 @@ export function usePublishDesk({
         cabinetNames: input.cabinetNames,
       }),
     [state, input.cabinetNames],
+  );
+  const staleChanges = useMemo(
+    () =>
+      reading.kind === "candidate-refused"
+        ? staleChangesOf({
+            active: state.active.book,
+            changes: state.draft.changes,
+            cabinetNames: input.cabinetNames,
+          })
+        : [],
+    [reading.kind, state, input.cabinetNames],
+  );
+  const deletion = useMemo(
+    () =>
+      judgePendingDeletions({
+        book: state.active.book,
+        changes: state.draft.changes,
+        facts: input.deletionFacts,
+      }),
+    [state, input.deletionFacts],
   );
   const { hasUnsentAmount, reportUnsentAmount } = useUnsentAmounts();
   const isBusy = phase.kind === "publishing";
@@ -255,6 +283,10 @@ export function usePublishDesk({
             refusals: outcome.refusals,
           });
           return;
+        case "session-ended":
+          raiseStaffSessionExpired({ keepsTypedText: true });
+          setNotice({ kind: "failed" });
+          return;
         case "failed":
           setNotice({ kind: "failed" });
       }
@@ -284,6 +316,8 @@ export function usePublishDesk({
     state,
     history,
     reading,
+    staleChanges,
+    deletion,
     view,
     versionName,
     nameRefusal,
@@ -300,7 +334,13 @@ export function usePublishDesk({
       setNameRefusal(undefined);
     },
     requestPublish: () => {
-      if (isDraftBusy || hasUnsentAmount) return;
+      if (isDraftBusy || hasUnsentAmount || deletion.kind === "cannot-judge") {
+        return;
+      }
+      if (deletion.kind === "blocked") {
+        setNotice({ kind: "blocked", block: deletion.block });
+        return;
+      }
       if (versionName.trim() === "") {
         setNameRefusal("TEXT_EMPTY");
         return;

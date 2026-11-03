@@ -6,7 +6,6 @@ import { createTranslator } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ForbiddenScreen } from "@/account/forbidden-screen";
-import { SAMPLE_PUBLISH_PAGE } from "@/price-dashboard/publish-sample";
 import { StaffKitchensScreen } from "@/staff/staff-kitchens-list";
 import { StaffKitchensUnavailableScreen } from "@/staff/staff-kitchens-states";
 
@@ -17,6 +16,9 @@ import {
   type AccountWorld,
 } from "../support/account-world";
 import { signedInAs } from "../support/staff-world";
+
+/** The seeded fake world every page test reads holds no draft. */
+const SEEDED_WORLD_PENDING_PRICES = 0;
 
 const framework = vi.hoisted(() => ({
   connection: vi.fn(() => Promise.resolve()),
@@ -104,8 +106,7 @@ describe("a person who is signed in as staff", () => {
           navigation,
           ...(role === "administrator"
             ? {
-                pendingPriceCount:
-                  SAMPLE_PUBLISH_PAGE.state.draft.changes.length,
+                pendingPriceCount: SEEDED_WORLD_PENDING_PRICES,
               }
             : {}),
         },

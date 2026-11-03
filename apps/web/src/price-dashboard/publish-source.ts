@@ -1,11 +1,22 @@
-import type { AppLocale } from "@/i18n/routing";
+import "server-only";
 
+import {
+  readAdmitted,
+  readFirstVersionPage,
+  readPredecessorOf,
+  readStateReading,
+  readVersion,
+} from "./admitted-state-read";
 import { pendingPriceCountOf } from "./cabinet-list-model";
-import { isProductionBuild } from "./is-production-build";
 import type { PublishPageInput, VersionDetailInput } from "./publish-model";
+import type { DashboardStateWire } from "./price-dashboard-wire-contract";
+import { readDashboardStateWire } from "./price-dashboard-wire-reading";
+import { romanianCabinetNamesOf } from "./romanian-cabinet-names";
 
-// A production build answers `unavailable`, never a sample; the sample is loaded on a non-production read only, because
-// this module is on the path of every staff page (the frame's count). see plan M10 §10, wave U5.
+// The one place the publish screens' facts come from: the dashboard's state and the history, read for a page whose staff
+// gate (`price.edit`) has already admitted the reader. A render reads and never writes: no session, no limiter bucket, no
+// audit row. What cannot be read is `unavailable` and no price is claimed; a draft that cannot be read is told apart,
+// because the one thing that works on it is giving it up, at the revision it names.
 
 export type PublishPageRead =
   | { readonly kind: "ready"; readonly input: PublishPageInput }
@@ -15,35 +26,91 @@ export type PublishPageRead =
 
 export type VersionDetailRead =
   | { readonly kind: "ready"; readonly input: VersionDetailInput }
+  | { readonly kind: "draft-unreadable"; readonly draftRevision: string }
   | { readonly kind: "not-found" }
   | { readonly kind: "unavailable" };
 
-/** The page's input, its cabinets named in the language of the route. */
-export async function readPublishPage(
-  locale: AppLocale,
-): Promise<PublishPageRead> {
-  if (isProductionBuild()) return { kind: "unavailable" };
-  const { samplePublishPageIn } = await import("./publish-sample");
-  return { kind: "ready", input: samplePublishPageIn(locale) };
+type StateRead =
+  | { readonly kind: "ready"; readonly state: DashboardStateWire }
+  | { readonly kind: "draft-unreadable"; readonly draftRevision: string }
+  | { readonly kind: "unavailable" };
+
+/** The page's input, its cabinets named in Romanian on both routes. */
+export async function readPublishPage(): Promise<PublishPageRead> {
+  const read = await readState();
+  if (read.kind !== "ready") return read;
+  const { state } = read;
+  const versions = await readAdmitted(readFirstVersionPage);
+  if (versions.kind === "unavailable") return versions;
+  return {
+    kind: "ready",
+    input: {
+      state,
+      versions: versions.value,
+      cabinetNames: romanianCabinetNamesOf(state.active.book),
+    },
+  };
 }
 
 export async function readVersionDetail(
   versionId: string,
-  locale: AppLocale,
 ): Promise<VersionDetailRead> {
-  if (isProductionBuild()) return { kind: "unavailable" };
-  const { sampleVersionDetail } = await import("./publish-sample");
-  const input = sampleVersionDetail(versionId, locale);
-  return input === undefined ? { kind: "not-found" } : { kind: "ready", input };
+  const found = await readAdmitted(() => readVersion(versionId));
+  if (found.kind === "unavailable") return found;
+  if (found.value === undefined) return { kind: "not-found" };
+  const { value: version } = found;
+  const read = await readState();
+  if (read.kind !== "ready") return read;
+  const predecessor = await readAdmitted(() =>
+    readPredecessorOf(version.sequenceNumber),
+  );
+  if (predecessor.kind === "unavailable") return predecessor;
+  const { state } = read;
+  return {
+    kind: "ready",
+    input: {
+      version,
+      predecessor:
+        predecessor.value === undefined
+          ? undefined
+          : {
+              sequenceNumber: predecessor.value.sequenceNumber,
+              book: predecessor.value.book,
+            },
+      active: {
+        sequenceNumber: state.active.sequenceNumber,
+        book: state.active.book,
+      },
+      draft: state.draft,
+      cabinetNames: {
+        ...romanianCabinetNamesOf(predecessor.value?.book ?? version.book),
+        ...romanianCabinetNamesOf(version.book),
+        ...romanianCabinetNamesOf(state.active.book),
+      },
+    },
+  };
 }
 
 /**
  * How many prices the draft holds, or nothing when that cannot be known. The staff frame draws a number, or the
- * "all published" line for a known zero, and draws nothing at all for an unknown count: an unreadable store is never
- * reported as an empty draft.
+ * "all published" line for a known zero, and draws nothing at all for an unknown count: an unreadable store, an
+ * unreadable draft and a dashboard with no version are never reported as an empty draft.
  */
 export async function readPendingPriceCount(): Promise<number | undefined> {
-  if (isProductionBuild()) return undefined;
-  const { SAMPLE_PUBLISH_PAGE } = await import("./publish-sample");
-  return pendingPriceCountOf(SAMPLE_PUBLISH_PAGE.state.draft);
+  const read = await readState();
+  return read.kind === "ready"
+    ? pendingPriceCountOf(read.state.draft)
+    : undefined;
+}
+
+async function readState(): Promise<StateRead> {
+  const read = await readStateReading();
+  if (read.kind === "unavailable") return read;
+  const reading = read.value;
+  if (reading.kind === "draft-unreadable") return reading;
+  if (reading.kind === "no-active-version") return { kind: "unavailable" };
+  const state = readDashboardStateWire(reading.wire);
+  return state === undefined
+    ? { kind: "unavailable" }
+    : { kind: "ready", state };
 }

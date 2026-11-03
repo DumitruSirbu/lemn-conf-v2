@@ -69,16 +69,6 @@ describe("the invented cabinet list can reach nobody", () => {
     );
   });
 
-  it("keeps the browser's choice of client on the literal itself, with the sample behind a dynamic import", () => {
-    const source = sourceOf(join(DASHBOARD_ROOT, "default-publish-client.ts"));
-
-    expect(source).toMatch(/process\.env\.NODE_ENV\s*===\s*"production"/);
-    expect(source).not.toMatch(/process\.env\[/);
-    expect(source).not.toMatch(/isProductionBuild/);
-    expect(source).not.toMatch(/^import[^;]*publish-sample-client/m);
-    expect(source).toMatch(/import\(\s*"\.\/publish-sample-client"\s*\)/);
-  });
-
   it("still holds the one predicate the other sources ask, with the literal the bundler replaces", () => {
     const predicate = sourceOf(join(DASHBOARD_ROOT, "is-production-build.ts"));
 

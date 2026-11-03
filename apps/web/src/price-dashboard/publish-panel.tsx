@@ -146,6 +146,8 @@ export interface PublishButtonProps {
   readonly canPublish: boolean;
   /** A row's "Nou" holds text that was not sent: the publish is off, and the reason stands beside it. */
   readonly hasUnsentAmount: boolean;
+  /** The draft deletes a row whose use by saved kitchens cannot be counted: the publish is off, and says so. */
+  readonly cannotJudgeDeletions: boolean;
   readonly isBusy: boolean;
   readonly onPress: () => void;
 }
@@ -156,17 +158,21 @@ export function PublishButton({
   changeCount,
   canPublish,
   hasUnsentAmount,
+  cannotJudgeDeletions,
   isBusy,
   onPress,
 }: PublishButtonProps) {
   const translate = useTranslations();
   const reasonId = useId();
-  const isOff = !canPublish || isBusy || hasUnsentAmount;
+  const hasReason = hasUnsentAmount || cannotJudgeDeletions;
+  const isOff = !canPublish || isBusy || hasReason;
   return (
     <div className={styles.actionBar}>
-      {hasUnsentAmount ? (
+      {hasReason ? (
         <p id={reasonId} className={styles.actionReason}>
-          {translate("priceDashboard.publish.unsentAmountHint")}
+          {hasUnsentAmount
+            ? translate("priceDashboard.publish.unsentAmountHint")
+            : translate("priceDashboard.lifecycle.cannotJudge")}
         </p>
       ) : null}
       <button
@@ -175,7 +181,7 @@ export function PublishButton({
         className={styles.primary}
         aria-disabled={isOff ? true : undefined}
         aria-busy={isBusy ? true : undefined}
-        aria-describedby={hasUnsentAmount ? reasonId : undefined}
+        aria-describedby={hasReason ? reasonId : undefined}
         onClick={isOff ? undefined : onPress}
       >
         {isBusy

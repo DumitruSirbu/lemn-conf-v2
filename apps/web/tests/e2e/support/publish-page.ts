@@ -1,14 +1,26 @@
-import { expect, type Locator, type Page } from "@playwright/test";
+import {
+  isSameAddress,
+  readEditableFields,
+  type AppliedAddress,
+  type PriceBook,
+} from "@lemnaria/configurator-domain";
+import {
+  expect,
+  type BrowserContext,
+  type Locator,
+  type Page,
+} from "@playwright/test";
 
 import { russian } from "./cabinet-detail-page";
+import { DRAFT_ROUTE, OK, STATE_ROUTE } from "./price-dashboard-session";
 import { romanian } from "./staff-world";
 
 // How the publish page at /staff/catalog/publish, its history tab and one version's page are read in a browser: where
 // they are, and the names of their parts. The assertions stay in the specs (docs/best-practices/browser-and-visual-qa.md).
 //
-// The working surface of these pages exists only under `next dev`: `readPublishPage` and `readVersionDetail` answer
-// "unavailable" in a production build, and so does the screen's own client. The playwright config builds and serves a
-// production build whenever `CI` is set, so the specs read the same variable to know which of the two they are in.
+// The pages read the server's own draft and history, in a development server and in a production build alike, so a spec
+// seeds the draft through the routes the dashboard uses, as the screens do. A spec never publishes: a publish moves the
+// active version for every other spec of the same server.
 
 export const PUBLISH_PATH = "/ro/staff/catalog/publish";
 export const HISTORY_PATH = `${PUBLISH_PATH}/history`;
@@ -17,24 +29,156 @@ export const RUSSIAN_PUBLISH_PATH = "/ru/staff/catalog/publish";
 /** The config's own test: `playwright.config.ts` starts `next start` when `CI` is set, `next dev` otherwise. */
 export const SERVER_IS_PRODUCTION_BUILD = process.env.CI !== undefined;
 
-export const RUN_UNDER_NEXT_DEV =
-  "The publish page's working surface is a sample that only `next dev` draws; a production build answers the " +
-  "unavailable screen, which the production-build tests of this file hold. Run it without CI set.";
-export const RUN_UNDER_CI =
-  "The unavailable screen is what a production build draws, and `next dev` draws the sample instead. Run it with: CI=1";
+const BULK_ROUTE = "/api/staff/prices/bulk";
+const VERSIONS_ROUTE = "/api/staff/prices/versions";
+const BASE_CABINET_RULE_ID = "cabinet.base-cabinet";
+const BULK_PERCENT = 5;
+const ANCHOR_RISE_MINOR = 6_000;
+const DEPTH_PERCENT = 18;
+const MDF_PERCENT = 30;
+const HINGE_MINOR = 4_500;
+const DRYING_RACK_MINOR = 65_000;
+const SECOND_TIER = 1;
 
-/** The sample's versions, oldest first: 1 is the first (nothing before it), 3 is archived, 4 is the active one. */
-export const FIRST_VERSION = 1;
-export const ARCHIVED_VERSION = 3;
-export const ACTIVE_VERSION = 4;
-export const VERSIONS_IN_SAMPLE = 4;
+/** What the seeded draft holds: the frame's count, the rows of the table, and the prices a person can correct inline. */
+export const PENDING_IN_SEED = 8;
+export const EDITABLE_PRICES_IN_SEED = 3;
 
-export function versionPath(
-  sequenceNumber: number,
+interface DraftBody {
+  readonly draftRevision: string;
+  readonly changes: readonly unknown[];
+}
+
+/**
+ * Puts the draft of the publish review in the server's draft, through the routes: a bulk action on the base cabinet whose
+ * anchor is then set on its own, and a depth rule, a material, a hinge, a drying rack and the provisional switch. Eight
+ * changes, three of them prices a row lets a person correct.
+ */
+export async function seedPendingDraft(context: BrowserContext): Promise<void> {
+  const state = await readStateOf(context);
+  let revision = await bulkOnBaseCabinet(context, state.draft.draftRevision);
+  for (const change of seedChangesOf(state.active.book)) {
+    revision = await putChange(context, revision, change);
+  }
+  const { draft } = await readStateOf(context);
+  expect(draft.changes, "the seeded draft").toHaveLength(PENDING_IN_SEED);
+}
+
+interface SeedChange {
+  readonly address: AppliedAddress | { readonly kind: "provisional" };
+  readonly value: number | boolean;
+}
+
+function seedChangesOf(book: PriceBook): readonly SeedChange[] {
+  const anchor: AppliedAddress = {
+    kind: "cabinet",
+    ruleId: BASE_CABINET_RULE_ID,
+    field: "anchorMinor",
+  };
+  const activeAnchor = readEditableFields(book).find((reading) =>
+    isSameAddress(reading.address, anchor),
+  )?.value;
+  if (typeof activeAnchor !== "number") {
+    throw new Error("the active book has no anchor for the base cabinet");
+  }
+  const material = book.material.tiers[SECOND_TIER];
+  const hardware = book.hardware.tiers[SECOND_TIER];
+  if (material === undefined || hardware === undefined) {
+    throw new Error("the active book has fewer than two tiers");
+  }
+  return [
+    { address: anchor, value: activeAnchor + ANCHOR_RISE_MINOR },
+    { address: { kind: "depth-rule" }, value: DEPTH_PERCENT },
+    {
+      address: {
+        kind: "material",
+        tierId: material.tierId,
+        field: "percentOfCabinets",
+      },
+      value: MDF_PERCENT,
+    },
+    {
+      address: {
+        kind: "hardware",
+        tierId: hardware.tierId,
+        field: "perHingeMinor",
+      },
+      value: HINGE_MINOR,
+    },
+    {
+      address: {
+        kind: "accessory",
+        accessoryId: "dishDryingRack",
+        field: "perUnitMinor",
+      },
+      value: DRYING_RACK_MINOR,
+    },
+    { address: { kind: "provisional" }, value: false },
+  ];
+}
+
+async function readStateOf(context: BrowserContext) {
+  const answer = await context.request.get(STATE_ROUTE);
+  expect(answer.status(), "the dashboard's state").toBe(OK);
+  return (await answer.json()) as {
+    active: { book: PriceBook };
+    draft: DraftBody;
+  };
+}
+
+async function bulkOnBaseCabinet(
+  context: BrowserContext,
+  expectedDraftRevision: string,
+): Promise<string> {
+  const answer = await context.request.post(BULK_ROUTE, {
+    data: {
+      expectedDraftRevision,
+      target: { scope: "selection", ruleIds: [BASE_CABINET_RULE_ID] },
+      percent: BULK_PERCENT,
+    },
+  });
+  expect(answer.status(), "the bulk action on the base cabinet").toBe(OK);
+  return ((await answer.json()) as { draft: DraftBody }).draft.draftRevision;
+}
+
+async function putChange(
+  context: BrowserContext,
+  expectedDraftRevision: string,
+  change: SeedChange,
+): Promise<string> {
+  const answer = await context.request.put(DRAFT_ROUTE, {
+    data: { expectedDraftRevision, change },
+  });
+  expect(
+    answer.status(),
+    `the change at ${JSON.stringify(change.address)}`,
+  ).toBe(OK);
+  return ((await answer.json()) as DraftBody).draftRevision;
+}
+
+export interface PublishedVersion {
+  readonly versionId: string;
+  readonly sequenceNumber: number;
+  readonly state: "active" | "archived";
+}
+
+/** The versions the server holds, newest first. */
+export async function readVersions(
+  context: BrowserContext,
+): Promise<readonly PublishedVersion[]> {
+  const answer = await context.request.get(VERSIONS_ROUTE);
+  expect(answer.status(), "the history").toBe(OK);
+  const { versions } = (await answer.json()) as {
+    versions: readonly PublishedVersion[];
+  };
+  return versions;
+}
+
+export function versionPathOf(
+  versionId: string,
   locale: "ro" | "ru" = "ro",
 ): string {
-  const id = `sample-version-${String(sequenceNumber).padStart(8, "0")}`;
-  return `/${locale}/staff/catalog/publish/${id}`;
+  return `/${locale}/staff/catalog/publish/${versionId}`;
 }
 
 /** The words of a screen, in the language of the route it is opened at. */
@@ -54,10 +198,10 @@ export async function openPublish(page: Page, path = PUBLISH_PATH) {
 
 export async function openVersion(
   page: Page,
-  sequenceNumber: number,
+  versionId: string,
   locale: "ro" | "ru" = "ro",
 ): Promise<void> {
-  await page.goto(versionPath(sequenceNumber, locale));
+  await page.goto(versionPathOf(versionId, locale));
   await expectPublishHydrated(page, "version-detail");
 }
 

@@ -1,6 +1,5 @@
 import type { ItemRef } from "@lemnaria/configurator-domain";
 
-import { memoizeAsync } from "./async-seams";
 import type {
   CandidateRefusalWire,
   DashboardDraftWire,
@@ -16,7 +15,8 @@ import type {
   RestoreRequestWire,
 } from "./price-dashboard-wire-contract";
 
-// What the screens write through. A production build has no server to write to: it answers `failed` and writes nothing.
+// What the screens write through. Each outcome names every answer a route can give that the screen tells apart; any other
+// answer is `failed`, and `session-ended` is a `401` that the screen raises to the staff frame.
 
 /**
  * The draft after a write, or why it was not written. `conflict` is `changed-meanwhile`: nothing was written. `refused`
@@ -27,17 +27,19 @@ export type DraftWriteOutcome =
   | { readonly kind: "refused"; readonly code: DraftChangeRefusalCode }
   | { readonly kind: "candidate-refused" }
   | { readonly kind: "conflict" }
+  | { readonly kind: "session-ended" }
   | { readonly kind: "failed" };
 
 /** What discarding the whole draft came to: it has no value to refuse and no book to judge. */
 export type DiscardOutcome = Extract<
   DraftWriteOutcome,
-  { readonly kind: "changed" | "conflict" | "failed" }
+  { readonly kind: "changed" | "conflict" | "session-ended" | "failed" }
 >;
 
 /** One page of the history, or `failed` when it could not be read. */
 export type VersionPageOutcome =
   | { readonly kind: "listed"; readonly list: PriceVersionListWire }
+  | { readonly kind: "session-ended" }
   | { readonly kind: "failed" };
 
 export type PublishBlock =
@@ -54,6 +56,7 @@ export type PublishOutcome =
       readonly kind: "candidate-refused";
       readonly refusals: readonly CandidateRefusalWire[];
     }
+  | { readonly kind: "session-ended" }
   | { readonly kind: "failed" };
 
 export type RestoreOutcome =
@@ -64,11 +67,17 @@ export type RestoreOutcome =
     }
   | { readonly kind: "nothing-differs" }
   | { readonly kind: "conflict" }
+  /** The draft with the restored prices no longer makes a book: retrying cannot succeed until the draft changes. */
+  | { readonly kind: "candidate-refused" }
   | { readonly kind: "version-not-found" }
+  | { readonly kind: "session-ended" }
   | { readonly kind: "failed" };
 
 export interface PublishClient {
-  /** The dashboard's state again, after a write was refused as `changed-meanwhile`; absent when it cannot be read. */
+  /**
+   * The dashboard's state again, after a write was refused as `changed-meanwhile`; absent when it cannot be read, a stored
+   * draft that cannot be read included. A read refused because the session ended raises the staff frame's sheet itself.
+   */
   readState(): Promise<DashboardStateWire | undefined>;
   publish(request: PublishRequestWire): Promise<PublishOutcome>;
   change(request: DraftChangeRequestWire): Promise<DraftWriteOutcome>;
@@ -81,29 +90,4 @@ export interface PublishClient {
     versionId: string,
     request: RestoreRequestWire,
   ): Promise<RestoreOutcome>;
-}
-
-export const UNAVAILABLE_PUBLISH_CLIENT: PublishClient = {
-  readState: () => Promise.resolve(undefined),
-  publish: () => Promise.resolve({ kind: "failed" }),
-  change: () => Promise.resolve({ kind: "failed" }),
-  revert: () => Promise.resolve({ kind: "failed" }),
-  discardDraft: () => Promise.resolve({ kind: "failed" }),
-  readVersionPage: () => Promise.resolve({ kind: "failed" }),
-  restore: () => Promise.resolve({ kind: "failed" }),
-};
-
-/** A client that is loaded by its first call, so the module behind `load` is fetched only if something is written. */
-export function lazyClient(load: () => Promise<PublishClient>): PublishClient {
-  const client = memoizeAsync(load);
-  return {
-    readState: async () => (await client()).readState(),
-    publish: async (request) => (await client()).publish(request),
-    change: async (request) => (await client()).change(request),
-    revert: async (request) => (await client()).revert(request),
-    discardDraft: async (request) => (await client()).discardDraft(request),
-    readVersionPage: async (page) => (await client()).readVersionPage(page),
-    restore: async (versionId, request) =>
-      (await client()).restore(versionId, request),
-  };
 }
