@@ -716,6 +716,7 @@ the stated default and needs only a yes or a correction.
 | --- | --- | --- | --- |
 | OQ-28a | Push runner: replaces the drawer runner's rate, or adds to it? | Replaces it | P6 |
 | OQ-28b | May a hardware class's push-runner rate be 0? Under "replaces", 0 bills every push-to-open drawer's runner at nothing | **Refused at 0**: every push-to-open drawer has a runner (the "0 means the class lacks it" convention does not fit) | P6 |
+| OQ-11b | New P6 copy: `priceDashboard.errors.aboveZero` and the creation note's push-runner exception, marked drafted | Built as drafted | P6 |
 | OQ-28c | P6 leaves the seeded default kitchen's hardware total unchanged (its push fronts are top-row doors, no drawers); only push-to-open drawers move | Recorded, no question | P6 |
 
 ---
@@ -1409,6 +1410,7 @@ pushed [coordinator's brief, relayed].
   seeded variants are judged with their own door leaves; duplicate build ids are refused.
 - Flaky browser test, not from M10's recent waves (2026-11-03): `u-gate-journeys.ts:374` "wall C: deleting a base body frees a void…" on desktop under `CI=1`. It failed the gate once at `7baa8ef3`, then 1 run of 5 alone there, and 8 of 15 alone at `849016d2`, a commit whose full gate passed. The tap lands on a placement, not the freed void (`u-gate.ts:457`). Cause not investigated; inference: the tap point is read before the scene settles after the sheet closes.
 - Second flaky browser test (2026-11-03): `staff-kitchen.desktop.e2e.spec.ts:145` failed the gate at `bec834ba` waiting 5 s for "Status salvat" while the save was still out; 5 of 5 alone there, and no staff code changed since `849016d2`. Inference: a slow database answer. Not investigated.
+- P6 hand-off to R4a (2026-11-03): the class-creation route must write through `applyChanges` (which refuses a zero push-runner rate as `ZERO` and a short rate set as `CREATED_TIER_RATES_MISSING`), never re-judge by hand.
 - U4a record (2026-11-03):
   - Browser specs: `apps/web/tests/e2e/hardware.e2e.spec.ts`, `hardware.desktop.e2e.spec.ts`; `publish-page.e2e.spec.ts`, `publish-page.desktop.e2e.spec.ts` for U5b. Under `next dev` hardware has 27 passed, 2 skipped, publish 36 passed, 2 skipped; under `CI=1` hardware 21 passed, 8 skipped, publish 2 passed, 36 skipped. CI therefore does not hold the publish page's working surface until U5c. Not reached in a browser: creating a class, deleting into the draft, a switch surviving a reload; on the publish page the discard dialog, refusal list, pager, D7E, D7G.
   - Production until the Z gate: switch and delete off with `cannotJudge`, Create off, no count stated.
