@@ -269,7 +269,9 @@ describe("the settings container reaches the price, by the book's own amounts", 
       const amountAt = (tier: typeof chosenTier): number =>
         tier.perHingeMinor * mechanisms.hinges +
         tier.perDrawerMinor * mechanisms.drawers +
-        tier.perPushToOpenMinor * mechanisms.pushToOpen;
+        tier.perPushToOpenMinor * mechanisms.pushToOpen +
+        tier.perLiftMinor * mechanisms.lifts +
+        tier.perPushRunnerMinor * mechanisms.pushRunners;
 
       expect(mechanisms.hinges + mechanisms.drawers).toBeGreaterThan(0);
       expect(lineOfKind(chosen, "hardware").tierId).toBe(tierId);

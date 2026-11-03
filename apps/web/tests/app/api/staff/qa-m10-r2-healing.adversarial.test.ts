@@ -429,6 +429,7 @@ const EDITABLE_ADDRESSES = (() => {
         "perDrawerMinor",
         "perPushToOpenMinor",
         "perLiftMinor",
+        "perPushRunnerMinor",
       ] as const
     ).map((field) => ({ kind: "hardware", tierId: tier.tierId, field })),
   );

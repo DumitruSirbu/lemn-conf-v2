@@ -11,6 +11,7 @@ const HARDWARE_RATES = [
   "perDrawerMinor",
   "perPushToOpenMinor",
   "perLiftMinor",
+  "perPushRunnerMinor",
 ] as const;
 
 function withHardwareRate(
