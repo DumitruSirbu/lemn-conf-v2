@@ -208,7 +208,7 @@ function hardwareTierInheriting(rates: {
   declared["description"] = template.description;
   declared["perPushToOpenMinor"] = 0;
   declared["perLiftMinor"] = 0;
-  declared["perPushRunnerMinor"] = 0;
+  declared["perPushRunnerMinor"] = 1_000;
   return declared as unknown as HardwareTier;
 }
 
@@ -228,7 +228,7 @@ function hardwareTierHiding(rates: {
     description: template.description,
     perPushToOpenMinor: 0,
     perLiftMinor: 0,
-    perPushRunnerMinor: 0,
+    perPushRunnerMinor: 1_000,
   };
   for (const [field, minor] of Object.entries(rates)) {
     Object.defineProperty(declared, field, { value: minor, enumerable: false });

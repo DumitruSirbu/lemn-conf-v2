@@ -59,7 +59,7 @@ function builtDoorWidthsMm(row: LiftRow, widthMm: number): number[] {
   built.traverse((node) => {
     if (!isMesh(node) || node.name !== DOOR_FRONT_MESH_NAME) return;
     const box = worldBox(built, node);
-    widths.push(Math.round((box.max.x - box.min.x) * MM_PER_M));
+    widths.push((box.max.x - box.min.x) * MM_PER_M);
   });
   return widths.sort((left, right) => left - right);
 }
@@ -82,6 +82,23 @@ const LIFT_ROW_AT_EVERY_WIDTH: readonly (readonly [string, LiftRow, number])[] =
     ),
   );
 
+/** Widths compared to a hundredth of a millimetre, not rounded to a whole one: a 5.6 mm reveal must not pass for 6. */
+const WIDTH_PRECISION_DIGITS = 2;
+
+function expectWidthsMatch(
+  label: string,
+  built: readonly number[],
+  expected: readonly number[],
+): void {
+  expect([label, built.length]).toEqual([label, expected.length]);
+  built.forEach((width, index) => {
+    expect(width, label).toBeCloseTo(
+      expected[index] ?? Number.NaN,
+      WIDTH_PRECISION_DIGITS,
+    );
+  });
+}
+
 describe("a lift-up door is as wide as the domain says it is", () => {
   it("sweeps at least one lift-up row, at more than one width", () => {
     expect(LIFT_ROWS.length).toBeGreaterThanOrEqual(1);
@@ -93,10 +110,7 @@ describe("a lift-up door is as wide as the domain says it is", () => {
     (label, row, widthMm) => {
       const built = builtDoorWidthsMm(row, widthMm);
 
-      expect([label, built]).toEqual([
-        label,
-        declaredDoorWidthsMm(row, widthMm),
-      ]);
+      expectWidthsMatch(label, built, declaredDoorWidthsMm(row, widthMm));
       expect(built.length).toBeGreaterThan(0);
     },
   );
@@ -104,9 +118,8 @@ describe("a lift-up door is as wide as the domain says it is", () => {
   it.each(LIFT_ROW_AT_EVERY_WIDTH)(
     "%s: is narrower than its body by the declared reveal",
     (label, row, widthMm) => {
-      expect([label, builtDoorWidthsMm(row, widthMm)]).toEqual([
-        label,
-        [widthMm - LIFT_DOOR_WIDTH_REVEAL_MM],
+      expectWidthsMatch(label, builtDoorWidthsMm(row, widthMm), [
+        widthMm - LIFT_DOOR_WIDTH_REVEAL_MM,
       ]);
     },
   );

@@ -124,7 +124,8 @@ interface DeclaresMechanismFacts extends DeclaresFronts {
  *  price. */
 const DECLARES_NOTHING: DeclaresMechanismFacts = {};
 
-/** The facts `isPushToOpen` reads: the floor and the recorded mode are the **placement's** (§6.5: two
+/** The facts `isPushToOpen` reads, through the one call the scene draws its bars by (`scene-sync.ts`), so billing and
+ *  scene cannot disagree: the floor and the recorded mode are the **placement's** (§6.5: two
  *  `base-sink-800`s can carry different handles), the kitchen's handle is the **design's**, the permission is the
  *  **catalogue row's**. A row declaring no permission reads as permitting none, which decides nothing on any
  *  reachable path: `doorLeafHeightsMm` has already refused an uncatalogued body. */

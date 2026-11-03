@@ -15,7 +15,7 @@ import {
 } from "@/price-dashboard/price-dashboard-wire-contract";
 
 describe("the codes the domain refuses a change with are codes the wire names", () => {
-  it("lists seventeen domain codes, so an added one is looked at here", () => {
+  it("lists eighteen domain codes, so an added one is looked at here", () => {
     expect([...CHANGE_REFUSAL_CODES].sort()).toEqual(
       [
         "CREATED_TIER_RATES_MISSING",
@@ -32,6 +32,7 @@ describe("the codes the domain refuses a change with are codes the wire names", 
         "NOT_A_WHOLE_NUMBER",
         "NOT_EDITABLE",
         "TOO_LARGE",
+        "ZERO",
         "UNKNOWN_ADDRESS",
         "UNKNOWN_ITEM",
         "UNKNOWN_RULE",

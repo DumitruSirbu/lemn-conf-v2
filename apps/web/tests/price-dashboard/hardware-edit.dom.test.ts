@@ -147,6 +147,21 @@ describe("the rates", () => {
 });
 
 describe("what is typed", () => {
+  it("is refused on the push-runner field at zero, Save stays off and nothing is sent", async () => {
+    const container = await mountHettich();
+
+    typeInField(container, PUSH_RUNNER, "0");
+
+    expect(
+      fieldNamed(container, PUSH_RUNNER).getAttribute("aria-invalid"),
+    ).toBe("true");
+    expect(
+      allIn(container, '[role="alert"]').map((alert) => alert.textContent),
+    ).toContain(roCopy("priceDashboard.errors.aboveZero"));
+    expect(buttonNamed(container, SAVE)).toHaveProperty("disabled", true);
+    expect(mounted?.draftServer.calls).toEqual([]);
+  });
+
   it("is refused on its own field when it is not a multiple of ten lei, Save stays off and nothing is sent", async () => {
     const container = await mountHettich();
 

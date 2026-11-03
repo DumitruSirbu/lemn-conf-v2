@@ -1,10 +1,11 @@
-// The owner's hardware answers, held to oracles written from their words and sharing nothing with the module under
-// test: a lift door's third hinge reads the door (the body less 6 mm) strictly above 500 mm; a push-to-open body bills
-// one latch per door leaf and none per drawer; a drawer on a push-to-open body is a push runner and never also a drawer.
+// The hardware counting rules, held to oracles that share nothing with the module under test (ADR 0177 A-20): a lift
+// door's third hinge reads the door (the body less 6 mm) strictly above 500 mm; a push-to-open body bills one latch per
+// door leaf and none per drawer; a drawer on a push-to-open body is a push runner and never also a drawer.
 // Every constant the rules are made of is retyped here, so a change to one in the source meets this file.
 import * as fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
+import { kindLabel } from "../src/catalog.js";
 import {
   carriesFronts,
   countHardwareMechanisms,
@@ -65,7 +66,7 @@ function entryAt(
 ): DisplayEntry {
   return {
     placementId: `p-${overrides.buildId}`,
-    label: "under test",
+    label: kindLabel("under_test"),
     wall: "A",
     band: "base",
     rawBand: "base",
@@ -78,8 +79,9 @@ function entryAt(
   };
 }
 
-/** Whether a body's fronts open without a bar, from §6.5's words alone: the handle it wears is its own if the row takes
- *  one, else the kitchen's for its row; wearing none (a row that takes none) falls to the slot. */
+/** Whether a body's fronts open without a bar: the handle it wears is its own if the row takes one, else the kitchen's
+ *  for its row; a row that takes none falls to the slot, push-to-open from the top row's floor.
+ *  see DEVELOPMENT-SPEC §6.5 */
 function oraclePushToOpen(facts: {
   readonly canHandle: boolean;
   readonly own: Handle | undefined;
@@ -147,7 +149,7 @@ describe("a lift door's third hinge reads the door, strictly above 500 mm", () =
     expect(widthsAtThree).toHaveLength(2_000 - 507 + 1);
   });
 
-  it("hangs the widest wall-lift the catalogue builds on three hinges, and every width the catalogue builds by its door", () => {
+  it("hangs the widest wall-lift on three hinges, and every width the catalogue builds by its door", () => {
     const widest = Math.max(...WALL_LIFT_WIDTHS_MM);
 
     expect(widest).toBeGreaterThan(507);
@@ -172,7 +174,7 @@ describe("a lift door's third hinge reads the door, strictly above 500 mm", () =
     },
   );
 
-  it("still hangs an ordinary door by its leaf's height and not its width: a wall-cabinet 800 mm wide takes two hinges", () => {
+  it("hangs an ordinary door by its leaf's height, not its width: a 400 mm wall-cabinet takes two hinges", () => {
     const counts = countHardwareMechanisms(
       [entryAt({ buildId: "wall-cabinet", widthMm: 400, heightMm: 700 })],
       KITCHEN_L_BODY_CATALOG,
@@ -270,7 +272,7 @@ describe("a body with doors and drawers, on and off push-to-open", () => {
     ),
   );
 
-  it("bills latches over the door leaves, push runners over the drawers and ordinary drawers over none, wherever the bar is hidden", () => {
+  it("bills a latch per door leaf, a push runner per drawer and no ordinary drawer, wherever the bar is hidden", () => {
     for (const { body, canHandle, own, y0Mm, settings } of PLACEMENTS) {
       const entry = entryAt({
         buildId: "under-test",
@@ -393,7 +395,7 @@ describe("push-to-open is decided per cabinet, on the real catalogue, and the pr
     ({ tierId }) => tierId === STANDARD_HARDWARE_ID,
   );
 
-  it("bills the drawer rate off push-to-open and the push-runner rate on it, to the bani, for every handle, row and kitchen setting", () => {
+  it("bills the drawer rate off push-to-open and the push-runner rate on it, to the bani, whatever the handle", () => {
     if (!TIER) throw new Error("no standard tier");
     expect(TIER.perPushRunnerMinor).not.toBe(TIER.perDrawerMinor);
 

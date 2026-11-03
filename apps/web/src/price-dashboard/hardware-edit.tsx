@@ -43,7 +43,7 @@ import {
   type RateFieldState,
 } from "./use-hardware-rate-editing";
 
-// One hardware class (frame D4B): its words, whether customers may choose it, its four rates, and its deletion. A rate is
+// One hardware class (frame D4B): its words, whether customers may choose it, every rate, and its deletion. A rate is
 // sent to "De publicat" only on Save; whether the class is on applies at once, through the dialogs, and never joins the draft.
 
 export interface HardwareEditScreenProps {

@@ -223,9 +223,16 @@ describe("each rate against every value a book can carry", () => {
       expect(parsed.ok).toBe(false);
     });
 
-    it.each(USABLE)("accepts %s", (_label, value) => {
-      expect(parsePriceBook(withFirstTierRate(field, value)).ok).toBe(true);
-    });
+    it.each(USABLE)(
+      "accepts %s, except a zero push-runner rate",
+      (_label, value) => {
+        const isFreePushRunner = field === "perPushRunnerMinor" && value === 0;
+
+        expect(parsePriceBook(withFirstTierRate(field, value)).ok).toBe(
+          !isFreePushRunner,
+        );
+      },
+    );
 
     it.each(NOT_A_NUMBER)(
       "is refused, by the parser for the lift and push-runner rates and by the price for the older three, when it is %s",

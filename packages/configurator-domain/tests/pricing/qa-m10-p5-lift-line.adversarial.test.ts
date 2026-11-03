@@ -40,6 +40,9 @@ const BUILT_LIFT_DOOR_REVEAL_MM = 6;
 const HINGES_ON_A_NARROW_LIFT_DOOR = 2;
 const HINGES_ON_A_WIDE_LIFT_DOOR = 3;
 const TEN_LEI_MINOR = 1_000;
+/** A push runner is never free, so a book that charges for nothing else still states this smallest rate: no kitchen
+ *  here carries a push-to-open drawer, so it multiplies by nothing. */
+const NEVER_FREE_MINOR = 1;
 const WALL_ROW_FLOOR_MM = 1_500;
 const WALL_LIFT_HEIGHT_MM = 700;
 
@@ -143,7 +146,7 @@ const ratesArbitrary: fc.Arbitrary<Rates> = fc.record({
   perDrawerMinor: rateArbitrary,
   perPushToOpenMinor: rateArbitrary,
   perLiftMinor: rateArbitrary,
-  perPushRunnerMinor: rateArbitrary,
+  perPushRunnerMinor: rateArbitrary.filter((rate) => rate > 0),
 });
 
 describe("a one-lift kitchen: the whole-kitchen hardware line, the oracle and the cabinet preview agree", () => {
@@ -271,7 +274,7 @@ describe("the rounding seam: the hardware line is rounded once over every lift o
     perDrawerMinor: 0,
     perPushToOpenMinor: 0,
     perLiftMinor: 500,
-    perPushRunnerMinor: 0,
+    perPushRunnerMinor: NEVER_FREE_MINOR,
   };
   const HALF_OF_TEN_LEI_MINOR = 500;
 
@@ -518,7 +521,7 @@ describe("each rate is charged over its own count, in a kitchen carrying every m
         perDrawerMinor: 0,
         perPushToOpenMinor: 0,
         perLiftMinor: 0,
-        perPushRunnerMinor: 0,
+        perPushRunnerMinor: NEVER_FREE_MINOR,
       };
       const STEP_MINOR = 1_000;
       const lineAt = (rates: Rates) =>

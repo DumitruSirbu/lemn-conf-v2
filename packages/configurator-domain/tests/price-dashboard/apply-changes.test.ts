@@ -828,6 +828,7 @@ describe("a change is refused with a closed code", () => {
       "MISSING_VALUE",
       "NOT_A_WHOLE_NUMBER",
       "NEGATIVE",
+      "ZERO",
       "TOO_LARGE",
       "UNKNOWN_ADDRESS",
       "UNKNOWN_RULE",

@@ -154,6 +154,36 @@ describe("the form", () => {
   });
 });
 
+describe("a push-runner price", () => {
+  it("is refused at zero and when emptied, with the words for a price above zero, and keeps Create off", async () => {
+    const container = await mountForm();
+    fillEverything(container);
+
+    typeInField(container, PUSH_RUNNER, "0");
+
+    expect(
+      fieldNamed(container, PUSH_RUNNER).getAttribute("aria-invalid"),
+    ).toBe("true");
+    expect(alertsIn(container)).toEqual([
+      roCopy("priceDashboard.errors.aboveZero"),
+    ]);
+    expect(buttonNamed(container, CREATE)).toHaveProperty("disabled", true);
+    typeInField(container, PUSH_RUNNER, "");
+    expect(alertsIn(container)).toEqual([
+      roCopy("priceDashboard.errors.aboveZero"),
+    ]);
+  });
+
+  it("is accepted above zero, so Create turns on", async () => {
+    const container = await mountForm();
+    fillEverything(container);
+
+    typeInField(container, PUSH_RUNNER, "10");
+
+    expect(buttonNamed(container, CREATE)).toHaveProperty("disabled", false);
+  });
+});
+
 describe("creating", () => {
   it("sends one write with the trimmed words and every price in bani, zero included, and nothing else", async () => {
     const container = await mountForm();

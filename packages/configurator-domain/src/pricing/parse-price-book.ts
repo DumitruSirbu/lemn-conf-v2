@@ -37,6 +37,7 @@ import {
   refuseUnusableText,
   UNREADABLE,
 } from "./book-reading.js";
+import { NEVER_ZERO_HARDWARE_RATES } from "./hardware-rate-fields.js";
 import {
   MAX_LINKED_ACCESSORIES,
   refuseLinkedAccessoryConflicts,
@@ -366,7 +367,8 @@ function refuseUnreadableTier(
     refuseOversizedAmount(declared, named) ??
     refuseUnusableRates(declared, named) ??
     refuseUndeclaredRate(declared, named, kind, "perLiftMinor") ??
-    refuseUndeclaredRate(declared, named, kind, "perPushRunnerMinor")
+    refuseUndeclaredRate(declared, named, kind, "perPushRunnerMinor") ??
+    refuseZeroRate(declared, named, kind)
   );
 }
 
@@ -385,6 +387,22 @@ function refuseUndeclaredRate(
   return invalidBook(
     `The ${named} declares no "${field}", which is a whole number of bani. Found: ${describeDeclared(read)}`,
   );
+}
+
+/** A hardware tier's push-runner rate is above zero: a zero would bill a push-to-open drawer's runner at nothing. */
+function refuseZeroRate(
+  declared: Record<string, unknown>,
+  named: string,
+  kind: string,
+): PricingFailure | undefined {
+  if (kind !== "hardware") return undefined;
+  for (const field of NEVER_ZERO_HARDWARE_RATES) {
+    if (readDeclared(declared, field) !== 0) continue;
+    return invalidBook(
+      `The ${named} declares "${field}" as 0, and that rate is never free`,
+    );
+  }
+  return undefined;
 }
 
 /** A tier's or an accessory's rates, whole and never below zero, as a cabinet's are. A rate that is absent or not a

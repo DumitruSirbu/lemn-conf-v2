@@ -2,11 +2,18 @@
 
 import { useCallback, useMemo, useState } from "react";
 
-import type { HardwareRateField } from "@lemnaria/configurator-domain";
+import {
+  isRateNeverZero,
+  type HardwareRateField,
+} from "@lemnaria/configurator-domain";
 
 import type { HardwareRateFacts } from "./hardware-model";
 import type { LeiInputReading } from "./price-field-input";
-import { plainLeiOf, readLeiInputOverHeld } from "./price-field-input";
+import {
+  plainLeiOf,
+  readLeiInputOverHeld,
+  refusingZero,
+} from "./price-field-input";
 import {
   useSequentialSave,
   type PlannedFieldWrite,
@@ -112,7 +119,10 @@ function statesOf(
       rate.pendingMinor,
       ...(rate.activeMinor === undefined ? [] : [rate.activeMinor]),
     ];
-    const reading = readLeiInputOverHeld(text, held);
+    const typedReading = readLeiInputOverHeld(text, held);
+    const reading = isRateNeverZero(rate.field)
+      ? refusingZero(typedReading)
+      : typedReading;
     const isChanged =
       reading.kind === "amount" && reading.minor !== rate.pendingMinor;
     return { rate, text, reading, isChanged };

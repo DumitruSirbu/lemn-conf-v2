@@ -25,18 +25,19 @@ import {
   bookWithEditsArb,
   cabinetSlotsOf,
   changeFor,
+  type Edit,
   editsArb,
   lastWins,
-  must,
   MAX_AMOUNT,
   MAX_DEPTH,
   MAX_MATERIAL,
+  must,
   PROPERTY_RUNS,
   PROPERTY_SEED,
   slotsOf,
   valueAt,
+  withinRange,
   written,
-  type Edit,
 } from "./qa-m1-books.js";
 
 const RUN = { numRuns: PROPERTY_RUNS, seed: PROPERTY_SEED };
@@ -315,9 +316,9 @@ describe("applying changes: the candidate is exactly the edits, later over earli
         ),
         ({ book, slot, left, right }) => {
           const valueOne =
-            slot.unit === "flag" ? left % 2 === 0 : left % (slot.max + 1);
+            slot.unit === "flag" ? left % 2 === 0 : withinRange(slot, left);
           const valueTwo =
-            slot.unit === "flag" ? right % 2 === 0 : right % (slot.max + 1);
+            slot.unit === "flag" ? right % 2 === 0 : withinRange(slot, right);
           const one: Edit = { slot, value: valueOne };
           const two: Edit = { slot, value: valueTwo };
 
@@ -364,8 +365,8 @@ describe("applying changes: every in-range value is accepted, at the edges of ev
           const edits = slotsOf(book).map((found): Edit => {
             if (found.unit === "flag") return { slot: found, value: true };
             const at: Record<string, number> = {
-              zero: 0,
-              one: 1,
+              zero: found.min,
+              one: found.min + 1,
               "max-1": found.max - 1,
               max: found.max,
             };
@@ -438,12 +439,16 @@ const NON_CONFORMING_VALUES: readonly unknown[] = [
 ];
 
 /** The code a value is refused for at a numeric field with this ceiling, or undefined when it is in range. */
-function expectedRefusal(value: unknown, max: number): string | undefined {
+function expectedRefusal(
+  value: unknown,
+  range: { readonly min: number; readonly max: number },
+): string | undefined {
   if (value === null || value === undefined) return "MISSING_VALUE";
   if (typeof value !== "number" || !Number.isInteger(value))
     return "NOT_A_WHOLE_NUMBER";
   if (value < 0 || Object.is(value, -0)) return "NEGATIVE";
-  return value > max ? "TOO_LARGE" : undefined;
+  if (value === 0 && range.min > 0) return "ZERO";
+  return value > range.max ? "TOO_LARGE" : undefined;
 }
 
 describe("a value is refused with the code its defect names, at every numeric field of every book", () => {
@@ -459,7 +464,7 @@ describe("a value is refused with the code its defect names, at every numeric fi
               address: found.address,
               value,
             } as unknown as DraftChange;
-            const code = expectedRefusal(value, found.max);
+            const code = expectedRefusal(value, found);
 
             const result = applyChanges(book, [change]);
 

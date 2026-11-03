@@ -49,6 +49,8 @@ export function leiRefusalWords(
       });
     case "negative":
       return translate("priceDashboard.errors.negative");
+    case "zero":
+      return translate("priceDashboard.errors.aboveZero");
     case "tooManyDecimals":
       return translate("priceDashboard.errors.tooManyDecimals", {
         example: LEI_EXAMPLE_WITH_DECIMALS,
@@ -231,6 +233,7 @@ function refusedPriceWords(
 ): string {
   switch (code) {
     case "NEGATIVE":
+    case "ZERO":
     case "TOO_LARGE":
     case "NOT_A_WHOLE_NUMBER":
     case "MISSING_VALUE":
@@ -247,6 +250,8 @@ function numberRefusalWords(
   switch (code) {
     case "NEGATIVE":
       return translate("priceDashboard.errors.negative");
+    case "ZERO":
+      return translate("priceDashboard.errors.aboveZero");
     case "TOO_LARGE":
       return translate("priceDashboard.errors.tooBig");
     case "NOT_A_WHOLE_NUMBER":
@@ -287,6 +292,7 @@ function creationRefusalWords(
 ): string {
   switch (code) {
     case "NEGATIVE":
+    case "ZERO":
     case "TOO_LARGE":
     case "NOT_A_WHOLE_NUMBER":
       return numberRefusalWords(translate, code);

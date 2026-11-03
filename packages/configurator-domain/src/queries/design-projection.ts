@@ -58,7 +58,8 @@ export interface DisplayEntry {
    *  object on every entry of one projection; `{}` when the kitchen has none. */
   readonly kitchenSettings: KitchenHandleSettings;
   /** The handle this body is read as wearing, `wornHandleAt`'s answer: absent for a body that wears none, and never
-   *  the cabinet's own alone. What a customer-facing list names, so it cannot omit a latch or push runner the price bills. */
+   *  the cabinet's own alone. What a customer-facing list names, so it cannot omit a latch or push runner the price
+   *  bills. */
   readonly wornHandle?: Handle;
 }
 

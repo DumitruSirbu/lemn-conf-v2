@@ -1,6 +1,8 @@
 import type { ItemKind, ItemRef } from "../pricing/catalogue-availability.js";
 import {
   HARDWARE_RATE_FIELDS,
+  isRateNeverZero,
+  NEVER_ZERO_HARDWARE_RATES,
   type HardwareRateField,
 } from "../pricing/hardware-rate-fields.js";
 import type {
@@ -33,7 +35,12 @@ export const CABINET_RULE_FIELDS = Object.freeze([
 ] as const);
 export type CabinetRuleField = (typeof CABINET_RULE_FIELDS)[number];
 
-export { HARDWARE_RATE_FIELDS, type HardwareRateField };
+export {
+  HARDWARE_RATE_FIELDS,
+  isRateNeverZero,
+  NEVER_ZERO_HARDWARE_RATES,
+  type HardwareRateField,
+};
 
 /** The one field a material tier has: its whole percentage over PAL (D5). */
 export const MATERIAL_FIELDS = Object.freeze(["percentOfCabinets"] as const);

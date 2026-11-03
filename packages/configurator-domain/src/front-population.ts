@@ -282,13 +282,23 @@ export class UndeclaredFrontPopulationError extends Error {
     readonly reason?: string;
   }) {
     super(
-      `No front population declared for buildId "${refusal.buildId}". ` +
+      openingOf(refusal) +
         describeMissing(refusal.missingField) +
         describeReason(refusal.reason) +
         `Found: ${describeDeclared(refusal.declared)}.`,
     );
     this.name = "UndeclaredFrontPopulationError";
   }
+}
+
+/** A rule that is declared but cannot be built is not "undeclared": its refusal says what was declared. */
+function openingOf(refusal: {
+  readonly buildId: string;
+  readonly reason?: string;
+}): string {
+  return refusal.reason === undefined
+    ? `No front population declared for buildId "${refusal.buildId}". `
+    : `The front population declared for buildId "${refusal.buildId}" cannot be built: `;
 }
 
 function describeMissing(
@@ -370,9 +380,15 @@ export function doorLeafCount(query: FrontPopulationQuery): number {
   return doorLeafHeightsMm(query).length;
 }
 
-/** How much narrower a lift-up door is than its body: `wallLift` builds `W - 6 mm`, the 3 mm reveal on each side. The
- *  width, unlike `WALL_DOOR_BAND_INSET_MM`, which is a height. Held to the built slab by
- *  `lift-door-width.parity.test.ts` in `@lemnaria/three-adapter`. */
+/** One flap per band: the only lift door the adapter builds, so no width is held for a second leaf. */
+const ONE_LIFT_LEAF_PER_BAND = 1;
+
+const LIFT_LEAF_REFUSAL_REASON =
+  "A lift-up door is one flap per band, and no width is held for a second leaf.";
+
+/** How much narrower a lift-up door is than its body, in mm: must equal the reveal `wallLift` builds (3 mm each side).
+ *  A width, unlike `WALL_DOOR_BAND_INSET_MM`, which is a height.
+ *  see `lift-door-width.parity.test.ts` in the adapter. */
 export const LIFT_DOOR_WIDTH_REVEAL_MM = 6;
 
 /** The width of each lift-up door this body carries, one entry per door, empty for a body that declares none: the
@@ -394,11 +410,6 @@ export function liftDoorWidthsMm(
   const doorWidthMm = query.widthMm - LIFT_DOOR_WIDTH_REVEAL_MM;
   return Array.from<number>({ length: doorLeafCount(query) }).fill(doorWidthMm);
 }
-
-const ONE_LIFT_LEAF_PER_BAND = 1;
-
-const LIFT_LEAF_REFUSAL_REASON =
-  "A lift-up door is one flap per band, and no width is held for a second leaf.";
 
 /** Read as `=== true` because `BodyCatalog` is a port: a definition from outside TypeScript can carry any value. */
 function declaresLiftUp(rule: FrontPopulationRule | undefined): boolean {

@@ -335,18 +335,38 @@ describe("a created class owes a change for every rate", () => {
     );
   });
 
-  it("accepts a rate of 0, which a mechanism the class does not have is left at", () => {
+  it("accepts a rate of 0, which a mechanism the class does not have is left at, except the push-runner rate", () => {
     const rates = [
       rate(NEW_TIER, "perHingeMinor", 0),
       rate(NEW_TIER, "perDrawerMinor", 0),
       rate(NEW_TIER, "perPushToOpenMinor", 0),
       rate(NEW_TIER, "perLiftMinor", 0),
-      rate(NEW_TIER, "perPushRunnerMinor", 0),
+      rate(NEW_TIER, "perPushRunnerMinor", 1_000),
     ];
 
     expect(applyChanges(PERCENTAGE_BOOK, [createTier(), ...rates]).ok).toBe(
       true,
     );
+  });
+
+  it("refuses a push-runner rate of 0 on a created class, at its own index, with the code for a zero", () => {
+    expect(
+      refusalOf(
+        PERCENTAGE_BOOK,
+        createTier(),
+        ...everyRate().slice(0, -1),
+        rate(NEW_TIER, "perPushRunnerMinor", 0),
+      ),
+    ).toBe("0:CREATED_TIER_RATES_MISSING,5:ZERO");
+  });
+
+  it("refuses a push-runner rate edited to 0 on a class the book holds", () => {
+    expect(
+      refusalOf(
+        PERCENTAGE_BOOK,
+        rate("hardware.standard", "perPushRunnerMinor", 0),
+      ),
+    ).toBe("0:ZERO");
   });
 
   it("does not count a rate that was refused", () => {

@@ -41,7 +41,7 @@ import type { PriceDraftClient } from "./price-draft-client";
 import { useCloseOnOutsidePress } from "./use-close-on-outside-press";
 import { useHardwareDesk, type HardwareDesk } from "./use-hardware-desk";
 
-// The classes of hardware the customer chooses from (frames D4A, D4E, D4F and D4D): one row each, with its four rates, its
+// The classes of hardware the customer chooses from (frames D4A, D4E, D4F and D4D): one row each, with every rate, its
 // state and the actions "⋯" opens. A rate is changed on the class's own page, so a card never holds a field. Disabling and
 // enabling apply at once and are asked of the dialogs; deleting waits for publication.
 

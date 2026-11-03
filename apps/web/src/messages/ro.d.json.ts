@@ -1374,6 +1374,7 @@ declare const messages: {
     "errors": {
       "notNumber": "Scrie doar cifre și o virgulă pentru bani, de exemplu {example}.",
       "negative": "Suma nu poate fi negativă.",
+      "aboveZero": "Completează un preț mai mare decât zero.",
       "tooManyDecimals": "Cel mult două zecimale, de exemplu {example}.",
       "notMultipleOfTen": "Prețul se scrie în multipli de {step} lei, de exemplu {example}.",
       "tooBig": "Suma este prea mare.",
@@ -1589,7 +1590,7 @@ declare const messages: {
       "priceLiftHint": "Pentru dulapul suspendat rabatabil",
       "pricePushRunner": "Preț pe glisieră push-to-open",
       "pricePushRunnerHint": "Un sertar al unui corp push-to-open primește acest preț în locul prețului pe glisieră.",
-      "newPricesNote": "Completează prețurile; un mecanism pe care clasa nu-l are se lasă la zero.",
+      "newPricesNote": "Completează prețurile; un mecanism pe care clasa nu-l are se lasă la zero, în afară de prețul pe glisieră push-to-open.",
       "createAction": "Creează clasa",
       "createdNotice": "Clasa a fost creată în „De publicat”. O activezi după ce publici.",
       "createdRemoved": "Clasa a fost scoasă din „De publicat”.",

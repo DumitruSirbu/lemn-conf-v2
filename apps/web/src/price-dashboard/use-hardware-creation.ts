@@ -4,6 +4,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 
 import {
   HARDWARE_RATE_FIELDS,
+  isRateNeverZero,
   judgeCreatedRowText,
   type CreatedRowTextJudgement,
   type HardwareRateField,
@@ -11,13 +12,13 @@ import {
 } from "@lemnaria/configurator-domain";
 
 import type { LeiInputReading } from "./price-field-input";
-import { readLeiInput } from "./price-field-input";
+import { readLeiInput, refusingZero } from "./price-field-input";
 import type { HardwareRatesWire } from "./price-dashboard-wire-contract";
 import { useLateAnswerGuard } from "./use-late-answer-guard";
 import type { CreateWriteResult, PriceDraft } from "./use-price-draft";
 
 // Typing and creating a new hardware class (frame D4C): its Romanian name and description, and one rate for each mechanism,
-// each read before anything is sent. The class and its four rates go to "De publicat" in one write, so the draft never holds
+// each read before anything is sent. The class and every rate go to "De publicat" in one write, so the draft never holds
 // a class with a rate nobody set. A refusal or a failure is shown only while the values it was about are still on screen,
 // but a class that was created is told at once whatever has been typed since: it is in the draft.
 
@@ -204,10 +205,16 @@ function rateEntriesOf(
     return {
       field,
       text,
-      reading: readLeiInput(text),
+      reading: readRate(field, text),
       isTouched: touched.has(field),
     };
   });
+}
+
+/** A typed rate as an amount; a rate that is never free is refused at zero and when empty. */
+function readRate(field: HardwareRateField, text: string): LeiInputReading {
+  const reading = readLeiInput(text);
+  return isRateNeverZero(field) ? refusingZero(reading) : reading;
 }
 
 /** What is sent, or nothing while any value is one that is not. */

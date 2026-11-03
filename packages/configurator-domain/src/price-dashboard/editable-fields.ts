@@ -28,6 +28,7 @@ import {
   ACCESSORY_FIELDS,
   CABINET_RULE_FIELDS,
   HARDWARE_RATE_FIELDS,
+  isRateNeverZero,
   MATERIAL_FIELDS,
   type AddressOfKind,
   type BookFieldAddress,
@@ -45,6 +46,7 @@ export const CHANGE_REFUSAL_CODES = Object.freeze([
   "MISSING_VALUE",
   "NOT_A_WHOLE_NUMBER",
   "NEGATIVE",
+  "ZERO",
   "TOO_LARGE",
   "UNKNOWN_ADDRESS",
   "UNKNOWN_RULE",
@@ -114,6 +116,8 @@ interface NumericField {
   readonly current: number;
   /** The largest value the book's bounds allow; the smallest is 0. */
   readonly maxValue: number;
+  /** Set where a zero would bill a mechanism at nothing: the field is refused `ZERO`. */
+  readonly isZeroRefused?: true;
   readonly settingTo: (value: number) => BookUpdater;
 }
 
@@ -149,7 +153,10 @@ function writerFor(field: LocatedField, value: unknown): Judged<BookUpdater> {
       : refused("MISSING_VALUE");
   }
   const judged = judgeWholeNumber(value, field.maxValue);
-  return judged.ok ? accepted(field.settingTo(judged.value)) : judged;
+  if (!judged.ok) return judged;
+  if (judged.value === 0 && field.isZeroRefused === true)
+    return refused("ZERO");
+  return accepted(field.settingTo(judged.value));
 }
 
 /** A whole number from 0 to `maxValue`. `-0` is refused as negative: it prints as 0 and signs as a reduction. */
@@ -367,6 +374,7 @@ function locateHardwareRate(
     unit: "amount",
     current,
     maxValue: MAX_PRICE_COEFFICIENT_MINOR,
+    ...(isRateNeverZero(field) ? { isZeroRefused: true as const } : {}),
     settingTo: (value) => (target) => ({
       ...target,
       hardware: {

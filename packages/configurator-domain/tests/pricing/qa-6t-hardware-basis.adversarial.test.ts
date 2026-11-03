@@ -106,12 +106,16 @@ function bookAtRates(
   };
 }
 
+/** A push runner is never free, so a book that charges for nothing else states this smallest rate; no design that uses
+ *  `NO_CHARGE` carries a push-to-open drawer, so it multiplies by nothing. */
+const NEVER_FREE_MINOR = 1;
+
 const NO_CHARGE: Readonly<Record<HardwareRateField, number>> = {
   perHingeMinor: 0,
   perDrawerMinor: 0,
   perPushToOpenMinor: 0,
   perLiftMinor: 0,
-  perPushRunnerMinor: 0,
+  perPushRunnerMinor: NEVER_FREE_MINOR,
 };
 
 function designOf(placements: readonly DesignPlacement[]): Design {
@@ -233,8 +237,8 @@ describe("the count still moves the money, though the quantity is pinned at 1", 
     .map((placements) => designOf(placements));
 
   /** Rates a design's counts can be read back out of: powers far enough apart that no combination
-   *  of the three counts the seeded kitchen carries can alias one mechanism for another. The lift and push-runner
-   *  rates are zero: no subset of the seeded kitchen carries either mechanism. The seeded kitchen's largest count is
+   *  of the three counts the seeded kitchen carries can alias one mechanism for another. The lift rate is zero and
+   *  the push-runner rate one grain: no subset of the seeded kitchen carries either mechanism. The seeded kitchen's largest count is
    *  74, so a base of 1 000 separates them with room to spare. The smallest rate is one ten-lei grain, because the
    *  hardware line is rounded to ten lei (ADR 0177 A-1) and a smaller one would be rounded away. */
   const GRAIN_MINOR = 1_000;
@@ -243,7 +247,7 @@ describe("the count still moves the money, though the quantity is pinned at 1", 
     perDrawerMinor: 1_000 * GRAIN_MINOR,
     perPushToOpenMinor: 1_000_000 * GRAIN_MINOR,
     perLiftMinor: 0,
-    perPushRunnerMinor: 0,
+    perPushRunnerMinor: GRAIN_MINOR,
   } as const;
 
   propertyTest.prop([anySubset])(

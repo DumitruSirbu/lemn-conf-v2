@@ -30,6 +30,8 @@ export interface Slot {
   readonly path: Path;
   readonly unit: SlotUnit;
   readonly max: number;
+  /** The smallest value the field takes: 1 where a zero would bill a mechanism at nothing, else 0. */
+  readonly min: number;
   /** The kind of field, finer for a cabinet price (the shape of its formula), for a floor per arm. */
   readonly arm: string;
 }
@@ -74,8 +76,14 @@ function slot(
   unit: SlotUnit,
   max: number,
   arm: string = address.kind,
+  min = 0,
 ): Slot {
-  return { address, key: addressKeyOf(address), path, unit, max, arm };
+  return { address, key: addressKeyOf(address), path, unit, max, min, arm };
+}
+
+/** The `n`th value of a slot's range, wrapping: always one the field accepts. */
+export function withinRange(found: Slot, n: number): number {
+  return found.min + (n % (found.max - found.min + 1));
 }
 
 function cabinetSlots(rule: Json, index: number): Slot[] {
@@ -114,6 +122,8 @@ function hardwareSlots(book: Json): Slot[] {
         ["hardware", "tiers", index, field],
         "amount",
         MAX_AMOUNT,
+        "hardware",
+        field === "perPushRunnerMinor" ? 1 : 0,
       ),
     ),
   );
@@ -283,7 +293,7 @@ const hardwareTierArb = fc.record({
   perDrawerMinor: amountArb,
   perPushToOpenMinor: amountArb,
   perLiftMinor: amountArb,
-  perPushRunnerMinor: amountArb,
+  perPushRunnerMinor: amountArb.filter((amount) => amount > 0),
 });
 
 export interface BookPlan {
@@ -425,11 +435,11 @@ export function valueFor(
 ): number | boolean {
   if (found.unit === "flag") return seed % 2 === 0;
   const picked: Record<ValuePick, number> = {
-    zero: 0,
-    one: 1,
+    zero: found.min,
+    one: found.min + 1,
     "max-1": found.max - 1,
     max: found.max,
-    mid: seed % (found.max + 1),
+    mid: withinRange(found, seed),
   };
   return picked[pick];
 }

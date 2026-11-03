@@ -459,11 +459,16 @@ describe.each(VARIED_ARMS)("over varied $name kitchens", (arm) => {
   });
 });
 
+function amountOf(key: string): number {
+  return key === "perPushRunnerMinor" ? 1 : 0;
+}
+
 function isAmountKey(key: string): boolean {
   return key.endsWith("Minor");
 }
 
-/** The same book with every amount it states set to nothing, its suppliers untouched. */
+/** The same book with every amount it states set to nothing, its suppliers untouched, except the push-runner rate, which
+ *  a book may not state as zero: it is one bani, which rounds away on any kitchen's few push-to-open drawers. */
 function withEveryAmountZero<T>(value: T): T {
   if (Array.isArray(value)) return value.map(withEveryAmountZero) as T;
   if (value === null || typeof value !== "object") return value;
@@ -471,7 +476,7 @@ function withEveryAmountZero<T>(value: T): T {
     Object.entries(value).map(([key, inner]) => [
       key,
       isAmountKey(key) && typeof inner === "number"
-        ? 0
+        ? amountOf(key)
         : withEveryAmountZero(inner as unknown),
     ]),
   ) as T;
