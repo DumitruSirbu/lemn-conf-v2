@@ -574,6 +574,7 @@ describe("a created hardware class's words are held by the parser to the charact
             perDrawerMinor: 0,
             perPushToOpenMinor: 0,
             perLiftMinor: 0,
+            perPushRunnerMinor: 0,
           },
         ],
       },

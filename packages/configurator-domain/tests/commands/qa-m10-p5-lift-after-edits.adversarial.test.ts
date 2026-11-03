@@ -30,6 +30,7 @@ import { CABINETRY_CHIPS_MM } from "../support/width-model.js";
 const WALL_CABINET_SEEDED_ID = "p8";
 const HINGES_ON_A_WIDE_LIFT_DOOR = 3;
 const HINGES_ON_A_NARROW_LIFT_DOOR = 2;
+const BUILT_DOOR_INSET_MM = 6;
 
 function countsOf(design: Design) {
   return countHardwareMechanisms(
@@ -110,7 +111,7 @@ describe("a lift swapped in for a wall cabinet", () => {
 });
 
 describe("a lift resized across every width it is built at", () => {
-  it("reads the width the placement has after each resize: three hinges above 500 mm, two at and below, one lift throughout", () => {
+  it("reads the width the placement has after each resize: three hinges when its door is over 500 mm, two at and below, one lift throughout", () => {
     const { world, liftId } = worldWithALiftInPlaceOfAWallCabinet();
     const seenWidths: number[] = [];
 
@@ -126,10 +127,11 @@ describe("a lift resized across every width it is built at", () => {
 
       expect(counts, `${String(widthMm)} mm`).toEqual({
         hinges:
-          widthMm > WIDE_LIFT_DOOR_THRESHOLD_MM
+          widthMm - BUILT_DOOR_INSET_MM > WIDE_LIFT_DOOR_THRESHOLD_MM
             ? HINGES_ON_A_WIDE_LIFT_DOOR
             : HINGES_ON_A_NARROW_LIFT_DOOR,
         drawers: 0,
+        pushRunners: 0,
         pushToOpen: 0,
         lifts: 1,
       });
@@ -158,8 +160,6 @@ describe("a lift resized across every width it is built at", () => {
 });
 
 describe("a lift inserted into an empty column of an off-grid width", () => {
-  const BUILT_DOOR_INSET_MM = 6;
-
   function worldWithAnEmptyWallColumnOf(widthMm: number): KitchenWorld {
     const design: Design = {
       ...KITCHEN_L_DESIGN,
@@ -213,12 +213,19 @@ describe("a lift inserted into an empty column of an off-grid width", () => {
     },
   );
 
-  // Characterises current behaviour: the hinge rule reads the body's width, not the built door's. The built door is
-  // 6 mm narrower than its body, so at 501 to 506 mm the body is over the threshold and its door is not. Which of the
-  // two widths the rule reads is not specified; one comparison moves this band.
-  it.each([501, 503, 506])(
-    "takes three hinges at %i mm by its body's width, though the door it draws is no wider than 500 mm",
-    (openingMm) => {
+  // The built door is 6 mm narrower than its body, so a body of 501 to 506 mm hangs a door of no more than 500 mm.
+  it.each([
+    [499, HINGES_ON_A_NARROW_LIFT_DOOR],
+    [500, HINGES_ON_A_NARROW_LIFT_DOOR],
+    [501, HINGES_ON_A_NARROW_LIFT_DOOR],
+    [503, HINGES_ON_A_NARROW_LIFT_DOOR],
+    [506, HINGES_ON_A_NARROW_LIFT_DOOR],
+    [507, HINGES_ON_A_WIDE_LIFT_DOOR],
+    [523, HINGES_ON_A_WIDE_LIFT_DOOR],
+    [549, HINGES_ON_A_WIDE_LIFT_DOOR],
+  ])(
+    "takes the hinges of a %i mm body by its door's width: %i",
+    (openingMm, hinges) => {
       const world = worldWithAnEmptyWallColumnOf(openingMm);
       const opening = world.voids.find(
         ({ w }) => Math.round(w * 1_000) === openingMm,
@@ -231,12 +238,7 @@ describe("a lift inserted into an empty column of an off-grid width", () => {
       );
       if (!inserted.ok) throw new Error(inserted.reason.code);
 
-      expect(countsOfTheLiftsOf(inserted.design).hinges).toBe(
-        HINGES_ON_A_WIDE_LIFT_DOOR,
-      );
-      expect(openingMm - BUILT_DOOR_INSET_MM).toBeLessThanOrEqual(
-        WIDE_LIFT_DOOR_THRESHOLD_MM,
-      );
+      expect(countsOfTheLiftsOf(inserted.design).hinges).toBe(hinges);
     },
   );
 });

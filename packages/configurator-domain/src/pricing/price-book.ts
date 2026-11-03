@@ -115,12 +115,15 @@ export interface HardwareTier extends TierIdentity {
   readonly perHingeMinor: number;
   /** Charged per drawer, not per runner: one drawer's price buys the pair (ADR 0092 decision 2). */
   readonly perDrawerMinor: number;
-  /** Charged per push-to-open latch, one per opening front on a body whose fronts open without a
+  /** Charged per push-to-open latch, one per door leaf on a body whose fronts open without a
    *  bar — `isPushToOpen`, not the recorded mode alone, because a body can be latched with no handle
    *  recorded (ADR 0092 Amendment C). */
   readonly perPushToOpenMinor: number;
   /** Charged per lift mechanism, one per lift-up door (ADR 0177 A-20). Required: a book without it is refused. */
   readonly perLiftMinor: number;
+  /** Charged per drawer on a push-to-open body, instead of `perDrawerMinor` and never with it: the push runner replaces
+   *  the ordinary runner. Required: a book without it is refused. */
+  readonly perPushRunnerMinor: number;
 }
 
 /** A material priced as a percentage on the PAL cabinets (ADR 0092 Amendment of 2026-10-25, ADR 0177 A-1). */
@@ -467,6 +470,7 @@ export type PriceCoefficientField =
   | "perDrawerMinor"
   | "perPushToOpenMinor"
   | "perLiftMinor"
+  | "perPushRunnerMinor"
   | "perUnitMinor"
   | "percentOfCabinets"
   | "deepCabinetPercent";

@@ -86,7 +86,7 @@ function mechanismsIn(design: Design): HardwareMechanismCounts {
   );
 }
 
-/** What a book's rates make this design at this tier, exact: the tier's own four rates over the design's counts. */
+/** What a book's rates make this design at this tier, exact: the tier's own rates over the design's counts. */
 function exactHardwareAmountFor(
   book: PriceBook,
   tierId: string,
@@ -98,6 +98,7 @@ function exactHardwareAmountFor(
   return (
     tier.perHingeMinor * mechanisms.hinges +
     tier.perDrawerMinor * mechanisms.drawers +
+    tier.perPushRunnerMinor * mechanisms.pushRunners +
     tier.perPushToOpenMinor * mechanisms.pushToOpen +
     tier.perLiftMinor * mechanisms.lifts
   );
@@ -285,6 +286,8 @@ function invertsInIntegers(book: PriceBook, tierId: string, design: Design) {
     (tier.perHingeMinor - standard.perHingeMinor) * counts.hinges +
     (tier.perPushToOpenMinor - standard.perPushToOpenMinor) *
       counts.pushToOpen +
+    (tier.perPushRunnerMinor - standard.perPushRunnerMinor) *
+      counts.pushRunners +
     (tier.perLiftMinor - standard.perLiftMinor) * counts.lifts;
   const savingMinor =
     (standard.perDrawerMinor - tier.perDrawerMinor) * counts.drawers;

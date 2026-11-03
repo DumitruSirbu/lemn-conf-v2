@@ -18,7 +18,6 @@ import {
   derivePlacementRecords,
   describeSelection,
   doorLeafHeightsMm,
-  drawerCount,
   frontPopulationQueryFor,
   kitchenHandleSettingsOf,
   ownHandleOf,
@@ -139,12 +138,12 @@ function entriesOf(design: Design, catalog: BodyCatalog): DisplayEntry[] {
   );
 }
 
-function frontsOf(entry: DisplayEntry, catalog: BodyCatalog): number {
+function doorLeavesOf(entry: DisplayEntry, catalog: BodyCatalog): number {
   const query = frontPopulationQueryFor({
     body: entry,
     definition: catalog.get(entry.buildId) ?? {},
   });
-  return doorLeafHeightsMm(query).length + drawerCount(query);
+  return doorLeafHeightsMm(query).length;
 }
 
 function canHandleOf(buildId: string, catalog: BodyCatalog): boolean {
@@ -169,7 +168,7 @@ describe("the readers are held to the rule written out, not to each other", () =
           vary,
         );
         return oracleLatches(placement, wears)
-          ? total + frontsOf(entry, catalog)
+          ? total + doorLeavesOf(entry, catalog)
           : total;
       }, 0);
 

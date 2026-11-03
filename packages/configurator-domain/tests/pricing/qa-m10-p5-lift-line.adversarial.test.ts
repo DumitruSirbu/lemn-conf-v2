@@ -1,7 +1,8 @@
 // ADR 0177 A-20, adversarial: the hardware line of a kitchen with lift-up doors, against an oracle written from
 // the rule's own words (a lift door counts one lift and two hinges, or three when its door is wider than 500 mm; the
 // line is `r10` of the rates times the counts), and against the cabinet preview. Neither the oracle's counts nor its
-// rounding come from the module under test, so its 500 mm boundary is typed here and not imported.
+// rounding come from the module under test, so its 500 mm boundary and the door's 6 mm reveal are typed here and not
+// imported.
 import * as fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
@@ -35,6 +36,7 @@ import {
 import { CABINETRY_CHIPS_MM } from "../support/width-model.js";
 
 const LIFT_DOOR_THIRD_HINGE_ABOVE_MM = 500;
+const BUILT_LIFT_DOOR_REVEAL_MM = 6;
 const HINGES_ON_A_NARROW_LIFT_DOOR = 2;
 const HINGES_ON_A_WIDE_LIFT_DOOR = 3;
 const TEN_LEI_MINOR = 1_000;
@@ -48,8 +50,10 @@ function r10(exactMinor: number): number {
   );
 }
 
-function oracleHingesOnLiftDoor(widthMm: number): number {
-  return widthMm > LIFT_DOOR_THIRD_HINGE_ABOVE_MM
+/** The hinges on a lift door, judged by the door's width: the body's less its reveal. */
+function oracleHingesOnLiftDoor(bodyWidthMm: number): number {
+  return bodyWidthMm - BUILT_LIFT_DOOR_REVEAL_MM >
+    LIFT_DOOR_THIRD_HINGE_ABOVE_MM
     ? HINGES_ON_A_WIDE_LIFT_DOOR
     : HINGES_ON_A_NARROW_LIFT_DOOR;
 }
@@ -59,6 +63,7 @@ interface Rates {
   readonly perDrawerMinor: number;
   readonly perPushToOpenMinor: number;
   readonly perLiftMinor: number;
+  readonly perPushRunnerMinor: number;
 }
 
 function bookWithRates(
@@ -138,6 +143,7 @@ const ratesArbitrary: fc.Arbitrary<Rates> = fc.record({
   perDrawerMinor: rateArbitrary,
   perPushToOpenMinor: rateArbitrary,
   perLiftMinor: rateArbitrary,
+  perPushRunnerMinor: rateArbitrary,
 });
 
 describe("a one-lift kitchen: the whole-kitchen hardware line, the oracle and the cabinet preview agree", () => {
@@ -255,6 +261,7 @@ function ratesOf(tierId: string): Rates {
     perDrawerMinor: tier.perDrawerMinor,
     perPushToOpenMinor: tier.perPushToOpenMinor,
     perLiftMinor: tier.perLiftMinor,
+    perPushRunnerMinor: tier.perPushRunnerMinor,
   };
 }
 
@@ -264,6 +271,7 @@ describe("the rounding seam: the hardware line is rounded once over every lift o
     perDrawerMinor: 0,
     perPushToOpenMinor: 0,
     perLiftMinor: 500,
+    perPushRunnerMinor: 0,
   };
   const HALF_OF_TEN_LEI_MINOR = 500;
 
@@ -354,20 +362,18 @@ describe("the width a lift door is judged by, at every width the cabinet is buil
       expect(counts).toEqual({
         hinges: oracleHingesOnLiftDoor(widthMm),
         drawers: 0,
+        pushRunners: 0,
         pushToOpen: 0,
         lifts: 1,
       });
     }
   });
 
-  it("agrees with the door as built (the body less its 6 mm shadow gaps) at every width the cabinet is built at", () => {
-    const BUILT_DOOR_INSET_MM = 6;
-    for (const widthMm of CABINETRY_CHIPS_MM) {
-      const doorWidthMm = widthMm - BUILT_DOOR_INSET_MM;
+  it("judges the door and not the body: a body of 501 to 506 mm hangs a door of 500 mm or less, so it takes two", () => {
+    for (let widthMm = 495; widthMm <= 520; widthMm += 1) {
+      const counts = countOf(kitchenOf([liftAt(0, widthMm)]));
 
-      expect(oracleHingesOnLiftDoor(widthMm)).toBe(
-        oracleHingesOnLiftDoor(doorWidthMm),
-      );
+      expect(counts.hinges).toBe(widthMm <= 506 ? 2 : 3);
     }
   });
 
@@ -397,22 +403,20 @@ function countOf(design: Design) {
 describe("a lift door in a push-to-open kitchen", () => {
   const PUSH_KITCHEN = { handle: "push" as const };
 
-  // Characterises current behaviour (see the next test): whether a latch is billed beside the lift is not specified.
-  it("keeps its hinges and its lift, and is billed the one latch every opening front takes", () => {
+  it("keeps its hinges and its lift, and is billed the one latch its door leaf takes", () => {
     for (const widthMm of CABINETRY_CHIPS_MM) {
       const counts = countOf(kitchenOf([liftAt(0, widthMm)], PUSH_KITCHEN));
 
       expect(counts).toEqual({
         hinges: oracleHingesOnLiftDoor(widthMm),
         drawers: 0,
+        pushRunners: 0,
         pushToOpen: 1,
         lifts: 1,
       });
     }
   });
 
-  // Characterises current behaviour: whether a lift-up door takes a latch beside its lift in a push-to-open kitchen is
-  // not specified. Change this when it is.
   it("is billed every term of the line, the latch beside the lift", () => {
     fc.assert(
       fc.property(
@@ -479,6 +483,18 @@ describe("each rate is charged over its own count, in a kitchen carrying every m
         y0Mm: 2_200,
         body: { buildId: "wall-2door-600-top", widthMm: 600, heightMm: 400 },
       },
+      {
+        id: "push-drawers",
+        wall: "A",
+        alongMm: 6_000,
+        y0Mm: 0,
+        body: {
+          buildId: "base-3drawer",
+          widthMm: 600,
+          heightMm: 820,
+          handle: "push",
+        },
+      },
     ],
     {},
   );
@@ -495,12 +511,14 @@ describe("each rate is charged over its own count, in a kitchen carrying every m
         perDrawerMinor: counts.drawers,
         perPushToOpenMinor: counts.pushToOpen,
         perLiftMinor: counts.lifts,
+        perPushRunnerMinor: counts.pushRunners,
       };
       const BASE: Rates = {
         perHingeMinor: 0,
         perDrawerMinor: 0,
         perPushToOpenMinor: 0,
         perLiftMinor: 0,
+        perPushRunnerMinor: 0,
       };
       const STEP_MINOR = 1_000;
       const lineAt = (rates: Rates) =>
@@ -521,10 +539,11 @@ describe("each rate is charged over its own count, in a kitchen carrying every m
     },
   );
 
-  it("counts the mixed kitchen as the oracle does: 3 + 2 + 4 hinges, 3 drawers, 2 lifts and 2 latches", () => {
+  it("counts the mixed kitchen as the oracle does: 3 + 2 + 4 hinges, 3 drawers, 3 push runners, 2 lifts and 2 latches", () => {
     expect(countOf(MIXED_KITCHEN)).toEqual({
       hinges: 3 + 2 + 4,
       drawers: 3,
+      pushRunners: 3,
       pushToOpen: 2,
       lifts: 2,
     });
@@ -551,6 +570,7 @@ describe("the declaration decides, in the catalogue the kitchen is priced agains
     expect(countHardwareMechanisms(entries, undeclared)).toEqual({
       hinges: 2,
       drawers: 0,
+      pushRunners: 0,
       pushToOpen: 0,
       lifts: 0,
     });

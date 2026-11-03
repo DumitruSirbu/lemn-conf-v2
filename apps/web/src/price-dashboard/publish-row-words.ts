@@ -202,5 +202,7 @@ function hardwareFieldWords(
       return translate("priceDashboard.hardware.pricePush");
     case "perLiftMinor":
       return translate("priceDashboard.hardware.priceLift");
+    case "perPushRunnerMinor":
+      return translate("priceDashboard.hardware.pricePushRunner");
   }
 }

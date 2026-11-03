@@ -73,8 +73,8 @@ function mechanismsIn(design: Design): HardwareMechanismCounts {
   );
 }
 
-/** What the book's rates make this design at this tier, exact: the tier's own four rates over the design's own four
- *  counts, never read off an offered delta. */
+/** What the book's rates make this design at this tier, exact: the tier's own rates over the design's own counts, never
+ *  read off an offered delta. */
 function exactAmountFor(tierId: string, design: Design): number {
   const tier = hardwareTier(tierId);
   const mechanisms = mechanismsIn(design);
@@ -82,6 +82,7 @@ function exactAmountFor(tierId: string, design: Design): number {
   return (
     tier.perHingeMinor * mechanisms.hinges +
     tier.perDrawerMinor * mechanisms.drawers +
+    tier.perPushRunnerMinor * mechanisms.pushRunners +
     tier.perPushToOpenMinor * mechanisms.pushToOpen +
     tier.perLiftMinor * mechanisms.lifts
   );
@@ -105,14 +106,14 @@ function offerOf(design: Design) {
   });
 }
 
-/** **The inversion's own quantifier, derived from the four rate gaps and never restated.** Hettich
- *  costs more per hinge, per latch and per lift than the default tier, and less per drawer — the last is
- *  ADR 0070's runners-only figure, which the owner ruled stays understated — so it prices a design
+/** **The inversion's own quantifier, derived from the rate gaps and never restated.** Hettich
+ *  costs more per hinge, per latch, per push runner and per lift than the default tier, and less per drawer — the last
+ *  is ADR 0070's runners-only figure, which the owner ruled stays understated — so it prices a design
  *  below the default exactly when the drawer saving outweighs the surcharges. Written as the
  *  coefficients a drawer count is compared against, so the form is the ADR's own
- *  *drawers > a × hinges + b × latches + c × lifts*; **the two-term form is false in general** (ADR 0092
- *  Amendment C, and ADR 0177 A-20 for the lift term) and no coefficient's value appears here, so the
- *  derivation survives the owner replacing the drafted push and lift figures. */
+ *  *drawers > a × hinges + b × latches + c × lifts + d × push runners*; **the two-term form is false in general** (ADR
+ *  0092 Amendment C, and ADR 0177 A-20 for the lift term) and no coefficient's value appears here, so the
+ *  derivation survives the owner replacing the drafted push, push-runner and lift figures. */
 function invertsForCounts(counts: HardwareMechanismCounts): boolean {
   const standard = hardwareTier(DEFAULT_TIER_ID);
   const hettich = hardwareTier(INVERTING_TIER_ID);
@@ -124,11 +125,15 @@ function invertsForCounts(counts: HardwareMechanismCounts): boolean {
     drawerSavingMinor;
   const liftsPerDrawer =
     (hettich.perLiftMinor - standard.perLiftMinor) / drawerSavingMinor;
+  const pushRunnersPerDrawer =
+    (hettich.perPushRunnerMinor - standard.perPushRunnerMinor) /
+    drawerSavingMinor;
 
   return (
     counts.drawers >
     hingesPerDrawer * counts.hinges +
       latchesPerDrawer * counts.pushToOpen +
+      pushRunnersPerDrawer * counts.pushRunners +
       liftsPerDrawer * counts.lifts
   );
 }
@@ -243,6 +248,7 @@ describe("the witness is where the rates put it, not where a fixture is quiet", 
       expect(mechanismsIn(design)).toEqual({
         hinges: 0,
         drawers,
+        pushRunners: 0,
         pushToOpen: 0,
         lifts: 0,
       });

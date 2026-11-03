@@ -52,6 +52,7 @@ const HARDWARE_FIELDS = [
   "perDrawerMinor",
   "perPushToOpenMinor",
   "perLiftMinor",
+  "perPushRunnerMinor",
 ] as const;
 const ACCESSORY_IDS = ["sinkProtectiveCover", "dishDryingRack"] as const;
 
@@ -282,6 +283,7 @@ const hardwareTierArb = fc.record({
   perDrawerMinor: amountArb,
   perPushToOpenMinor: amountArb,
   perLiftMinor: amountArb,
+  perPushRunnerMinor: amountArb,
 });
 
 export interface BookPlan {
@@ -533,6 +535,7 @@ export function fixedPlan(): BookPlan {
       perDrawerMinor: 60_000 + index,
       perPushToOpenMinor: 4_000 + index,
       perLiftMinor: 20_000 + index,
+      perPushRunnerMinor: 70_000 + index,
     })),
     hardwareDefault: 0,
     keptMaterials: [0, 1, 2],

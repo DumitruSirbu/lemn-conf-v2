@@ -2043,6 +2043,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       columnSlide: "Glisieră (pereche)",
       columnPush: "Push-to-open",
       columnLift: "Mecanism rabatabil",
+      columnPushRunner: "Glisieră push-to-open",
       columnState: "Stare",
       newTitle: "Clasă nouă de feronerie",
       nameLabel: "Nume",
@@ -2066,6 +2067,9 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       pricePush: "Preț pe mecanism push-to-open",
       priceLift: "Preț pe mecanism rabatabil",
       priceLiftHint: "Pentru dulapul suspendat rabatabil",
+      pricePushRunner: "Preț pe glisieră push-to-open",
+      pricePushRunnerHint:
+        "Un sertar al unui corp push-to-open primește acest preț în locul prețului pe glisieră.",
       newPricesNote:
         "Completează prețurile; un mecanism pe care clasa nu-l are se lasă la zero.",
       createAction: "Creează clasa",

@@ -46,6 +46,7 @@ const HINGE = roCopy("priceDashboard.hardware.priceHinge");
 const SLIDE = roCopy("priceDashboard.hardware.priceSlide");
 const PUSH = roCopy("priceDashboard.hardware.pricePush");
 const LIFT = roCopy("priceDashboard.hardware.priceLift");
+const PUSH_RUNNER = roCopy("priceDashboard.hardware.pricePushRunner");
 const SAVE = roCopy("priceDashboard.common.save");
 const CANCEL = roCopy("priceDashboard.common.cancel");
 const lei = (minor: number) =>
@@ -86,13 +87,13 @@ async function mountHettich(
   return mounted.container;
 }
 
-describe("the four rates", () => {
-  it("are four fields, the lift last, each holding the rate the draft would leave and naming what is active", async () => {
+describe("the rates", () => {
+  it("are a field for each, the push runner last, each holding the rate the draft would leave and naming what is active", async () => {
     const container = await mountHettich();
     const hettich = tierOf(HETTICH);
 
     expect(
-      [HINGE, SLIDE, PUSH, LIFT].map(
+      [HINGE, SLIDE, PUSH, LIFT, PUSH_RUNNER].map(
         (label) => fieldNamed(container, label).value,
       ),
     ).toEqual([
@@ -100,11 +101,18 @@ describe("the four rates", () => {
       plainLeiOf(hettich.perDrawerMinor),
       plainLeiOf(hettich.perPushToOpenMinor),
       plainLeiOf(hettich.perLiftMinor),
+      plainLeiOf(hettich.perPushRunnerMinor),
     ]);
     expect(container.textContent).toContain(
       roCopy("priceDashboard.common.activeValueWithHint", {
         amount: lei(hettich.perLiftMinor),
         hint: roCopy("priceDashboard.hardware.priceLiftHint"),
+      }),
+    );
+    expect(container.textContent).toContain(
+      roCopy("priceDashboard.common.activeValueWithHint", {
+        amount: lei(hettich.perPushRunnerMinor),
+        hint: roCopy("priceDashboard.hardware.pricePushRunnerHint"),
       }),
     );
   });
@@ -339,7 +347,9 @@ describe("Save", () => {
     expect(mounted.draftServer.calls.map((call) => call.kind)).toEqual([
       "change",
     ]);
-    expect(mounted.draftServer.state().draft.changes.length).toBe(5);
+    expect(mounted.draftServer.state().draft.changes.length).toBe(
+      1 + HARDWARE_RATE_FIELDS.length,
+    );
   });
 });
 
@@ -481,12 +491,14 @@ describe("deleting a class only the draft holds", () => {
 });
 
 describe("the page in Russian", () => {
-  it("draws with the Russian words and the same four fields", async () => {
+  it("draws with the Russian words and the same fields", async () => {
     mounted = await mountHardwareEdit(HETTICH, hardwarePageOf(), {
       locale: "ru",
     });
 
-    expect(allIn(mounted.container, "input")).toHaveLength(4);
+    expect(allIn(mounted.container, "input")).toHaveLength(
+      HARDWARE_RATE_FIELDS.length,
+    );
     expect(mounted.container.querySelector("h1")?.textContent).toBe("Hettich");
   });
 });

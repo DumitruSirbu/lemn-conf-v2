@@ -391,11 +391,18 @@ describe("the field address against the mockup's frames D2 to D7", () => {
     );
   });
 
-  it("covers the four hardware rates of D4, the lift rate included", () => {
+  it("covers the hardware rates of D4, the lift rate included, and every rate the frames do not draw is named as one", () => {
+    const withoutAFrame: readonly string[] = ["perPushRunnerMinor"];
+
     expect(new Set(addressFieldsOfKind("hardware"))).toEqual(
-      new Set(HARDWARE_RATE_FIELDS),
+      new Set(
+        HARDWARE_RATE_FIELDS.filter((rate) => !withoutAFrame.includes(rate)),
+      ),
     );
     expect(HARDWARE_RATE_FIELDS).toContain("perLiftMinor");
+    for (const rate of withoutAFrame) {
+      expect(HARDWARE_RATE_FIELDS).toContain(rate);
+    }
   });
 
   it("covers the text a created row carries, in both of the fields the row kinds have", () => {

@@ -38,6 +38,7 @@ export const RATE_FIELDS = [
   "perDrawerMinor",
   "perPushToOpenMinor",
   "perLiftMinor",
+  "perPushRunnerMinor",
 ] as const;
 export type RateField = (typeof RATE_FIELDS)[number];
 
@@ -47,12 +48,14 @@ export const RATE_LABEL_KEY = {
   perDrawerMinor: "priceDashboard.hardware.priceSlide",
   perPushToOpenMinor: "priceDashboard.hardware.pricePush",
   perLiftMinor: "priceDashboard.hardware.priceLift",
+  perPushRunnerMinor: "priceDashboard.hardware.pricePushRunner",
 } as const satisfies Record<RateField, string>;
 export const RATE_COLUMN_KEY = {
   perHingeMinor: "priceDashboard.hardware.columnHinge",
   perDrawerMinor: "priceDashboard.hardware.columnSlide",
   perPushToOpenMinor: "priceDashboard.hardware.columnPush",
   perLiftMinor: "priceDashboard.hardware.columnLift",
+  perPushRunnerMinor: "priceDashboard.hardware.columnPushRunner",
 } as const satisfies Record<RateField, string>;
 
 export const DEV_ONLY_REASON =
@@ -75,6 +78,7 @@ export function activeRatesOf(tierId: string): Record<RateField, number> {
     perDrawerMinor: tier.perDrawerMinor,
     perPushToOpenMinor: tier.perPushToOpenMinor,
     perLiftMinor: tier.perLiftMinor,
+    perPushRunnerMinor: tier.perPushRunnerMinor,
   };
 }
 

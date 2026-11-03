@@ -1,4 +1,4 @@
-// ADR 0177 A-20, adversarial: the lift rate as a book carries it. Where the implementer's tests hold each
+// ADR 0177 A-20, adversarial: the lift and push-runner rates as a book carries them. Where the implementer's tests hold each
 // refusal in isolation, these run the rate through the whole path a stored or drafted book takes: parse, JSON
 // round-trip, a created class priced end to end, and a book stored before the rate existed.
 import * as fc from "fast-check";
@@ -89,6 +89,56 @@ describe("the sample book, as a stored version carries it", () => {
       expect(tier.perLiftMinor).toBeGreaterThan(0);
     }
   });
+
+  it("states a non-zero push-runner rate on every tier, so a push-to-open drawer is never priced at nothing", () => {
+    for (const tier of SAMPLE_PRICE_BOOK.hardware.tiers) {
+      expect(tier.perPushRunnerMinor).toBeGreaterThan(0);
+    }
+  });
+
+  it("orders the tiers' push-runner rates as their hinge rates are ordered", () => {
+    const tierIdsBy = (field: RateField): string[] =>
+      [...SAMPLE_PRICE_BOOK.hardware.tiers]
+        .sort((left, right) => left[field] - right[field])
+        .map(({ tierId }) => tierId);
+
+    expect(tierIdsBy("perPushRunnerMinor")).toEqual(tierIdsBy("perHingeMinor"));
+  });
+});
+
+describe("a version stored before the push-runner rate existed", () => {
+  const withoutPushRunnerRate = (lacking: readonly number[]): PriceBook => ({
+    ...SAMPLE_PRICE_BOOK,
+    hardware: {
+      ...SAMPLE_PRICE_BOOK.hardware,
+      tiers: SAMPLE_PRICE_BOOK.hardware.tiers.map((tier, index) =>
+        lacking.includes(index)
+          ? withoutKeys(tier, ["perPushRunnerMinor"])
+          : tier,
+      ),
+    },
+  });
+
+  it("is refused whole by the parser, naming the tier and the field, whichever tier lacks it", () => {
+    for (const lacking of [0, 1, 2]) {
+      const detail = failureDetailOf(withoutPushRunnerRate([lacking]));
+
+      expect(detail).toContain("perPushRunnerMinor");
+      expect(detail).toContain(
+        SAMPLE_PRICE_BOOK.hardware.tiers[lacking]?.tierId ?? "",
+      );
+    }
+  });
+
+  it("is refused by the whole-kitchen price with a coded failure", () => {
+    const book = withoutPushRunnerRate([0, 1, 2]);
+
+    const result = priceOneLiftKitchenWith(book);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.failure.code).toBe("INVALID_PRICE_BOOK");
+  });
 });
 
 describe("a version stored before the lift rate existed", () => {
@@ -178,11 +228,11 @@ describe("each rate against every value a book can carry", () => {
     });
 
     it.each(NOT_A_NUMBER)(
-      "is refused, by the parser for the lift rate and by the price for the older three, when it is %s",
+      "is refused, by the parser for the lift and push-runner rates and by the price for the older three, when it is %s",
       (_label, value) => {
         const book = withFirstTierRate(field, value);
 
-        if (field === "perLiftMinor") {
+        if (field === "perLiftMinor" || field === "perPushRunnerMinor") {
           expect(parsePriceBook(book).ok).toBe(false);
           return;
         }
@@ -197,6 +247,14 @@ describe("each rate against every value a book can carry", () => {
       expect(
         failureDetailOf(withFirstTierRate("perLiftMinor", value)),
       ).toContain("perLiftMinor");
+    }
+  });
+
+  it("names perPushRunnerMinor, not another rate, in every refusal of the push-runner rate", () => {
+    for (const [, value] of NOT_USABLE) {
+      expect(
+        failureDetailOf(withFirstTierRate("perPushRunnerMinor", value)),
+      ).toContain("perPushRunnerMinor");
     }
   });
 
@@ -270,6 +328,7 @@ function withEveryRateAt(amountMinor: number): unknown {
         perDrawerMinor: amountMinor,
         perPushToOpenMinor: amountMinor,
         perLiftMinor: amountMinor,
+        perPushRunnerMinor: amountMinor,
       })),
     },
   };
@@ -319,6 +378,7 @@ describe("a created class, through the draft and into a kitchen's price", () => 
     perDrawerMinor: 41_700,
     perPushToOpenMinor: 6_100,
     perLiftMinor: 12_550,
+    perPushRunnerMinor: 52_300,
   } as const;
 
   function draftWith(
@@ -369,7 +429,16 @@ describe("a created class, through the draft and into a kitchen's price", () => 
     fc.assert(
       fc.property(
         fc.constantFrom(...HARDWARE_RATE_FIELDS),
-        fc.shuffledSubarray([0, 1, 2], { minLength: 3, maxLength: 3 }),
+        fc.shuffledSubarray(
+          Array.from(
+            { length: HARDWARE_RATE_FIELDS.length - 1 },
+            (_, index) => index,
+          ),
+          {
+            minLength: HARDWARE_RATE_FIELDS.length - 1,
+            maxLength: HARDWARE_RATE_FIELDS.length - 1,
+          },
+        ),
         (missing, order) => {
           const set = HARDWARE_RATE_FIELDS.filter((field) => field !== missing);
           const changes = [

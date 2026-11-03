@@ -37,4 +37,10 @@ export const HARDWARE_RATE_WORDS = {
     column: "priceDashboard.hardware.columnLift",
     hint: "priceDashboard.hardware.priceLiftHint",
   },
+  perPushRunnerMinor: {
+    label: "priceDashboard.hardware.pricePushRunner",
+    unit: "priceDashboard.units.perSlidePair",
+    column: "priceDashboard.hardware.columnPushRunner",
+    hint: "priceDashboard.hardware.pricePushRunnerHint",
+  },
 } as const satisfies Record<HardwareRateField, RateWords>;

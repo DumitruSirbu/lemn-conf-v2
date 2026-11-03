@@ -7,7 +7,6 @@ import type { Handle } from "../../src/design.js";
 import {
   countHardwareMechanisms,
   doorLeafHeightsMm,
-  drawerCount,
   frontPopulationQueryFor,
   projectDesignForDisplay,
   type DisplayEntry,
@@ -85,13 +84,13 @@ describe.each(documentsWithNoKitchenHandle().map((d) => [d.name, d] as const))(
           body: entry,
           definition: document.catalog.get(entry.buildId) ?? {},
         });
-        const fronts = doorLeafHeightsMm(query).length + drawerCount(query);
+        const doorLeaves = doorLeafHeightsMm(query).length;
         const latched = oldIsPushToOpen({
           y0Mm: entry.y0Mm,
           recordedHandle: entry.handle,
           canHandle: canHandleOf(entry, document),
         });
-        return latched ? total + fronts : total;
+        return latched ? total + doorLeaves : total;
       }, 0);
 
       expect(

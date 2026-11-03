@@ -7,6 +7,7 @@ export const HARDWARE_RATE_FIELDS = Object.freeze([
   "perDrawerMinor",
   "perPushToOpenMinor",
   "perLiftMinor",
+  "perPushRunnerMinor",
 ] as const);
 export type HardwareRateField = (typeof HARDWARE_RATE_FIELDS)[number];
 
@@ -19,6 +20,7 @@ const COUNT_CHARGED_AT_RATE: Readonly<
   perDrawerMinor: "drawers",
   perPushToOpenMinor: "pushToOpen",
   perLiftMinor: "lifts",
+  perPushRunnerMinor: "pushRunners",
 };
 
 export function mechanismsChargedAt(

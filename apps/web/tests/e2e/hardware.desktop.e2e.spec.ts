@@ -349,6 +349,7 @@ test.describe("the hardware screens at desktop 1440", () => {
         priceSlide: "20",
         pricePush: "30",
         priceLift: "40",
+        pricePushRunner: "50",
       };
       for (const [leaf, value] of Object.entries(prices)) {
         await form

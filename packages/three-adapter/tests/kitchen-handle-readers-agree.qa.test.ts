@@ -263,8 +263,9 @@ function billsALatch(
     body: entry,
     definition: catalog.get(entry.buildId) ?? {},
   });
+  const { pushToOpen, pushRunners } = countHardwareMechanisms([entry], catalog);
   return {
-    latched: countHardwareMechanisms([entry], catalog).pushToOpen > 0,
+    latched: pushToOpen + pushRunners > 0,
     hasFronts: doorLeafHeightsMm(query).length + drawerCount(query) > 0,
   };
 }

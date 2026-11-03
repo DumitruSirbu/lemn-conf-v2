@@ -305,6 +305,20 @@ const DRAFTED_LIFT_MINOR = {
 } as const;
 
 /**
+ * PENDING OWNER INPUT: drafted placeholders with no supplier source. Ordered as the hinge rates are; their magnitudes
+ * are not evidence and must not be quoted as a price. Each sits above its tier's drawer rate, since a push runner
+ * replaces the ordinary one and a drawer on a push-to-open body is billed this instead of that. Assertions read the
+ * rate off this book and multiply; none types a magnitude.
+ *
+ * Non-zero on purpose: a zero would price a push-to-open drawer's runner at nothing.
+ */
+const DRAFTED_PUSH_RUNNER_MINOR = {
+  standard: 70_000,
+  hettich: 100_000,
+  blum: 90_000,
+} as const;
+
+/**
  * ADR 0070 decision 4's two sink extras, the one block here whose magnitudes are the owner's
  * (≈200 MDL cover, ≈400 rack, Chișinău retail), identical at all three tiers, which is why they sit
  * outside the hardware tier. Their names and descriptions are drafted placeholders; both name a
@@ -375,6 +389,7 @@ export const SAMPLE_PRICE_BOOK: PriceBook = {
         perDrawerMinor: 64_000,
         perPushToOpenMinor: DRAFTED_PUSH_TO_OPEN_MINOR.standard,
         perLiftMinor: DRAFTED_LIFT_MINOR.standard,
+        perPushRunnerMinor: DRAFTED_PUSH_RUNNER_MINOR.standard,
       },
       {
         tierId: "hardware.soft-close",
@@ -391,6 +406,7 @@ export const SAMPLE_PRICE_BOOK: PriceBook = {
         perDrawerMinor: 62_600,
         perPushToOpenMinor: DRAFTED_PUSH_TO_OPEN_MINOR.hettich,
         perLiftMinor: DRAFTED_LIFT_MINOR.hettich,
+        perPushRunnerMinor: DRAFTED_PUSH_RUNNER_MINOR.hettich,
       },
       {
         tierId: "hardware.premium",
@@ -403,6 +419,7 @@ export const SAMPLE_PRICE_BOOK: PriceBook = {
         perDrawerMinor: 83_700,
         perPushToOpenMinor: DRAFTED_PUSH_TO_OPEN_MINOR.blum,
         perLiftMinor: DRAFTED_LIFT_MINOR.blum,
+        perPushRunnerMinor: DRAFTED_PUSH_RUNNER_MINOR.blum,
       },
     ],
   },

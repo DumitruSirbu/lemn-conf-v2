@@ -1239,5 +1239,6 @@ function priceKeyOf(field: RateField): string {
     perDrawerMinor: "priceSlide",
     perPushToOpenMinor: "pricePush",
     perLiftMinor: "priceLift",
+    perPushRunnerMinor: "pricePushRunner",
   }[field];
 }

@@ -121,7 +121,11 @@ function isPushToOpenByTheRuling(body: BodyCensus): boolean {
 }
 
 function openingFrontsOf(body: BodyCensus): number {
-  return body.leafHeightsMm.length + body.drawers;
+  return doorLeavesOf(body) + body.drawers;
+}
+
+function doorLeavesOf(body: BodyCensus): number {
+  return body.leafHeightsMm.length;
 }
 
 function hingesOf(body: BodyCensus): number {
@@ -165,19 +169,23 @@ describe("the demo's 16 latches, derived from the fixture rather than from the c
       "p22",
       "p23",
     ]);
-    expect(sum(latched.map(openingFrontsOf))).toBe(16);
+    expect(sum(latched.map(doorLeavesOf))).toBe(16);
     for (const body of latched) {
       expect(body.y0Mm).toBeGreaterThanOrEqual(TOP_ROW_FLOOR_MM);
     }
   });
 
-  it("agrees with countHardwareMechanisms on all three quantities", () => {
+  it("agrees with countHardwareMechanisms on every quantity", () => {
+    const latched = SEEDED_CENSUS.filter(isPushToOpenByTheRuling);
+    const unlatched = SEEDED_CENSUS.filter(
+      (body) => !isPushToOpenByTheRuling(body),
+    );
+
     expect(countHardwareMechanisms(SEEDED_ENTRIES, CATALOG)).toEqual({
       hinges: sum(SEEDED_CENSUS.map(hingesOf)),
-      drawers: sum(SEEDED_CENSUS.map((body) => body.drawers)),
-      pushToOpen: sum(
-        SEEDED_CENSUS.filter(isPushToOpenByTheRuling).map(openingFrontsOf),
-      ),
+      drawers: sum(unlatched.map((body) => body.drawers)),
+      pushRunners: sum(latched.map((body) => body.drawers)),
+      pushToOpen: sum(latched.map(doorLeavesOf)),
       lifts: 0,
     });
   });
@@ -194,15 +202,16 @@ describe("the demo's 16 latches, derived from the fixture rather than from the c
   });
 });
 
-/** `PUSH_WHEREVER_PERMITTED` in `hardware-tier-reconciliation.test.ts` bills 39. It must not stamp `push` onto
- *  bodies whose definitions permit no mode, so it is checked for that as well as for its number. */
-describe("a genuine push kitchen bills 39, and is genuinely a push kitchen", () => {
+/** `PUSH_WHEREVER_PERMITTED` in `hardware-tier-reconciliation.test.ts` bills 34 latches and 5 push runners. It must
+ *  not stamp `push` onto bodies whose definitions permit no mode, so it is checked for that as well as for its
+ *  numbers. */
+describe("a genuine push kitchen bills 34 latches and 5 push runners, and is genuinely a push kitchen", () => {
   const STAMPED: readonly BodyCensus[] = SEEDED_CENSUS.map((body) =>
     body.canHandle ? { ...body, recordedHandle: "push" as const } : body,
   );
 
   // Asked of the shipped count: `push` stamped onto every body, the ones whose definitions permit no mode
-  // included, bills the same 39 as stamping only where one is permitted.
+  // included, bills the same 34 as stamping only where one is permitted.
   it("stamps a mode only where the definition permits one", () => {
     const stampedEverywhere: Design = {
       ...KITCHEN_L_DESIGN,
@@ -220,23 +229,23 @@ describe("a genuine push kitchen bills 39, and is genuinely a push kitchen", () 
         ),
         CATALOG,
       ).pushToOpen,
-    ).toBe(39);
+    ).toBe(34);
   });
 
-  it("derives 39 as 41 opening fronts less the two bars that stay on", () => {
+  it("derives 34 as 36 door leaves less the two bars that stay on", () => {
     const unlatched = STAMPED.filter(
-      (body) => !isPushToOpenByTheRuling(body) && openingFrontsOf(body) > 0,
+      (body) => !isPushToOpenByTheRuling(body) && doorLeavesOf(body) > 0,
     );
 
     expect(
-      unlatched.map((body) => [body.placementId, openingFrontsOf(body)]),
+      unlatched.map((body) => [body.placementId, doorLeavesOf(body)]),
     ).toEqual([
       ["p25", 1],
       ["p9", 1],
     ]);
-    expect(
-      sum(STAMPED.filter(isPushToOpenByTheRuling).map(openingFrontsOf)),
-    ).toBe(39);
+    expect(sum(STAMPED.filter(isPushToOpenByTheRuling).map(doorLeavesOf))).toBe(
+      34,
+    );
   });
 
   it("agrees with the shipped count on the same design", () => {
@@ -258,8 +267,8 @@ describe("a genuine push kitchen bills 39, and is genuinely a push kitchen", () 
           (group) => group.entries,
         ),
         CATALOG,
-      ).pushToOpen,
-    ).toBe(39);
+      ),
+    ).toMatchObject({ pushToOpen: 34, drawers: 0, pushRunners: 5 });
   });
 });
 
@@ -505,7 +514,13 @@ describe("canHandle disqualifies the recorded mode and never exempts a body", ()
         [entryAt({ buildId: REFUSING_ROW, y0Mm: 1_500, handle: "push" })],
         CATALOG,
       ),
-    ).toEqual({ hinges: 2, drawers: 0, pushToOpen: 0, lifts: 0 });
+    ).toEqual({
+      hinges: 2,
+      drawers: 0,
+      pushRunners: 0,
+      pushToOpen: 0,
+      lifts: 0,
+    });
   });
 
   it.each(["push", "steel", "black"] as const)(

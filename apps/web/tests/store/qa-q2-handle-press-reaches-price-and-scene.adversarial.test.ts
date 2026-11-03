@@ -186,22 +186,48 @@ function worn(
     : (design.settings?.handle ?? "steel");
 }
 
-/** The latches the price must bill: the fronts of every body that opens without a bar. A body that takes no handle
- *  is latched only on the top row, and only where it has a front to latch. */
+function frontPopulationOf(entry: DisplayEntry, catalog: BodyCatalog) {
+  return frontPopulationQueryFor({
+    body: entry,
+    definition: catalog.get(entry.buildId) ?? {},
+  });
+}
+
+/** The bodies that open without a bar. A body that takes no handle is one only on the top row, and only where it has a
+ *  front that opens. */
+function opensWithoutABar(
+  design: Design,
+  catalog: BodyCatalog,
+): readonly DisplayEntry[] {
+  return entriesOf(design, catalog).filter((entry) => {
+    const placement = design.placements.find(
+      (one) => one.id === entry.placementId,
+    );
+    if (!placement) throw new Error(`no placement ${entry.placementId}`);
+    const wears = worn(design, entry.placementId, catalog);
+    return wears === undefined
+      ? placement.y0Mm >= MODULE_LINE_MM && frontsOf(entry, catalog) > 0
+      : wears === "push";
+  });
+}
+
+/** The latches the price must bill: one per door leaf of every body that opens without a bar, none per drawer. */
 function expectedLatches(design: Design): number {
   const catalog = buildKitchenLBodyCatalog(cabinetDepthMmOf(design));
-  return entriesOf(design, catalog)
-    .filter((entry) => {
-      const placement = design.placements.find(
-        (one) => one.id === entry.placementId,
-      );
-      if (!placement) throw new Error(`no placement ${entry.placementId}`);
-      const wears = worn(design, entry.placementId, catalog);
-      return wears === undefined
-        ? placement.y0Mm >= MODULE_LINE_MM && frontsOf(entry, catalog) > 0
-        : wears === "push";
-    })
-    .reduce((total, entry) => total + frontsOf(entry, catalog), 0);
+  return opensWithoutABar(design, catalog).reduce(
+    (total, entry) =>
+      total + doorLeafHeightsMm(frontPopulationOf(entry, catalog)).length,
+    0,
+  );
+}
+
+/** The push runners the price must bill: one per drawer of every body that opens without a bar. */
+function expectedPushRunners(design: Design): number {
+  const catalog = buildKitchenLBodyCatalog(cabinetDepthMmOf(design));
+  return opensWithoutABar(design, catalog).reduce(
+    (total, entry) => total + drawerCount(frontPopulationOf(entry, catalog)),
+    0,
+  );
 }
 
 function hardwareAmountOf(priced: PricedDesign): number {
@@ -210,8 +236,9 @@ function hardwareAmountOf(priced: PricedDesign): number {
   return line.amountMinor;
 }
 
-/** The hardware line from the book, with the push count the oracle gives and the other two counts the mechanism
- *  counter gives (a handle moves neither). */
+/** The hardware line from the book, with the latch and push-runner counts the oracle gives and the hinge count the
+ *  mechanism counter gives (a handle moves neither the hinges nor the number of drawers, which it only splits between
+ *  the ordinary runner and the push runner). */
 function expectedHardwareAmount(design: Design, tierId: string): number {
   const catalog = buildKitchenLBodyCatalog(cabinetDepthMmOf(design));
   const tier = SAMPLE_PRICE_BOOK.hardware.tiers.find(
@@ -219,9 +246,12 @@ function expectedHardwareAmount(design: Design, tierId: string): number {
   );
   if (!tier) throw new Error(`no tier ${tierId}`);
   const counts = countHardwareMechanisms(entriesOf(design, catalog), catalog);
+  const pushRunners = expectedPushRunners(design);
   return roundedToTenLei(
     tier.perHingeMinor * counts.hinges +
-      tier.perDrawerMinor * counts.drawers +
+      tier.perDrawerMinor *
+        (counts.drawers + counts.pushRunners - pushRunners) +
+      tier.perPushRunnerMinor * pushRunners +
       tier.perPushToOpenMinor * expectedLatches(design),
   );
 }

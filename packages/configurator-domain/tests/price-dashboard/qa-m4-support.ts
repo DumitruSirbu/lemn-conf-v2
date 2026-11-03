@@ -24,6 +24,7 @@ export const RATE_FIELDS = [
   "perDrawerMinor",
   "perPushToOpenMinor",
   "perLiftMinor",
+  "perPushRunnerMinor",
 ] as const;
 export type RateField = (typeof RATE_FIELDS)[number];
 
@@ -146,6 +147,7 @@ export function statedRowsOf(book: PriceBook): readonly StatedRow[] {
           perDrawerMinor: tier.perDrawerMinor,
           perPushToOpenMinor: tier.perPushToOpenMinor,
           perLiftMinor: tier.perLiftMinor,
+          perPushRunnerMinor: tier.perPushRunnerMinor,
         },
       }),
     ),
