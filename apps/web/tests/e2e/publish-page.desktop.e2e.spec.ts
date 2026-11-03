@@ -35,6 +35,7 @@ import {
   diffRows,
   EDITABLE_PRICES_IN_SEED,
   heightOf,
+  isBrowsersNoteOfARefusal,
   HISTORY_PATH,
   measureOpenField,
   newValueButtons,
@@ -522,6 +523,7 @@ test.describe("the publish page at desktop 1440", () => {
 
       test("a name of 81 characters, one with a direction control, and one that shows nothing are refused when the question is confirmed; 80 reaches the question", async ({
         page,
+        pageErrors,
       }) => {
         const refused: readonly {
           readonly name: string;
@@ -554,6 +556,18 @@ test.describe("the publish page at desktop 1440", () => {
           await expect(noticeOf(page), "nothing was published").toHaveCount(0);
           await expect(diffRows(page)).toHaveCount(PENDING_IN_SEED - 1);
         }
+
+        await expect
+          .poll(
+            () => pageErrors.filter(isBrowsersNoteOfARefusal).length,
+            "the browser notes each refusal of the route, and only those",
+          )
+          .toBe(refused.length);
+        const unexpected = pageErrors.filter(
+          (error) => !isBrowsersNoteOfARefusal(error),
+        );
+        pageErrors.length = 0;
+        expect(unexpected, "no other console error").toEqual([]);
 
         await versionNameField(page, words).fill("n".repeat(MAX_NAME_LENGTH));
         await publishButton(page, words, PENDING_IN_SEED - 1).click();

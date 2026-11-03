@@ -174,6 +174,13 @@ export async function readVersions(
   return versions;
 }
 
+/** The one console error a request the route refused (a 400) gives, which the browser writes itself. */
+export function isBrowsersNoteOfARefusal(consoleError: string): boolean {
+  return consoleError.startsWith(
+    "console: Failed to load resource: the server responded with a status of 400",
+  );
+}
+
 export function versionPathOf(
   versionId: string,
   locale: "ro" | "ru" = "ro",

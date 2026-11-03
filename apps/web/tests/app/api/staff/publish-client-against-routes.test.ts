@@ -304,6 +304,8 @@ describe("publishing", () => {
     ["no name", "", "TEXT_EMPTY"],
     ["a name past the limit", "x".repeat(81), "TEXT_TOO_LONG"],
     ["a control character", "bell\u0007", "TEXT_FORBIDDEN_CHARACTER"],
+    ["a direction override", "ab\u202Ecd", "TEXT_FORBIDDEN_CHARACTER"],
+    ["a name that shows nothing", "\u2800\u2800", "TEXT_EMPTY"],
   ] as const)(
     "is invalid, with the code the field words, for %s",
     async (_name, label, code) => {
