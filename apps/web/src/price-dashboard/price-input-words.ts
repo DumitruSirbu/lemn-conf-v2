@@ -1,6 +1,7 @@
 import {
   MAX_BULK_PERCENT,
   MAX_DEEP_CABINET_PERCENT,
+  MAX_MATERIAL_PERCENT,
   MIN_BULK_PERCENT,
   type CreatedRowTextRefusalCode,
 } from "@lemnaria/configurator-domain";
@@ -12,6 +13,7 @@ import type {
   BulkPercentRefusal,
   DepthPercentRefusal,
   LeiInputRefusal,
+  WholePercentRefusal,
 } from "./price-field-input";
 import type {
   BulkRefusalCode,
@@ -97,6 +99,27 @@ export function depthPercentRefusalWords(
     case "tooBig":
       return translate("priceDashboard.errors.percentTooBig", {
         max: String(MAX_DEEP_CABINET_PERCENT),
+      });
+  }
+}
+
+/** Why a material's surcharge cannot be sent, said as it is typed. */
+export function materialPercentRefusalWords(
+  translate: ContentTranslator,
+  refusal: WholePercentRefusal,
+): string {
+  switch (refusal) {
+    case "empty":
+      return translate("priceDashboard.materials.surchargeEmpty");
+    case "notWhole":
+      return translate("priceDashboard.errors.percentNotWhole", {
+        example: PERCENT_EXAMPLE,
+      });
+    case "negative":
+      return translate("priceDashboard.errors.percentNegative");
+    case "tooBig":
+      return translate("priceDashboard.errors.percentTooBig", {
+        max: String(MAX_MATERIAL_PERCENT),
       });
   }
 }
@@ -332,6 +355,30 @@ export function depthWriteFailureWords(
     case "NOT_A_WHOLE_NUMBER":
     case "MISSING_VALUE":
       return depthPercentRefusalWords(translate, "notWhole");
+    default:
+      return translate("priceDashboard.errors.saveFailed");
+  }
+}
+
+/** What the server's answer to a material's surcharge says, when a percentage that read well was still not written. */
+export function materialWriteFailureWords(
+  translate: ContentTranslator,
+  failure: FailedFieldWrite,
+): string {
+  if (failure.kind === "conflict") {
+    return translate("priceDashboard.errors.changedMeanwhile");
+  }
+  if (failure.kind !== "refused") {
+    return translate("priceDashboard.errors.saveFailed");
+  }
+  switch (failure.code) {
+    case "NEGATIVE":
+      return materialPercentRefusalWords(translate, "negative");
+    case "TOO_LARGE":
+      return materialPercentRefusalWords(translate, "tooBig");
+    case "NOT_A_WHOLE_NUMBER":
+    case "MISSING_VALUE":
+      return materialPercentRefusalWords(translate, "notWhole");
     default:
       return translate("priceDashboard.errors.saveFailed");
   }

@@ -251,8 +251,8 @@ jobs:
   #
   # **Layout since 2026-09-30: four kinds of job, and only two names are contracts.**
   #
-  #   e2e-desktop-shard  `e2e shard (desktop) (1, 5)` .. `(5, 5)`       — five parallel legs
-  #   e2e-mobile-shard   `e2e shard (mobile) (1, 9)`  .. `(9, 9)`       — nine parallel legs
+  #   e2e-desktop-shard  `e2e shard (desktop) (1, 6)` .. `(6, 6)`      — six parallel legs
+  #   e2e-mobile-shard   `e2e shard (mobile) (1, 10)` .. `(10, 10)`    — ten parallel legs
   #   e2e-desktop        `e2e (desktop)`  — the summary; needs the desktop shards
   #   e2e-mobile         `e2e (mobile)`   — the summary; needs the mobile shards
   #   e2e-shard-budget   `e2e-shard-budget` — lists the tests per shard, runs no browser (below)
@@ -280,10 +280,10 @@ jobs:
   # **How many shards is not a preference: it is whatever keeps every shard inside its test
   # budget** (ADR 0105 Amendment A). `scripts/gates/e2e-shard-budget.mjs` holds the measured runner
   # rates, derives the budget from them and fails when a shard lists more tests than that; the
-  # `e2e-shard-budget` job below runs it. Desktop needs five shards and mobile nine. The matrix
+  # `e2e-shard-budget` job below runs it. Desktop needs six shards and mobile ten. The matrix
   # `total` here must equal the script's `SHARDS_PER_PROJECT`, and the script checks that it does.
   #
-  # **Cost, stated plainly:** fourteen legs each pay their own install, Chromium download and
+  # **Cost, stated plainly:** sixteen legs each pay their own install, Chromium download and
   # `next build` (about 2 minutes of fixed cost a leg: ~0.8 outside the E2E step and ~0.9 for the
   # build before the first test, read from run 34580253814's step timings), against two legs
   # before. Billed minutes go up by roughly 10 per full run.
@@ -532,8 +532,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9]
-        total: [9]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        total: [10]
     timeout-minutes: 45
     needs: [install, test, prior-unit-tests]
     if: >-

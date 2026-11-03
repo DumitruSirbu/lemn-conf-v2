@@ -86,7 +86,15 @@ describe("a person who is signed in as staff", () => {
     ["operator", ["kitchens"]],
     [
       "administrator",
-      ["kitchens", "audit", "cabinets", "hardware", "defaults", "publish"],
+      [
+        "kitchens",
+        "audit",
+        "cabinets",
+        "hardware",
+        "materials",
+        "defaults",
+        "publish",
+      ],
     ],
   ] as const)(
     "gets the list for a verified %s, in the staff frame with the pages the role opens in its navigation",

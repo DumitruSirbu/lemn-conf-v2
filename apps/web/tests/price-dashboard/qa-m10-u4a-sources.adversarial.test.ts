@@ -60,7 +60,7 @@ describe("the hardware source", () => {
 describe("the read of the state for an admitted page", () => {
   const ADMITTED_STATE_READ = "price-dashboard/admitted-state-read.ts";
 
-  it("opens with the server-only import, and is named by the two sources that read for a page and by nothing else", () => {
+  it("opens with the server-only import, and is named by the three sources that read for a page and by nothing else", () => {
     const firstImport = /^import\s.*$/m.exec(textOf(ADMITTED_STATE_READ))?.[0];
     const namers = allSources.filter(
       (path) =>
@@ -72,6 +72,7 @@ describe("the read of the state for an admitted page", () => {
     expect(namers.sort()).toEqual([
       "price-dashboard/cabinet-list-source.ts",
       "price-dashboard/hardware-source.ts",
+      "price-dashboard/material-source.ts",
     ]);
   });
 });
@@ -121,7 +122,7 @@ describe("what a browser loads", () => {
     const leaks = customerPages.flatMap((entry) =>
       importClosureOf(entry)
         .filter((module) =>
-          /price-dashboard\/(hardware-sample|hardware-source|item-lifecycle-stand-in-client)\.tsx?$/.test(
+          /price-dashboard\/(hardware-sample|hardware-source|material-sample|material-source|item-lifecycle-stand-in-client)\.tsx?$/.test(
             module,
           ),
         )
@@ -147,17 +148,20 @@ describe("what a browser loads", () => {
 });
 
 describe("the invented counts", () => {
-  it("are written as a number in one file only, which is the one the server-only source loads outside a production build", () => {
+  it("are written as a number in one file for each kind of item, which is the one its server-only source loads outside a production build", () => {
     const writers = allSources.filter((path) =>
       /designCount\s*:\s*\d/.test(codeOf(path)),
     );
 
-    expect(writers).toEqual(["price-dashboard/hardware-sample.ts"]);
+    expect(writers).toEqual([
+      "price-dashboard/hardware-sample.ts",
+      "price-dashboard/material-sample.ts",
+    ]);
   });
 
   it("are not a default of any seam in the lifecycle's modules: a missing count is never a number", () => {
     const lifecycleModules = allSources.filter((path) =>
-      /price-dashboard\/(item-lifecycle|item-flows|use-item-availability|use-hardware-desk|default-item)/.test(
+      /price-dashboard\/(item-lifecycle|item-flows|use-item-availability|use-hardware-desk|use-material-desk|use-material-usage|default-item)/.test(
         path,
       ),
     );
