@@ -192,6 +192,15 @@ test.describe("the hardware screens on a phone, 390 x 844", () => {
       const tops = new Set(boxes.map((box) => Math.round(box?.y ?? -1)));
       expect(lefts.size, "two columns").toBe(2);
       expect(tops.size, "three lines: two, two and one").toBe(3);
+      const topOf = (field: (typeof RATE_FIELDS)[number]) =>
+        Math.round(boxes[RATE_FIELDS.indexOf(field)]?.y ?? -1);
+      const otherTops = RATE_FIELDS.filter(
+        (field) => field !== "perPushRunnerMinor",
+      ).map(topOf);
+      expect(
+        topOf("perPushRunnerMinor"),
+        "the push runner stands alone on the last line",
+      ).toBeGreaterThan(Math.max(...otherTops));
       const rowBox = await row.boundingBox();
       for (const box of boxes) {
         expect(box, "each rate is drawn").not.toBeNull();

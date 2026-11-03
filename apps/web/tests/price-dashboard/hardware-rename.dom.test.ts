@@ -5,6 +5,12 @@
 // client that takes no change of a created row's words is offered no field.
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+import {
+  HARDWARE_RATE_FIELDS,
+  SAMPLE_PRICE_BOOK,
+  type HardwareTier,
+} from "@lemnaria/configurator-domain";
+
 import { resetStaffSessionExpiryForTests } from "@/staff/staff-session-expiry";
 import type { PriceDraftClient } from "@/price-dashboard/price-draft-client";
 
@@ -13,6 +19,8 @@ import { buttonNamed, fieldNamed, typeInField } from "./cabinet-detail-harness";
 import {
   CREATED,
   CREATED_CLASS,
+  rowOf,
+  mountHardwareList,
   HETTICH,
   hardwarePageOf,
   mountHardwareEdit,
@@ -160,5 +168,54 @@ describe("a client that takes no change of a created row's words", () => {
       roCopy("priceDashboard.lifecycle.cannotJudge"),
     );
     expect(server.calls).toEqual([]);
+  });
+});
+
+describe("a class the active version holds and the catalogue does not key", () => {
+  const PUBLISHED = "hardware.economic";
+  const PUBLISHED_NAME = "GTV Economic";
+  const publishedTier = {
+    tierId: PUBLISHED,
+    ruleId: PUBLISHED,
+    name: PUBLISHED_NAME,
+    description: "",
+    ...Object.fromEntries(HARDWARE_RATE_FIELDS.map((field) => [field, 2_000])),
+  } as unknown as HardwareTier;
+
+  function pageWithThePublishedClass() {
+    const page = hardwarePageOf();
+    const book = {
+      ...SAMPLE_PRICE_BOOK,
+      hardware: {
+        ...SAMPLE_PRICE_BOOK.hardware,
+        tiers: [...SAMPLE_PRICE_BOOK.hardware.tiers, publishedTier],
+      },
+    };
+    return {
+      ...page,
+      state: { ...page.state, active: { ...page.state.active, book } },
+    };
+  }
+
+  it("shows the draft's name, not the active version's, on its page and in the list, once renamed", async () => {
+    const page = pageWithThePublishedClass();
+    mounted = await mountHardwareEdit(PUBLISHED, page);
+    typeInField(mounted.container, NAME, "GTV Premium");
+    await press(buttonNamed(mounted.container, RENAME));
+
+    expect(headingOf(mounted.container)).toBe("GTV Premium");
+    expect(fieldNamed(mounted.container, NAME).value).toBe("GTV Premium");
+
+    mounted.unmount();
+    mounted = await mountHardwareList({
+      ...page,
+      state: mounted.draftServer.state(),
+    });
+    expect(rowOf(mounted.container, PUBLISHED).textContent).toContain(
+      "GTV Premium",
+    );
+    expect(rowOf(mounted.container, PUBLISHED).textContent).not.toContain(
+      PUBLISHED_NAME,
+    );
   });
 });
