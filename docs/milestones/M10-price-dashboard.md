@@ -729,6 +729,8 @@ the stated default and needs only a yes or a correction.
 | OQ-32 | A created accessory priced at 0 | Accepted, as the domain allows; the form requires a typed amount | U4c |
 | OQ-11c | U4c's 19 new Romanian lines (`accessories.*`, `lifecycle.*` accessory variants) | Built as drafted | U4c |
 | OQ-11d | U5c's new Romanian lines: `publish.staleChangeKept`, `staleChangeWholeDraftOnly`, `noActiveVersion`, `answerUnreadableTitle`/`Body`, `history.restoreCandidateRefused`, `publish.staleDraftWholeBook`, `publish.writeCandidateRefused`, and the revised `staleDraftBody` | Built as drafted | U5c |
+| OQ-15a | While a cabinet follows the kitchen handle, which control shows as chosen? | **Only "Ca restul bucătăriei"**, naming the resolved handle (as colour does); the default handle chip is no longer pressed and the "Implicit pentru acest dulap" note goes. Before, tapping the already-pressed default chip silently pinned the cabinet | Q2b |
+| OQ-11e | Q2b's copy: "Ca restul bucătăriei" (ro); "Как в остальной кухне" (ru, an agent draft with no recorded source); on the top row it reads "Ca restul bucătăriei · Push-to-open" though the top row follows the top-row handle | Built as drafted | Q2b |
 | OQ-28c | P6 leaves the seeded default kitchen's hardware total unchanged (its push fronts are top-row doors, no drawers); only push-to-open drawers move | Recorded, no question | P6 |
 
 ---
