@@ -10,10 +10,13 @@ import type {
   PublishedWire,
   RestoredWire,
 } from "./price-dashboard-wire-contract";
-import { readDraftWire } from "./price-dashboard-wire-reading";
+import {
+  isReadableInstant,
+  readDraftWire,
+} from "./price-dashboard-wire-reading";
 
-// What the publish, history and restore routes answer, read before it is believed: each body is rebuilt from the members
-// its wire declares, and one that is not exactly that is `undefined`, which the client counts as a failure.
+// What the publish, history and restore routes answer, read before it is believed: each body is rebuilt from the
+// members its wire declares, and one that is not exactly that is `undefined`, which the client counts as a failure.
 
 export function readPublishedWire(body: unknown): PublishedWire | undefined {
   const versionId = ownValueOf(body, "versionId");
@@ -74,7 +77,7 @@ function readSummary(entry: unknown): PriceVersionSummaryWire | undefined {
     typeof sequenceNumber !== "number" ||
     typeof label !== "string" ||
     (state !== "active" && state !== "archived") ||
-    typeof publishedAt !== "string" ||
+    !isReadableInstant(publishedAt) ||
     typeof changeCount !== "number"
   ) {
     return undefined;
@@ -92,8 +95,9 @@ function readSummary(entry: unknown): PriceVersionSummaryWire | undefined {
 const REFUSAL_SOURCES = ["changes", "pricing", "catalogue"] as const;
 
 /**
- * The reasons of a `409 candidate-refused`. An entry that is not one of the three sources, or lacks the members of its
- * source, is left out; of the others only the members that are text or numbers are kept, so nothing nested reaches a screen.
+ * The reasons of a `409 candidate-refused`. An entry that is not one of the three sources, or lacks the members of
+ * its source, is left out; of the others only the members that are text or numbers are kept, so nothing nested
+ * reaches a screen.
  */
 export function readCandidateRefusals(
   body: unknown,

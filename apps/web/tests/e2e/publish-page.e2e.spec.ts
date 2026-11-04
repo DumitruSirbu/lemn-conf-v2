@@ -1,10 +1,11 @@
-// Waves U5b and U5c of M10 on a phone, 390 x 844 with real touch: the publish page "Publicare prețuri", its history tab and
-// one version's page, against frame D7M and the phone's share of D7B to D8C (docs/design/mockups/Lemnaria Dashboard.dc.html).
+// Waves U5b and U5c of M10 on a phone, 390 x 844 with real touch: the publish page "Publicare prețuri", its history tab
+// and one version's page, against frame D7M and the phone's share of D7B to D8C (docs/design/mockups/Lemnaria
+// Dashboard.dc.html).
 //
 // WHICH SERVER THIS FILE HOLDS ON. Both a development server and the production build CI serves: the pages read the
-// server's own draft and history, and each test that needs a pending draft seeds it through the routes. No test publishes
-// or restores, because that moves the active version for every other spec; see the desktop file for what is covered
-// elsewhere.
+// server's own draft and history, and each test that needs a pending draft seeds it through the routes. No test
+// publishes or restores, because that moves the active version for every other spec; see the desktop file for what is
+// covered elsewhere.
 import {
   countStaffFixturesForTests,
   removeStaffFixturesForTests,

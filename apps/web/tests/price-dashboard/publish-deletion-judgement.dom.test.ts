@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 //
-// A draft that deletes a row is judged on the page before a publish is asked for, from the counts of the saved kitchens that
-// use the row. Without counts the publish is off and says it cannot check; with them a used row blocks it before anything is
-// sent, and a row nobody uses goes through to the confirmation.
+// A draft that deletes a row is judged on the page before a publish is asked for, from the counts of the saved kitchens
+// that use the row. Without counts the publish is off and says it cannot check; with them a used row blocks it before
+// anything is sent, and a row nobody uses goes through to the confirmation.
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type { DraftChange } from "@lemnaria/configurator-domain";

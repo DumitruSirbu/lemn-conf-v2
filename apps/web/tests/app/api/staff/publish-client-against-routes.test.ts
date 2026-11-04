@@ -1,6 +1,7 @@
-// The publish screens' fetching client against the routes it talks to. A stub of `fetch` hands the client's request to the
-// real route handlers over the persistence package's fake stores, so what the client sends is what the routes read and
-// what the routes answer is what the client sorts. Each wire outcome the screens tell apart is reached through a route.
+// The publish screens' fetching client against the routes it talks to. A stub of `fetch` hands the client's request to
+// the real route handlers over the persistence package's fake stores, so what the client sends is what the routes read
+// and what the routes answer is what the client sorts. Each wire outcome the screens tell apart is reached through a
+// route.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SAMPLE_PRICE_BOOK } from "@lemnaria/configurator-domain";

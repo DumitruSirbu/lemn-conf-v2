@@ -1,7 +1,8 @@
 // @vitest-environment happy-dom
 //
-// A request the session's end refused (a `401`) raises the staff frame's sheet and leaves the page as it is: on a publish, a
-// discard, a page of the history and a restore alike. A restore the catalogue refuses says so, in its own words.
+// A request the session's end refused (a `401`) raises the staff frame's sheet and leaves the page as it is: on a
+// publish, a discard, a page of the history and a restore alike. A restore the catalogue refuses says so, in its own
+// words.
 import { createElement } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
@@ -133,7 +134,7 @@ describe("a discard the session's end refused", () => {
     click(byWords(requireDialog(), "button", discard));
     await settle();
 
-    expect(getStaffSessionExpiry()).toEqual({ keepsTypedText: false });
+    expect(getStaffSessionExpiry()).toEqual({ keepsTypedText: true });
     expect(requireDialog().textContent).toContain(
       roCopy("priceDashboard.errors.saveFailed"),
     );
@@ -180,7 +181,7 @@ describe("a page of the history the session's end refused", () => {
     );
     await settle();
 
-    expect(getStaffSessionExpiry()).toEqual({ keepsTypedText: false });
+    expect(getStaffSessionExpiry()).toEqual({ keepsTypedText: true });
     expect(container.textContent).toContain(
       roCopy("priceDashboard.history.pageFailed"),
     );
@@ -227,7 +228,7 @@ describe("a restore", () => {
   it("the session's end refused raises the sheet and tells the restore did not save", async () => {
     await mountRestore({ restore: () => Promise.resolve(SESSION_ENDED) });
 
-    expect(getStaffSessionExpiry()).toEqual({ keepsTypedText: false });
+    expect(getStaffSessionExpiry()).toEqual({ keepsTypedText: true });
     expect(requireDialog().textContent).toContain(
       roCopy("priceDashboard.errors.saveFailed"),
     );

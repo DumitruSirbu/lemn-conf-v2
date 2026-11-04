@@ -1,15 +1,15 @@
 // Waves U5b and U5c of M10 at 1440 x 900 with a pointer: the publish page "Publicare prețuri", its history tab and one
 // version's page, against frames D7A to D8C of the dashboard mock-up (docs/design/mockups/Lemnaria Dashboard.dc.html).
 //
-// WHICH SERVER THIS FILE HOLDS ON. Both: the pages read the server's own draft and history, in a development server and in
-// the production build that CI serves, and write through the dashboard's routes. Each test that needs a pending draft
+// WHICH SERVER THIS FILE HOLDS ON. Both: the pages read the server's own draft and history, in a development server and
+// in the production build that CI serves, and write through the dashboard's routes. Each test that needs a pending draft
 // seeds it through those routes (`seedPendingDraft`) and the hooks below empty it again.
 //
-// NOT DRIVEN HERE, and why. No test publishes, and none restores: a publish moves the active version for every other spec
-// of the same server, and the server holds one version. So the success of a publish, the history pager (more than one page
-// of versions), an archived version's page with its restore, the refusal list of a publish the catalogue refused, a draft
-// that cannot be read and the "Se publică…" frame are covered by the DOM and route-contract tests, and their proof against
-// a database waits for the Z gate.
+// NOT DRIVEN HERE, and why. No test publishes, and none restores: a publish moves the active version for every other
+// spec of the same server, and the server holds one version. So the success of a publish, the history pager (more than
+// one page of versions), an archived version's page with its restore, the refusal list of a publish the catalogue
+// refused, a draft that cannot be read and the "Se publică…" frame are covered by the DOM and route-contract tests, and
+// their proof against a database waits for the Z gate.
 //
 // The draft is ONE draft in the e2e server's memory and this file takes the lock the dashboard's specs share.
 import {

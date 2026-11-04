@@ -78,7 +78,7 @@ export function useDiscardDraft({
           onConflict();
           return;
         case "session-ended":
-          raiseStaffSessionExpired();
+          raiseStaffSessionExpired({ keepsTypedText: true });
           setPhase("confirming");
           setFailure("failed");
           return;

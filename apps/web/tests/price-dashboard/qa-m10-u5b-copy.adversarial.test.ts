@@ -20,6 +20,8 @@ const FOLLOW_UP_LEAVES = [
   "priceDashboard.publish.staleChangeKept",
   "priceDashboard.publish.staleChangeWholeDraftOnly",
   "priceDashboard.publish.noActiveVersion",
+  "priceDashboard.publish.staleDraftWholeBook",
+  "priceDashboard.publish.writeCandidateRefused",
   "priceDashboard.publish.answerUnreadableTitle",
   "priceDashboard.publish.answerUnreadableBody",
   "priceDashboard.publish.discardAction",

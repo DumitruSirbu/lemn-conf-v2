@@ -6,8 +6,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type { DraftChange } from "@lemnaria/configurator-domain";
-
-import { countPendingPrices } from "@/price-dashboard/pending-price-count";
+import { countPendingPrices } from "@lemnaria/configurator-domain";
 
 import {
   allIn,

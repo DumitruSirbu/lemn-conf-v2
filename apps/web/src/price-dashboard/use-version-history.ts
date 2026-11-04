@@ -47,7 +47,8 @@ export function useVersionHistory(input: {
         (outcome) => {
           if (hasMoved()) return;
           if (outcome.kind === "listed") setList(outcome.list);
-          if (outcome.kind === "session-ended") raiseStaffSessionExpired();
+          if (outcome.kind === "session-ended")
+            raiseStaffSessionExpired({ keepsTypedText: true });
           setStatus(outcome.kind === "listed" ? "idle" : "failed");
         },
       );

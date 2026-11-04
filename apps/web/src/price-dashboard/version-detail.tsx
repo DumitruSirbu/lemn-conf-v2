@@ -8,10 +8,13 @@ import type { PriceBook } from "@lemnaria/configurator-domain";
 import { FormNotice } from "@/account/account-form-parts";
 import type { AppLocale } from "@/i18n/routing";
 import { isolated } from "@/staff/bidi-isolate";
-import { raiseStaffSessionExpired } from "@/staff/staff-session-expiry";
 import { dayOf } from "@/staff/staff-kitchen-dates";
+import { raiseStaffSessionExpired } from "@/staff/staff-session-expiry";
 import { StaffShell, type StaffShellContext } from "@/staff/staff-shell";
 
+import { orFailed } from "./async-seams";
+import { pendingPriceCountOf } from "./cabinet-list-model";
+import { FETCHING_PUBLISH_CLIENT } from "./fetching-publish-client";
 import type {
   DashboardDraftWire,
   DashboardStateWire,
@@ -23,19 +26,16 @@ import {
   type PublishClient,
   type RestoreOutcome,
 } from "./publish-client";
-import { orFailed } from "./async-seams";
-import { FETCHING_PUBLISH_CLIENT } from "./fetching-publish-client";
-import { pendingPriceCountOf } from "./cabinet-list-model";
 import { RestoreDialog, type RestoreFailure } from "./publish-dialogs";
 import {
   describeVersionDiff,
   planRestore,
   type VersionDetailInput,
 } from "./publish-model";
-import { PublishDraftUnreadableScreen } from "./publish-unreadable";
 import { historyPathOf, publishPathOf } from "./publish-paths";
-import styles from "./publish.module.css";
 import { DiffSections } from "./publish-rows";
+import { PublishDraftUnreadableScreen } from "./publish-unreadable";
+import styles from "./publish.module.css";
 
 // A restore adds to the pending list and publishes nothing. Customers never see a version (ADR 0072 Amendment).
 
@@ -94,7 +94,8 @@ export function VersionDetailScreen({
       versionId: input.version.versionId,
       draftRevision: restore.draft.draftRevision,
     }).then((answer) => {
-      if (answer.outcome.kind === "session-ended") raiseStaffSessionExpired();
+      if (answer.outcome.kind === "session-ended")
+        raiseStaffSessionExpired({ keepsTypedText: true });
       setRestore((held) => settled(held, answer));
     });
   }, [client, input.version.versionId, restore.draft.draftRevision]);
@@ -172,12 +173,8 @@ async function askToRestore(request: {
 }
 
 function settled(held: RestoreState, answer: RestoreAnswer): RestoreState {
-  const { outcome } = answer;
+  const { outcome, fresh } = answer;
   const idle = { ...held, isBusy: false };
-  if (outcome.kind === "conflict" && isStateRefusal(answer.fresh)) {
-    return settledByRefusal(idle, answer.fresh);
-  }
-  const fresh = isStateRefusal(answer.fresh) ? undefined : answer.fresh;
   switch (outcome.kind) {
     case "restored":
       return {
@@ -189,24 +186,34 @@ function settled(held: RestoreState, answer: RestoreAnswer): RestoreState {
     case "nothing-differs":
       return { ...idle, isDialogOpen: false };
     case "conflict":
-      return {
-        ...idle,
-        failure: "conflict",
-        draft: fresh?.draft ?? held.draft,
-        activeBook: fresh?.active.book ?? held.activeBook,
-      };
+      return settledConflict({ held, idle, fresh });
+    case "draft-unreadable":
+    case "no-active-version":
+      return settledByRefusal(idle, outcome);
     case "version-not-found":
       return { ...idle, failure: "not-found" };
     case "candidate-refused":
       return { ...idle, failure: "candidate-refused" };
-    case "draft-unreadable":
-      return { ...idle, unreadableRevision: outcome.draftRevision };
-    case "no-active-version":
-      return { ...idle, failure: "no-active-version" };
     case "session-ended":
     case "failed":
       return { ...idle, failure: "save-failed" };
   }
+}
+
+/** The draft moved: the dialog says so, over the state read again, or hands over if that read found it unreadable. */
+function settledConflict(read: {
+  readonly held: RestoreState;
+  readonly idle: RestoreState;
+  readonly fresh: RestoreAnswer["fresh"];
+}): RestoreState {
+  const { held, idle, fresh } = read;
+  if (isStateRefusal(fresh)) return settledByRefusal(idle, fresh);
+  return {
+    ...idle,
+    failure: "conflict",
+    draft: fresh?.draft ?? held.draft,
+    activeBook: fresh?.active.book ?? held.activeBook,
+  };
 }
 
 function settledByRefusal(

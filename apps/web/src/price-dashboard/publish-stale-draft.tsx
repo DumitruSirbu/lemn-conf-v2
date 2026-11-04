@@ -10,17 +10,17 @@ import type { DraftRevertTargetWire } from "./price-dashboard-wire-contract";
 import { useRowWords } from "./publish-row-words";
 import { RevertButton } from "./publish-rows";
 import styles from "./publish.module.css";
-import type { StaleChangeView } from "./stale-draft";
+import type { StaleChangeView, StaleDraftView } from "./stale-draft";
 
 /** A draft that no longer makes a book: each change with its own ↺, and the one way out that always works. */
 export function StaleDraft({
-  changes,
+  stale,
   isBusy,
   onRevert,
   buttonRef,
   onDiscard,
 }: {
-  readonly changes: readonly StaleChangeView[];
+  readonly stale: StaleDraftView;
   readonly isBusy: boolean;
   readonly onRevert: (target: DraftRevertTargetWire) => void;
   readonly buttonRef: RefObject<HTMLButtonElement | null>;
@@ -33,17 +33,21 @@ export function StaleDraft({
         tone="error"
         title={translate("priceDashboard.publish.staleDraftTitle")}
       >
-        {translate("priceDashboard.publish.staleDraftBody")}
-        <ul className={styles.staleList} data-testid="publish-stale-changes">
-          {changes.map((change) => (
-            <StaleChangeLine
-              key={change.key}
-              change={change}
-              isBusy={isBusy}
-              onRevert={onRevert}
-            />
-          ))}
-        </ul>
+        {stale.kind === "whole-book"
+          ? translate("priceDashboard.publish.staleDraftWholeBook")
+          : translate("priceDashboard.publish.staleDraftBody")}
+        {stale.kind === "whole-book" ? null : (
+          <ul className={styles.staleList} data-testid="publish-stale-changes">
+            {stale.lines.map((change) => (
+              <StaleChangeLine
+                key={change.key}
+                change={change}
+                isBusy={isBusy}
+                onRevert={onRevert}
+              />
+            ))}
+          </ul>
+        )}
         <span className={styles.noticeActions}>
           <button
             ref={buttonRef}

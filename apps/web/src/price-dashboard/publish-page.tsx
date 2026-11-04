@@ -3,21 +3,22 @@
 import { useTranslations } from "next-intl";
 import { useRef, type RefObject } from "react";
 
-import type { AppLocale } from "@/i18n/routing";
 import { FormNotice } from "@/account/account-form-parts";
+import type { AppLocale } from "@/i18n/routing";
 import { isolated } from "@/staff/bidi-isolate";
 import { StaffShell, type StaffShellContext } from "@/staff/staff-shell";
 
 import { pendingPriceCountOf } from "./cabinet-list-model";
 import { CatalogUnavailableNotice } from "./catalog-states";
-import { DiscardNotice } from "./publish-discard-notice";
 import type { PublishClient } from "./publish-client";
 import {
   DiscardDraftDialog,
   ProvisionalOffDialog,
   PublishConfirmDialog,
 } from "./publish-dialogs";
+import { DiscardNotice } from "./publish-discard-notice";
 import type { PublishPageInput } from "./publish-model";
+import { NoticeBody } from "./publish-notices";
 import {
   ProvisionalSwitch,
   PublishButton,
@@ -25,11 +26,10 @@ import {
   VersionNameField,
 } from "./publish-panel";
 import { historyPathOf, publishPathOf } from "./publish-paths";
-import styles from "./publish.module.css";
-import { NoticeBody } from "./publish-notices";
-import { PublishDraftUnreadableScreen } from "./publish-unreadable";
-import { StaleDraft } from "./publish-stale-draft";
 import { DiffSections } from "./publish-rows";
+import { StaleDraft } from "./publish-stale-draft";
+import { PublishDraftUnreadableScreen } from "./publish-unreadable";
+import styles from "./publish.module.css";
 import { UnsentAmountsContext } from "./unsent-amounts";
 import { useFocusAfterRevert } from "./use-focus-after-revert";
 import { useFocusWhenLost } from "./use-focus-when-lost";
@@ -228,7 +228,7 @@ function PendingPrices({
   if (reading.kind === "candidate-refused") {
     return (
       <StaleDraft
-        changes={desk.staleChanges}
+        stale={desk.stale}
         isBusy={desk.isLocked}
         onRevert={desk.revert}
         buttonRef={discardButtonRef}

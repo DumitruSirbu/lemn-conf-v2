@@ -1,4 +1,5 @@
-// The number of prices a draft holds, which the screens show while it waits and the store keeps with the version it becomes.
+// The number of prices a draft holds, which the screens show while it waits and the store keeps with the version it
+// becomes.
 import { describe, expect, it } from "vitest";
 
 import { countPendingPrices, type DraftChange } from "../../src/index.js";
@@ -58,6 +59,35 @@ describe("the count of prices a draft holds", () => {
   it("counts a row created and deleted again once, and a deleted row of the book once", () => {
     expect(countPendingPrices([...CREATED_CLASS, deletes("created")])).toBe(1);
     expect(countPendingPrices([deletes("hardware.soft-close")])).toBe(1);
+  });
+
+  it("counts a price set on a row the draft deletes with the deletion, once, and a price on another row beside it", () => {
+    const rate = change(
+      {
+        kind: "hardware",
+        tierId: "hardware.soft-close",
+        field: "perHingeMinor",
+      },
+      2_000,
+    );
+    const percent = change(
+      { kind: "material", tierId: "material.mdf", field: "percentOfCabinets" },
+      30,
+    );
+    const deletesMaterial = change(
+      {
+        kind: "item-deleted",
+        item: { kind: "material", tierId: "material.mdf" },
+      },
+      true,
+    );
+
+    expect(countPendingPrices([rate, deletes("hardware.soft-close")])).toBe(1);
+    expect(countPendingPrices([percent, deletesMaterial])).toBe(1);
+    expect(
+      countPendingPrices([rate, deletes("hardware.soft-close"), ANCHOR]),
+    ).toBe(2);
+    expect(countPendingPrices([rate, deletes("hardware.other")])).toBe(2);
   });
 
   it("counts a change whose address is no object as a price of its own, so a summary read from storage never throws", () => {

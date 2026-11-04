@@ -84,7 +84,11 @@ export {
 } from "./created-row-text.js";
 export { hardwareRatesOf, isStructuralAddress } from "./structural-changes.js";
 export { createdItemsOf, deletedItemsOf } from "./draft-structure.js";
-export { countPendingPrices } from "./pending-price-count.js";
+export {
+  changedRowOf,
+  changedRowsOf,
+  countPendingPrices,
+} from "./pending-price-count.js";
 export {
   judgeDeletionsAtPublish,
   type PublishDeletionRefusal,

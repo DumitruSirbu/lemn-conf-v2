@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 //
-// A draft that no longer makes a book (a rule tightened after its changes were stored) lists every change with its own ↺, so
-// the valid change beside a refused one is not lost to giving the whole draft up. A line the revert route does not take is
-// told so, and the discard of everything stays beside the list.
+// A draft that no longer makes a book (a rule tightened after its changes were stored) lists every change with its own
+// ↺, so the valid change beside a refused one is not lost to giving the whole draft up. A line the revert route does not
+// take is told so, and the discard of everything stays beside the list.
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type { DraftChange } from "@lemnaria/configurator-domain";
@@ -18,6 +18,7 @@ import {
   spiedPublishClient,
   type MountedDesk,
 } from "./publish-desk-harness";
+import { createTierChanges } from "./publish-structural-rows.support";
 import { roCopy } from "./romanian-copy";
 import { leaveTheStaffServer, stubTheStaffServer } from "./staff-frame-harness";
 
@@ -159,5 +160,74 @@ describe("a refused draft with a change the revert route does not take", () => {
       }),
     );
     expect(allIn(lineAt(container, 1), REVERT)).toHaveLength(1);
+  });
+});
+
+describe("a refused draft beside a class the draft created", () => {
+  it("draws the class and its rates as one line without a ↺, so no press can take the class away by one of its rates", async () => {
+    const { container } = await mountRefused([...createTierChanges(), STALE]);
+
+    expect(createTierChanges().length).toBeGreaterThan(2);
+    expect(lines(container)).toHaveLength(2);
+    expect(allIn(container, REVERT)).toHaveLength(1);
+    expect(lineAt(container, 0).textContent).toContain(
+      roCopy("priceDashboard.publish.staleChangeWholeDraftOnly", {
+        name: isolated("Economic"),
+      }),
+    );
+  });
+});
+
+describe("a refused draft whose whole book is refused", () => {
+  it("says no change is the one to blame, lists none and offers no ↺, only the discard of everything", async () => {
+    const input = inputWithDraft([VALID], "7");
+    const wholeBookRefused = {
+      ...input,
+      state: {
+        ...input.state,
+        active: {
+          ...input.state.active,
+          book: { ...input.state.active.book, currency: "EUR" },
+        },
+      },
+    } as unknown as typeof input;
+    mounted = await mountDesk({
+      input: wholeBookRefused,
+      client: spiedPublishClient(wholeBookRefused),
+    });
+    const { container } = mounted;
+
+    expect(container.textContent).toContain(
+      roCopy("priceDashboard.publish.staleDraftWholeBook"),
+    );
+    expect(container.querySelector(LIST)).toBeNull();
+    expect(allIn(container, REVERT)).toHaveLength(0);
+    expect(
+      byWords(
+        container,
+        "button",
+        roCopy("priceDashboard.publish.discardAction"),
+      ).isConnected,
+    ).toBe(true);
+  });
+});
+
+describe("a take-back the catalogue would refuse", () => {
+  it("says nothing was changed and that trying again cannot help, not that the save failed", async () => {
+    const { container } = await mountRefused([VALID, STALE], {
+      revert: () => Promise.resolve({ kind: "candidate-refused" }),
+    });
+
+    click(requireIn(lineAt(container, 0), REVERT));
+    await settle();
+
+    const notice = requireIn(container, '[data-testid="publish-notice"]');
+    expect(notice.textContent).toContain(
+      roCopy("priceDashboard.publish.writeCandidateRefused"),
+    );
+    expect(notice.textContent).not.toContain(
+      roCopy("priceDashboard.errors.saveFailed"),
+    );
+    expect(lines(container)).toHaveLength(2);
   });
 });

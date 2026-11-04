@@ -2,6 +2,7 @@
 // wire's shape is no answer, and nothing a body adds beside its members reaches a screen.
 import { describe, expect, it } from "vitest";
 
+import { readDashboardStateWire } from "@/price-dashboard/price-dashboard-wire-reading";
 import {
   readCandidateRefusals,
   readItemRef,
@@ -63,6 +64,7 @@ describe("a history page", () => {
   it.each([
     ["a state the history has no word for", { ...SUMMARY, state: "preparing" }],
     ["a count given as text", { ...SUMMARY, changeCount: "3" }],
+    ["a date nobody can read", { ...SUMMARY, publishedAt: "yesterday-ish" }],
     ["an entry that is no object", "v-1"],
   ])("is no page when one entry carries %s", (_name, entry) => {
     expect(
@@ -165,5 +167,27 @@ describe("the item a conflict names", () => {
     expect(readItemRef({ kind: "hardware" })).toBeUndefined();
     expect(readItemRef({ kind: "accessory", tierId: "t-1" })).toBeUndefined();
     expect(readItemRef("hardware")).toBeUndefined();
+  });
+});
+
+describe("the active version a state names", () => {
+  const stateWith = (publishedAt: string) => ({
+    active: {
+      versionId: "v-1",
+      sequenceNumber: 1,
+      label: "One",
+      publishedAt,
+      book: {},
+      availability: {},
+    },
+    draft: { draftRevision: "1", changes: [] },
+  });
+
+  it("is read with a date a screen can format, and is no state with one it cannot", () => {
+    expect(
+      readDashboardStateWire(stateWith("2026-11-01T08:00:00.000Z"))?.active
+        .publishedAt,
+    ).toBe("2026-11-01T08:00:00.000Z");
+    expect(readDashboardStateWire(stateWith("not a date"))).toBeUndefined();
   });
 });

@@ -4,9 +4,9 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
 import type { DraftChange } from "@lemnaria/configurator-domain";
+import { countPendingPrices } from "@lemnaria/configurator-domain";
 
 import { pendingPriceCountOf } from "@/price-dashboard/cabinet-list-model";
-import { countPendingPrices } from "@/price-dashboard/pending-price-count";
 
 const change = (address: object, value: unknown, extra: object = {}) =>
   ({ address, value, ...extra }) as DraftChange;
@@ -125,7 +125,7 @@ const scenario = fc
       parts.bulkSizes.reduce((sum, size) => sum + size, 0) +
       parts.createdTiers.length +
       parts.createdAccessories.length +
-      parts.deletedBookRows * (1 + parts.pricesOnDeletedRows);
+      parts.deletedBookRows;
     return { changes: shuffled(changes, parts.order), expected };
   });
 

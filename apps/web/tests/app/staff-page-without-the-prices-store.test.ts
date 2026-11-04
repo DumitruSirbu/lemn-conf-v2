@@ -1,6 +1,8 @@
 import type { Role } from "@lemnaria/configurator-domain";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { DashboardStoreError } from "@lemnaria/persistence";
+
 import type { CurrentSession } from "@/lib/server/account/current-session";
 import { SESSION_COOKIE_NAME } from "@/lib/server/account/session-cookie";
 
@@ -33,7 +35,10 @@ vi.mock("@/lib/server/account/current-session", () => ({
   readCurrentSessionOrThrow: () => Promise.resolve(reading.session),
 }));
 vi.mock("@/lib/server/price-stores", () => ({
-  getPriceStores: () => Promise.reject(new Error("the price store is down")),
+  getPriceStores: () =>
+    Promise.reject(
+      new DashboardStoreError("read the price draft", "unavailable"),
+    ),
 }));
 
 const { readStaffPage } = await import("@/lib/server/staff/staff-page");

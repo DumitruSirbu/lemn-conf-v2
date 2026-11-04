@@ -50,7 +50,10 @@ export default async function VersionPage({ params }: VersionPageProps) {
   });
 }
 
-/** A version the draft cannot be restored into is shown as the unreadable draft: giving it up is the one write that works. */
+/**
+ * A version the draft cannot be restored into is shown as the unreadable draft: giving it up is the one write that
+ * works.
+ */
 function versionScreenOf({
   read,
   locale,

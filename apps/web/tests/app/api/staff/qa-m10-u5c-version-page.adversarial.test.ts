@@ -3,6 +3,8 @@
 // part-way through the walk is unavailable and never a first version.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { DashboardStoreError } from "@lemnaria/persistence";
+
 import { SAMPLE_PRICE_BOOK } from "@lemnaria/configurator-domain";
 import { PRICE_VERSION_PAGE_SIZE } from "@lemnaria/persistence";
 
@@ -95,7 +97,9 @@ describe("the version before a version, over a history of three pages", () => {
     vi.spyOn(prices.stores.priceBook, "listVersions").mockImplementation(
       (request) =>
         request.page >= 2
-          ? Promise.reject(new Error("the store is down"))
+          ? Promise.reject(
+              new DashboardStoreError("list the price versions", "unavailable"),
+            )
           : listVersions(request),
     );
     const oldestOfThePage =

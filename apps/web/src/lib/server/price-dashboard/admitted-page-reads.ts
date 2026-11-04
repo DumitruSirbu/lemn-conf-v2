@@ -1,7 +1,5 @@
 import "server-only";
 
-import { DashboardStoreError } from "@lemnaria/persistence";
-
 import { isVersionId } from "@/lib/server/price-dashboard/identifier-shape";
 import {
   versionListWireOf,
@@ -34,33 +32,34 @@ export async function readVersion(
 }
 
 /**
- * The version published just before `sequenceNumber`, or `undefined` for the first. The store reads no version by
- * sequence, so the history is walked newest first: the answer is the entry after the one asked about, whatever gaps
- * the numbers have.
+ * The version published just before `sequenceNumber`, or `undefined` for the first: the greatest sequence below it.
+ * The store reads no version by sequence, so the history is walked newest first and each entry is judged by its own
+ * sequence, never by its place in the list, which a publish landing between two page reads moves.
  */
 export async function readPredecessorOf(
   sequenceNumber: number,
 ): Promise<PriceVersionWire | undefined> {
   const { priceBook } = await getPriceStores();
-  let hasPassedIt = false;
   for (let page = FIRST_PAGE; ; page += 1) {
     const listed = await priceBook.listVersions({ page });
-    for (const entry of listed.versions) {
-      if (hasPassedIt) return readVersion(entry.versionId);
-      hasPassedIt = entry.sequenceNumber === sequenceNumber;
-    }
-    if (page * listed.pageSize >= listed.total) return undefined;
+    const before = listed.versions.filter(
+      (entry) => entry.sequenceNumber < sequenceNumber,
+    );
+    const newest = before.reduce<(typeof before)[number] | undefined>(
+      (best, entry) =>
+        best === undefined || entry.sequenceNumber > best.sequenceNumber
+          ? entry
+          : best,
+      undefined,
+    );
+    if (newest !== undefined) return readVersion(newest.versionId);
+    const isLastPage =
+      listed.pageSize < 1 || page * listed.pageSize >= listed.total;
+    if (isLastPage) return undefined;
   }
 }
 
 async function readVersionPage(page: number): Promise<PriceVersionListWire> {
   const { priceBook } = await getPriceStores();
   return versionListWireOf(await priceBook.listVersions({ page }));
-}
-
-/** A store that says it is unavailable is production's state while it has no price stores, not a failure to report. */
-export function isStoreSayingUnavailable(failure: unknown): boolean {
-  return (
-    failure instanceof DashboardStoreError && failure.failure === "unavailable"
-  );
 }

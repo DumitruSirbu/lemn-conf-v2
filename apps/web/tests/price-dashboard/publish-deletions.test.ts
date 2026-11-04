@@ -1,5 +1,5 @@
-// Whether the deletions a draft holds can be published: judged by the domain from counts the page is given, and `cannot-judge`
-// whenever a count is missing, never a count made up or a deletion allowed for want of one.
+// Whether the deletions a draft holds can be published: judged by the domain from counts the page is given, and
+// `cannot-judge` whenever a count is missing, never a count made up or a deletion allowed for want of one.
 import { describe, expect, it } from "vitest";
 
 import {

@@ -1,8 +1,10 @@
-// The publish screens' source over the worlds the dashboard's routes are tested in: the persistence package's fake stores
-// with the app's own sessions. The source is called after the page's staff gate has admitted the reader, and a render must
-// not write: it gets the page's facts and leaves no audit row, touches no session and spends no limiter bucket. Who is
-// admitted is the gate's (`read-catalog-page.test.ts`).
+// The publish screens' source over the worlds the dashboard's routes are tested in: the persistence package's fake
+// stores with the app's own sessions. The source is called after the page's staff gate has admitted the reader, and a
+// render must not write: it gets the page's facts and leaves no audit row, touches no session and spends no limiter
+// bucket. Who is admitted is the gate's (`read-catalog-page.test.ts`).
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { DashboardStoreError } from "@lemnaria/persistence";
 
 import { SAMPLE_PRICE_BOOK } from "@lemnaria/configurator-domain";
 
@@ -136,7 +138,7 @@ describe("the publish page", () => {
 
   it("is unavailable for a store that cannot be read and for a dashboard with no version", async () => {
     vi.spyOn(prices.stores.priceBook, "readDraft").mockRejectedValue(
-      new Error("the store is down"),
+      new DashboardStoreError("read the price draft", "unavailable"),
     );
     const failing = await readPublishPage();
     vi.restoreAllMocks();
@@ -149,7 +151,7 @@ describe("the publish page", () => {
 
   it("is unavailable when only the history cannot be read, so no page claims a state beside a history it lacks", async () => {
     vi.spyOn(prices.stores.priceBook, "listVersions").mockRejectedValue(
-      new Error("the store is down"),
+      new DashboardStoreError("read the price draft", "unavailable"),
     );
 
     expect(await readPublishPage()).toEqual({ kind: "unavailable" });
@@ -241,7 +243,7 @@ describe("the count of waiting prices", () => {
     expect(await readPendingPriceCount()).toBeUndefined();
     vi.restoreAllMocks();
     vi.spyOn(prices.stores.priceBook, "readDraft").mockRejectedValue(
-      new Error("the store is down"),
+      new DashboardStoreError("read the price draft", "unavailable"),
     );
     expect(await readPendingPriceCount()).toBeUndefined();
   });

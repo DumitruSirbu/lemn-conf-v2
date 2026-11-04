@@ -16,6 +16,11 @@ import type {
 // members its wire declares, so that nothing else the answer carried reaches a screen. Used by the browser's client
 // and by the server's source of the cabinet list.
 
+/** A date the wire states as text that a screen can format: `Intl` throws on one it cannot read. */
+export function isReadableInstant(value: unknown): value is string {
+  return typeof value === "string" && !Number.isNaN(Date.parse(value));
+}
+
 function isRecord(value: unknown): boolean {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -89,7 +94,7 @@ export function readDashboardStateWire(
   if (typeof versionId !== "string" || typeof sequenceNumber !== "number") {
     return undefined;
   }
-  if (typeof label !== "string" || typeof publishedAt !== "string") {
+  if (typeof label !== "string" || !isReadableInstant(publishedAt)) {
     return undefined;
   }
   return {

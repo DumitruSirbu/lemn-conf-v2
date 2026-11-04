@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 //
-// A write that finds the stored draft unreadable hands the person to the page that gives it up, at the revision the route
-// named; one that finds no published version says so. Neither is told as a server that did not answer.
+// A write that finds the stored draft unreadable hands the person to the page that gives it up, at the revision the
+// route named; one that finds no published version says so. Neither is told as a server that did not answer.
 import { createElement } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 

@@ -3,6 +3,7 @@ import "server-only";
 import type { NextResponse } from "next/server";
 
 import {
+  countPendingPrices,
   createdItemsOf,
   type CatalogueAvailability,
   type PriceCatalogueSection,
@@ -150,7 +151,9 @@ export async function readDashboardStateForAdmittedPage(): Promise<
   return reading.kind === "ready" ? reading.wire : undefined;
 }
 
-/** The same read, keeping what `readDashboardStateForAdmittedPage` drops: the revision of a draft that cannot be read. */
+/**
+ * The same read, keeping what `readDashboardStateForAdmittedPage` drops: the revision of a draft that cannot be read.
+ */
 export function readDashboardReadingForAdmittedPage(): Promise<StateWireReading> {
   return readStateWire();
 }
@@ -577,9 +580,8 @@ async function performDiscard(
   if (stored.draftRevision !== input.expectedDraftRevision) {
     return changedMeanwhile();
   }
-  const revertedCount = readStoredDraft(stored.changes).ok
-    ? stored.changes.length
-    : 0;
+  const held = readStoredDraft(stored.changes);
+  const revertedCount = held.ok ? countPendingPrices(held.changes) : 0;
   return writeDraft(stores, {
     expectedDraftRevision: input.expectedDraftRevision,
     changes: [],

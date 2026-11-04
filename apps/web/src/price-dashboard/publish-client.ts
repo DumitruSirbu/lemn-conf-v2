@@ -15,12 +15,12 @@ import type {
   RestoreRequestWire,
 } from "./price-dashboard-wire-contract";
 
-// What the screens write through. Each outcome names every answer a route can give that the screen tells apart; any other
-// answer is `failed`, and `session-ended` is a `401` that the screen raises to the staff frame.
+// What the screens write through. Each outcome names every answer a route can give that the screen tells apart; any
+// other answer is `failed`, and `session-ended` is a `401` that the screen raises to the staff frame.
 
 /**
- * A `409` that says the page cannot go on as drawn: the stored draft cannot be read (the revision is what giving it up is
- * made at), or no version was ever published.
+ * A `409` that says the page cannot go on as drawn: the stored draft cannot be read (the revision is what giving it
+ * up is made at), or no version was ever published.
  */
 export type DraftStateRefusal =
   | { readonly kind: "draft-unreadable"; readonly draftRevision: string }
@@ -37,9 +37,18 @@ export interface RefusalReadingPublishClient extends PublishClient {
 export function readStateOrRefusal(
   client: PublishClient,
 ): Promise<DashboardStateWire | DraftStateRefusal | undefined> {
-  return "readStateOrRefusal" in client
-    ? (client as RefusalReadingPublishClient).readStateOrRefusal()
+  return canTellRefusal(client)
+    ? client.readStateOrRefusal()
     : client.readState();
+}
+
+function canTellRefusal(
+  client: PublishClient,
+): client is RefusalReadingPublishClient {
+  return (
+    typeof (client as Partial<RefusalReadingPublishClient>)
+      .readStateOrRefusal === "function"
+  );
 }
 
 /** Whether a read of the state answered with a refusal and not with a state. */
@@ -111,8 +120,8 @@ export type RestoreOutcome =
 
 export interface PublishClient {
   /**
-   * The dashboard's state again, after a write was refused as `changed-meanwhile`; absent when it cannot be read. A read
-   * refused because the session ended raises the staff frame's sheet itself.
+   * The dashboard's state again, after a write was refused as `changed-meanwhile`; absent when it cannot be read. A
+   * read refused because the session ended raises the staff frame's sheet itself.
    */
   readState(): Promise<DashboardStateWire | undefined>;
   publish(request: PublishRequestWire): Promise<PublishOutcome>;

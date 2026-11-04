@@ -14,10 +14,13 @@ import {
 import type { PublishBlock } from "./publish-client";
 
 // Whether the deletions a draft holds can be published, judged on the page before a publish is asked for. Which saved
-// kitchens use a deleted row is counted by a reader that is not available everywhere: without its counts the judgement is
-// `cannot-judge`, never a count made up and never an allowance.
+// kitchens use a deleted row is counted by a reader that is not available everywhere: without its counts the judgement
+// is `cannot-judge`, never a count made up and never an allowance.
 
-/** What judging a deletion needs besides the draft: the saved kitchens' use of each deleted row, and the saved defaults. */
+/**
+ * What judging a deletion needs besides the draft: the saved kitchens' use of each deleted row, and the saved
+ * defaults.
+ */
 export interface DeletionFacts {
   readonly usage: ItemUsageCounts;
   readonly defaults: NewKitchenSettings;
@@ -49,8 +52,8 @@ export function judgePendingDeletions({
 }
 
 /**
- * What a draft that deletes only rows the book does not state is judged by: such a row, one the draft created, has no user
- * and needs no count. `undefined` when a deleted row is one the book states, whose use only a count can tell.
+ * What a draft that deletes only rows the book does not state is judged by: such a row, one the draft created, has no
+ * user and needs no count. `undefined` when a deleted row is one the book states, whose use only a count can tell.
  */
 function factsWithoutCounts(
   deleted: readonly ItemRef[],
@@ -72,8 +75,10 @@ function refusalsOf(
   }
 }
 
-/** A default is named before a use, as the publish names the cause nothing can be done about by waiting. A row that is
- *  never deleted has no words here, so it is not judged. */
+/**
+ * A default is named before a use, since waiting does not clear it. A deletion no count can clear (a colour, a
+ * handle, a built-in accessory) has no words here, so it is not allowed through and cannot be judged.
+ */
 function blockOf(
   refusals: readonly PublishDeletionRefusal[],
 ): DeletionJudgement {

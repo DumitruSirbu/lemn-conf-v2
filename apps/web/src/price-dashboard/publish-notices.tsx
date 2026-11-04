@@ -100,6 +100,12 @@ export function NoticeBody({
           {translate("priceDashboard.errors.changedMeanwhile")}
         </FormNotice>
       );
+    case "write-candidate-refused":
+      return (
+        <FormNotice tone="error">
+          {translate("priceDashboard.publish.writeCandidateRefused")}
+        </FormNotice>
+      );
     case "save-failed":
       return (
         <FormNotice tone="error">

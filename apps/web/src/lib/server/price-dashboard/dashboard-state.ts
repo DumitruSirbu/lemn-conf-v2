@@ -35,7 +35,7 @@ export type DashboardStateReading =
   /** The stored changes are not what a draft holds. Its revision is all that is known of it, and a discard-all needs it. */
   | { readonly kind: "draft-unreadable"; readonly draftRevision: string };
 
-class DashboardStateUnreadableError extends Error {
+export class DashboardStateUnreadableError extends Error {
   constructor(what: "book" | "draft" | "availability") {
     super(`The stored ${what} is not what the store declares it to be.`);
     this.name = "DashboardStateUnreadableError";

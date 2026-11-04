@@ -2,6 +2,8 @@ import { ownValueOf } from "@/staff/staff-kitchens-wire-reading";
 
 import {
   ask,
+  DRAFT_ADDRESS,
+  STATE_ADDRESS,
   CONFLICT_STATUS,
   INVALID_INPUT_STATUS,
   OK_STATUS,
@@ -75,8 +77,6 @@ export interface PriceDraftClient {
     | undefined;
 }
 
-const STATE_ADDRESS = "/api/staff/prices";
-const DRAFT_ADDRESS = "/api/staff/prices/draft";
 const BULK_ADDRESS = "/api/staff/prices/bulk";
 
 export const FETCHING_PRICE_DRAFT_CLIENT: PriceDraftClient = {

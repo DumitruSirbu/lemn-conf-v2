@@ -2295,11 +2295,15 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       staleDraftTitle: "Unele prețuri pregătite nu mai pot fi aplicate",
       staleDraftBody:
         "Ce ai pregătit nu se mai potrivește cu prețurile active, așa că nu poate fi publicat. Prețurile active nu s-au schimbat. Poți renunța la modificările de mai jos una câte una sau la toată ciorna.",
+      staleDraftWholeBook:
+        "Ce ai pregătit nu se mai potrivește cu prețurile active, așa că nu poate fi publicat, și nu se vede care modificare strică lista. Prețurile active nu s-au schimbat. Poți renunța doar la toată ciorna.",
       staleChangeKept: "{name}: modificare pregătită.",
       staleChangeWholeDraftOnly:
         "{name}: nu se poate anula singură, doar împreună cu toată ciorna.",
       noActiveVersion:
         "Nu există încă nicio versiune publicată, așa că nu se poate publica nimic și nu se poate restaura nimic. Prețurile pregătite sunt păstrate.",
+      writeCandidateRefused:
+        "Lista care ar rezulta nu ar trece verificarea catalogului, așa că nu s-a schimbat nimic. Prețurile pregătite sunt păstrate.",
       answerUnreadableTitle: "Nu am putut citi răspunsul serverului",
       answerUnreadableBody:
         "Este posibil ca versiunea să fi fost publicată. Reîncarcă pagina ca să vezi ce s-a publicat; prețurile pregătite se văd acolo dacă nu s-au publicat.",

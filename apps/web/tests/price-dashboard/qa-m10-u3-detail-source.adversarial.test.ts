@@ -5,6 +5,8 @@
 // that is down.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { DashboardStoreError } from "@lemnaria/persistence";
+
 import { readCabinetDetail } from "@/price-dashboard/cabinet-list-source";
 
 import { stateOf } from "./dashboard-state-fixture";
@@ -50,7 +52,13 @@ beforeEach(() => {
 
 describe("a store that cannot answer", () => {
   it.each([
-    ["rejects", () => Promise.reject(new Error("the store is down"))],
+    [
+      "rejects",
+      () =>
+        Promise.reject(
+          new DashboardStoreError("read the price draft", "unavailable"),
+        ),
+    ],
     ["answers nothing", () => Promise.resolve(undefined)],
     ["answers a string", () => Promise.resolve("<html>502</html>")],
     [

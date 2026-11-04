@@ -8,15 +8,18 @@ import {
   readVersion,
 } from "./admitted-state-read";
 import { pendingPriceCountOf } from "./cabinet-list-model";
-import type { PublishPageInput, VersionDetailInput } from "./publish-model";
-import type { DashboardStateWire } from "./price-dashboard-wire-contract";
+import type {
+  DashboardStateWire,
+  PriceVersionWire,
+} from "./price-dashboard-wire-contract";
 import { readDashboardStateWire } from "./price-dashboard-wire-reading";
+import type { PublishPageInput, VersionDetailInput } from "./publish-model";
 import { romanianCabinetNamesOf } from "./romanian-cabinet-names";
 
-// The one place the publish screens' facts come from: the dashboard's state and the history, read for a page whose staff
-// gate (`price.edit`) has already admitted the reader. A render reads and never writes: no session, no limiter bucket, no
-// audit row. What cannot be read is `unavailable` and no price is claimed; a draft that cannot be read is told apart,
-// because the one thing that works on it is giving it up, at the revision it names.
+// The one place the publish screens' facts come from: the dashboard's state and the history, read for a page whose
+// staff gate (`price.edit`) has already admitted the reader. A render reads and never writes: no session, no limiter
+// bucket, no audit row. What cannot be read is `unavailable` and no price is claimed; a draft that cannot be read is
+// told apart, because the one thing that works on it is giving it up, at the revision it names.
 
 export type PublishPageRead =
   | { readonly kind: "ready"; readonly input: PublishPageInput }
@@ -30,14 +33,14 @@ export type VersionDetailRead =
   | { readonly kind: "not-found" }
   | { readonly kind: "unavailable" };
 
-type StateRead =
+/** What the state came to for a page: the state, or why the page cannot be drawn from it. */
+type StateOfPage =
   | { readonly kind: "ready"; readonly state: DashboardStateWire }
-  | { readonly kind: "draft-unreadable"; readonly draftRevision: string }
-  | { readonly kind: "unavailable" };
+  | Exclude<PublishPageRead, { readonly kind: "ready" }>;
 
 /** The page's input, its cabinets named in Romanian on both routes. */
 export async function readPublishPage(): Promise<PublishPageRead> {
-  const read = await readState();
+  const read = await readStateOfPage();
   if (read.kind !== "ready") return read;
   const { state } = read;
   const versions = await readAdmitted(readFirstVersionPage);
@@ -57,36 +60,53 @@ export async function readVersionDetail(
 ): Promise<VersionDetailRead> {
   const found = await readAdmitted(() => readVersion(versionId));
   if (found.kind === "unavailable") return found;
-  if (found.value === undefined) return { kind: "not-found" };
   const { value: version } = found;
-  const read = await readState();
+  if (version === undefined) return { kind: "not-found" };
+  const read = await readStateOfPage();
   if (read.kind !== "ready") return read;
   const predecessor = await readAdmitted(() =>
     readPredecessorOf(version.sequenceNumber),
   );
   if (predecessor.kind === "unavailable") return predecessor;
-  const { state } = read;
   return {
     kind: "ready",
-    input: {
+    input: versionDetailInputOf({
       version,
-      predecessor:
-        predecessor.value === undefined
-          ? undefined
-          : {
-              sequenceNumber: predecessor.value.sequenceNumber,
-              book: predecessor.value.book,
-            },
-      active: {
-        sequenceNumber: state.active.sequenceNumber,
-        book: state.active.book,
-      },
-      draft: state.draft,
-      cabinetNames: {
-        ...romanianCabinetNamesOf(predecessor.value?.book ?? version.book),
-        ...romanianCabinetNamesOf(version.book),
-        ...romanianCabinetNamesOf(state.active.book),
-      },
+      predecessor: predecessor.value,
+      state: read.state,
+    }),
+  };
+}
+
+function versionDetailInputOf({
+  version,
+  predecessor,
+  state,
+}: {
+  readonly version: PriceVersionWire;
+  readonly predecessor: PriceVersionWire | undefined;
+  readonly state: DashboardStateWire;
+}): VersionDetailInput {
+  return {
+    version,
+    predecessor:
+      predecessor === undefined
+        ? undefined
+        : {
+            sequenceNumber: predecessor.sequenceNumber,
+            book: predecessor.book,
+          },
+    active: {
+      sequenceNumber: state.active.sequenceNumber,
+      book: state.active.book,
+    },
+    draft: state.draft,
+    cabinetNames: {
+      ...(predecessor === undefined
+        ? {}
+        : romanianCabinetNamesOf(predecessor.book)),
+      ...romanianCabinetNamesOf(version.book),
+      ...romanianCabinetNamesOf(state.active.book),
     },
   };
 }
@@ -97,13 +117,13 @@ export async function readVersionDetail(
  * unreadable draft and a dashboard with no version are never reported as an empty draft.
  */
 export async function readPendingPriceCount(): Promise<number | undefined> {
-  const read = await readState();
+  const read = await readStateOfPage();
   return read.kind === "ready"
     ? pendingPriceCountOf(read.state.draft)
     : undefined;
 }
 
-async function readState(): Promise<StateRead> {
+async function readStateOfPage(): Promise<StateOfPage> {
   const read = await readStateReading();
   if (read.kind === "unavailable") return read;
   const reading = read.value;

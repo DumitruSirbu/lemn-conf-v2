@@ -4,6 +4,9 @@ import { useCallback, useMemo, useState } from "react";
 
 import { raiseStaffSessionExpired } from "@/staff/staff-session-expiry";
 
+import { orFailed } from "./async-seams";
+import { pendingPriceCountOf } from "./cabinet-list-model";
+import { FETCHING_PUBLISH_CLIENT } from "./fetching-publish-client";
 import type {
   CandidateRefusalWire,
   DashboardDraftWire,
@@ -12,8 +15,6 @@ import type {
   PublishedWire,
   PublishTextRefusalCode,
 } from "./price-dashboard-wire-contract";
-import { orFailed } from "./async-seams";
-import { FETCHING_PUBLISH_CLIENT } from "./fetching-publish-client";
 import type {
   DraftChangeOutcome,
   PriceDraftClient,
@@ -28,17 +29,16 @@ import {
   type PublishOutcome,
 } from "./publish-client";
 import {
+  judgePendingDeletions,
+  type DeletionJudgement,
+} from "./publish-deletions";
+import {
   offersOnlyDiscard,
   readPendingDraft,
   type PendingDraftReading,
   type PublishPageInput,
 } from "./publish-model";
-import {
-  judgePendingDeletions,
-  type DeletionJudgement,
-} from "./publish-deletions";
-import { countPendingPrices } from "./pending-price-count";
-import { staleChangesOf, type StaleChangeView } from "./stale-draft";
+import { staleDraftOf, type StaleDraftView } from "./stale-draft";
 import { useUnsentAmounts, type ReportUnsentAmount } from "./unsent-amounts";
 import { useDiscardDraft, type DiscardControl } from "./use-discard-draft";
 import {
@@ -51,6 +51,7 @@ import { useVersionHistory, type VersionHistory } from "./use-version-history";
 // Nothing is shown as published until the client said so; a refusal as `changed-meanwhile` reads the state again first.
 // The draft belongs to `usePriceDraft`: every write of it, here or in a row's field, goes through it, one at a time.
 
+const NO_STALE_LINES: StaleDraftView = { kind: "lines", lines: [] };
 const PUBLISH_FAILED: PublishOutcome = { kind: "failed" };
 
 export type PublishView = "pending" | "history";
@@ -76,6 +77,8 @@ export type PublishNotice =
     }
   | { readonly kind: "conflict" }
   | { readonly kind: "save-failed" }
+  /** The draft with that write would no longer make a book: nothing was changed, and trying again cannot help. */
+  | { readonly kind: "write-candidate-refused" }
   | { readonly kind: "discarded" }
   | { readonly kind: "blocked"; readonly block: PublishBlock }
   /** The publish was answered, but the answer could not be read: whether a version was published is not known. */
@@ -87,8 +90,8 @@ export interface PublishDesk {
   readonly reading: PendingDraftReading;
   /** A write found the stored draft unreadable or no version published: the page cannot go on as drawn. */
   readonly stateRefusal: DraftStateRefusal | undefined;
-  /** The draft's changes one by one, when it no longer makes a book; empty otherwise. */
-  readonly staleChanges: readonly StaleChangeView[];
+  /** The draft's changes one by one, when it no longer makes a book; no lines otherwise. */
+  readonly stale: StaleDraftView;
   /** Whether the draft's deletions can be published; the page asks it before it sends a publish. */
   readonly deletion: DeletionJudgement;
   readonly view: PublishView;
@@ -158,15 +161,15 @@ export function usePublishDesk({
       }),
     [state, input.cabinetNames],
   );
-  const staleChanges = useMemo(
+  const stale = useMemo(
     () =>
       reading.kind === "candidate-refused"
-        ? staleChangesOf({
+        ? staleDraftOf({
             active: state.active.book,
             changes: state.draft.changes,
             cabinetNames: input.cabinetNames,
           })
-        : [],
+        : NO_STALE_LINES,
     [reading.kind, state, input.cabinetNames],
   );
   const deletion = useMemo(
@@ -213,8 +216,10 @@ export function usePublishDesk({
       case "conflict":
         setNotice({ kind: "conflict" });
         return;
-      case "refused":
       case "candidate-refused":
+        setNotice({ kind: "write-candidate-refused" });
+        return;
+      case "refused":
       case "failed":
         setNotice({ kind: "save-failed" });
         return;
@@ -267,7 +272,7 @@ export function usePublishDesk({
         label,
         state: "active",
         publishedAt: ownVersion?.active.publishedAt ?? new Date().toISOString(),
-        changeCount: countPendingPrices(state.draft.changes),
+        changeCount: pendingPriceCountOf(state.draft),
       });
       setNotice({
         kind: "published",
@@ -343,7 +348,7 @@ export function usePublishDesk({
     history,
     reading,
     stateRefusal,
-    staleChanges,
+    stale,
     deletion,
     view,
     versionName,
@@ -394,40 +399,45 @@ export function usePublishDesk({
   };
 }
 
+type StateRefusalReport = (refusal: DraftStateRefusal) => void;
+
 /**
  * The draft's own client over the desk's: the desk never makes a bulk change, so that one is never sent. A write that
  * found the draft unreadable, or no version, is told to the desk and is no write to the draft.
  */
 function draftClientOf(
   client: PublishClient,
-  onStateRefusal: (refusal: DraftStateRefusal) => void,
+  report: StateRefusalReport,
 ): PriceDraftClient {
-  const settled = async (
-    sent: Promise<DraftWriteOutcome>,
-  ): Promise<DraftChangeOutcome> => {
-    const outcome = await sent;
-    if (
-      outcome.kind === "draft-unreadable" ||
-      outcome.kind === "no-active-version"
-    ) {
-      onStateRefusal(outcome);
-      return { kind: "failed" };
-    }
-    return outcome.kind === "changed"
-      ? { kind: "changed", written: outcome.draft }
-      : outcome;
-  };
   return {
     readState: async () => {
       const read = await readStateOrRefusal(client);
       if (!isStateRefusal(read)) return read;
-      onStateRefusal(read);
+      report(read);
       return undefined;
     },
-    change: (request) => settled(client.change(request)),
-    revert: (request) => settled(client.revert(request)),
+    change: async (request) =>
+      draftResultOf(await client.change(request), report),
+    revert: async (request) =>
+      draftResultOf(await client.revert(request), report),
     bulk: () => Promise.resolve({ kind: "failed" }),
   };
+}
+
+function draftResultOf(
+  outcome: DraftWriteOutcome,
+  report: StateRefusalReport,
+): DraftChangeOutcome {
+  switch (outcome.kind) {
+    case "changed":
+      return { kind: "changed", written: outcome.draft };
+    case "draft-unreadable":
+    case "no-active-version":
+      report(outcome);
+      return { kind: "failed" };
+    default:
+      return outcome;
+  }
 }
 
 function isProvisionalOf(

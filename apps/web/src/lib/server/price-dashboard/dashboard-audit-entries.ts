@@ -48,7 +48,10 @@ export function groupRevertedEntry(revertedCount: number): DashboardAuditEntry {
   };
 }
 
-/** The draft was reset to empty: `revertedCount` is the entries it held, or 0 when they could not be read. */
+/**
+ * The draft was reset to empty: `revertedCount` is the prices it held (`countPendingPrices`), or 0 when they could
+ * not be read.
+ */
 export function draftDiscardedEntry(
   revertedCount: number,
 ): DashboardAuditEntry {

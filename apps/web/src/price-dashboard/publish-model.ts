@@ -27,13 +27,13 @@ import {
   type TextDiffRow,
 } from "@lemnaria/configurator-domain";
 
+import { pendingPriceCountOf } from "./cabinet-list-model";
 import type {
   DashboardStateWire,
   DraftRevertTargetWire,
   PriceVersionListWire,
   PriceVersionWire,
 } from "./price-dashboard-wire-contract";
-import { countPendingPrices } from "./pending-price-count";
 import type { DeletionFacts } from "./publish-deletions";
 
 // Rows are the domain's `diffBooks`, named from address and book. No words, and no price arithmetic beyond the size
@@ -226,7 +226,7 @@ export function readPendingDraft(
         ),
       ),
       hasRows: rows.length > 0,
-      changeCount: countPendingPrices(changes),
+      changeCount: pendingPriceCountOf({ changes }),
       canPublish: diffBooks(active, candidate).length > 0,
       holdsProvisionalOff: changes.some(isProvisionalOff),
       candidateIsProvisional: candidate.amountsProvisional,

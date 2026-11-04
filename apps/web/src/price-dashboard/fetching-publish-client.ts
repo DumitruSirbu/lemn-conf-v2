@@ -4,8 +4,11 @@ import { raiseStaffSessionExpired } from "@/staff/staff-session-expiry";
 import {
   ask,
   CONFLICT_STATUS,
+  DRAFT_ADDRESS,
   INVALID_INPUT_STATUS,
+  NOT_FOUND_STATUS,
   OK_STATUS,
+  STATE_ADDRESS,
   UNAUTHORISED_STATUS,
   type Answer,
 } from "./dashboard-fetch";
@@ -16,23 +19,24 @@ import {
 import {
   PUBLISH_TEXT_REFUSAL_CODES,
   type DashboardStateWire,
+  type DraftDiscardRequestWire,
   type PublishRequestWire,
+  type RestoreRequestWire,
 } from "./price-dashboard-wire-contract";
 import {
   readDashboardStateWire,
   readDraftWire,
 } from "./price-dashboard-wire-reading";
-import type {
-  DiscardOutcome,
-  DraftStateRefusal,
-  DraftWriteOutcome,
-  PublishClient,
-  PublishOutcome,
-  RefusalReadingPublishClient,
-  RestoreOutcome,
-  VersionPageOutcome,
+import {
+  isStateRefusal,
+  type DiscardOutcome,
+  type DraftStateRefusal,
+  type DraftWriteOutcome,
+  type PublishOutcome,
+  type RefusalReadingPublishClient,
+  type RestoreOutcome,
+  type VersionPageOutcome,
 } from "./publish-client";
-import { isStateRefusal } from "./publish-client";
 import {
   readCandidateRefusals,
   readItemRef,
@@ -46,21 +50,18 @@ import {
 // `PublishClient`, and anything that is not one of the route's own is `failed`: nothing is shown as written until the
 // route says so.
 
-const STATE_ADDRESS = "/api/staff/prices";
-const DRAFT_ADDRESS = "/api/staff/prices/draft";
 const PUBLISH_ADDRESS = "/api/staff/prices/publish";
 const VERSIONS_ADDRESS = "/api/staff/prices/versions";
-const NOT_FOUND_STATUS = 404;
 
 const FAILED = { kind: "failed" } as const;
 const SESSION_ENDED = { kind: "session-ended" } as const;
 
 export const FETCHING_PUBLISH_CLIENT: RefusalReadingPublishClient = {
   readState: async () => {
-    const read = await readStateOrRefusal();
+    const read = await readStateWithRefusal();
     return isStateRefusal(read) ? undefined : read;
   },
-  readStateOrRefusal,
+  readStateOrRefusal: readStateWithRefusal,
   publish,
   change: (request) => writeDraft("PUT", request),
   revert: (request) => writeDraft("DELETE", request),
@@ -98,7 +99,7 @@ function stateRefusalOf({
     : undefined;
 }
 
-async function readStateOrRefusal(): Promise<
+async function readStateWithRefusal(): Promise<
   DashboardStateWire | DraftStateRefusal | undefined
 > {
   const answer = await ask(STATE_ADDRESS, { method: "GET" });
@@ -111,7 +112,7 @@ async function readStateOrRefusal(): Promise<
 }
 
 async function discardDraft(
-  request: Parameters<PublishClient["discardDraft"]>[0],
+  request: DraftDiscardRequestWire,
 ): Promise<DiscardOutcome> {
   const answer = await sendJson("DELETE", DRAFT_ADDRESS, request);
   if (answer === undefined) return FAILED;
@@ -215,7 +216,7 @@ async function readVersionPage(page: number): Promise<VersionPageOutcome> {
 
 async function restore(
   versionId: string,
-  request: Parameters<PublishClient["restore"]>[1],
+  request: RestoreRequestWire,
 ): Promise<RestoreOutcome> {
   const address = `${VERSIONS_ADDRESS}/${encodeURIComponent(versionId)}/restore`;
   const answer = await sendJson("POST", address, request);

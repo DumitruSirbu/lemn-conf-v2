@@ -1,9 +1,7 @@
 import "server-only";
 
-import { reportAccountEvent } from "@/lib/server/account/account-log";
-import { isStoreSayingUnavailable } from "@/lib/server/price-dashboard/admitted-page-reads";
+import { absorbStoreFailure } from "@/lib/server/price-dashboard/admitted-failure";
 import {
-  PRICE_READ_EVENT,
   readDashboardReadingForAdmittedPage,
   readDashboardStateForAdmittedPage,
   type StateWireReading,
@@ -23,9 +21,8 @@ export type AdmittedRead<Value> =
   | { readonly kind: "unavailable" };
 
 /**
- * A store that fails is nothing to show, and the line written down names the event and the outcome alone. A store that
- * says it is unavailable is production's state while it has no price stores, not a failure: it is read as nothing and
- * written down nowhere: the price root already writes its own line for it, so a staff page load adds none.
+ * A store that fails is nothing to show; `absorbStoreFailure` writes down what is worth it and throws on what is a
+ * defect.
  */
 export async function readAdmitted<Value>(
   read: () => Promise<Value>,
@@ -33,9 +30,7 @@ export async function readAdmitted<Value>(
   try {
     return { kind: "read", value: await read() };
   } catch (failure) {
-    if (!isStoreSayingUnavailable(failure)) {
-      reportAccountEvent({ event: PRICE_READ_EVENT, outcome: "unavailable" });
-    }
+    await absorbStoreFailure(failure);
     return { kind: "unavailable" };
   }
 }

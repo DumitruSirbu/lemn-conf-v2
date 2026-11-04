@@ -122,7 +122,10 @@ export interface StoredPriceVersion extends ActivePriceVersion {
   readonly state: "active" | "archived";
   /** Authored text. */
   readonly note: string;
-  /** The published `DraftChange[]` as a JSON array, with minted ids and group ids (m8). `changeCount` is the number of prices it holds (`countPendingPrices`). */
+  /**
+   * The published `DraftChange[]` as a JSON array, with minted ids and group ids (m8). `changeCount` is the number of
+   * prices it holds (`countPendingPrices`).
+   */
   readonly changeSummary: unknown;
 }
 
@@ -212,7 +215,10 @@ export interface PublishPriceBookRequest {
    * never a book a request carried. Stored whole and immutable.
    */
   readonly book: unknown;
-  /** The published `DraftChange[]`, as a JSON array (m8). It is stored whole; `changeCount` is the number of prices it holds (`countPendingPrices`). */
+  /**
+   * The published `DraftChange[]`, as a JSON array (m8). It is stored whole; `changeCount` is the number of prices it
+   * holds (`countPendingPrices`).
+   */
   readonly changeSummary: unknown;
   /** The availability head the publisher read. A publish takes the same compare-and-set as an availability write (M1). */
   readonly expectedAvailabilityRevision: string;
