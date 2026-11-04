@@ -50,6 +50,8 @@ vi.mock("@/lib/server/price-book-test-seed", () => ({
 const SEEDED_STORES: PriceStores = {
   priceBook: Object.freeze({}) as PriceStores["priceBook"],
   availability: Object.freeze({}) as PriceStores["availability"],
+  defaults: Object.freeze({}) as PriceStores["defaults"],
+  usage: Object.freeze({}) as PriceStores["usage"],
 };
 
 const { getPriceStores, PRICE_STORES_GLOBAL_KEY } = await import(

@@ -13,6 +13,7 @@ import {
 import {
   FakeCatalogueAvailabilityStore,
   FakeDashboardAuditLedger,
+  FakeKitchenDefaultsStore,
   FakePriceBookStore,
   FakeRevisionHead,
 } from "@lemnaria/persistence";
@@ -113,9 +114,12 @@ async function publish(book: PriceBook): Promise<void> {
     },
   });
   if (published.kind !== "ok") throw new Error("seed: publish refused");
+  const defaults = new FakeKitchenDefaultsStore({ ledger, availability, now });
   world.stores = {
     priceBook: stampedWithItsVersionId(priceBook),
     availability,
+    defaults,
+    usage: defaults,
   };
 }
 
