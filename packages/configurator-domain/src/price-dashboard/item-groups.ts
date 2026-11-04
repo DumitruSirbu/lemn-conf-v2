@@ -15,7 +15,11 @@ import {
   type CatalogueAvailability,
   type ItemRef,
 } from "../pricing/catalogue-availability.js";
-import { listAccessoryIds, type PriceBook } from "../pricing/price-book.js";
+import {
+  isAccessorySwitchedOff,
+  listAccessoryIds,
+  type PriceBook,
+} from "../pricing/price-book.js";
 
 /** What names the book whose groups and items are asked, and the availability that says what is on. */
 export interface ItemGroupContext {
@@ -63,7 +67,10 @@ export function isItemOffered(
   item: ItemRef,
   { book, availability }: ItemGroupContext,
 ): boolean {
-  return isItemStated(item, book) && !isItemDisabled(availability, item);
+  if (!isItemStated(item, book)) return false;
+  return item.kind === "accessory"
+    ? !isAccessorySwitchedOff(availability, item.accessoryId)
+    : !isItemDisabled(availability, item);
 }
 
 function paletteContaining(finishId: string): readonly ItemRef[] {

@@ -2252,6 +2252,8 @@ export const APPROVED_ROMANIAN_MESSAGES = {
         "Accesoriul nu a fost încă publicat. Ștergerea îl scoate din „De publicat”.",
       alwaysPresentCannotChange:
         "Se adaugă întotdeauna, ca protecție, și nu se dezactivează.",
+      alwaysPresentCannotBeDeleted:
+        "Se adaugă întotdeauna, ca protecție, și nu se șterge.",
     },
     publish: {
       title: "Publicare prețuri",

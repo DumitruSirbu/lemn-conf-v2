@@ -130,21 +130,46 @@ describe("the switch of an accessory", () => {
 
 describe("the deletion of an accessory", () => {
   it.each(ACCESSORY_IDS)(
-    "is off for the built-in %s, with its own reason, before any default or count is read",
+    "is off for the built-in %s, with the reason that fits it, before any default or count is read",
     (accessoryId) => {
+      const reason =
+        accessoryId === SINK_COVER
+          ? "always-present-accessory"
+          : "built-in-accessory";
       const item = accessoryItem(accessoryId) as Parameters<
         typeof deleteStandOf
       >[0];
       for (const defaults of [{}, undefined]) {
         expect(deleteStandOf(item, contextOf({ defaults }))).toEqual({
           kind: "off",
-          reason: "built-in-accessory",
+          reason,
         });
       }
     },
   );
 
-  it("says it comes with the catalogue, in the words of its reason", () => {
+  it("says the always-present cover is never deleted, in the words of its reason, which do not offer to switch it off", () => {
+    const words = offReasonWords(translate, "always-present-accessory");
+
+    expect(words).toBe(
+      roCopy("priceDashboard.lifecycle.alwaysPresentCannotBeDeleted"),
+    );
+    expect(words).not.toMatch(/dezactiv/iu);
+  });
+
+  it("is off, as not judged, where nothing can be written, for a linked accessory the book holds and for one only the draft holds", () => {
+    for (const accessoryId of [PUBLISHED, "created-1"]) {
+      expect(
+        deleteStandOf(
+          accessoryItem(accessoryId) as Parameters<typeof deleteStandOf>[0],
+          contextOf({ canWrite: false }),
+        ),
+        accessoryId,
+      ).toEqual({ kind: "off", reason: "cannot-judge" });
+    }
+  });
+
+  it("says the rack comes with the catalogue, in the words of its reason", () => {
     expect(offReasonWords(translate, "built-in-accessory")).toBe(
       roCopy("priceDashboard.lifecycle.builtInAccessoryCannotBeDeleted"),
     );

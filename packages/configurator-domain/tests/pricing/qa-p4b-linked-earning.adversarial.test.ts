@@ -4,6 +4,7 @@
 import * as fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
+import { ALWAYS_PRESENT_ACCESSORY_ID } from "../../src/pricing/price-book.js";
 import { resolveCatalogEquivalent } from "../../src/catalog.js";
 import type { Design } from "../../src/design.js";
 import { KITCHEN_L_DESIGN } from "../../src/fixtures/kitchen-l-design.js";
@@ -536,7 +537,11 @@ describe("a switched-off linked accessory (P4a-d, P4b)", () => {
       expect(
         result.ok &&
           accessoryLinesOf(result.priced).map((line) => line.accessoryId),
-      ).toEqual(onLinesOf.filter((id) => !off.includes(id)));
+      ).toEqual(
+        onLinesOf.filter(
+          (id) => id === ALWAYS_PRESENT_ACCESSORY_ID || !off.includes(id),
+        ),
+      );
     }
   });
 });

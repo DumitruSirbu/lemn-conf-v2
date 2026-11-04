@@ -7,6 +7,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
+import { ALWAYS_PRESENT_ACCESSORY_ID } from "../../src/pricing/price-book.js";
 import type { Design, Handle } from "../../src/design.js";
 import { HandleSchema } from "../../src/design.js";
 import { KITCHEN_L_DESIGN } from "../../src/fixtures/kitchen-l-design.js";
@@ -561,6 +562,7 @@ describe("P4a-d swept: a switched-off accessory is a missing line, and the notic
         const droppedLines = baseline.priced.lines.filter(
           (line) =>
             line.kind === "accessory" &&
+            line.accessoryId !== ALWAYS_PRESENT_ACCESSORY_ID &&
             disabled.some(
               (off) =>
                 off.kind === "accessory" &&
@@ -601,7 +603,13 @@ describe("P4a-d swept: a switched-off accessory is a missing line, and the notic
             const isOffIn = (set: readonly ItemRef[], item: ItemRef) =>
               set.some((off) => isSameItem(off, item));
             const expected = earned.filter(
-              (item) => isOffIn(current, item) && !isOffIn(seen, item),
+              (item) =>
+                !(
+                  item.kind === "accessory" &&
+                  item.accessoryId === ALWAYS_PRESENT_ACCESSORY_ID
+                ) &&
+                isOffIn(current, item) &&
+                !isOffIn(seen, item),
             );
 
             expect(
@@ -720,7 +728,10 @@ describe("hostile availability: a frozen, repeated, oversized or foreign-kinded 
     const result = priceUnder(availabilityOf([foreign, COVER]));
 
     expect(result.ok).toBe(true);
-    expect(billedIds(result)).toEqual(["dishDryingRack"]);
+    expect(billedIds(result)).toEqual([
+      "sinkProtectiveCover",
+      "dishDryingRack",
+    ]);
   });
 
   it("is untroubled by a list of five thousand items, and by an item that names nothing", () => {

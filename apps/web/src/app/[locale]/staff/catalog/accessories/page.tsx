@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 
 import { routing } from "@/i18n/routing";
 import { AccessoryListScreen } from "@/price-dashboard/accessory-list";
-import { AccessoryUnavailableScreen } from "@/price-dashboard/accessory-parts";
+import { ItemUnavailableScreen } from "@/price-dashboard/catalog-states";
 import { readAccessories } from "@/price-dashboard/accessory-source";
 
 import {
@@ -26,10 +26,10 @@ export async function generateMetadata({
 }
 
 /**
- * The accessories. `renderCatalogPage` decides who sees it: a visitor leaves for the login page, an operator gets
- * the forbidden screen inside the staff frame, any other account gets the account area's, and an unreadable session store
- * draws a notice, all with HTTP 200. `readAccessories` supplies what the list shows once that gate has admitted the reader, and
- * reads without writing; the list writes through its own clients. Rendered per request.
+ * The accessories. `renderCatalogPage` decides who sees it: a visitor leaves for the login page, an operator gets the
+ * forbidden screen inside the staff frame, any other account gets the account area's, and an unreadable session store
+ * draws a notice, all with HTTP 200. `readAccessories` supplies what the list shows once that gate has admitted the
+ * reader, and reads without writing; the list writes through its own clients. Rendered per request.
  */
 export default async function AccessoriesPage({
   params,
@@ -45,7 +45,11 @@ export default async function AccessoriesPage({
       return read.kind === "ready" ? (
         <AccessoryListScreen locale={locale} context={shell} page={read.page} />
       ) : (
-        <AccessoryUnavailableScreen locale={locale} context={shell} />
+        <ItemUnavailableScreen
+          locale={locale}
+          context={shell}
+          page="accessories"
+        />
       );
     },
   });

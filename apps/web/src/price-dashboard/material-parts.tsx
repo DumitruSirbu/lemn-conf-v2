@@ -3,10 +3,7 @@
 import { useTranslations } from "next-intl";
 
 import type { ContentTranslator } from "@/i18n/content";
-import type { AppLocale } from "@/i18n/routing";
-import { StaffShell, type StaffShellContext } from "@/staff/staff-shell";
 
-import { CatalogUnavailableNotice } from "./catalog-states";
 import type { ActionReasons } from "./action-that-may-be-off";
 import {
   isDefaultItem,
@@ -23,21 +20,6 @@ import styles from "./material.module.css";
 
 // What the materials list and the material page draw the same way: the chips of a material, why a switch or a deletion
 // may be off, and the screen that stands in for the page when the materials could not be read.
-
-/** The materials could not be read: the frame stays, and the notice stands in the page's place. */
-export function MaterialUnavailableScreen({
-  locale,
-  context,
-}: {
-  readonly locale: AppLocale;
-  readonly context: StaffShellContext;
-}) {
-  return (
-    <StaffShell locale={locale} page="materials" context={context}>
-      <CatalogUnavailableNotice />
-    </StaffShell>
-  );
-}
 
 /** What the material is to customers now, whether it is the default, and whether the draft touches it. `usedBy` is how
  *  many saved kitchens use it, where that was counted. */

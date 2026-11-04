@@ -5,11 +5,8 @@ import { useTranslations } from "next-intl";
 import type { ItemRef } from "@lemnaria/configurator-domain";
 
 import type { ContentTranslator } from "@/i18n/content";
-import type { AppLocale } from "@/i18n/routing";
-import { StaffShell, type StaffShellContext } from "@/staff/staff-shell";
 
 import type { ActionReasons } from "./action-that-may-be-off";
-import { CatalogUnavailableNotice } from "./catalog-states";
 import type { HardwareClassFacts } from "./hardware-model";
 import styles from "./hardware.module.css";
 import {
@@ -26,21 +23,6 @@ export function hardwareItemOf({
   tierId,
 }: HardwareClassFacts): Extract<ItemRef, { readonly kind: "hardware" }> {
   return { kind: "hardware", tierId };
-}
-
-/** The classes could not be read: the frame stays, and the notice stands in the page's place. */
-export function HardwareUnavailableScreen({
-  locale,
-  context,
-}: {
-  readonly locale: AppLocale;
-  readonly context: StaffShellContext;
-}) {
-  return (
-    <StaffShell locale={locale} page="hardware" context={context}>
-      <CatalogUnavailableNotice />
-    </StaffShell>
-  );
 }
 
 /** What the class is to customers now, whether it is the default, and whether the draft touches it. */

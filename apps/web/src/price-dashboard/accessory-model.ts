@@ -1,5 +1,6 @@
 import {
   ACCESSORY_IDS,
+  ALWAYS_PRESENT_ACCESSORY_ID,
   applyChanges,
   linkTargetBuildIdsOf,
   type AccessoryId,
@@ -17,10 +18,10 @@ import type {
   DashboardStateWire,
 } from "./price-dashboard-wire-contract";
 
-// What the accessory screens are drawn from (frames D6A to D6C): the two accessories the catalogue declares and the linked
-// ones the dashboard creates, each with its price per unit as it stands and as the draft would leave it, and the rule
-// that earns it. Worked out again from the state after every write, so the screens show what the server stored and never
-// what was typed. Whether an accessory is on is the lifecycle's to say (`item-lifecycle-model.ts`): this module reads no
+// What the accessory screens are drawn from: the two accessories the catalogue declares and the linked ones the
+// dashboard creates, each with its price per unit as it stands and as the draft would leave it, and the rule that earns
+// it. Worked out again from the state after every write, so the screens show what the server stored and never what was
+// typed. Whether an accessory is on is the lifecycle's to say (`item-lifecycle-model.ts`): this module reads no
 // availability.
 
 /** When an accessory is added to a kitchen: the two catalogue rules are code, a linked one follows a cabinet type. */
@@ -47,6 +48,8 @@ export interface AccessoryFacts {
   readonly isModified: boolean;
   /** An accessory the catalogue declares: its words and its rule are read-only, only its price and state change. */
   readonly isBuiltIn: boolean;
+  /** The built-in that is never switched off and never deleted (`ALWAYS_PRESENT_ACCESSORY_ID`). */
+  readonly isAlwaysPresent: boolean;
 }
 
 export type AccessoryDerivation =
@@ -129,7 +132,9 @@ export function accessoryPriceAddressOf(
   return { kind: "accessory", accessoryId, field: "perUnitMinor" };
 }
 
-/** Whether only the draft knows the accessory: the one a deletion takes back out of the draft rather than adding to it. */
+/**
+ * Whether only the draft knows the accessory: the one a deletion takes back out of the draft rather than adding to it.
+ */
 export function isAccessoryCreatedInDraft(
   derivation: AccessoryDerivation,
   item: ItemRef,
@@ -165,6 +170,7 @@ function builtInFacts({
     isDeletionPending: false,
     isModified: isModifiedBy(draft, accessoryId),
     isBuiltIn: true,
+    isAlwaysPresent: accessoryId === ALWAYS_PRESENT_ACCESSORY_ID,
   };
 }
 
@@ -195,6 +201,7 @@ function linkedFacts({
     isDeletionPending: activeRule !== undefined && candidateRule === undefined,
     isModified: isModifiedBy(draft, accessoryId),
     isBuiltIn: false,
+    isAlwaysPresent: false,
   };
 }
 

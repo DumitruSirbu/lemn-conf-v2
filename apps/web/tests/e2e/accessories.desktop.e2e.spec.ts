@@ -304,7 +304,7 @@ test.describe("the accessory screens at desktop 1440", () => {
         "true",
       );
       await expect(row.getByTestId("menu-reason").last()).toHaveText(
-        romanian("priceDashboard.lifecycle.builtInAccessoryCannotBeDeleted"),
+        romanian("priceDashboard.lifecycle.alwaysPresentCannotBeDeleted"),
       );
       await shootForReview(page, "1440-d6a-menu");
       await page.keyboard.press("Escape");
@@ -361,7 +361,11 @@ test.describe("the accessory screens at desktop 1440", () => {
         }
         await expect(row.getByTestId("menu-reason")).toHaveText([
           accessoryId === SINK_COVER ? alwaysPresent : cannotJudge,
-          romanian("priceDashboard.lifecycle.builtInAccessoryCannotBeDeleted"),
+          romanian(
+            accessoryId === SINK_COVER
+              ? "priceDashboard.lifecycle.alwaysPresentCannotBeDeleted"
+              : "priceDashboard.lifecycle.builtInAccessoryCannotBeDeleted",
+          ),
         ]);
         await menuButtonOf(row).click();
       }

@@ -270,7 +270,9 @@ describe("the actions of an accessory", () => {
       expect(
         reasonUnder(menuEntry(mounted.container, accessoryId, DELETE)),
       ).toBe(
-        roCopy("priceDashboard.lifecycle.builtInAccessoryCannotBeDeleted"),
+        accessoryId === SINK_COVER
+          ? roCopy("priceDashboard.lifecycle.alwaysPresentCannotBeDeleted")
+          : roCopy("priceDashboard.lifecycle.builtInAccessoryCannotBeDeleted"),
       );
     },
   );

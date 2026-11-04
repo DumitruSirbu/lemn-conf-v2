@@ -12,8 +12,8 @@ import type { FailedFieldWrite } from "./price-input-words";
 import { useLateAnswerGuard } from "./use-late-answer-guard";
 import type { PriceDraft } from "./use-price-draft";
 
-// The name of a row the dashboard created, a hardware class or a linked accessory, typed and saved on its own page. A name
-// typed back to the published one takes its change out of the draft instead of adding a no-op change.
+// The name of a row the dashboard created, a hardware class or a linked accessory, typed and saved on its own page. A
+// name typed back to the published one takes its change out of the draft instead of adding a no-op change.
 
 export interface CreatedRowNameEditing {
   readonly text: string;

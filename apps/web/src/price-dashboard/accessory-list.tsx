@@ -20,11 +20,11 @@ import {
   AccessoryChips,
   accessoryReasonsOf,
   activePriceWords,
-  AccessoryUnavailableScreen,
   earningWords,
   priceWords,
 } from "./accessory-parts";
 import { accessoryNewPathOf, accessoryPathOf } from "./accessory-paths";
+import { ItemUnavailableScreen } from "./catalog-states";
 import styles from "./accessory.module.css";
 import { pendingPriceCountOf } from "./cabinet-list-model";
 import { ItemDeskNotice, ItemDialogs } from "./item-dialogs";
@@ -38,7 +38,7 @@ import {
 import type { PriceDraftClient } from "./price-draft-client";
 import { useAccessoryDesk, type AccessoryDesk } from "./use-accessory-desk";
 
-// The accessories a kitchen earns (frames D6A and D6C): one row each, with the rule that adds it, its price per unit, its
+// The accessories a kitchen earns: one row each, with the rule that adds it, its price per unit, its
 // state and the actions "⋯" opens. A price is changed on the accessory's own page, so a card never holds a field.
 // Disabling and enabling apply at once and are asked of the dialogs; deleting waits for publication.
 
@@ -64,7 +64,13 @@ export function AccessoryListScreen({
   const desk = useAccessoryDesk({ page, client, lifecycleClient });
   const { derivation } = desk;
   if (derivation.kind === "unreadable") {
-    return <AccessoryUnavailableScreen locale={locale} context={context} />;
+    return (
+      <ItemUnavailableScreen
+        locale={locale}
+        context={context}
+        page="accessories"
+      />
+    );
   }
   const shell = {
     ...context,
@@ -138,7 +144,9 @@ function AccessoryList({
   );
 }
 
-/** The desktop's column titles. Each row's cells say what they are in their own words, so the titles are for the eye. */
+/**
+ * The desktop's column titles. Each row's cells say what they are in their own words, so the titles are for the eye.
+ */
 function ColumnHeads() {
   const translate = useTranslations();
   return (

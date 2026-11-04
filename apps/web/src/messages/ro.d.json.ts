@@ -1711,7 +1711,8 @@ declare const messages: {
       "countingAccessory": "Numărăm bucătăriile salvate care folosesc acest accesoriu…",
       "builtInAccessoryCannotBeDeleted": "Vine odată cu catalogul și nu se șterge. Îl poți dezactiva.",
       "deleteCreatedAccessoryBody": "Accesoriul nu a fost încă publicat. Ștergerea îl scoate din „De publicat”.",
-      "alwaysPresentCannotChange": "Se adaugă întotdeauna, ca protecție, și nu se dezactivează."
+      "alwaysPresentCannotChange": "Se adaugă întotdeauna, ca protecție, și nu se dezactivează.",
+      "alwaysPresentCannotBeDeleted": "Se adaugă întotdeauna, ca protecție, și nu se șterge."
     },
     "publish": {
       "title": "Publicare prețuri",

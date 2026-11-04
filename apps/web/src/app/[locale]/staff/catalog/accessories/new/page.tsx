@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 
 import { routing } from "@/i18n/routing";
 import { AccessoryCreateScreen } from "@/price-dashboard/accessory-create";
-import { AccessoryUnavailableScreen } from "@/price-dashboard/accessory-parts";
+import { ItemUnavailableScreen } from "@/price-dashboard/catalog-states";
 import { readAccessories } from "@/price-dashboard/accessory-source";
 
 import {
@@ -27,8 +27,8 @@ export async function generateMetadata({
 
 /**
  * The form of a new accessory. The gate is the list's: `renderCatalogPage` decides who sees it, and `readAccessories`
- * supplies the draft the creation is written beside, reading without writing; the form writes through its own client. The
- * segment `new` is this page's, so no accessory is ever reached by it. Rendered per request.
+ * supplies the draft the creation is written beside, reading without writing; the form writes through its own client.
+ * The segment `new` is this page's, so no accessory is ever reached by it. Rendered per request.
  */
 export default async function AccessoryNewPage({
   params,
@@ -48,7 +48,11 @@ export default async function AccessoryNewPage({
           page={read.page}
         />
       ) : (
-        <AccessoryUnavailableScreen locale={locale} context={shell} />
+        <ItemUnavailableScreen
+          locale={locale}
+          context={shell}
+          page="accessories"
+        />
       );
     },
   });

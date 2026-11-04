@@ -1708,7 +1708,8 @@
       "countingAccessory": "Считаем сохранённые кухни, которые используют этот аксессуар…",
       "builtInAccessoryCannotBeDeleted": "Он идёт вместе с каталогом и не удаляется. Его можно отключить.",
       "deleteCreatedAccessoryBody": "Аксессуар ещё не опубликован. Удаление уберёт его из «К публикации».",
-      "alwaysPresentCannotChange": "Добавляется всегда как защита и не отключается."
+      "alwaysPresentCannotChange": "Добавляется всегда как защита и не отключается.",
+      "alwaysPresentCannotBeDeleted": "Добавляется всегда как защита и не удаляется."
     },
     "publish": {
       "title": "Публикация цен",

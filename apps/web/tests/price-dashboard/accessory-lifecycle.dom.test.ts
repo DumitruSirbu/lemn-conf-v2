@@ -15,7 +15,6 @@ import {
   accessoryPageOf,
   chipsOf,
   CREATED,
-  COVER_NAME,
   CREATED_ACCESSORY,
   DRYING_RACK,
   menuEntry,
@@ -155,13 +154,17 @@ describe("switching an accessory kitchens use off", () => {
 
   it("never says it takes effect when publishing, in the dialog that switches off or the one that switches on", async () => {
     mounted = await mountAccessoryList(
-      accessoryPageOf({ disabled: [accessoryItem(SINK_COVER)] }),
+      accessoryPageOf({ linked, disabled: [accessoryItem(PUBLISHED)] }),
     );
 
     const disabling = await openDialogFor(DRYING_RACK, RACK_NAME, DEACTIVATE);
     const disablingText = disabling.textContent;
     await press(dialogButton(disabling, CANCEL));
-    const enabling = await openDialogFor(SINK_COVER, COVER_NAME, ACTIVATE);
+    const enabling = await openDialogFor(
+      PUBLISHED,
+      PUBLISHED_RULE.name,
+      ACTIVATE,
+    );
 
     expect(disablingText).not.toMatch(TAKES_EFFECT_AT_PUBLISH);
     expect(enabling.textContent).not.toMatch(TAKES_EFFECT_AT_PUBLISH);

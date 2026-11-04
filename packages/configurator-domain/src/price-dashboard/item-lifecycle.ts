@@ -6,8 +6,8 @@
 // leave a customer nothing to be priced at or moved to. A default is fixed (`fixedDefaultItemsOf`, never released) or
 // saved (D9, released by moving D9); a fixed one is named as such. Switching on is refused for an item the active book
 // does not state: a row only the draft knows is activated after it is published. Deleting is refused for a default and
-// for an item any saved kitchen uses; an unused, non-default item may go. The sink cover is protection and not an option
-// (ADR 0070 decision 4), so switching it off is refused as `item-always-present`.
+// for an item any saved kitchen uses; an unused, non-default item may go. The sink cover is never switched off
+// (`ALWAYS_PRESENT_ACCESSORY_ID` says why), and is refused as `item-always-present`.
 //
 // The refusal codes are the wire's own words (`item-is-fixed-default`, `item-is-default`, `last-active-option`,
 // `item-not-in-active-book`, `item-in-use`, `item-always-present`), so a route maps them and names nothing new.
@@ -74,9 +74,10 @@ const ALLOWED = Object.freeze({ kind: "allowed" } as const);
  * Whether the item may be switched on or off, and the code if it may not.
  *
  * An item the active book does not state is refused either way: the log never names a row that is not there. Switching
- * off is refused for the always-present accessory (the sink cover), then judged for the last active option before the defaults, so the only option left is told "keep one active"
- * even when it is also a default; a default that is not the last is told which kind it is. An item already off is
- * allowed to be switched off again, since that removes no option.
+ * off is refused for the always-present accessory (`ALWAYS_PRESENT_ACCESSORY_ID`), then judged for the last active
+ * option before the defaults, so the only option left is told "keep one active" even when it is also a default; a
+ * default that is not the last is told which kind it is. Any other item already off is allowed to be switched off
+ * again, since that removes no option.
  */
 export function judgeAvailabilityChange(
   { item, active }: AvailabilityChange,
@@ -142,7 +143,6 @@ function isAmong(items: readonly ItemRef[], item: ItemRef): boolean {
   return items.some((candidate) => isSameItem(candidate, item));
 }
 
-/** The sink cover is protection, not an option: it is never switched off. */
 function isAlwaysPresent(item: ItemRef): boolean {
   return (
     item.kind === "accessory" &&

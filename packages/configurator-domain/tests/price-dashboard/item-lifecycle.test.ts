@@ -6,7 +6,10 @@ import * as fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
 import type { Design, Handle } from "../../src/design.js";
-import { ALWAYS_PRESENT_ACCESSORY_ID } from "../../src/pricing/price-book.js";
+import {
+  ALWAYS_PRESENT_ACCESSORY_ID,
+  isAccessorySwitchedOff,
+} from "../../src/pricing/price-book.js";
 import { KITCHEN_L_DESIGN } from "../../src/fixtures/kitchen-l-design.js";
 import type { NewKitchenSettings } from "../../src/generation/new-kitchen-settings.js";
 import {
@@ -33,6 +36,7 @@ import type { DeletableItemRef } from "../../src/price-dashboard/book-field-addr
 import { defaultItemsOf } from "../../src/price-dashboard/defaults-judgement.js";
 import {
   declaredOptionsOfGroupOf,
+  isItemOffered,
   remainingOptionsIfSwitchedOff,
 } from "../../src/price-dashboard/item-groups.js";
 import {
@@ -150,6 +154,22 @@ describe("the sink cover is protection, not an option, so it is never switched o
       ),
     ).toEqual(ALLOWED);
     expect(disable(rack, stateOf())).toEqual(ALLOWED);
+  });
+
+  it("is offered to customers whatever is stored: a row that switched it off is read as no switch, and the rack's is not", () => {
+    const stored = {
+      ...stateOf(),
+      availability: { revision: "1", disabled: [cover, rack] },
+    };
+
+    expect(isItemOffered(cover, stored)).toBe(true);
+    expect(isItemOffered(rack, stored)).toBe(false);
+    expect(isAccessorySwitchedOff(stored.availability, cover.accessoryId)).toBe(
+      false,
+    );
+    expect(isAccessorySwitchedOff(stored.availability, rack.accessoryId)).toBe(
+      true,
+    );
   });
 
   it("is refused for no other item of any kind", () => {

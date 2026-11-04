@@ -3,8 +3,6 @@
 import { useTranslations } from "next-intl";
 
 import type { ContentTranslator } from "@/i18n/content";
-import type { AppLocale } from "@/i18n/routing";
-import { StaffShell, type StaffShellContext } from "@/staff/staff-shell";
 
 import type { ActionReasons } from "./action-that-may-be-off";
 import {
@@ -13,29 +11,13 @@ import {
   type AccessoryFacts,
 } from "./accessory-model";
 import styles from "./accessory.module.css";
-import { CatalogUnavailableNotice } from "./catalog-states";
 import { formatLei, formatLeiAmount } from "./format-lei";
 import { isItemOn, type LifecycleContext } from "./item-lifecycle-model";
 import { reasonsOfItem } from "./item-lifecycle-words";
 
-// What the accessory list and the accessory page draw the same way: the chips of an accessory, the rule that earns it, its
-// price, why a switch or a deletion may be off, and the screen that stands in for the page when the accessories could not
-// be read.
-
-/** The accessories could not be read: the frame stays, and the notice stands in the page's place. */
-export function AccessoryUnavailableScreen({
-  locale,
-  context,
-}: {
-  readonly locale: AppLocale;
-  readonly context: StaffShellContext;
-}) {
-  return (
-    <StaffShell locale={locale} page="accessories" context={context}>
-      <CatalogUnavailableNotice />
-    </StaffShell>
-  );
-}
+// What the accessory list and the accessory page draw the same way: the chips of an accessory, the rule that earns it,
+// its price, why a switch or a deletion may be off, and the screen that stands in for the page when the accessories
+// could not be read.
 
 /** What the accessory is to customers now, and whether the draft touches it. */
 export function AccessoryChips({

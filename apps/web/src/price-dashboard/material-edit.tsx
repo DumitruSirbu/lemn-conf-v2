@@ -8,10 +8,10 @@ import { useContent } from "@/i18n/use-content";
 import { StaffShell, type StaffShellContext } from "@/staff/staff-shell";
 
 import { pendingPriceCountOf } from "./cabinet-list-model";
-import { ActionThatMayBeOff } from "./action-that-may-be-off";
 import { ItemDeskNotice, ItemDialogs } from "./item-dialogs";
-import type { ItemLifecycleClient } from "./item-lifecycle-client";
 import { isItemOn } from "./item-lifecycle-model";
+import { ItemLifecycleSection } from "./item-edit-parts";
+import type { ItemLifecycleClient } from "./item-lifecycle-client";
 import { MaterialExampleCard } from "./material-example-card";
 import {
   materialItemOf,
@@ -26,10 +26,10 @@ import {
   managedColourWords,
   MaterialChips,
   materialReasonsOf,
-  MaterialUnavailableScreen,
   surchargeWords,
 } from "./material-parts";
 import { materialsPathOf } from "./material-paths";
+import { ItemUnavailableScreen } from "./catalog-states";
 import styles from "./material.module.css";
 import type { PriceDraftClient } from "./price-draft-client";
 import editStyles from "./price-edit.module.css";
@@ -79,7 +79,13 @@ export function MaterialEditScreen({
   const facts =
     derivation.kind === "ready" ? materialOf(derivation, tierId) : undefined;
   if (derivation.kind !== "ready" || facts === undefined) {
-    return <MaterialUnavailableScreen locale={locale} context={context} />;
+    return (
+      <ItemUnavailableScreen
+        locale={locale}
+        context={context}
+        page="materials"
+      />
+    );
   }
   const shell = {
     ...context,
@@ -213,65 +219,37 @@ function Lifecycle({
   const translate = useTranslations();
   const { availability } = desk;
   const item = materialItemOf(facts);
-  const { switchReason, deleteReason } = materialReasonsOf({
+  const reasons = materialReasonsOf({
     translate,
     facts,
     context: availability.context,
   });
-  const isOn = isItemOn(item, availability.context);
   const usedBy = desk.usage.get(facts.tierId);
   return (
-    <>
-      {isOn ? null : (
-        <InactiveBanner
-          usedBy={usedBy}
-          canActivate={switchReason === undefined}
-          onActivate={() => {
-            availability.requestSwitch(item);
-          }}
-        />
-      )}
-      <ActionThatMayBeOff
-        reason={switchReason}
-        restingNote={translate("priceDashboard.materials.activeHint")}
-        switchState={isOn}
-        buttonClassName={styles.switch}
-        noteClassName={styles.hint}
-        noteTag="p"
-        onPress={() => {
-          availability.requestSwitch(item);
-        }}
-      >
-        <span>{translate("priceDashboard.materials.activeLabel")}</span>
-        <span className={styles.switchState}>
-          {translate(
-            isOn
-              ? "priceDashboard.chips.active"
-              : "priceDashboard.chips.inactive",
-          )}
-        </span>
-      </ActionThatMayBeOff>
-      <MaterialFactLines facts={facts} usedBy={usedBy} />
-      <div className={styles.danger}>
-        <h2 className={styles.cardTitle}>
-          {translate("priceDashboard.materials.deleteHeading")}
-        </h2>
-        <p className={styles.hint}>
-          {translate("priceDashboard.materials.deleteHint")}
-        </p>
-        <ActionThatMayBeOff
-          reason={deleteReason}
-          buttonClassName={editStyles.action}
-          noteClassName={styles.hint}
-          noteTag="p"
-          onPress={() => {
-            availability.requestDeletion(item);
-          }}
-        >
-          {translate("priceDashboard.materials.deleteAction")}
-        </ActionThatMayBeOff>
-      </div>
-    </>
+    <ItemLifecycleSection
+      availability={availability}
+      item={item}
+      reasons={reasons}
+      words={{
+        activeLabel: translate("priceDashboard.materials.activeLabel"),
+        activeNote: translate("priceDashboard.materials.activeHint"),
+        deleteHeading: translate("priceDashboard.materials.deleteHeading"),
+        deleteHint: translate("priceDashboard.materials.deleteHint"),
+        deleteAction: translate("priceDashboard.materials.deleteAction"),
+      }}
+      aboveSwitch={
+        isItemOn(item, availability.context) ? null : (
+          <InactiveBanner
+            usedBy={usedBy}
+            canActivate={reasons.switchReason === undefined}
+            onActivate={() => {
+              availability.requestSwitch(item);
+            }}
+          />
+        )
+      }
+      belowSwitch={<MaterialFactLines facts={facts} usedBy={usedBy} />}
+    />
   );
 }
 
@@ -417,12 +395,10 @@ function SurchargeEditor({
       </div>
       <PriceSaveBar
         locale={locale}
-        isSaved={editing.feedback.kind === "saved" && !editing.isChanged}
+        feedback={editing.feedback}
+        isChanged={editing.isChanged}
         canSave={editing.canSave}
         mustFix={mustFix}
-        canCancel={
-          editing.isChanged || mustFix || editing.feedback.kind === "failed"
-        }
         onSave={() => {
           void editing.save();
         }}

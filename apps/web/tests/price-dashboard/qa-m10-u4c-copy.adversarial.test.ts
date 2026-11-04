@@ -42,8 +42,10 @@ const LEAVES_OF_THE_ACCESSORY_SCREENS = [
   "lifecycle.usageUnavailableAccessory",
   "lifecycle.countingAccessory",
   "lifecycle.builtInAccessoryCannotBeDeleted",
+  "lifecycle.alwaysPresentCannotBeDeleted",
   "lifecycle.deleteCreatedAccessoryBody",
   "lifecycle.alwaysPresentCannotChange",
+  "lifecycle.alwaysPresentCannotBeDeleted",
 ];
 
 /** What an accessory's switch is asked in and answered with, and what the screens say of it beside the switch. */

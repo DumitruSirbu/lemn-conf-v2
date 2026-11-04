@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 
 import type { ContentTranslator } from "@/i18n/content";
 import type { AppLocale } from "@/i18n/routing";
@@ -18,22 +18,16 @@ import {
   type ReadyHardware,
 } from "./hardware-model";
 import { hardwareNameOf } from "./hardware-names";
-import { ActionThatMayBeOff } from "./action-that-may-be-off";
-import {
-  ClassChips,
-  hardwareItemOf,
-  HardwareUnavailableScreen,
-  reasonsOf,
-} from "./hardware-parts";
+import { ClassChips, hardwareItemOf, reasonsOf } from "./hardware-parts";
 import { hardwarePathOf } from "./hardware-paths";
 import { HARDWARE_RATE_WORDS } from "./hardware-rate-words";
+import { ItemUnavailableScreen } from "./catalog-states";
 import styles from "./hardware.module.css";
 import { ItemDeskNotice, ItemDialogs } from "./item-dialogs";
+import { ItemLifecycleSection, ItemRemovedNotice } from "./item-edit-parts";
 import type { ItemLifecycleClient } from "./item-lifecycle-client";
-import { isItemOn } from "./item-lifecycle-model";
 import type { PriceDraftClient } from "./price-draft-client";
 import { leiRefusalWords, saveFailureWords } from "./price-input-words";
-import editStyles from "./price-edit.module.css";
 import { PriceSaveBar } from "./price-save-bar";
 import { PriceUnitField } from "./price-unit-field";
 import {
@@ -71,9 +65,16 @@ export function HardwareEditScreen({
   lifecycleClient,
 }: HardwareEditScreenProps) {
   const desk = useHardwareDesk({ page, client, lifecycleClient });
+  const translate = useTranslations();
   const { derivation } = desk;
   if (derivation.kind !== "ready") {
-    return <HardwareUnavailableScreen locale={locale} context={context} />;
+    return (
+      <ItemUnavailableScreen
+        locale={locale}
+        context={context}
+        page="hardware"
+      />
+    );
   }
   const shell = {
     ...context,
@@ -83,7 +84,12 @@ export function HardwareEditScreen({
   if (facts === undefined) {
     return (
       <StaffShell locale={locale} page="hardware" context={shell}>
-        <ClassRemoved locale={locale} />
+        <ItemRemovedNotice
+          testId="hardware-removed"
+          backHref={hardwarePathOf(locale)}
+          backLabel={translate("priceDashboard.hardware.title")}
+          message={translate("priceDashboard.hardware.createdRemoved")}
+        />
       </StaffShell>
     );
   }
@@ -97,25 +103,6 @@ export function HardwareEditScreen({
         facts={facts}
       />
     </StaffShell>
-  );
-}
-
-/** The class is no longer in the draft: it was created there and has just been deleted, so nothing is left to publish. */
-function ClassRemoved({ locale }: { readonly locale: AppLocale }) {
-  const translate = useTranslations();
-  const noticeRef = useRef<HTMLParagraphElement>(null);
-  useEffect(() => {
-    noticeRef.current?.focus();
-  }, []);
-  return (
-    <section className={styles.page} data-testid="hardware-removed">
-      <a className={styles.back} href={hardwarePathOf(locale)}>
-        {translate("priceDashboard.hardware.title")}
-      </a>
-      <p ref={noticeRef} tabIndex={-1} className={styles.notice} role="status">
-        {translate("priceDashboard.hardware.createdRemoved")}
-      </p>
-    </section>
   );
 }
 
@@ -245,59 +232,23 @@ function Lifecycle({
 }) {
   const translate = useTranslations();
   const { availability } = desk;
-  const item = hardwareItemOf(facts);
-  const { switchReason, deleteReason } = reasonsOf({
-    translate,
-    facts,
-    context: availability.context,
-  });
-  const isOn = isItemOn(item, availability.context);
   return (
-    <>
-      <ActionThatMayBeOff
-        reason={switchReason}
-        restingNote={translate(
+    <ItemLifecycleSection
+      availability={availability}
+      item={hardwareItemOf(facts)}
+      reasons={reasonsOf({ translate, facts, context: availability.context })}
+      words={{
+        activeLabel: translate("priceDashboard.hardware.activeLabel"),
+        activeNote: translate(
           facts.isCreated
             ? "priceDashboard.hardware.activeHintNew"
             : "priceDashboard.hardware.activeHint",
-        )}
-        switchState={isOn}
-        buttonClassName={styles.switch}
-        noteClassName={styles.hint}
-        noteTag="p"
-        onPress={() => {
-          availability.requestSwitch(item);
-        }}
-      >
-        <span>{translate("priceDashboard.hardware.activeLabel")}</span>
-        <span className={styles.switchState}>
-          {translate(
-            isOn
-              ? "priceDashboard.chips.active"
-              : "priceDashboard.chips.inactive",
-          )}
-        </span>
-      </ActionThatMayBeOff>
-      <div className={styles.danger}>
-        <h2 className={styles.cardTitle}>
-          {translate("priceDashboard.hardware.deleteHeading")}
-        </h2>
-        <p className={styles.hint}>
-          {translate("priceDashboard.hardware.deleteHint")}
-        </p>
-        <ActionThatMayBeOff
-          reason={deleteReason}
-          buttonClassName={editStyles.action}
-          noteClassName={styles.hint}
-          noteTag="p"
-          onPress={() => {
-            availability.requestDeletion(item);
-          }}
-        >
-          {translate("priceDashboard.hardware.deleteAction")}
-        </ActionThatMayBeOff>
-      </div>
-    </>
+        ),
+        deleteHeading: translate("priceDashboard.hardware.deleteHeading"),
+        deleteHint: translate("priceDashboard.hardware.deleteHint"),
+        deleteAction: translate("priceDashboard.hardware.deleteAction"),
+      }}
+    />
   );
 }
 
@@ -329,12 +280,10 @@ function RateFields({
       </div>
       <PriceSaveBar
         locale={locale}
-        isSaved={editing.feedback.kind === "saved" && !editing.isChanged}
+        feedback={editing.feedback}
+        isChanged={editing.isChanged}
         canSave={editing.canSave}
         mustFix={mustFix}
-        canCancel={
-          editing.isChanged || mustFix || editing.feedback.kind === "failed"
-        }
         onSave={() => {
           void editing.save();
         }}

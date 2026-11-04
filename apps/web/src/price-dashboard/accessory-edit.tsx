@@ -1,13 +1,12 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 
 import type { AppLocale } from "@/i18n/routing";
 import { useContent } from "@/i18n/use-content";
 import { StaffShell, type StaffShellContext } from "@/staff/staff-shell";
 
-import { ActionThatMayBeOff } from "./action-that-may-be-off";
 import {
   accessoryItemOf,
   accessoryOf,
@@ -19,19 +18,18 @@ import { accessoryNameOf } from "./accessory-names";
 import {
   AccessoryChips,
   accessoryReasonsOf,
-  AccessoryUnavailableScreen,
   earningWords,
 } from "./accessory-parts";
 import { accessoriesPathOf } from "./accessory-paths";
+import { ItemUnavailableScreen } from "./catalog-states";
 import styles from "./accessory.module.css";
 import { pendingPriceCountOf } from "./cabinet-list-model";
 import { CreatedNameField } from "./created-name-field";
 import { formatLei } from "./format-lei";
 import { ItemDeskNotice, ItemDialogs } from "./item-dialogs";
+import { ItemLifecycleSection, ItemRemovedNotice } from "./item-edit-parts";
 import type { ItemLifecycleClient } from "./item-lifecycle-client";
-import { isItemOn } from "./item-lifecycle-model";
 import type { PriceDraftClient } from "./price-draft-client";
-import editStyles from "./price-edit.module.css";
 import { leiRefusalWords, saveFailureWords } from "./price-input-words";
 import { PriceSaveBar } from "./price-save-bar";
 import { PriceUnitField } from "./price-unit-field";
@@ -43,10 +41,10 @@ import {
 import { useCreatedRowNameEditing } from "./use-created-row-name-editing";
 import { useFocusAfterCancel } from "./use-focus-after-cancel";
 
-// One accessory (frame D6B): its words, the rule that adds it, whether it is on, its price per unit and its deletion. The
-// price is sent to "De publicat" only on Save; whether the accessory is on applies at once, through the dialogs, and never
-// joins the draft. The words and the rule of a built-in accessory are the catalogue's and read-only; a created one's name
-// is authored Romanian and can be reworded here.
+// One accessory: its words, the rule that adds it, whether it is on, its price per unit and its deletion. The price is
+// sent to "De publicat" only on Save; whether the accessory is on applies at once, through the dialogs, and never joins
+// the draft. The words and the rule of a built-in accessory are the catalogue's and read-only; a created one's name is
+// authored Romanian and can be reworded here.
 
 export interface AccessoryEditScreenProps {
   readonly locale: AppLocale;
@@ -68,9 +66,16 @@ export function AccessoryEditScreen({
   lifecycleClient,
 }: AccessoryEditScreenProps) {
   const desk = useAccessoryDesk({ page, client, lifecycleClient });
+  const translate = useTranslations();
   const { derivation } = desk;
   if (derivation.kind !== "ready") {
-    return <AccessoryUnavailableScreen locale={locale} context={context} />;
+    return (
+      <ItemUnavailableScreen
+        locale={locale}
+        context={context}
+        page="accessories"
+      />
+    );
   }
   const shell = {
     ...context,
@@ -80,7 +85,12 @@ export function AccessoryEditScreen({
   if (facts === undefined) {
     return (
       <StaffShell locale={locale} page="accessories" context={shell}>
-        <AccessoryRemoved locale={locale} />
+        <ItemRemovedNotice
+          testId="accessory-removed"
+          backHref={accessoriesPathOf(locale)}
+          backLabel={translate("priceDashboard.accessories.title")}
+          message={translate("priceDashboard.accessories.createdRemoved")}
+        />
       </StaffShell>
     );
   }
@@ -95,25 +105,6 @@ export function AccessoryEditScreen({
         cabinetNames={page.cabinetNames}
       />
     </StaffShell>
-  );
-}
-
-/** The accessory is no longer in the draft: it was created there and has just been deleted, so nothing is left to publish. */
-function AccessoryRemoved({ locale }: { readonly locale: AppLocale }) {
-  const translate = useTranslations();
-  const noticeRef = useRef<HTMLParagraphElement>(null);
-  useEffect(() => {
-    noticeRef.current?.focus();
-  }, []);
-  return (
-    <section className={styles.page} data-testid="accessory-removed">
-      <a className={styles.back} href={accessoriesPathOf(locale)}>
-        {translate("priceDashboard.accessories.title")}
-      </a>
-      <p ref={noticeRef} tabIndex={-1} className={styles.notice} role="status">
-        {translate("priceDashboard.accessories.createdRemoved")}
-      </p>
-    </section>
   );
 }
 
@@ -184,8 +175,10 @@ function AccessoryEdit({
   );
 }
 
-/** The accessory's name and description, and the rule that adds it. A built-in's words are the catalogue's and read-only;
- *  a created one's name is authored Romanian that can be reworded here, its description is shown only. */
+/**
+ * The accessory's name and description, and the rule that adds it. A built-in's words are the catalogue's and read-
+ * only; a created one's name is authored Romanian that can be reworded here, its description is shown only.
+ */
 function AccessoryWords({
   facts,
   name,
@@ -268,59 +261,29 @@ function Lifecycle({
 }) {
   const translate = useTranslations();
   const { availability } = desk;
-  const item = accessoryItemOf(facts);
-  const { switchReason, deleteReason } = accessoryReasonsOf({
-    translate,
-    facts,
-    context: availability.context,
-  });
-  const isOn = isItemOn(item, availability.context);
   return (
-    <>
-      <ActionThatMayBeOff
-        reason={switchReason}
-        restingNote={translate(
+    <ItemLifecycleSection
+      availability={availability}
+      item={accessoryItemOf(facts)}
+      reasons={accessoryReasonsOf({
+        translate,
+        facts,
+        context: availability.context,
+      })}
+      words={{
+        activeLabel: translate("priceDashboard.accessories.activeLabel"),
+        activeNote: translate(
           facts.isCreated
             ? "priceDashboard.accessories.activeHintNew"
             : "priceDashboard.accessories.activeHint",
-        )}
-        switchState={isOn}
-        buttonClassName={styles.switch}
-        noteClassName={styles.hint}
-        noteTag="p"
-        onPress={() => {
-          availability.requestSwitch(item);
-        }}
-      >
-        <span>{translate("priceDashboard.accessories.activeLabel")}</span>
-        <span className={styles.switchState}>
-          {translate(
-            isOn
-              ? "priceDashboard.chips.active"
-              : "priceDashboard.chips.inactive",
-          )}
-        </span>
-      </ActionThatMayBeOff>
-      <div className={styles.danger}>
-        <h2 className={styles.cardTitle}>
-          {translate("priceDashboard.accessories.deleteHeading")}
-        </h2>
-        <p className={styles.hint}>
-          {translate("priceDashboard.accessories.deleteHint")}
-        </p>
-        <ActionThatMayBeOff
-          reason={deleteReason}
-          buttonClassName={editStyles.action}
-          noteClassName={styles.hint}
-          noteTag="p"
-          onPress={() => {
-            availability.requestDeletion(item);
-          }}
-        >
-          {translate("priceDashboard.accessories.deleteAction")}
-        </ActionThatMayBeOff>
-      </div>
-    </>
+        ),
+        deleteHeading: translate("priceDashboard.accessories.deleteHeading"),
+        deleteHint: facts.isAlwaysPresent
+          ? undefined
+          : translate("priceDashboard.accessories.deleteHint"),
+        deleteAction: translate("priceDashboard.accessories.deleteAction"),
+      }}
+    />
   );
 }
 
@@ -350,12 +313,10 @@ function PriceEditor({
       </div>
       <PriceSaveBar
         locale={locale}
-        isSaved={editing.feedback.kind === "saved" && !editing.isChanged}
+        feedback={editing.feedback}
+        isChanged={editing.isChanged}
         canSave={editing.canSave}
         mustFix={mustFix}
-        canCancel={
-          editing.isChanged || mustFix || editing.feedback.kind === "failed"
-        }
         onSave={() => {
           void editing.save();
         }}

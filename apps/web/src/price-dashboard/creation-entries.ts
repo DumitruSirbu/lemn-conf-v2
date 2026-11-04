@@ -6,8 +6,8 @@ import {
 
 import type { CreateWriteResult } from "./use-price-draft";
 
-// What the forms that create a row (a hardware class, a linked accessory) hold of what is typed: the words as the domain
-// judges them, and what the last attempt to create came to.
+// What the forms that create a row (a hardware class, a linked accessory) hold of what is typed: the words as the
+// domain judges them, and what the last attempt to create came to.
 
 export type CreationFeedback =
   | { readonly kind: "none" }

@@ -77,11 +77,6 @@ export interface HardwareClassCreation {
   readonly rates: HardwareRatesWire;
 }
 
-/** What a linked accessory is created from: the cabinet type it follows, its price per unit and its Romanian words. */
-export interface AccessoryDraftCreation {
-  readonly value: AccessoryCreation;
-}
-
 export interface BulkChangeInput {
   readonly target: BulkTargetWire;
   readonly percent: number;
@@ -126,7 +121,7 @@ export interface PriceDraft {
     input: HardwareClassCreation,
   ) => Promise<CreateWriteResult>;
   readonly createAccessory: (
-    input: AccessoryDraftCreation,
+    creation: AccessoryCreation,
   ) => Promise<CreateWriteResult>;
   /** Whether the client has any route that takes a creation; where it has none, a screen offers none. */
   readonly canCreateHardwareClass: boolean;
@@ -330,7 +325,7 @@ export function usePriceDraft({
   );
 
   const createAccessory = useCallback(
-    (input: AccessoryDraftCreation) => createRow(client.createAccessory, input),
+    (value: AccessoryCreation) => createRow(client.createAccessory, { value }),
     [client, createRow],
   );
 

@@ -15,13 +15,13 @@ import type { BodyCatalog } from "../void-engine.js";
 
 import {
   distinctItemsInOrder,
-  isItemDisabled,
   type CatalogueAvailability,
   type ItemRef,
 } from "./catalogue-availability.js";
 import { earnedLinkedAccessories } from "./linked-accessories.js";
 import {
   ACCESSORY_IDS,
+  isAccessorySwitchedOff,
   listAccessoryIds,
   type AccessoryId,
   type PriceBook,
@@ -84,11 +84,13 @@ export function removedAccessoriesSince({
   const statedNow = new Set(listAccessoryIds(activeBook));
   return distinctItemsInOrder(
     earnedAccessoryIds({ entries, catalog, book: seenBook })
-      .filter((accessoryId) => statedNow.has(accessoryId))
-      .map((accessoryId): ItemRef => ({ kind: "accessory", accessoryId }))
       .filter(
-        (item) => isItemDisabled(current, item) && !isItemDisabled(seen, item),
-      ),
+        (accessoryId) =>
+          statedNow.has(accessoryId) &&
+          isAccessorySwitchedOff(current, accessoryId) &&
+          !isAccessorySwitchedOff(seen, accessoryId),
+      )
+      .map((accessoryId): ItemRef => ({ kind: "accessory", accessoryId })),
   );
 }
 

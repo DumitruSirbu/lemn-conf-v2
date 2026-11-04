@@ -257,7 +257,7 @@ test.describe("the accessory screens on a phone, 390 x 844", () => {
       );
       await expect(
         editPageOf(page).getByText(
-          romanian("priceDashboard.lifecycle.builtInAccessoryCannotBeDeleted"),
+          romanian("priceDashboard.lifecycle.alwaysPresentCannotBeDeleted"),
         ),
       ).toBeVisible();
       await deleteAccessoryButton(page, words).tap({ force: true });
@@ -492,6 +492,9 @@ test.describe("the accessory screens on a phone, 390 x 844", () => {
       const builtIn = romanian(
         "priceDashboard.lifecycle.builtInAccessoryCannotBeDeleted",
       );
+      const alwaysPresentDelete = romanian(
+        "priceDashboard.lifecycle.alwaysPresentCannotBeDeleted",
+      );
       await openAccessoryList(page);
       const requests = collectDashboardRequests(page);
 
@@ -508,7 +511,7 @@ test.describe("the accessory screens on a phone, 390 x 844", () => {
         }
         await expect(row.getByTestId("menu-reason")).toHaveText([
           accessoryId === SINK_COVER ? alwaysPresent : cannotJudge,
-          builtIn,
+          accessoryId === SINK_COVER ? alwaysPresentDelete : builtIn,
         ]);
       }
       await expect(itemDialogOf(page)).toHaveCount(0);

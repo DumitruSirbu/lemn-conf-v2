@@ -20,9 +20,9 @@ import type { HardwareRatesWire } from "./price-dashboard-wire-contract";
 import { useLateAnswerGuard } from "./use-late-answer-guard";
 import type { PriceDraft } from "./use-price-draft";
 
-// Typing and creating a new hardware class (frame D4C): its Romanian name and description, and one rate for each mechanism,
-// each read before anything is sent. The class and every rate go to "De publicat" in one write, so the draft never holds
-// a class with a rate nobody set. A refusal or a failure is shown only while the values it was about are still on screen,
+// Typing and creating a new hardware class: its Romanian name and description, and one rate for each mechanism, each
+// read before anything is sent. The class and every rate go to "De publicat" in one write, so the draft never holds a
+// class with a rate nobody set. A refusal or a failure is shown only while the values it was about are still on screen,
 // but a class that was created is told at once whatever has been typed since: it is in the draft.
 
 export interface RateEntry {

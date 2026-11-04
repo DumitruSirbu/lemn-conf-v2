@@ -16,8 +16,8 @@ import {
 import type { PriceDraft } from "./use-price-draft";
 
 // Typing, saving and cancelling an accessory's price per unit on its page. Nothing is sent while typing; Save sends the
-// one write. An accessory the active version holds takes its change out of the draft when the price is typed back to the
-// active one; an accessory only the draft knows has no active price, so every write is a change.
+// one write. An accessory the active version holds takes its change out of the draft when the price is typed back to
+// the active one; an accessory only the draft knows has no active price, so every write is a change.
 
 export interface AccessoryPriceEditing {
   readonly text: string;

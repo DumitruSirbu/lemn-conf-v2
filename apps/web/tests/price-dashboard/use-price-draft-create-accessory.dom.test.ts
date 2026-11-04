@@ -41,7 +41,7 @@ describe("creating an accessory", () => {
     const { draft, server } = mount();
 
     const result = await act(() =>
-      draft.result.current.createAccessory(CREATION),
+      draft.result.current.createAccessory(CREATION.value),
     );
 
     expect(result).toEqual({
@@ -62,7 +62,7 @@ describe("creating an accessory", () => {
     const { draft, server } = mount({ withRoute: false });
 
     const result = await act(() =>
-      draft.result.current.createAccessory(CREATION),
+      draft.result.current.createAccessory(CREATION.value),
     );
 
     expect(draft.result.current.canCreateAccessory).toBe(false);
@@ -78,8 +78,8 @@ describe("creating an accessory", () => {
 
     let second: unknown;
     await act(async () => {
-      const first = draft.result.current.createAccessory(CREATION);
-      second = await draft.result.current.createAccessory(CREATION);
+      const first = draft.result.current.createAccessory(CREATION.value);
+      second = await draft.result.current.createAccessory(CREATION.value);
       release();
       await first;
     });
@@ -93,7 +93,7 @@ describe("creating an accessory", () => {
     server.moveDraftBehindTheScreen();
 
     const result = await act(() =>
-      draft.result.current.createAccessory(CREATION),
+      draft.result.current.createAccessory(CREATION.value),
     );
 
     expect(result).toEqual({ kind: "conflict" });
@@ -113,7 +113,7 @@ describe("creating an accessory", () => {
     });
 
     const result = await act(() =>
-      draft.result.current.createAccessory(CREATION),
+      draft.result.current.createAccessory(CREATION.value),
     );
 
     expect(result).toEqual({ kind: "refused", code: "LINK_TARGET_UNKNOWN" });

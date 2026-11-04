@@ -217,17 +217,25 @@ describe("a production build, as the server hands it its page", () => {
     expect(screen().draftServer.calls).toEqual([]);
   });
 
-  it("takes a class that only the draft holds back out of the draft, though the saved defaults cannot be read and no kitchen can be counted", async () => {
+  it("offers no deletion of a class that only the draft holds either: where nothing can be written it is off for the reason that nothing can be checked, and sends nothing", async () => {
     await mountWithNoLifecycleClient(
       productionPageOf({ changes: CREATED_CLASS }),
     );
 
-    const dialog = await dialogFor(CREATED, CREATED_NAME, DELETE);
-    await pressWithPointer(dialogButton(dialog, DELETE));
+    await openMenuOf(screen().container, CREATED, CREATED_NAME);
+    const entry = menuEntry(screen().container, CREATED, DELETE);
+    await press(entry);
 
+    expect(entry.getAttribute("aria-disabled")).toBe("true");
     expect(openDialog()).toBeNull();
-    expect(() => rowOf(screen().container, CREATED)).toThrow();
-    expect(screen().draftServer.calls).toHaveLength(1);
+    expect(
+      allIn(
+        rowOf(screen().container, CREATED),
+        '[data-testid="menu-reason"]',
+      ).map((reason) => reason.textContent),
+    ).toContain(roCopy("priceDashboard.lifecycle.cannotJudge"));
+    expect(rowOf(screen().container, CREATED)).toBeDefined();
+    expect(screen().draftServer.calls).toEqual([]);
   });
 
   it("names the fallback class a default that cannot be deleted, where the saved defaults cannot be read", async () => {

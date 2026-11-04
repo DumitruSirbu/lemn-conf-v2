@@ -14,11 +14,11 @@ import { readLeiInput, type LeiInputReading } from "./price-field-input";
 import { useLateAnswerGuard } from "./use-late-answer-guard";
 import type { PriceDraft } from "./use-price-draft";
 
-// Typing and creating a new linked accessory (frame D6B): its Romanian name and description, the cabinet type it follows
-// and its price per unit, each read before anything is sent. The accessory goes to "De publicat" in one write, inactive.
-// The description may be left empty; the cabinet type may not, since an accessory without a link earns nothing. A refusal
-// or a failure is shown only while the values it was about are still on screen, but an accessory that was created is told
-// at once whatever has been typed since: it is in the draft.
+// Typing and creating a new linked accessory: its Romanian name and description, the cabinet type it follows and its
+// price per unit, each read before anything is sent. The accessory goes to "De publicat" in one write, inactive. The
+// description may be left empty; the cabinet type may not, since an accessory without a link earns nothing. A refusal
+// or a failure is shown only while the values it was about are still on screen, but an accessory that was created is
+// told at once whatever has been typed since: it is in the draft.
 
 export interface PriceEntry {
   readonly text: string;
@@ -157,7 +157,7 @@ export function useAccessoryCreation({
     isCreatingRef.current = true;
     setIsCreating(true);
     try {
-      const result = await createAccessory({ value });
+      const result = await createAccessory(value);
       if (result.kind === "busy") return;
       if (result.kind === "created") {
         setFeedback({ kind: "created", created: result.created });

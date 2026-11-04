@@ -15,7 +15,7 @@ import ruMessages from "../../src/messages/ru.json";
 const SOURCE_ROOT = join(import.meta.dirname, "../../src");
 const NAMED_KEY = /["'`](priceDashboard\.[A-Za-z0-9_.]+)["'`]/g;
 const ACCESSORY_SOURCES =
-  /price-dashboard\/(accessory-|use-accessory-|created-name-field|item-dialogs|item-lifecycle-words|price-input-words)/;
+  /price-dashboard\/(accessory-|use-accessory-|created-name-field|item-dialogs|item-dialog-leaves|item-lifecycle-words|price-input-words)/;
 const LARGEST_COUNT = 400;
 
 type Leaves = Readonly<Record<string, string>>;

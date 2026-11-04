@@ -61,11 +61,11 @@ describe("removedAccessoriesSince takes in linked accessories (P4a-d, P4b)", () 
     expect(removed([earned], [])).toEqual([]);
   });
 
-  it("names the built-ins and the linked ones in the one order of items, by id, whatever the order listed", () => {
+  it("names the removable built-in and the linked ones in the one order of items, by id, whatever the order listed (the always-present cover is never named)", () => {
     const earned = accessory(EARNED.accessoryId);
 
-    expect(removed([], [earned, COVER, RACK])).toEqual([RACK, earned, COVER]);
-    expect(removed([], [RACK, earned, COVER])).toEqual([RACK, earned, COVER]);
+    expect(removed([], [earned, COVER, RACK])).toEqual([RACK, earned]);
+    expect(removed([], [RACK, earned, COVER])).toEqual([RACK, earned]);
   });
 
   it("names nothing for a linked accessory the book does not state, even if availability lists it", () => {
@@ -151,8 +151,8 @@ describe("an accessory is reported only if the customer had it when they last lo
 
   it("still names a built-in disabled since, whatever the books", () => {
     expect(
-      removedUnder({ seenBook: before, activeBook: BOOK, current: [COVER] }),
-    ).toEqual([COVER]);
+      removedUnder({ seenBook: before, activeBook: BOOK, current: [RACK] }),
+    ).toEqual([RACK]);
   });
 
   it("names one the kitchen had under the seen book and has since lost, once the active book states it too", () => {

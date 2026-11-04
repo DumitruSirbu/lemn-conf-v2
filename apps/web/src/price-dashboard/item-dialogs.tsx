@@ -12,6 +12,7 @@ import type { ContentTranslator } from "@/i18n/content";
 
 import styles from "./item-dialogs.module.css";
 import type { ItemFailure, ItemFlow, UsageStand } from "./item-flows";
+import { dialogLeavesOf } from "./item-dialog-leaves";
 import { itemFailureWords } from "./item-lifecycle-words";
 import type { ItemAvailabilityDesk } from "./use-item-availability";
 
@@ -53,24 +54,17 @@ export function ItemDialogs({
 }
 
 export interface ItemDeskNoticeProps {
-  readonly desk: Pick<
-    ItemAvailabilityDesk,
-    "flow" | "failure" | "isReading" | "readingItem"
-  >;
+  readonly desk: Pick<ItemAvailabilityDesk, "flow" | "failure" | "readingItem">;
 }
 
 /** What the desk says where no dialog is open: that the saved kitchens are being counted, and the answer to a
  *  confirmation after which its dialog closed. */
 export function ItemDeskNotice({ desk }: ItemDeskNoticeProps) {
   const translate = useTranslations();
-  if (desk.isReading) {
+  if (desk.readingItem !== undefined) {
     return (
       <FormNotice tone="info">
-        {translate(
-          desk.readingItem?.kind === "accessory"
-            ? "priceDashboard.lifecycle.countingAccessory"
-            : "priceDashboard.lifecycle.counting",
-        )}
+        {translate(dialogLeavesOf(desk.readingItem).counting)}
       </FormNotice>
     );
   }
@@ -172,11 +166,7 @@ function ActivateDialog({
       title={translate("priceDashboard.lifecycle.activateTitle", {
         name: nameOf(flow.item),
       })}
-      description={translate(
-        flow.item.kind === "accessory"
-          ? "priceDashboard.lifecycle.activateAccessoryBody"
-          : "priceDashboard.lifecycle.activateBody",
-      )}
+      description={translate(dialogLeavesOf(flow.item).activateBody)}
       returnFocusFallbackRef={returnFocusFallbackRef}
       confirm={{
         label: translate("priceDashboard.lifecycle.activateConfirm"),
@@ -227,7 +217,11 @@ function DeleteDialog({
       title={translate("priceDashboard.lifecycle.deleteTitle", {
         name: nameOf(flow.item),
       })}
-      description={translate(deleteBodyLeafOf(flow))}
+      description={translate(
+        flow.isDraftOnly
+          ? dialogLeavesOf(flow.item).deleteCreatedBody
+          : dialogLeavesOf(flow.item).deleteBody,
+      )}
       returnFocusFallbackRef={returnFocusFallbackRef}
       confirm={{
         label: translate("priceDashboard.common.delete"),
@@ -245,19 +239,6 @@ function DeleteDialog({
       <FailureNotice failure={desk.failure} />
     </AccountDialog>
   );
-}
-
-function deleteBodyLeafOf({
-  item,
-  isDraftOnly,
-}: FlowOf<"delete">):
-  | "priceDashboard.lifecycle.deleteBody"
-  | "priceDashboard.lifecycle.deleteCreatedBody"
-  | "priceDashboard.lifecycle.deleteCreatedAccessoryBody" {
-  if (!isDraftOnly) return "priceDashboard.lifecycle.deleteBody";
-  return item.kind === "accessory"
-    ? "priceDashboard.lifecycle.deleteCreatedAccessoryBody"
-    : "priceDashboard.lifecycle.deleteCreatedBody";
 }
 
 /** A deletion that a use forbids. Where the item is on, switching it off is offered instead; where it already is off,
@@ -312,29 +293,12 @@ function deleteBlockedWords(
   { item, isOn, count }: FlowOf<"delete-blocked">,
   name: string,
 ): string {
-  const isAccessory = item.kind === "accessory";
-  if (!isOn) {
-    return translate(
-      isAccessory
-        ? "priceDashboard.lifecycle.deleteBlockedAccessoryInactiveBody"
-        : "priceDashboard.lifecycle.deleteBlockedInactiveBody",
-      { name },
-    );
-  }
+  const leaves = dialogLeavesOf(item);
+  if (!isOn) return translate(leaves.deleteBlockedInactiveBody, { name });
   if (count === undefined) {
-    return translate(
-      isAccessory
-        ? "priceDashboard.lifecycle.deleteBlockedAccessoryUncountedBody"
-        : "priceDashboard.lifecycle.deleteBlockedUncountedBody",
-      { name },
-    );
+    return translate(leaves.deleteBlockedUncountedBody, { name });
   }
-  return translate(
-    isAccessory
-      ? "priceDashboard.lifecycle.deleteBlockedAccessoryBody"
-      : "priceDashboard.lifecycle.deleteBlockedBody",
-    { name, count },
-  );
+  return translate(leaves.deleteBlockedBody, { name, count });
 }
 
 function ClosingDialog({
@@ -408,32 +372,11 @@ function deactivationLines({
 }): readonly string[] {
   const count = usage.kind === "counted" ? usage.count : 0;
   const isUsed = count > 0;
-  const isAccessory = item.kind === "accessory";
+  const leaves = dialogLeavesOf(item);
   return [
-    ...(isUsed
-      ? [
-          translate(
-            isAccessory
-              ? "priceDashboard.lifecycle.usedByAccessory"
-              : "priceDashboard.lifecycle.usedBy",
-            { count },
-          ),
-        ]
-      : []),
-    translate(
-      isAccessory
-        ? "priceDashboard.lifecycle.clientsNoLongerGetAccessory"
-        : "priceDashboard.lifecycle.clientsCannotChoose",
-    ),
-    ...(isUsed
-      ? [
-          translate(
-            isAccessory
-              ? "priceDashboard.lifecycle.accessoryRemovedExplained"
-              : "priceDashboard.lifecycle.replacementExplained",
-          ),
-        ]
-      : []),
+    ...(isUsed ? [translate(leaves.usedBy, { count })] : []),
+    translate(leaves.clientsCannotChoose),
+    ...(isUsed ? [translate(leaves.consequenceOfUse)] : []),
     translate("priceDashboard.lifecycle.appliesImmediately"),
     ...(remainingNames.length === 0
       ? []
@@ -457,11 +400,7 @@ function UsageNotice({
   if (usage.kind === "counted") return null;
   return (
     <FormNotice tone="error">
-      {translate(
-        item.kind === "accessory"
-          ? "priceDashboard.lifecycle.usageUnavailableAccessory"
-          : "priceDashboard.lifecycle.usageUnavailable",
-      )}
+      {translate(dialogLeavesOf(item).usageUnavailable)}
     </FormNotice>
   );
 }

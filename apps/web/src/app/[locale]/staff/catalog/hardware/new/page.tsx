@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 
 import { routing } from "@/i18n/routing";
 import { HardwareCreateScreen } from "@/price-dashboard/hardware-create";
-import { HardwareUnavailableScreen } from "@/price-dashboard/hardware-parts";
+import { ItemUnavailableScreen } from "@/price-dashboard/catalog-states";
 import { readHardware } from "@/price-dashboard/hardware-source";
 
 import {
@@ -48,7 +48,11 @@ export default async function HardwareNewPage({
           page={read.page}
         />
       ) : (
-        <HardwareUnavailableScreen locale={locale} context={shell} />
+        <ItemUnavailableScreen
+          locale={locale}
+          context={shell}
+          page="hardware"
+        />
       );
     },
   });

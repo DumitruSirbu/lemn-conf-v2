@@ -125,6 +125,37 @@ describe("a built-in accessory's page", () => {
   });
 });
 
+describe("the sink cover's deletion", () => {
+  it("is off with the reason that the cover is always added, which offers no way round, and the page draws no hint that offers one", async () => {
+    const container = await mountEdit(SINK_COVER);
+
+    const deleteButton = buttonNamed(
+      container,
+      roCopy("priceDashboard.accessories.deleteAction"),
+    );
+    expect(deleteButton.getAttribute("aria-disabled")).toBe("true");
+    expect(
+      document.getElementById(
+        deleteButton.getAttribute("aria-describedby") ?? "",
+      )?.textContent,
+    ).toBe(roCopy("priceDashboard.lifecycle.alwaysPresentCannotBeDeleted"));
+    expect(container.textContent).not.toContain(
+      roCopy("priceDashboard.accessories.deleteHint"),
+    );
+    expect(container.textContent).not.toContain(
+      roCopy("priceDashboard.lifecycle.builtInAccessoryCannotBeDeleted"),
+    );
+  });
+
+  it("is told the rack's own way: it keeps the hint, since the rack can be switched off instead", async () => {
+    const container = await mountEdit(DRYING_RACK);
+
+    expect(container.textContent).toContain(
+      roCopy("priceDashboard.accessories.deleteHint"),
+    );
+  });
+});
+
 describe("the sink cover's switch", () => {
   it("is off with the reason that the cover is always added, and the rack's stays on", async () => {
     const cover = await mountEdit(SINK_COVER);

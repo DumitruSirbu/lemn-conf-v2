@@ -4,6 +4,7 @@
 import * as fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
+import { ALWAYS_PRESENT_ACCESSORY_ID } from "../../src/pricing/price-book.js";
 import { KITCHEN_L_DESIGN } from "../../src/fixtures/kitchen-l-design.js";
 import type { ItemRef } from "../../src/pricing/catalogue-availability.js";
 import { removedAccessoriesSince } from "../../src/pricing/earned-accessories.js";
@@ -78,7 +79,12 @@ describe("removedAccessoriesSince is what the price carried and availability too
           });
 
           const expected = carried
-            .filter((id) => currentOff.includes(id) && !seenOff.includes(id))
+            .filter(
+              (id) =>
+                id !== ALWAYS_PRESENT_ACCESSORY_ID &&
+                currentOff.includes(id) &&
+                !seenOff.includes(id),
+            )
             .sort();
           expect(
             removed.map((item) =>

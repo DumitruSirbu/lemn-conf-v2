@@ -1,4 +1,5 @@
 import {
+  ALWAYS_PRESENT_ACCESSORY_ID,
   fixedDefaultItemsOf,
   isBuiltInAccessoryId,
   isItemOffered,
@@ -20,9 +21,10 @@ import {
   type PriceBook,
 } from "@lemnaria/configurator-domain";
 
-// What may be done to a switchable item, as a screen offers it. Every verdict is the domain's own (`judgeAvailabilityChange`,
-// `judgeDeletion`), so the order the guards are read in is never written a second time here: this module maps a verdict to
-// the control a person is shown. The server judges the same write again when it is made.
+// What may be done to a switchable item, as a screen offers it. Every verdict is the domain's own
+// (`judgeAvailabilityChange`, `judgeDeletion`), so the order the guards are read in is never written a second time
+// here: this module maps a verdict to the control a person is shown. The server judges the same write again when it is
+// made.
 
 /** What a screen knows to judge a change by. `defaults` is absent when they could not be read: what the book alone
  *  refuses is still refused, and what it allows is left unjudged. */
@@ -39,8 +41,10 @@ export type OffReason =
   | "item-is-default"
   | "item-is-fixed-default"
   | "item-not-in-active-book"
-  /** The sink cover is protection, not an option: it is never switched off. */
+  /** The always-present accessory is never switched off (`ALWAYS_PRESENT_ACCESSORY_ID` says why). */
   | "item-always-present"
+  /** ...and never deleted. */
+  | "always-present-accessory"
   /** A built-in accessory comes with the catalogue: it can be switched off, never deleted. */
   | "built-in-accessory"
   | "cannot-judge";
@@ -116,15 +120,19 @@ export function isDefaultItem(
   ].some((held) => isSameItem(held, item));
 }
 
-/** A default is refused before any use is counted, so a default needs no count; any other item does. */
+/**
+ * A default is refused before any use is counted, so a default needs no count; any other item does. Where nothing can
+ * be written, no deletion is offered either, an item only the draft holds included: nothing could carry it out.
+ */
 export function deleteStandOf(
   item: DeletableItemRef,
   context: LifecycleContext,
 ): DeleteStand {
   const reason = deletionRefusalWithoutCount(item, context);
-  return reason === undefined
+  if (reason !== undefined) return { kind: "off", reason };
+  return context.canWrite
     ? { kind: "count-first" }
-    : { kind: "off", reason };
+    : { kind: "off", reason: "cannot-judge" };
 }
 
 /** The verdict of the domain on a deletion, with the counts the usage reader answered. */
@@ -161,6 +169,7 @@ function deletionRefusalWithoutCount(
   context: LifecycleContext,
 ): OffReason | undefined {
   const { book, defaults } = context;
+  if (isAlwaysPresentAccessory(item)) return "always-present-accessory";
   if (isBuiltInAccessory(item)) return "built-in-accessory";
   const reason = refusalOfUncountedDeletion({
     item,
@@ -170,6 +179,13 @@ function deletionRefusalWithoutCount(
   });
   if (reason !== undefined) return reason;
   return mustAwaitDefaults(item, context) ? "cannot-judge" : undefined;
+}
+
+function isAlwaysPresentAccessory(item: ItemRef): boolean {
+  return (
+    item.kind === "accessory" &&
+    item.accessoryId === ALWAYS_PRESENT_ACCESSORY_ID
+  );
 }
 
 function isBuiltInAccessory(item: ItemRef): boolean {

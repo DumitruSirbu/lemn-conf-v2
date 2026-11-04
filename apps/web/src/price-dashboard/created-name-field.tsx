@@ -13,8 +13,8 @@ import {
 } from "./price-input-words";
 import type { CreatedRowNameEditing } from "./use-created-row-name-editing";
 
-// The name of a row the dashboard created, as a field with its button, on the row's own page. Where the client cannot take
-// a change of the words, the name is text with the reason.
+// The name of a row the dashboard created, as a field with its button, on the row's own page. Where the client cannot
+// take a change of the words, the name is text with the reason.
 
 export interface CreatedNameFieldProps {
   readonly renaming: CreatedRowNameEditing;

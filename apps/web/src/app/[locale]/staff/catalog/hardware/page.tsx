@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 
 import { routing } from "@/i18n/routing";
 import { HardwareListScreen } from "@/price-dashboard/hardware-list";
-import { HardwareUnavailableScreen } from "@/price-dashboard/hardware-parts";
+import { ItemUnavailableScreen } from "@/price-dashboard/catalog-states";
 import { readHardware } from "@/price-dashboard/hardware-source";
 
 import {
@@ -43,7 +43,11 @@ export default async function HardwarePage({ params }: HardwarePageProps) {
       return read.kind === "ready" ? (
         <HardwareListScreen locale={locale} context={shell} page={read.page} />
       ) : (
-        <HardwareUnavailableScreen locale={locale} context={shell} />
+        <ItemUnavailableScreen
+          locale={locale}
+          context={shell}
+          page="hardware"
+        />
       );
     },
   });

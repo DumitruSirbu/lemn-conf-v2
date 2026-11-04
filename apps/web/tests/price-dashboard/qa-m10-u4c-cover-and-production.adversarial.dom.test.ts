@@ -154,32 +154,20 @@ describe("the sink cover cannot be switched off from the list", () => {
     expect(setActiveCalls(mounted)).toHaveLength(1);
   });
 
-  it("offers a cover that is somehow off its way back on, which the log allows", async () => {
+  it("reads a cover the log somehow holds as off as on, so there is no way back on to offer", async () => {
     mounted = await mountAccessoryList(
       accessoryPageOf({ disabled: [accessoryItem(SINK_COVER)] }),
     );
 
     await openMenuOf(mounted.container, SINK_COVER, COVER_NAME);
-    await press(menuEntry(mounted.container, SINK_COVER, ACTIVATE));
-    const dialog = openDialog();
-    if (dialog === null) throw new Error("no dialog opened");
-    await press(
-      dialogButton(dialog, roCopy("priceDashboard.lifecycle.activateConfirm")),
-    );
 
-    expect(setActiveCalls(mounted)).toEqual([
-      {
-        kind: "setActive",
-        request: {
-          expectedRevision: "1",
-          item: accessoryItem(SINK_COVER),
-          active: true,
-        },
-      },
-    ]);
     expect(chipsOf(mounted.container, SINK_COVER)).toEqual([
       roCopy("priceDashboard.chips.active"),
     ]);
+    expect(() =>
+      menuEntry(mounted?.container ?? document.body, SINK_COVER, ACTIVATE),
+    ).toThrow();
+    expect(setActiveCalls(mounted)).toEqual([]);
   });
 });
 
@@ -425,6 +413,9 @@ describe("a build with no server behind the accessory screens", () => {
     expect(entry(DELETE).getAttribute("aria-disabled")).toBe("true");
     expect(container.textContent).toContain(ALWAYS_PRESENT);
     expect(container.textContent).toContain(
+      roCopy("priceDashboard.lifecycle.alwaysPresentCannotBeDeleted"),
+    );
+    expect(container.textContent).not.toContain(
       roCopy("priceDashboard.lifecycle.builtInAccessoryCannotBeDeleted"),
     );
   });

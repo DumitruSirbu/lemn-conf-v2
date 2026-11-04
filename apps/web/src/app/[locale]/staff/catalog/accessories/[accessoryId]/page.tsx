@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 
 import { routing } from "@/i18n/routing";
 import { AccessoryEditScreen } from "@/price-dashboard/accessory-edit";
-import { AccessoryUnavailableScreen } from "@/price-dashboard/accessory-parts";
+import { ItemUnavailableScreen } from "@/price-dashboard/catalog-states";
 import { readAccessory } from "@/price-dashboard/accessory-source";
 
 import {
@@ -26,9 +26,10 @@ export async function generateMetadata({
 }
 
 /**
- * One accessory, with its price. The id is judged only after the gate has let the person in, so every caller who
- * may not read prices is answered alike whatever the address says; an accessory neither the book nor the draft holds is then the
- * framework's not-found. The source reads without writing; the page writes through its own clients. Rendered per request.
+ * One accessory, with its price. The id is judged only after the gate has let the person in, so every caller who may
+ * not read prices is answered alike whatever the address says; an accessory neither the book nor the draft holds is
+ * then the framework's not-found. The source reads without writing; the page writes through its own clients. Rendered
+ * per request.
  */
 export default async function AccessoryPage({ params }: AccessoryPageProps) {
   await connection();
@@ -50,7 +51,11 @@ export default async function AccessoryPage({ params }: AccessoryPageProps) {
           accessoryId={id}
         />
       ) : (
-        <AccessoryUnavailableScreen locale={locale} context={shell} />
+        <ItemUnavailableScreen
+          locale={locale}
+          context={shell}
+          page="accessories"
+        />
       );
     },
   });

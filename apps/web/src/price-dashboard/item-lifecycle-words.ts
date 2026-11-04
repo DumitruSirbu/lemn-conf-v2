@@ -14,8 +14,8 @@ import {
   type OffReason,
 } from "./item-lifecycle-model";
 
-// The words of every refusal a switch or a deletion can meet, in the one place a code becomes a sentence, so a reason reads
-// the same under a menu entry, beside a switch and in a dialog.
+// The words of every refusal a switch or a deletion can meet, in the one place a code becomes a sentence, so a reason
+// reads the same under a menu entry, beside a switch and in a dialog.
 
 /** Why a control is off, said under it. */
 export function offReasonWords(
@@ -31,6 +31,8 @@ export function offReasonWords(
       return translate("priceDashboard.lifecycle.activateNotPublished");
     case "item-always-present":
       return translate("priceDashboard.lifecycle.alwaysPresentCannotChange");
+    case "always-present-accessory":
+      return translate("priceDashboard.lifecycle.alwaysPresentCannotBeDeleted");
     case "built-in-accessory":
       return translate(
         "priceDashboard.lifecycle.builtInAccessoryCannotBeDeleted",
@@ -41,8 +43,8 @@ export function offReasonWords(
 }
 
 /**
- * Why each action on an item is off; absent, it can be taken. An item the draft deletes cannot be switched, and nothing is
- * offered of it once the deletion is published: `deletionPendingNotice` says so under both.
+ * Why each action on an item is off; absent, it can be taken. An item the draft deletes cannot be switched, and nothing
+ * is offered of it once the deletion is published: `deletionPendingNotice` says so under both.
  */
 export function reasonsOfItem({
   translate,

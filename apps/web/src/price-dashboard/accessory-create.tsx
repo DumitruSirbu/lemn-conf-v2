@@ -15,7 +15,8 @@ import { StaffShell, type StaffShellContext } from "@/staff/staff-shell";
 
 import { deriveAccessories, type AccessoryPageInput } from "./accessory-model";
 import { accessoriesPathOf, accessoryPathOf } from "./accessory-paths";
-import { AccessoryUnavailableScreen, cabinetNameOf } from "./accessory-parts";
+import { cabinetNameOf } from "./accessory-parts";
+import { ItemUnavailableScreen } from "./catalog-states";
 import styles from "./accessory.module.css";
 import { pendingPriceCountOf } from "./cabinet-list-model";
 import type { CreationFeedback, TextEntry } from "./creation-entries";
@@ -33,7 +34,7 @@ import {
 } from "./use-accessory-creation";
 import { usePriceDraft } from "./use-price-draft";
 
-// A new linked accessory (frame D6B): Romanian name and description, the cabinet type it follows, and its price per unit.
+// A new linked accessory: Romanian name and description, the cabinet type it follows, and its price per unit.
 // It is created in "De publicat", inactive; the customer's kitchen earns it only after it is published and switched on.
 // The cabinet types offered are the rows the manufacturer supplies, as the domain lists them.
 
@@ -58,7 +59,13 @@ export function AccessoryCreateScreen({
     [draft.state],
   );
   if (derivation.kind === "unreadable") {
-    return <AccessoryUnavailableScreen locale={locale} context={context} />;
+    return (
+      <ItemUnavailableScreen
+        locale={locale}
+        context={context}
+        page="accessories"
+      />
+    );
   }
   const shell = {
     ...context,
@@ -267,7 +274,9 @@ function errorProps(
     : { error: createdTextRefusalWords(translate, entry.judgement.code) };
 }
 
-/** The cabinet type the accessory follows: required, chosen from the rows the manufacturer supplies, never preselected. */
+/**
+ * The cabinet type the accessory follows: required, chosen from the rows the manufacturer supplies, never preselected.
+ */
 function LinkField({
   creation,
   linkTargets,
