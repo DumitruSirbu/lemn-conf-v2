@@ -8,6 +8,7 @@ import {
   FakeDashboardAuditLedger,
   FakeRevisionHead,
 } from "../../src/fake-dashboard-support.js";
+import { FakeHeldDesigns } from "../../src/fake-held-designs.js";
 import { FakeKitchenChangeStore } from "../../src/fake-kitchen-change-store.js";
 import { FakeKitchenDefaultsStore } from "../../src/fake-kitchen-defaults-store.js";
 import { FakePriceBookStore } from "../../src/fake-price-book-store.js";
@@ -17,6 +18,7 @@ import type { ItemUsageProbe } from "../../src/m10-ports.js";
 import type {
   DashboardStaffMember,
   DashboardStaffWorld,
+  SavedDesignsWorld,
 } from "./dashboard-contract-support.js";
 
 const PASSWORD_HASH = `$argon2id$v=19$m=19456,t=2,p=1$${"A".repeat(22)}$${"B".repeat(43)}`;
@@ -36,7 +38,9 @@ const WIDEST_BIGINT = 9223372036854775807n;
  * Each fake's test hands the contract its own port from here, and what the contract reads around the store, from the
  * fakes' own held rows. The stores' clock moves one second each time it is read, so the order of two writes is visible.
  */
-export interface FakeDashboardWorld extends DashboardStaffWorld {
+export interface FakeDashboardWorld
+  extends DashboardStaffWorld,
+    SavedDesignsWorld {
   readonly ledger: FakeDashboardAuditLedger;
   readonly priceBook: FakePriceBookStore;
   readonly availability: FakeCatalogueAvailabilityStore;
@@ -76,8 +80,19 @@ export function newFakeDashboardWorld(): FakeDashboardWorld {
     head: new FakeRevisionHead(),
     ledger,
   });
-  const priceBook = new FakePriceBookStore({ now, ledger, availability });
-  const defaults = new FakeKitchenDefaultsStore({ now, ledger, availability });
+  const designs = new FakeHeldDesigns();
+  const priceBook = new FakePriceBookStore({
+    now,
+    ledger,
+    availability,
+    designs,
+  });
+  const defaults = new FakeKitchenDefaultsStore({
+    now,
+    ledger,
+    availability,
+    designs,
+  });
   const changes = new FakeKitchenChangeStore({ now, ledger });
   const notice = new FakePriceNoticeStore({ priceBook, availability });
 
@@ -106,6 +121,13 @@ export function newFakeDashboardWorld(): FakeDashboardWorld {
     defaults,
     changes,
     notice,
+    aDesignNaming(item, { isDeletedByClient = false } = {}) {
+      designs.plant({ designId: nanoid(), uses: [item], isDeletedByClient });
+      return Promise.resolve();
+    },
+    countDesignsUsing: async (item) =>
+      (await defaults.countEach([probeTheFakeAccepts(item)])).counts[0]
+        ?.designCount ?? NaN,
     aStaffMember: () => signedIn(),
     aStaffMemberWhoIsNotAnAdministrator: () => signedIn("operator"),
     aClientWithALiveSession: () => signedIn("client"),

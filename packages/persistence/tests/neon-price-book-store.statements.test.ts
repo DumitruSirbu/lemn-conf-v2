@@ -138,6 +138,7 @@ function aPublishRequest(
       { kind: "hardware", tierId: "premium-plus" },
       { kind: "accessory", accessoryId: "plinth-light" },
     ],
+    deletedItems: [],
     audit: {
       session: SESSION,
       entry: { action: "price-published", detail: { provisional: true } },
@@ -158,6 +159,8 @@ const PUBLISHED_ROW = {
 
 const REFUSED_ROW = {
   draft_rows: 1,
+  in_use_positions: [],
+  unlinked_accessories: 0,
   availability_revision: null,
   version_id: null,
   sequence_number: null,
@@ -639,7 +642,7 @@ describe("a publish", () => {
       "draft_row as materialized ( select revision from price_book_draft where revision = ?::bigint for update )",
     );
     expect(text).toContain(
-      "set revision = revision + greatest((select count(*) from created_items), 1) where revision = ?::bigint and exists (select 1 from actor) and exists (select 1 from draft_row) and (select coalesce(max(sequence_number), 0) from price_book_versions) = ?::bigint returning revision",
+      "set revision = revision + greatest((select count(*) from created_items), 1) where revision = ?::bigint and exists (select 1 from actor) and exists (select 1 from draft_row) and not exists (select 1 from in_use) and not exists (select 1 from unlinked_deletions) and (select coalesce(max(sequence_number), 0) from price_book_versions) = ?::bigint returning revision",
     );
     expect(text).toContain(
       "and exists (select 1 from moved_head) returning revision",
@@ -705,6 +708,7 @@ describe("a publish", () => {
       JSON.stringify(LIFETIMES),
       ["hardware", "accessory"],
       ["premium-plus", "plinth-light"],
+      "[]",
       "3",
       "7",
       "4",

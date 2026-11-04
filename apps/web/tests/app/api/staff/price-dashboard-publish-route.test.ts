@@ -545,6 +545,29 @@ describe("a publish is a state of the data: 409, and nothing written", () => {
     await expectNothingWritten(before);
   });
 
+  it("answers a store's item-in-use as a 409 that names those items, and nothing else of the store's", async () => {
+    const { cookie } = await administrator();
+    await putChange(cookie, ANCHOR_ADDRESS, NEW_ANCHOR_MINOR);
+    const inUse = [
+      { kind: "material", tierId: "material.veneer" },
+      { kind: "accessory", accessoryId: "plinth-light" },
+    ] as const;
+    vi.spyOn(prices.stores.priceBook, "publish").mockResolvedValue({
+      kind: "item-in-use",
+      items: inUse,
+    });
+    const before = await snapshot();
+
+    const answer = await publish(cookie);
+
+    expect(answer.status).toBe(409);
+    expect(await jsonOf(answer)).toEqual({
+      status: "item-in-use",
+      items: inUse,
+    });
+    await expectNothingWritten(before);
+  });
+
   it("is nothing-to-publish for an empty draft", async () => {
     const { cookie } = await administrator();
     const before = await snapshot();

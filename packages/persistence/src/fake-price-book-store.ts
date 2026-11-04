@@ -2,6 +2,7 @@ import type { ItemRef } from "@lemnaria/configurator-domain";
 import { nanoid } from "nanoid";
 
 import {
+  isJsonObject,
   isListablePage,
   stampedWithVersion,
   storableJsonTextOf,
@@ -15,6 +16,7 @@ import {
   settle,
 } from "./fake-dashboard-support.js";
 import type { FakeDashboardAuditLedger } from "./fake-dashboard-support.js";
+import type { FakeHeldDesigns } from "./fake-held-designs.js";
 import {
   AVAILABILITY_CHANGED_MEANWHILE,
   CHANGED_MEANWHILE,
@@ -24,6 +26,7 @@ import {
   VERSION_NOT_FOUND,
 } from "./m10-ports.js";
 import type {
+  DeletedItem,
   PriceBookStore,
   PriceDraft,
   PriceVersionPage,
@@ -63,6 +66,11 @@ export interface FakePriceBookStoreOptions {
   readonly ledger: FakeDashboardAuditLedger;
   /** The availability log and head a publish takes its compare-and-set on and writes its created items to. */
   readonly availability: FakeCatalogueAvailabilityStore;
+  /**
+   * The saved designs a publish's deleted items are checked against. The fake reads this table alone and never a
+   * `KitchenUsageReader` a route holds, so a test that stubs the route's reader leaves the guard intact.
+   */
+  readonly designs: FakeHeldDesigns;
 }
 
 /**
@@ -79,15 +87,18 @@ export class FakePriceBookStore implements PriceBookStore {
   private readonly now: () => Date;
   private readonly ledger: FakeDashboardAuditLedger;
   private readonly availability: FakeCatalogueAvailabilityStore;
+  private readonly designs: FakeHeldDesigns;
 
   constructor({
     now = () => new Date(),
     ledger,
     availability,
+    designs,
   }: FakePriceBookStoreOptions) {
     this.now = now;
     this.ledger = ledger;
     this.availability = availability;
+    this.designs = designs;
   }
 
   /** Whether the version exists, for the fakes that judge against the versions in the same turn. */
@@ -198,6 +209,10 @@ export class FakePriceBookStore implements PriceBookStore {
       },
       onlyAdministrators: true,
     });
+    const itemsInUse = this.guardDeletions(publishable.deletedItems);
+    if (itemsInUse.length > 0) {
+      return { kind: "item-in-use", items: itemsInUse };
+    }
     const newestSequence = this.versions.at(-1)?.sequenceNumber ?? 0;
     if (
       request.expectedDraftRevision !== this.draftRevision.current() ||
@@ -241,6 +256,27 @@ export class FakePriceBookStore implements PriceBookStore {
     };
   }
 
+  /**
+   * The deleted items a saved design names, as the statement finds them. A linked accessory whose build ids lack its
+   * rule's `linkedBuildId` in the active book is a request the store refuses, as the statement's `unlinked_deletions` is.
+   */
+  private guardDeletions(
+    deletedItems: readonly DeletedItem[],
+  ): readonly ItemRef[] {
+    const activeBook = this.versions.at(-1)?.book;
+    for (const deleted of deletedItems) {
+      if (!hasItsLinkedBuildId(deleted, activeBook)) {
+        throw new DashboardStoreError(
+          "publish the price book",
+          "invalid-request",
+        );
+      }
+    }
+    return deletedItems
+      .map(({ item }) => item)
+      .filter((item) => this.designs.countUsing(item) > 0);
+  }
+
   /** The head after the publish's own move: once per created item, each logged off, or once when there are none. */
   private logCreatedItems(createdItems: readonly ItemRef[]): string {
     if (createdItems.length === 0) return this.availability.head.advance();
@@ -267,4 +303,18 @@ export class FakePriceBookStore implements PriceBookStore {
   private stateOf(held: HeldVersion): "active" | "archived" {
     return held === this.versions.at(-1) ? "active" : "archived";
   }
+}
+
+/** Whether a deleted linked accessory's build ids hold the `linkedBuildId` of its rule in the book; a tier carries none. */
+function hasItsLinkedBuildId(deleted: DeletedItem, book: unknown): boolean {
+  if (!("buildIds" in deleted)) return true;
+  const rules = isJsonObject(book) ? book["linkedAccessories"] : undefined;
+  if (!Array.isArray(rules)) return false;
+  return (rules as unknown[]).some(
+    (rule) =>
+      isJsonObject(rule) &&
+      rule["accessoryId"] === deleted.item.accessoryId &&
+      typeof rule["linkedBuildId"] === "string" &&
+      deleted.buildIds.includes(rule["linkedBuildId"]),
+  );
 }

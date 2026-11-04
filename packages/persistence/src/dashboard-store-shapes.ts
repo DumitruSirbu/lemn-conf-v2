@@ -1,13 +1,18 @@
 import {
   HandleSchema,
   countPendingPrices,
+  deletedBookItemsOf,
   isBuiltInAccessoryId,
   isRevisionShape,
 } from "@lemnaria/configurator-domain";
-import type { ItemRef } from "@lemnaria/configurator-domain";
+import type { DraftChange, ItemRef } from "@lemnaria/configurator-domain";
 
 import { isDesignRevision } from "./design-revision.js";
-import type { ItemUsageProbe, PublishPriceBookRequest } from "./m10-ports.js";
+import type {
+  DeletedItem,
+  ItemUsageProbe,
+  PublishPriceBookRequest,
+} from "./m10-ports.js";
 
 export { isRevisionShape };
 
@@ -278,18 +283,20 @@ export interface StorablePublish {
   /** `countPendingPrices` over the summary: the one count the stored column and the audit pre-check both take. */
   readonly changeCount: number;
   readonly createdItems: readonly ItemRef[];
+  readonly deletedItems: readonly DeletedItem[];
 }
 
 /**
  * The publish request judged as the Neon store judges it, and as the fake does so that both turn away the same request:
  * revisions of the digit shape, a whole non-negative sequence, a label and a note a table holds, a book that is an
- * object and a summary that is an array of objects (each JSON a table takes), and items the log can keep. `undefined`
- * when any member is not.
+ * object and a summary that is an array of objects (each JSON a table takes), items the log can keep, and deleted items
+ * that are exactly the summary's deletions of rows the book held (`areTheDeletionsOf`). `undefined` when any member is not.
  */
 export function storablePublishOf(
   request: PublishPriceBookRequest,
 ): StorablePublish | undefined {
   const { expectedActiveSequence, book, changeSummary, createdItems } = request;
+  const { deletedItems } = request;
   const isWellFormed =
     isRevisionShape(request.expectedDraftRevision) &&
     isRevisionShape(request.expectedAvailabilityRevision) &&
@@ -300,7 +307,8 @@ export function storablePublishOf(
     isJsonObject(book) &&
     isArrayOfObjects(changeSummary) &&
     Array.isArray(createdItems) &&
-    createdItems.every(isStorableItem);
+    createdItems.every(isStorableItem) &&
+    areTheDeletionsOf(changeSummary, deletedItems);
   if (!isWellFormed) return undefined;
   const bookJson = storableJsonTextOf(book, "object");
   const changeSummaryJson = storableJsonTextOf(changeSummary, "array");
@@ -313,7 +321,61 @@ export function storablePublishOf(
     changeSummaryJson,
     changeCount: countPendingPrices(changeSummary),
     createdItems: Array.from<ItemRef>(createdItems),
+    deletedItems: Array.from<DeletedItem>(deletedItems),
   };
+}
+
+/**
+ * Whether `deletedItems` is each item the summary deletes from the book it started from, once, and each a kind a deletion
+ * can be: a material, a hardware class, or a linked accessory with the build ids it is priced as. The fakes and the Neon
+ * store judge this alike, so neither stores a publish that leaves a deletion out of the guard. The build ids are the
+ * domain's; only their having some is checked here (the store reads the rest in SQL).
+ */
+function areTheDeletionsOf(
+  changeSummary: readonly object[],
+  deletedItems: unknown,
+): deletedItems is readonly DeletedItem[] {
+  if (!Array.isArray(deletedItems)) return false;
+  if (!(deletedItems as unknown[]).every(isGuardableDeletedItem)) return false;
+  const held = new Set((deletedItems as DeletedItem[]).map(deletedItemKeyOf));
+  const owed = new Set(
+    deletedBookItemsOf(changeSummary as readonly DraftChange[]).map(itemKeyOf),
+  );
+  return (
+    held.size === deletedItems.length &&
+    held.size === owed.size &&
+    [...owed].every((key) => held.has(key))
+  );
+}
+
+function isGuardableDeletedItem(candidate: unknown): boolean {
+  if (!isJsonObject(candidate) || !isJsonObject(candidate["item"])) {
+    return false;
+  }
+  const item = candidate["item"] as unknown as ItemRef;
+  if (!isNamedItem(item)) return false;
+  if (item.kind === "material" || item.kind === "hardware") return true;
+  return (
+    item.kind === "accessory" &&
+    !isBuiltInAccessoryId(item.accessoryId) &&
+    isNonEmptyTexts(candidate["buildIds"])
+  );
+}
+
+function isNonEmptyTexts(value: unknown): boolean {
+  return (
+    Array.isArray(value) &&
+    value.length > 0 &&
+    value.every((id) => typeof id === "string" && id !== "")
+  );
+}
+
+function deletedItemKeyOf({ item }: DeletedItem): string {
+  return itemKeyOf(item);
+}
+
+function itemKeyOf(item: ItemRef): string {
+  return `${item.kind}:${itemIdOf(item)}`;
 }
 
 /**
@@ -386,7 +448,7 @@ function hasANamedItem(probe: unknown): boolean {
 }
 
 function probeKeyOf({ item }: ItemUsageProbe): string {
-  return `${item.kind}:${itemIdOf(item)}`;
+  return itemKeyOf(item);
 }
 
 function isCountableProbe(probe: ItemUsageProbe): boolean {

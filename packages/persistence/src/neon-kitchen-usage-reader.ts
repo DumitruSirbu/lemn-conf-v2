@@ -11,8 +11,8 @@ import {
   countDesignsChoosingTierStatement,
   countDesignsPlacingBodiesStatement,
   readDesignPageStatement,
+  tierSettingKeyOf,
 } from "./kitchen-usage-statements.js";
-import type { TierSettingKey } from "./kitchen-usage-statements.js";
 import { DashboardStoreError } from "./m10-ports.js";
 import type {
   ItemUsageProbe,
@@ -150,10 +150,6 @@ function isMigratedDesignProbe(
   probe: ItemUsageProbe,
 ): probe is MigratedDesignProbe {
   return probe.via === "migrated-design";
-}
-
-function tierSettingKeyOf(kind: "material" | "hardware"): TierSettingKey {
-  return kind === "material" ? "materialTierId" : "hardwareTierId";
 }
 
 /** A probe the walk was given always has a tally; a missing one is a defect, never a count of zero. */

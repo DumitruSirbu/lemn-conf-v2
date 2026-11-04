@@ -11,7 +11,8 @@ import type {
 // without the entry that created the row. Every value is one a table stores (safe integers, no NUL).
 
 const TIER_IDS = ["t1", "t2", "t3"] as const;
-const ACCESSORY_IDS = ["a1", "a2"] as const;
+/** The accessory ids a drawn summary names. */
+export const ACCESSORY_IDS = ["a1", "a2"] as const;
 
 const tierId = fc.constantFrom(...TIER_IDS);
 const accessoryId = fc.constantFrom(...ACCESSORY_IDS);

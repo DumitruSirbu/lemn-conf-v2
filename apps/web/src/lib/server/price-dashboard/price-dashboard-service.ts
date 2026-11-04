@@ -38,6 +38,7 @@ import {
   draftChangedResponse,
   draftUnreadableResponse,
   draftWireOf,
+  itemInUseResponse,
   publishedResponse,
   versionListResponse,
   versionNotFoundResponse,
@@ -541,6 +542,7 @@ async function performPublish(
     expectedActiveSequence: input.expectedActiveSequence,
     expectedAvailabilityRevision: input.expectedAvailabilityRevision,
     createdItems: createdItemsOf(plan.changes),
+    deletedItems: [],
     label: input.label,
     note: input.note,
     book: plan.book,
@@ -554,6 +556,9 @@ async function performPublish(
 }
 
 function answerOfPublish(result: PublishPriceBookResult): NextResponse {
+  if (result.kind === "item-in-use") {
+    return refused(PRICE_DRAFT_EVENT, itemInUseResponse(result.items));
+  }
   if (result.kind !== "ok") {
     return refused(PRICE_DRAFT_EVENT, dashboardConflictResponse(result.kind));
   }

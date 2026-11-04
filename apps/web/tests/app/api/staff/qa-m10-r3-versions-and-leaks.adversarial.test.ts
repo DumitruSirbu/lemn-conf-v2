@@ -215,6 +215,7 @@ describe("a stored version that is not what the store declares", () => {
         await prices.stores.availability.readCurrent()
       ).revision,
       createdItems: [],
+      deletedItems: [],
       label: stored.label ?? "Hand-stored",
       note: "",
       book: stored.book as never,

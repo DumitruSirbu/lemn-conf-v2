@@ -13,6 +13,7 @@ import {
 import {
   FakeCatalogueAvailabilityStore,
   FakeDashboardAuditLedger,
+  FakeHeldDesigns,
   FakePriceBookStore,
   FakeRevisionHead,
 } from "@lemnaria/persistence";
@@ -87,7 +88,12 @@ async function publish(book: PriceBook): Promise<void> {
     head: new FakeRevisionHead(),
     ledger,
   });
-  priceBook = new FakePriceBookStore({ ledger, availability, now });
+  priceBook = new FakePriceBookStore({
+    ledger,
+    availability,
+    now,
+    designs: new FakeHeldDesigns(),
+  });
   const publisher = await signedInAs(
     { role: "administrator" },
     `price-publisher-${String((publishers += 1))}@example.test`,
@@ -97,6 +103,7 @@ async function publish(book: PriceBook): Promise<void> {
     expectedActiveSequence: 0,
     expectedAvailabilityRevision: "0",
     createdItems: [],
+    deletedItems: [],
     label: "Version 1",
     note: "",
     book,

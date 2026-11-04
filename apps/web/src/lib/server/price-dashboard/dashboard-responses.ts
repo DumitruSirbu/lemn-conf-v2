@@ -2,7 +2,7 @@ import "server-only";
 
 import { NextResponse } from "next/server";
 
-import type { DraftChange } from "@lemnaria/configurator-domain";
+import type { DraftChange, ItemRef } from "@lemnaria/configurator-domain";
 
 import { ACCOUNT_RESPONSE_HEADERS } from "@/lib/server/account/account-responses";
 import type {
@@ -15,6 +15,7 @@ import type {
   DashboardDraftWire,
   DashboardInvalidInputWire,
   DashboardIssue,
+  DashboardItemInUseWire,
   DashboardStateWire,
   PriceVersionListWire,
   PriceVersionNotFoundWire,
@@ -35,6 +36,7 @@ type DashboardBody =
   | DashboardCandidateRefusedWire
   | DashboardDraftUnreadableWire
   | DashboardInvalidInputWire<string>
+  | DashboardItemInUseWire
   | PublishedWire
   | PriceVersionListWire
   | PriceVersionWire
@@ -99,6 +101,15 @@ export function dashboardConflictResponse(
   word: Exclude<DashboardConflict, "draft-unreadable">,
 ): NextResponse {
   return jsonResponse({ status: word }, 409);
+}
+
+/** `409`: a deleted item that a saved kitchen names refused the whole publish, and these are the items. Nothing was written. */
+export function itemInUseResponse(items: readonly ItemRef[]): NextResponse {
+  const body: DashboardItemInUseWire = {
+    status: "item-in-use",
+    items: items.map((item) => ({ ...item })),
+  };
+  return jsonResponse(body, 409);
 }
 
 /** `409`: the book a publish would store was refused, and why. Nothing was written. */

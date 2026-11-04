@@ -14,25 +14,49 @@ import type {
   PublishPriceBookRequest,
 } from "../src/m10-ports.js";
 import { listVersionsStatement } from "../src/price-book-statements.js";
-import { changeSummaryArbitrary } from "./support/change-summary-arbitrary.js";
+import {
+  ACCESSORY_IDS,
+  changeSummaryArbitrary,
+} from "./support/change-summary-arbitrary.js";
 import {
   A_BOOK,
+  aBookLinking,
   dashboardFailureOf,
+  deletedItemsOfSummary,
+  publishNextVersion,
   publishRequestFor,
 } from "./support/dashboard-contract-support.js";
 import { newFakeDashboardWorld } from "./support/fake-dashboard-world.js";
 
 const PROPERTY_RUNS = 300;
 
+/** The book every publish here stores and the one it seeds: it states each accessory a summary can delete. */
+const STATING_BOOK = aBookLinking(ACCESSORY_IDS);
+
+/** A publish of the summary, over an active version that states what the summary may delete. */
+function requestOf(
+  world: ReturnType<typeof newFakeDashboardWorld>,
+  staff: Awaited<ReturnType<typeof world.aStaffMember>>,
+  summary: readonly DraftChange[],
+) {
+  return publishRequestFor(world.priceBook, world.availability, staff, {
+    changeSummary: summary,
+    deletedItems: deletedItemsOfSummary(summary),
+    book: STATING_BOOK,
+  });
+}
+
 async function publishedBy(summary: readonly DraftChange[]) {
   const world = newFakeDashboardWorld();
-  const staff = await world.aStaffMember();
-  const request = await publishRequestFor(
+  const seeder = await world.aStaffMember();
+  await publishNextVersion(
     world.priceBook,
     world.availability,
-    staff,
-    { changeSummary: summary },
+    seeder,
+    STATING_BOOK,
   );
+  const staff = await world.aStaffMember();
+  const request = await requestOf(world, staff, summary);
   const result = await world.priceBook.publish(request);
   const listed = await world.priceBook.listVersions({ page: 1 });
   const audit = await world.auditEventsOf(staff.accountId);
@@ -91,20 +115,22 @@ describe("one publish, one number: the list, the stored count and the audit row 
         async (summaries) => {
           const world = newFakeDashboardWorld();
           const staff = await world.aStaffMember();
+          await publishNextVersion(
+            world.priceBook,
+            world.availability,
+            staff,
+            STATING_BOOK,
+          );
           for (const summary of summaries) {
-            const request = await publishRequestFor(
-              world.priceBook,
-              world.availability,
-              staff,
-              { changeSummary: summary },
+            await world.priceBook.publish(
+              await requestOf(world, staff, summary),
             );
-            await world.priceBook.publish(request);
           }
 
           const listed = await world.priceBook.listVersions({ page: 1 });
 
           expect(listed.versions.map(({ changeCount }) => changeCount)).toEqual(
-            summaries.map(countPendingPrices).reverse(),
+            [...summaries.map(countPendingPrices).reverse(), 0],
           );
         },
       ),
