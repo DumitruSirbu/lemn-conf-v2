@@ -24,7 +24,7 @@ export interface HardwareClassNameEditing {
   readonly canWrite: boolean;
   readonly canSave: boolean;
   readonly isSaving: boolean;
-  /** What the last Save came to when nothing was written; cleared by typing. */
+  /** What the last Save came to when nothing was written; cleared by typing and when a Save begins. */
   readonly failure: FailedFieldWrite | undefined;
   readonly type: (text: string) => void;
   readonly save: () => Promise<void>;
