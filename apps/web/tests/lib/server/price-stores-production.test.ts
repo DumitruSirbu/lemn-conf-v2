@@ -57,6 +57,7 @@ afterEach(() => {
 describe("the stores of a production process", () => {
   beforeEach(() => {
     vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("DATABASE_URL", "postgres://user:pass@database.test.invalid/db");
   });
 
   it("are the database's two stores, one each", async () => {
@@ -107,22 +108,38 @@ describe("the stores of a production process", () => {
     expect(world.priceBookStores).toBe(1);
   });
 
-  it("are the unavailable ones, still never the sample, when a store cannot be made", async () => {
+  it.each([
+    ["unset", undefined],
+    ["empty", ""],
+  ])(
+    "are the unavailable ones, made without a store, never the sample, when DATABASE_URL is %s",
+    async (_, value) => {
+      vi.stubEnv("DATABASE_URL", value);
+
+      const { priceBook, availability } = await getPriceStores();
+
+      await expect(priceBook.readActive()).rejects.toMatchObject({
+        name: "DashboardStoreError",
+        failure: "unavailable",
+      });
+      await expect(availability.readCurrent()).rejects.toMatchObject({
+        failure: "unavailable",
+      });
+      expect([world.priceBookStores, world.availabilityStores]).toEqual([0, 0]);
+      expect(world.seedings).toBe(0);
+    },
+  );
+
+  it("is a failure of the request, not the unavailable stores, when the driver refuses the connection, and the next request tries again", async () => {
     const { NeonPriceBookStore } = await import("@lemnaria/persistence");
     vi.mocked(NeonPriceBookStore).mockImplementationOnce(function Refusing() {
-      throw new Error("no connection");
+      throw new Error("refused");
     });
 
-    const { priceBook, availability } = await getPriceStores();
+    await expect(getPriceStores()).rejects.toThrow("refused");
+    const { priceBook } = await getPriceStores();
 
-    await expect(priceBook.readActive()).rejects.toMatchObject({
-      name: "DashboardStoreError",
-      failure: "unavailable",
-    });
-    await expect(availability.readCurrent()).rejects.toMatchObject({
-      failure: "unavailable",
-    });
-    expect(world.availabilityStores).toBe(0);
+    expect(priceBook).toBeInstanceOf(NeonPriceBookStore);
     expect(world.seedings).toBe(0);
   });
 });
@@ -139,8 +156,11 @@ describe("importing the price stores", () => {
     expect(source.match(/new NeonCatalogueAvailabilityStore\(/g)).toHaveLength(
       1,
     );
-    expect(source).toMatch(
-      /function productionPriceStores\(\)[^}]*new NeonPriceBookStore\(\)/s,
+    const [, afterGetter = ""] = source.split(
+      "function productionPriceStores(",
     );
+    const [getterBody = ""] = afterGetter.split("\n}\n");
+    expect(getterBody).toContain("new NeonPriceBookStore()");
+    expect(getterBody).toContain("new NeonCatalogueAvailabilityStore()");
   });
 });

@@ -22,6 +22,7 @@ import {
   wireOf,
   type AccountWorld,
 } from "../../../support/account-world";
+import { holdNoActivePriceVersion } from "../../../support/held-price-stores";
 import {
   SENT_AT,
   freshStaffWorld,
@@ -604,6 +605,7 @@ describe("the kitchen's mark, revision and estimates", () => {
   });
 
   it("refuses the current estimate with the pricing's code, never a zero, when no book is active", async () => {
+    await holdNoActivePriceVersion();
     const { session } = await signedInOperator();
     const { id } = plantKitchen();
     plantRequestSentAt(id, { pricedTotal: STORED_TOTAL });

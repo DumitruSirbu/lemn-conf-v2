@@ -23,12 +23,13 @@ export interface PriceStores {
   readonly availability: CatalogueAvailabilityStore;
 }
 
-/** What `selectPriceStores` reads of the environment, and nothing else. */
+/** What the price stores' choice reads of the environment, and nothing else. */
 export interface PriceStoreEnvironment {
   readonly NODE_ENV?: string | undefined;
   readonly [FAKE_PRICE_BOOK_FLAG]?: string | undefined;
   readonly VERCEL_ENV?: string | undefined;
   readonly [CLIENT_NETWORK_SOURCE_VARIABLE]?: string | undefined;
+  readonly DATABASE_URL?: string | undefined;
 }
 
 export type PriceStoreSelection = "seeded-fakes" | "production";
@@ -80,22 +81,24 @@ function isNamed(
 
 /**
  * The stores production reads: the database's, made here on first use and never at import or build, as `repository.ts`
- * makes its own. A connection that cannot be made (no `DATABASE_URL`, or one the driver refuses) is not a defect of a
- * request: production then holds the stores that answer every call "unavailable", so every price surface renders no figure
- * and the contact route refuses (A-10), and each read writes its own line of the cause.
+ * makes its own. With no `DATABASE_URL` there is no connection to make, which is not a defect of a request: production
+ * then holds the stores that answer every call "unavailable", so every price surface renders no figure and the contact
+ * route refuses (A-10), and each read writes its own line of the cause. A value the driver refuses is not that case: it
+ * throws, to the request that met it, and is tried again by the next.
  */
-function productionPriceStores(): PriceStores {
-  try {
-    return {
-      priceBook: new NeonPriceBookStore(),
-      availability: new NeonCatalogueAvailabilityStore(),
-    };
-  } catch {
+function productionPriceStores(
+  environment: PriceStoreEnvironment,
+): PriceStores {
+  if (!environment.DATABASE_URL) {
     return {
       priceBook: UNAVAILABLE_PRICE_BOOK_STORE,
       availability: UNAVAILABLE_CATALOGUE_AVAILABILITY_STORE,
     };
   }
+  return {
+    priceBook: new NeonPriceBookStore(),
+    availability: new NeonCatalogueAvailabilityStore(),
+  };
 }
 
 /**
@@ -135,7 +138,7 @@ async function makePriceStores(
   environment: PriceStoreEnvironment,
 ): Promise<PriceStores> {
   if (selectPriceStores(environment) === "production") {
-    return productionPriceStores();
+    return productionPriceStores(environment);
   }
   const { seedFakePriceStores } = await import(
     "@/lib/server/price-book-test-seed"
