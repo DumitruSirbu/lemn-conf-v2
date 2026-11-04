@@ -52,8 +52,9 @@ function expectedWriting(
   nowMs: number,
   locale: AppLocale,
 ): string {
-  const daysAgo = wallDayOf(nowMs) - wallDayOf(instantMs);
-  const { year, month, day, hour, minute } = wallPartsOf(instantMs);
+  const writtenMs = Math.min(instantMs, nowMs);
+  const daysAgo = wallDayOf(nowMs) - wallDayOf(writtenMs);
+  const { year, month, day, hour, minute } = wallPartsOf(writtenMs);
   const dayText =
     daysAgo === 0
       ? WORDS[locale].today
@@ -156,6 +157,18 @@ describe("a recent event over the days around a change of the shop's clock", () 
       expect(justAfter).toBe(`${WORDS[locale].today}, 00:00`);
       expect(justBefore.startsWith(`${WORDS[locale].yesterday}, 23:59`)).toBe(
         true,
+      );
+    },
+  );
+
+  it.each(LOCALES)(
+    "writes an instant a minute after the read time, across the shop's midnight, as today at the read time in %s",
+    (locale) => {
+      const nowMs = Date.parse("2026-10-21T20:59:30.000Z");
+      const afterMidnight = new Date(nowMs + MS_PER_MINUTE).toISOString();
+
+      expect(recentDayAndTimeOf(afterMidnight, nowMs, locale)).toBe(
+        `${WORDS[locale].today}, 23:59`,
       );
     },
   );

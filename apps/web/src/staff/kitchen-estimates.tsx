@@ -12,6 +12,7 @@ import { describeStartingPrice } from "@/price/starting-price";
 import { Card } from "./staff-kitchen-card";
 import styles from "./staff-kitchen.module.css";
 import type {
+  StaffEstimateEmptyWire,
   StaffEstimateRefusedWire,
   StaffEstimateWire,
   StaffKitchenEstimatesWire,
@@ -80,9 +81,15 @@ function SentEstimateText({
 function CurrentEstimateText({
   estimate,
 }: {
-  readonly estimate: StaffEstimateWire | StaffEstimateRefusedWire;
+  readonly estimate:
+    | StaffEstimateWire
+    | StaffEstimateRefusedWire
+    | StaffEstimateEmptyWire;
 }) {
   const copy = useStaffChangesCopy().estimate;
+  if ("empty" in estimate) {
+    return <span className={styles.muted}>{copy.empty}</span>;
+  }
   if ("refused" in estimate) {
     return (
       <span className={styles.muted}>{copy.refusals[estimate.refused]}</span>

@@ -41,12 +41,14 @@ export function recentDayAndTimeOf(
   nowMs: number,
   locale: AppLocale,
 ): string {
-  const instantMs = Date.parse(instant);
+  // An instant after the moment the page was read (the server's clock ahead of the browser's) is written as that moment, so
+  // a day boundary between the two never prints a date beside words that say "now".
+  const instantMs = Math.min(Date.parse(instant), nowMs);
   const daysAgo = shopDayNumberOf(nowMs) - shopDayNumberOf(instantMs);
   const isRecent = daysAgo === 0 || daysAgo === 1;
   const day = isRecent
     ? formatRelativeAge(locale, { value: -daysAgo, unit: "day" })
-    : dayOf(instant, locale);
+    : dayOf(new Date(instantMs).toISOString(), locale);
   const time = new Intl.DateTimeFormat(locale, {
     hour: "2-digit",
     minute: "2-digit",

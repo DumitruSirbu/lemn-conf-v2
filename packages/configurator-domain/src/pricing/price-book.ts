@@ -35,6 +35,14 @@ import {
 export const PRICE_BOOK_CURRENCY = "MDL" as const;
 export type PriceBookCurrency = typeof PRICE_BOOK_CURRENCY;
 
+/** Whether a value read off a wire is a currency the price book prices in, so a caller narrows it without a cast and
+ *  without writing the currency's name. */
+export function isPriceBookCurrency(
+  value: unknown,
+): value is PriceBookCurrency {
+  return value === PRICE_BOOK_CURRENCY;
+}
+
 /** Every footing a book may be supplied on. A runtime list because the book seam is not TypeScript
  *  (ADR 0062 seam 1) and the query must test a declared value against it. */
 export const PRICE_BOOK_STATUSES = ["estimate", "commercial"] as const;

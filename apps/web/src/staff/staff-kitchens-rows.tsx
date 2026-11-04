@@ -62,14 +62,26 @@ function factsOf({
     sentDate: row.sentAt === null ? undefined : dayOf(row.sentAt, locale),
     modifiedAgo: formatRelativeAge(locale, age),
     modifiedAtIso: row.updatedAt,
-    seenAndChangedAgain:
-      row.changedAfterSeen && row.seenAt !== null
-        ? changes.seenAndChangedAgain({
-            seen: recentDayAndTimeOf(row.seenAt, readAtMs, locale),
-            changed: recentDayAndTimeOf(row.updatedAt, readAtMs, locale),
-          })
-        : undefined,
+    seenAndChangedAgain: isChangedAgainAfterSeen(row)
+      ? changes.seenAndChangedAgain({
+          seen: recentDayAndTimeOf(row.seenAt, readAtMs, locale),
+          changed: recentDayAndTimeOf(row.updatedAt, readAtMs, locale),
+        })
+      : undefined,
   };
+}
+
+/** The sub-line says the kitchen changed again after it was seen, so it needs a save strictly after the mark. A save that
+ *  landed between the page's read and the mark leaves the mark later than the save: the kitchen still reads as changed
+ *  and the badge says so, but "changed again" would read backwards. */
+function isChangedAgainAfterSeen(
+  row: StaffListedKitchenMarkedWire,
+): row is StaffListedKitchenMarkedWire & { readonly seenAt: string } {
+  return (
+    row.changedAfterSeen &&
+    row.seenAt !== null &&
+    Date.parse(row.updatedAt) > Date.parse(row.seenAt)
+  );
 }
 
 /** The name the client gave, else the one the room's facts generate, else a plain word. */

@@ -1,9 +1,11 @@
 import {
   isDesignRevisionShape,
+  isPriceBookCurrency,
   type PricingFailureCode,
 } from "@lemnaria/configurator-domain";
 
 import type {
+  StaffEstimateEmptyWire,
   StaffEstimateRefusedWire,
   StaffEstimateWire,
   StaffKitchenEstimatesWire,
@@ -132,21 +134,25 @@ function sentEstimateFrom(
 
 function currentEstimateFrom(
   raw: unknown,
-): StaffEstimateWire | StaffEstimateRefusedWire | undefined {
+):
+  | StaffEstimateWire
+  | StaffEstimateRefusedWire
+  | StaffEstimateEmptyWire
+  | undefined {
   const refused = ownValueOf(raw, "refused");
-  if (refused === undefined) return estimateFrom(raw);
-  return isPricingFailureCode(refused) ? { refused } : undefined;
+  if (refused !== undefined) {
+    return isPricingFailureCode(refused) ? { refused } : undefined;
+  }
+  const empty = ownValueOf(raw, "empty");
+  if (empty !== undefined) return empty === true ? { empty } : undefined;
+  return estimateFrom(raw);
 }
 
 function estimateFrom(raw: unknown): StaffEstimateWire | undefined {
   const totalMinor = ownValueOf(raw, "totalMinor");
   const currency = ownValueOf(raw, "currency");
-  if (!isCount(totalMinor) || typeof currency !== "string" || currency === "") {
-    return undefined;
-  }
-  // The server's price book parser admits one currency, and the figure is told by the catalogue's own join of an amount
-  // and that currency: the name is checked there, and no second spelling of it is written here.
-  return { totalMinor, currency: currency as StaffEstimateWire["currency"] };
+  if (!isCount(totalMinor) || !isPriceBookCurrency(currency)) return undefined;
+  return { totalMinor, currency };
 }
 
 function isPricingFailureCode(value: unknown): value is PricingFailureCode {

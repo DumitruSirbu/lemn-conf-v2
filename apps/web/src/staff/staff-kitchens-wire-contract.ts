@@ -351,6 +351,12 @@ export interface StaffEstimateRefusedWire {
   readonly refused: PricingFailureCode;
 }
 
+/** The kitchen as it stands holds no cabinet, so it has no estimate: the lines an empty design still carries would read as
+ *  a price over nothing. Not a pricing failure, so it names no code. */
+export interface StaffEstimateEmptyWire {
+  readonly empty: true;
+}
+
 export interface StaffKitchenEstimatesWire {
   /**
    * The total the shop's notice carried, read from what was stored with the request and never priced again, so a later
@@ -359,7 +365,10 @@ export interface StaffKitchenEstimatesWire {
    */
   readonly sentEstimate: StaffEstimateWire | null;
   /** The kitchen as it stands, priced now with the active book and the availability current at the read. */
-  readonly currentEstimate: StaffEstimateWire | StaffEstimateRefusedWire;
+  readonly currentEstimate:
+    | StaffEstimateWire
+    | StaffEstimateRefusedWire
+    | StaffEstimateEmptyWire;
 }
 
 /** `200` of the kitchen read: the kitchen, its mark and revision, and both estimates. */

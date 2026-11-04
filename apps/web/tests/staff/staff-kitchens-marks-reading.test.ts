@@ -150,6 +150,18 @@ describe("the kitchen's mark, revision and estimates", () => {
     });
   });
 
+  it("reads a current estimate of a kitchen with no cabinets as empty, and nothing else as empty", () => {
+    expect(
+      kitchenFrom(wireKitchen({ currentEstimate: { empty: true } }))
+        ?.currentEstimate,
+    ).toEqual({ empty: true });
+    for (const empty of [false, "true", 1, null]) {
+      expect(
+        kitchenFrom(wireKitchen({ currentEstimate: { empty } })),
+      ).toBeUndefined();
+    }
+  });
+
   it("keeps the kitchen the older reader judged, untouched", () => {
     const body = wireKitchen();
     const base = staffKitchenFrom(body);

@@ -8,7 +8,7 @@ import { sendSignedInRequest } from "@/account/send-account-request";
 import { raiseStaffSessionExpired } from "./staff-session-expiry";
 
 // Opening a kitchen that reads as changed marks it seen, with the revision the page displayed (frame D10B). The mark is
-// this client's request on open and never a write of a server render. It is sent once for the page the person opened:
+// this client's request on open and never a write of a server render. It is sent once for each kitchen the person opens:
 // a quiet read behind the page, a note or a status saved there never sends it again, and a React effect that runs twice
 // finds the guard already set. The request is not aborted when the effect is cleaned up, so the one send that was made
 // is the one that lands. A kitchen that does not read as changed is not marked: there is nothing the mark would change.
@@ -29,13 +29,19 @@ export interface SeenMarkSeed {
 
 const IDLE: SeenMark = { kind: "idle" };
 
+/** What was answered, and for which kitchen: a result is shown only beside the id it answered. */
+interface MarkOfKitchen {
+  readonly designId: string;
+  readonly mark: SeenMark;
+}
+
 export function useMarkSeen({
   designId,
   displayedRevision,
   isChangedAfterSeen,
 }: SeenMarkSeed): SeenMark {
-  const [mark, setMark] = useState<SeenMark>(IDLE);
-  const hasSent = useRef(false);
+  const [held, setHeld] = useState<MarkOfKitchen>({ designId, mark: IDLE });
+  const sentFor = useRef<string | undefined>(undefined);
 
   const send = useCallback(
     function send(): void {
@@ -48,19 +54,19 @@ export function useMarkSeen({
           raiseStaffSessionExpired({ askAgain: send });
           return;
         }
-        setMark(markAfter(outcome));
+        setHeld({ designId, mark: markAfter(outcome) });
       });
     },
     [designId, displayedRevision],
   );
 
   useEffect(() => {
-    if (!isChangedAfterSeen || hasSent.current) return;
-    hasSent.current = true;
+    if (!isChangedAfterSeen || sentFor.current === designId) return;
+    sentFor.current = designId;
     send();
-  }, [isChangedAfterSeen, send]);
+  }, [designId, isChangedAfterSeen, send]);
 
-  return mark;
+  return held.designId === designId ? held.mark : IDLE;
 }
 
 function markAfter(outcome: SignedInOutcome): SeenMark {

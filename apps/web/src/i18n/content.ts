@@ -1728,6 +1728,7 @@ export function resolveStaffChangesCopy(translate: ContentTranslator) {
       sent: translate("staffChanges.estimateSent"),
       current: translate("staffChanges.estimateCurrent"),
       sentMissing: translate("staffChanges.estimateSentMissing"),
+      empty: translate("staffChanges.estimateEmpty"),
       refusals: resolveEstimateRefusals(translate),
     },
   };

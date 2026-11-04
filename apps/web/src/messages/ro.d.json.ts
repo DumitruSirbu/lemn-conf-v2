@@ -1886,6 +1886,7 @@ declare const messages: {
     "noChangedBody": "Când un client modifică o bucătărie trimisă, o vezi aici.",
     "showAllKitchens": "Arată toate bucătăriile",
     "estimateSentMissing": "Nu avem estimarea trimisă",
+    "estimateEmpty": "Bucătăria nu are corpuri",
     "estimateRefusedUnavailable": "Prețurile nu pot fi folosite acum, deci estimarea lipsește. Încearcă din nou mai târziu.",
     "estimateRefusedNotPriceable": "Bucătăria actuală are o componentă fără preț în lista de prețuri, deci nu are estimare.",
     "estimateRefusedUnreadable": "Bucătăria actuală nu poate fi citită sau are un corp pe care lista de prețuri nu îl cunoaște, deci nu are estimare.",

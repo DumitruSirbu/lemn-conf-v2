@@ -2502,6 +2502,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     noChangedBody: "Când un client modifică o bucătărie trimisă, o vezi aici.",
     showAllKitchens: "Arată toate bucătăriile",
     estimateSentMissing: "Nu avem estimarea trimisă",
+    estimateEmpty: "Bucătăria nu are corpuri",
     estimateRefusedUnavailable:
       "Prețurile nu pot fi folosite acum, deci estimarea lipsește. Încearcă din nou mai târziu.",
     estimateRefusedNotPriceable:

@@ -337,6 +337,17 @@ describe.each(LOCALES)(
         expect(textOf("staff-kitchen-estimate-current")).toContain(sentence);
       });
 
+      it("says the kitchen has no cabinets, and draws no figure, when the current estimate is empty", async () => {
+        answers(changedKitchen({ currentEstimate: { empty: true } }));
+
+        await mount(locale);
+
+        const current = textOf("staff-kitchen-estimate-current");
+        expect(current).toContain(changes.estimateEmpty);
+        expect(current).not.toMatch(/\d/u);
+        expect(current).not.toContain("MDL");
+      });
+
       it("says the request kept no estimate rather than drawing one, when the sent estimate is missing", async () => {
         answers(changedKitchen({ sentEstimate: null }));
 
