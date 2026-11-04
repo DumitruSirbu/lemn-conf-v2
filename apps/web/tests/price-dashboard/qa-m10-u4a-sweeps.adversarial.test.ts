@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   HARDWARE_RATE_FIELDS,
+  isRateNeverZero,
   MAX_BOOK_NAME_LENGTH,
   MAX_PRICE_COEFFICIENT_MINOR,
   SAMPLE_PRICE_BOOK,
@@ -25,6 +26,8 @@ const NEW_CLASS = "hardware.sweep";
 const LARGEST_TEN_LEI =
   Math.floor(MAX_PRICE_COEFFICIENT_MINOR / TEN_LEI_MINOR) * TEN_LEI_MINOR;
 
+/** A class whose every rate is `rateMinor`, except a rate that is never free, which a zero would leave at the smallest
+ *  whole ten lei: the draft refuses it otherwise. */
 function creationOf(
   name: string,
   description: string,
@@ -38,7 +41,8 @@ function creationOf(
     ...HARDWARE_RATE_FIELDS.map(
       (field): DraftChange => ({
         address: { kind: "hardware", tierId: NEW_CLASS, field },
-        value: rateMinor,
+        value:
+          rateMinor === 0 && isRateNeverZero(field) ? TEN_LEI_MINOR : rateMinor,
       }),
     ),
   ];

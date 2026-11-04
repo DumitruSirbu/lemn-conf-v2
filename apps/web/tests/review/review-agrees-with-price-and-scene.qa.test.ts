@@ -144,7 +144,8 @@ function reviewOf(design: Design): AvailableReview | undefined {
 /**
  * What the row's second line must say of this body, from the rule's words: a body taking a handle wears its own, else
  * push on the top row, else the kitchen's, else steel; a body taking none wears push-to-open only when it is on the top
- * row and has a front that opens (the price bills a latch per such front), and nothing otherwise.
+ * row and has a front that opens (the price bills a latch per door leaf and a push runner per drawer), and nothing
+ * otherwise.
  */
 function expectedWord(args: {
   readonly placement: DesignPlacement;
@@ -174,6 +175,16 @@ function frontsOf(entry: DisplayEntry, catalog: BodyCatalog): number {
     definition: catalog.get(entry.buildId) ?? {},
   });
   return doorLeafHeightsMm(query).length + drawerCount(query);
+}
+
+/** A latch takes a door leaf and no drawer. */
+function doorLeavesOf(entry: DisplayEntry, catalog: BodyCatalog): number {
+  return doorLeafHeightsMm(
+    frontPopulationQueryFor({
+      body: entry,
+      definition: catalog.get(entry.buildId) ?? {},
+    }),
+  ).length;
 }
 
 function handleMeshes(root: THREE.Object3D): {
@@ -290,7 +301,7 @@ describe("the review's rows, the price and the scene never split on a body's han
         .filter((entry) =>
           handleWordsOf(view, entry.placementId).includes(WORDS.push),
         )
-        .reduce((total, entry) => total + frontsOf(entry, catalog), 0);
+        .reduce((total, entry) => total + doorLeavesOf(entry, catalog), 0);
 
       expect(implied).toBe(
         countHardwareMechanisms(entries, catalog).pushToOpen,

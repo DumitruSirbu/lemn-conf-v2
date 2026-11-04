@@ -23,6 +23,7 @@ import {
   must,
   slotsOf,
   valueAt,
+  withinRange,
   written,
 } from "./qa-m1-books.js";
 
@@ -426,7 +427,7 @@ describe("the list of changes itself", () => {
     const slots = slotsOf(BOOK);
     const edits = slots.map((slot, index) => ({
       slot,
-      value: slot.unit === "flag" ? index % 2 === 0 : index % (slot.max + 1),
+      value: slot.unit === "flag" ? index % 2 === 0 : withinRange(slot, index),
     }));
     const changes = edits.map(
       ({ slot, value }) => ({ address: slot.address, value }) as DraftChange,

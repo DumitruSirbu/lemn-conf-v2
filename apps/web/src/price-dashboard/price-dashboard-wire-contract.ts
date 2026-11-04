@@ -68,6 +68,7 @@ export const NUMBER_REFUSAL_CODES = Object.freeze([
   "MISSING_VALUE",
   "NOT_A_WHOLE_NUMBER",
   "NEGATIVE",
+  "ZERO",
   "TOO_LARGE",
 ] as const);
 export type NumberRefusalCode = (typeof NUMBER_REFUSAL_CODES)[number];
@@ -276,12 +277,12 @@ export interface DraftChangeRequestWire {
 /** `200` of a change, a revert, a bulk action or a restore: the draft as it is now. */
 export type DraftChangedWire = DashboardDraftWire;
 
-/** The four rates of a hardware class, in bani. A mechanism the class does not have is 0 (D4C). */
+/** Every rate of a hardware class, in bani. A mechanism the class does not have is 0 (D4C). */
 export type HardwareRatesWire = Readonly<Record<HardwareRateField, number>>;
 
 /**
- * Creates a hardware class. The request carries its text and **all four rates**, and the server writes the creation and
- * the four `hardware` rate changes, keyed by the id it minted, in one draft write: the draft never holds a created class
+ * Creates a hardware class. The request carries its text and **every rate**, and the server writes the creation and
+ * a `hardware` rate change for each, keyed by the id it minted, in one draft write: the draft never holds a created class
  * without its rates (X0-4).
  */
 export interface CreateHardwareClassRequestWire {

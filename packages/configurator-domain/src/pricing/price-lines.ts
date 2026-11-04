@@ -165,9 +165,9 @@ export type PricingFailureCode =
    *  Raised on that path alone, never on a hardware quantity: a body whose mechanisms cannot be counted, or whose
    *  leaves an anchored door shape cannot count, raises `UNDECLARED_FRONT_POPULATION`. */
   | "UNDECLARED_HANDLE_COUNT"
-  /** A catalogue entry declares no usable front population, so its hinges, drawers and push-to-open
-   *  latches cannot be counted (ADR 0092 decision 1). Never read as zero mechanisms: that would price a
-   *  whole kitchen's hardware at nothing. */
+  /** A catalogue entry declares no usable front population, or a lift-up one the adapter builds no width for (more
+   *  than one leaf per band), so its hinges, drawers, push runners and push-to-open latches cannot be counted (ADR 0092
+   *  decision 1). Never read as zero mechanisms: that would price a whole kitchen's hardware at nothing. */
   | "UNDECLARED_FRONT_POPULATION"
   /** A placement's own frame height leaves a `one-band-under-frame` row no band a door could be hung
    *  in, so its leaves, and the hinges counted over them, cannot be read (`UnbuildableDoorBandError`,

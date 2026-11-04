@@ -57,6 +57,7 @@ function everyRate(tierId = NEW_TIER): readonly DraftChange[] {
     rate(tierId, "perDrawerMinor", 2_000),
     rate(tierId, "perPushToOpenMinor", 3_000),
     rate(tierId, "perLiftMinor", 4_000),
+    rate(tierId, "perPushRunnerMinor", 5_000),
   ];
 }
 
@@ -128,6 +129,7 @@ describe("creating a hardware class (A-18)", () => {
       perDrawerMinor: 2_000,
       perPushToOpenMinor: 3_000,
       perLiftMinor: 4_000,
+      perPushRunnerMinor: 5_000,
     });
     expect(book).toEqual({
       ...PERCENTAGE_BOOK,
@@ -152,6 +154,7 @@ describe("creating a hardware class (A-18)", () => {
         "perDrawerMinor",
         "perPushToOpenMinor",
         "perLiftMinor",
+        "perPushRunnerMinor",
       ].sort(),
     );
   });
@@ -262,33 +265,43 @@ describe("creating a hardware class (A-18)", () => {
 });
 
 describe("the rates a created class owes are the ones the book's tiers state", () => {
-  const withoutLiftRate: PriceBook = {
-    ...PERCENTAGE_BOOK,
-    hardware: {
-      ...PERCENTAGE_BOOK.hardware,
-      tiers: PERCENTAGE_BOOK.hardware.tiers.map(
-        (tier) =>
-          Object.fromEntries(
-            Object.entries(tier).filter(([key]) => key !== "perLiftMinor"),
-          ) as unknown as HardwareTier,
-      ),
-    },
-  };
+  function withoutRate(field: string): PriceBook {
+    return {
+      ...PERCENTAGE_BOOK,
+      hardware: {
+        ...PERCENTAGE_BOOK.hardware,
+        tiers: PERCENTAGE_BOOK.hardware.tiers.map(
+          (tier) =>
+            Object.fromEntries(
+              Object.entries(tier).filter(([key]) => key !== field),
+            ) as unknown as HardwareTier,
+        ),
+      },
+    };
+  }
 
-  it("are the four, the lift rate last, for a book whose tiers state a lift rate", () => {
+  it("are all five, the push-runner rate last, for a book whose tiers state each", () => {
     expect(hardwareRatesOf(PERCENTAGE_BOOK)).toEqual([
       "perHingeMinor",
       "perDrawerMinor",
       "perPushToOpenMinor",
       "perLiftMinor",
+      "perPushRunnerMinor",
     ]);
   });
 
-  it("are the three for a book whose tiers state no lift rate, so a created class is never owed one nobody can price", () => {
-    expect(hardwareRatesOf(withoutLiftRate)).toEqual([
+  it("leave out a rate that no tier of the book states, so a created class is never owed one nobody can price", () => {
+    expect(hardwareRatesOf(withoutRate("perLiftMinor"))).toEqual([
       "perHingeMinor",
       "perDrawerMinor",
       "perPushToOpenMinor",
+      "perPushRunnerMinor",
+    ]);
+    expect(hardwareRatesOf(withoutRate("perPushRunnerMinor"))).toEqual([
+      "perHingeMinor",
+      "perDrawerMinor",
+      "perPushToOpenMinor",
+      "perLiftMinor",
     ]);
   });
 });
@@ -299,6 +312,7 @@ describe("a created class owes a change for every rate", () => {
     "perDrawerMinor",
     "perPushToOpenMinor",
     "perLiftMinor",
+    "perPushRunnerMinor",
   ] as const;
 
   it.each(RATES)(
@@ -308,7 +322,7 @@ describe("a created class owes a change for every rate", () => {
         (rated) => (rated.address as { field?: string }).field !== missing,
       );
 
-      expect(rates).toHaveLength(3);
+      expect(rates).toHaveLength(RATES.length - 1);
       expect(refusalOf(PERCENTAGE_BOOK, createTier(), ...rates)).toBe(
         "0:CREATED_TIER_RATES_MISSING",
       );
@@ -321,17 +335,38 @@ describe("a created class owes a change for every rate", () => {
     );
   });
 
-  it("accepts a rate of 0, which a mechanism the class does not have is left at", () => {
+  it("accepts a rate of 0, which a mechanism the class does not have is left at, except the push-runner rate", () => {
     const rates = [
       rate(NEW_TIER, "perHingeMinor", 0),
       rate(NEW_TIER, "perDrawerMinor", 0),
       rate(NEW_TIER, "perPushToOpenMinor", 0),
       rate(NEW_TIER, "perLiftMinor", 0),
+      rate(NEW_TIER, "perPushRunnerMinor", 1_000),
     ];
 
     expect(applyChanges(PERCENTAGE_BOOK, [createTier(), ...rates]).ok).toBe(
       true,
     );
+  });
+
+  it("refuses a push-runner rate of 0 on a created class, at its own index, with the code for a zero", () => {
+    expect(
+      refusalOf(
+        PERCENTAGE_BOOK,
+        createTier(),
+        ...everyRate().slice(0, -1),
+        rate(NEW_TIER, "perPushRunnerMinor", 0),
+      ),
+    ).toBe("0:CREATED_TIER_RATES_MISSING,5:ZERO");
+  });
+
+  it("refuses a push-runner rate edited to 0 on a class the book holds", () => {
+    expect(
+      refusalOf(
+        PERCENTAGE_BOOK,
+        rate("hardware.standard", "perPushRunnerMinor", 0),
+      ),
+    ).toBe("0:ZERO");
   });
 
   it("does not count a rate that was refused", () => {
@@ -345,6 +380,7 @@ describe("a created class owes a change for every rate", () => {
         rate(NEW_TIER, "perDrawerMinor", 1),
         rate(NEW_TIER, "perPushToOpenMinor", 1),
         rate(NEW_TIER, "perLiftMinor", 1),
+        rate(NEW_TIER, "perPushRunnerMinor", 1),
       ),
     ).toBe("0:CREATED_TIER_RATES_MISSING,1:NEGATIVE");
   });

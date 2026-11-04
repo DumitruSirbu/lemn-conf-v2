@@ -30,6 +30,7 @@ const HARDWARE_RATES = [
   "perDrawerMinor",
   "perPushToOpenMinor",
   "perLiftMinor",
+  "perPushRunnerMinor",
 ] as const;
 
 function parsedOrThrow(declared: unknown): PriceBook {

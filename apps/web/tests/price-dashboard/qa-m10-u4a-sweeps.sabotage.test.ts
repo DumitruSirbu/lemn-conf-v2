@@ -34,7 +34,7 @@ const creationOf = (name: string): readonly DraftChange[] => [
   ...HARDWARE_RATE_FIELDS.map(
     (field): DraftChange => ({
       address: { kind: "hardware", tierId: "hardware.sweep", field },
-      value: 0,
+      value: 1_000,
     }),
   ),
 ];

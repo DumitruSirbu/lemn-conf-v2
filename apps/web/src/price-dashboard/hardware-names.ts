@@ -6,8 +6,9 @@ import { hardwareClassOf, type ReadyHardware } from "./hardware-model";
 type BookTextOf = (authored: string, key: string | undefined) => string;
 
 /**
- * An item's name as a screen shows it. Only hardware classes are named here; an item of another kind, or one the
- * derivation does not hold, has no name on these screens.
+ * An item's name as the dialogs say it. They act on the live book, so a class the active version holds is named by its
+ * published name, never by a draft rename customers do not see yet; a class only the draft knows is named by the draft.
+ * An item of another kind, or one the derivation does not hold, has no name here.
  */
 export function hardwareNameOf(
   derivation: ReadyHardware,
@@ -18,5 +19,6 @@ export function hardwareNameOf(
     item.kind === "hardware"
       ? hardwareClassOf(derivation, item.tierId)
       : undefined;
-  return held === undefined ? "" : bookText(held.name.authored, held.name.key);
+  if (held === undefined) return "";
+  return bookText(held.activeName ?? held.name.authored, held.name.key);
 }

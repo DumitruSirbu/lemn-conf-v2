@@ -38,6 +38,7 @@ export const RATE_FIELDS = [
   "perDrawerMinor",
   "perPushToOpenMinor",
   "perLiftMinor",
+  "perPushRunnerMinor",
 ] as const;
 export type RateField = (typeof RATE_FIELDS)[number];
 
@@ -47,12 +48,14 @@ export const RATE_LABEL_KEY = {
   perDrawerMinor: "priceDashboard.hardware.priceSlide",
   perPushToOpenMinor: "priceDashboard.hardware.pricePush",
   perLiftMinor: "priceDashboard.hardware.priceLift",
+  perPushRunnerMinor: "priceDashboard.hardware.pricePushRunner",
 } as const satisfies Record<RateField, string>;
 export const RATE_COLUMN_KEY = {
   perHingeMinor: "priceDashboard.hardware.columnHinge",
   perDrawerMinor: "priceDashboard.hardware.columnSlide",
   perPushToOpenMinor: "priceDashboard.hardware.columnPush",
   perLiftMinor: "priceDashboard.hardware.columnLift",
+  perPushRunnerMinor: "priceDashboard.hardware.columnPushRunner",
 } as const satisfies Record<RateField, string>;
 
 export const DEV_ONLY_REASON =
@@ -75,6 +78,7 @@ export function activeRatesOf(tierId: string): Record<RateField, number> {
     perDrawerMinor: tier.perDrawerMinor,
     perPushToOpenMinor: tier.perPushToOpenMinor,
     perLiftMinor: tier.perLiftMinor,
+    perPushRunnerMinor: tier.perPushRunnerMinor,
   };
 }
 
@@ -329,3 +333,23 @@ export const SAYS_SAVED_KITCHENS_USE_IT =
 /** Any promise that a change waits for publication. */
 export const PROMISES_PUBLICATION = /publici|publicare/i;
 /* eslint-enable no-restricted-syntax */
+
+/** The elements of the list, outside the table's titles, whose text is wider than their own box, named. */
+export function overflowingBoxes(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const found: string[] = [];
+    const scope = document.querySelector('[data-testid="hardware-list"]');
+    for (const element of scope?.querySelectorAll("*") ?? []) {
+      if (!(element instanceof HTMLElement)) continue;
+      if (element.closest('[aria-hidden="true"]') !== null) continue;
+      // The visually hidden labels are one pixel wide on purpose.
+      if (element.clientWidth <= 1) continue;
+      if (element.scrollWidth > element.clientWidth + 1) {
+        found.push(
+          `${element.tagName.toLowerCase()} "${element.textContent.trim().slice(0, 30)}" ${String(element.scrollWidth)} > ${String(element.clientWidth)}`,
+        );
+      }
+    }
+    return found.slice(0, 8);
+  });
+}

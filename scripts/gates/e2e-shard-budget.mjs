@@ -45,11 +45,11 @@ export const TARGET_MINUTES_PER_SHARD = 30;
  * at the budget of 125 (123/120/125/114), five put 135 on its second because a shard is whole files, and
  * M8 8K2's specs put 133 on the fourth of six, and 8M's `qa-8m-*` specs put 133 on the fourth of seven, and
  * the materials screens' specs put 133 on the fifth of nine (the other eight held 97 to 123).
- * Desktop needs six: three put 104 on its first shard (against 67) after the top-bar, price-breakdown and
- * room-desktop-line specs; four still left a shard over; five put 63 on its largest, and the M10 dashboard
- * specs have since needed a sixth.
+ * Desktop needs seven: three put 104 on its first shard (against 67) after the top-bar, price-breakdown and
+ * room-desktop-line specs; four still left a shard over; five put 63 on its largest, the dashboard specs needed a
+ * sixth, and the hardware width specs then put 70 on the fourth of six.
  */
-export const SHARDS_PER_PROJECT = { desktop: 6, mobile: 10 };
+export const SHARDS_PER_PROJECT = { desktop: 7, mobile: 10 };
 
 /**
  * A ceiling above the derived budget, for a project whose shards cannot all fit under it.

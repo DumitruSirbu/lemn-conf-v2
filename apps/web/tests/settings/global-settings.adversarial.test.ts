@@ -169,7 +169,7 @@ function totalMechanismsIn(design: Design): number {
   return counts.hinges + counts.drawers + counts.pushToOpen + counts.lifts;
 }
 
-/** What the hardware line prints for this design at this tier: four rates against four counts, composed here rather
+/** What the hardware line prints for this design at this tier: every rate against its own count, composed here rather
  *  than read off a line, rounded once to ten lei (ADR 0177 A-1). The independent side. */
 function bookAmountFor(tierId: string, design: Design): number {
   const tier = SAMPLE_PRICE_BOOK.hardware.tiers.find(
@@ -181,6 +181,7 @@ function bookAmountFor(tierId: string, design: Design): number {
   return roundedToTenLei(
     tier.perHingeMinor * mechanisms.hinges +
       tier.perDrawerMinor * mechanisms.drawers +
+      tier.perPushRunnerMinor * mechanisms.pushRunners +
       tier.perPushToOpenMinor * mechanisms.pushToOpen +
       tier.perLiftMinor * mechanisms.lifts,
   );
@@ -648,6 +649,7 @@ describe("how many bodies, and which part of the document says so", () => {
     expect(countMechanismsIn(drawersOnly)).toEqual({
       hinges: 0,
       drawers: 3,
+      pushRunners: 0,
       pushToOpen: 0,
       lifts: 0,
     });

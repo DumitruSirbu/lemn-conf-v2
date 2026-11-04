@@ -197,6 +197,7 @@ describe("the security amendments' shapes", () => {
         perDrawerMinor: 2,
         perPushToOpenMinor: 3,
         perLiftMinor: 0,
+        perPushRunnerMinor: 4,
       },
     };
     const accessory: CreateAccessoryRequestWire = {

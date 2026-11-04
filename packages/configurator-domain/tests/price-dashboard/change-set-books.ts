@@ -18,7 +18,12 @@ import type {
 } from "../../src/pricing/price-book.js";
 import { SAMPLE_PRICE_BOOK } from "../../src/pricing/sample-price-book.js";
 
-import { valueAt, type Edit as SlotEdit, type Slot } from "./qa-m1-books.js";
+import {
+  valueAt,
+  withinRange,
+  type Edit as SlotEdit,
+  type Slot,
+} from "./qa-m1-books.js";
 
 type EditSlot = Slot;
 
@@ -163,7 +168,7 @@ export {
 /** A value for the slot taken from `seed`: a whole number within the slot's range, or a boolean for the flag. */
 export function valueForSeed(slot: EditSlot, seed: number): number | boolean {
   if (slot.unit === "flag") return seed % 2 === 0;
-  return seed % (slot.max + 1);
+  return withinRange(slot, seed);
 }
 
 /** A value that differs from what the book holds at the slot and stays inside the slot's range. */

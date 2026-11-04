@@ -81,7 +81,9 @@ describe("a created hardware class", () => {
     expect(rates.map((row) => row.before)).toEqual(
       rates.map(() => ({ kind: "absent" })),
     );
-    expect(rates.map((row) => row.after)).toEqual([1_000, 2_000, 3_000, 4_000]);
+    expect(rates.map((row) => row.after)).toEqual([
+      1_000, 2_000, 3_000, 4_000, 5_000,
+    ]);
   });
 
   it("draws nothing for the class when the book is not changed", () => {
@@ -136,12 +138,9 @@ describe("a deleted item", () => {
         name: "Hettich",
       },
     ]);
-    expect(rowsOfKind(rows, "field").map((row) => row.after)).toEqual([
-      { kind: "absent" },
-      { kind: "absent" },
-      { kind: "absent" },
-      { kind: "absent" },
-    ]);
+    expect(rowsOfKind(rows, "field").map((row) => row.after)).toEqual(
+      HARDWARE_RATE_FIELDS.map(() => ({ kind: "absent" })),
+    );
   });
 
   it("puts a deleted material in the materials section", () => {
@@ -277,10 +276,7 @@ describe("the order of the rows", () => {
     const hardware = rows.filter((row) => row.section === "hardware");
     expect(hardware.map((row) => row.kind)).toEqual([
       "row",
-      "field",
-      "field",
-      "field",
-      "field",
+      ...HARDWARE_RATE_FIELDS.map(() => "field"),
     ]);
   });
 });

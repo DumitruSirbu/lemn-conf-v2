@@ -4,6 +4,7 @@ import { useCallback, useRef, useState } from "react";
 
 import {
   isSameAddress,
+  type AddressOfKind,
   type AppliedAddress,
   type HardwareTierCreation,
   type ItemRef,
@@ -85,6 +86,12 @@ export interface WantedAmount {
   readonly value: number;
 }
 
+/** A text wanted at the address of a created row's words. */
+export interface WantedText {
+  readonly address: AddressOfKind<"created-row-text">;
+  readonly value: string;
+}
+
 /**
  * What a read of the state came to. `superseded` is a read that a later read or an adoption overtook: its state, when it
  * got one, was not adopted. `failed` is a read that got nothing and was not overtaken, so the state is as it was.
@@ -103,9 +110,9 @@ export interface PriceDraft {
   readonly change: (change: DraftChangeInputWire) => Promise<FieldWriteResult>;
   readonly revert: (target: DraftRevertTargetWire) => Promise<FieldWriteResult>;
   /** A value equal to the active one is no change: it takes the draft's change at that address out, or does nothing. */
-  readonly changeOrRevert: (
-    wanted: WantedAmount,
-    activeValue: number,
+  readonly changeOrRevert: <Wanted extends WantedAmount | WantedText>(
+    wanted: Wanted,
+    activeValue: Wanted["value"],
   ) => Promise<FieldWriteResult>;
   readonly bulk: (input: BulkChangeInput) => Promise<BulkWriteResult>;
   readonly createHardwareClass: (
@@ -113,6 +120,8 @@ export interface PriceDraft {
   ) => Promise<CreateWriteResult>;
   /** Whether the client has any route that takes a creation; where it has none, a screen offers none. */
   readonly canCreateHardwareClass: boolean;
+  /** Whether the client takes a change of a created row's words; where it does not, a screen offers no rename. */
+  readonly canChangeCreatedText: boolean;
   /** Takes a state made elsewhere (a publish, a discard) as the one the next write names the revision of. */
   readonly adopt: (state: DashboardStateWire) => void;
   /**
@@ -241,8 +250,11 @@ export function usePriceDraft({
   );
 
   const changeOrRevert = useCallback(
-    (wanted: WantedAmount, activeValue: number): Promise<FieldWriteResult> => {
-      // The address of a number field with a number is a change of that field: the route judges which address takes one.
+    (
+      wanted: WantedAmount | WantedText,
+      activeValue: number | string,
+    ): Promise<FieldWriteResult> => {
+      // A field's address with a value of its kind is a change of that field: the route judges which address takes one.
       if (wanted.value !== activeValue) {
         return change({
           address: wanted.address,
@@ -300,6 +312,7 @@ export function usePriceDraft({
     bulk,
     createHardwareClass,
     canCreateHardwareClass: client.createHardwareClass !== undefined,
+    canChangeCreatedText: client.acceptsCreatedRowText === true,
     adopt,
     refresh,
   };

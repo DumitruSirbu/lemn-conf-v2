@@ -48,12 +48,13 @@ describe("the classes", () => {
     ]);
   });
 
-  it("have a column for each rate the book states, the lift fourth", () => {
+  it("have a column for each rate the book states, the lift fourth and the push runner fifth", () => {
     expect(readyOf().rates).toEqual([
       "perHingeMinor",
       "perDrawerMinor",
       "perPushToOpenMinor",
       "perLiftMinor",
+      "perPushRunnerMinor",
     ]);
   });
 
@@ -78,6 +79,7 @@ describe("the classes", () => {
       ["perDrawerMinor", true],
       ["perPushToOpenMinor", true],
       ["perLiftMinor", false],
+      ["perPushRunnerMinor", true],
     ]);
     expect(hettich?.isModified).toBe(true);
   });
@@ -91,12 +93,9 @@ describe("the classes", () => {
       isKeyed: false,
       isDeletionPending: false,
     });
-    expect(created?.rates.map((rate) => rate.activeMinor)).toEqual([
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-    ]);
+    expect(created?.rates.map((rate) => rate.activeMinor)).toEqual(
+      readyOf().rates.map(() => undefined),
+    );
   });
 
   it("say a class the draft deletes still stands in the active book, and is pending its deletion", () => {

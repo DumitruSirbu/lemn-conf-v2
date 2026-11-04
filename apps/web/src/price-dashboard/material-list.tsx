@@ -12,7 +12,11 @@ import { StaffShell, type StaffShellContext } from "@/staff/staff-shell";
 
 import { pendingPriceCountOf } from "./cabinet-list-model";
 import { ItemDeskNotice, ItemDialogs } from "./item-dialogs";
-import { ItemRowMenu, type ItemRowMenuClasses } from "./item-row-menu";
+import {
+  ItemRowMenu,
+  lifecycleEntriesOf,
+  menuClassesOf,
+} from "./item-row-menu";
 import type { ItemLifecycleClient } from "./item-lifecycle-client";
 import { isItemOn, type LifecycleContext } from "./item-lifecycle-model";
 import {
@@ -39,14 +43,7 @@ import { useMaterialDesk, type MaterialDesk } from "./use-material-desk";
 // colours, its state and the actions "⋯" opens. A surcharge is changed on the material's own page, so a card never
 // holds a field. Disabling and enabling apply at once and are asked of the dialogs; deleting waits for publication.
 
-const MENU_CLASSES: ItemRowMenuClasses = {
-  rowMenu: styles.rowMenu,
-  more: styles.more,
-  menu: styles.menu,
-  menuItem: styles.menuItem,
-  menuEntry: styles.menuEntry,
-  menuReason: styles.menuReason,
-};
+const MENU_CLASSES = menuClassesOf(styles);
 
 export interface MaterialListScreenProps {
   readonly locale: AppLocale;
@@ -304,26 +301,18 @@ function RowMenu({
       name={name}
       isAsking={availability.flow.kind !== "closed"}
       classes={MENU_CLASSES}
-      entries={[
-        {
-          label: translate(
-            isItemOn(item, context)
-              ? "priceDashboard.common.deactivate"
-              : "priceDashboard.common.activate",
-          ),
-          reason: switchReason,
-          onPress: () => {
-            availability.requestSwitch(item);
-          },
+      entries={lifecycleEntriesOf({
+        translate,
+        isOn: isItemOn(item, context),
+        switchReason,
+        deleteReason,
+        onSwitch: () => {
+          availability.requestSwitch(item);
         },
-        {
-          label: translate("priceDashboard.common.delete"),
-          reason: deleteReason,
-          onPress: () => {
-            availability.requestDeletion(item);
-          },
+        onDelete: () => {
+          availability.requestDeletion(item);
         },
-      ]}
+      })}
     />
   );
 }

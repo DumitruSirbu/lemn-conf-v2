@@ -278,14 +278,27 @@ export class UndeclaredFrontPopulationError extends Error {
     readonly declared: unknown;
     /** The rule field that held no usable value, on a rule whose tag was recognised. */
     readonly missingField?: FrontPopulationField;
+    /** Why a usable-looking rule is still refused, where no single field is missing. */
+    readonly reason?: string;
   }) {
     super(
-      `No front population declared for buildId "${refusal.buildId}". ` +
+      openingOf(refusal) +
         describeMissing(refusal.missingField) +
+        describeReason(refusal.reason) +
         `Found: ${describeDeclared(refusal.declared)}.`,
     );
     this.name = "UndeclaredFrontPopulationError";
   }
+}
+
+/** A rule that is declared but cannot be built is not "undeclared": its refusal says what was declared. */
+function openingOf(refusal: {
+  readonly buildId: string;
+  readonly reason?: string;
+}): string {
+  return refusal.reason === undefined
+    ? `No front population declared for buildId "${refusal.buildId}". `
+    : `The front population declared for buildId "${refusal.buildId}" cannot be built: `;
 }
 
 function describeMissing(
@@ -293,6 +306,10 @@ function describeMissing(
 ): string {
   if (missingField === undefined) return "";
   return `Its rule declares no usable "${missingField}". `;
+}
+
+function describeReason(reason: string | undefined): string {
+  return reason === undefined ? "" : `${reason} `;
 }
 
 function describeDeclared(declared: unknown): string {
@@ -363,16 +380,35 @@ export function doorLeafCount(query: FrontPopulationQuery): number {
   return doorLeafHeightsMm(query).length;
 }
 
+/** One flap per band: the only lift door the adapter builds, so no width is held for a second leaf. */
+const ONE_LIFT_LEAF_PER_BAND = 1;
+
+const LIFT_LEAF_REFUSAL_REASON =
+  "A lift-up door is one flap per band, and no width is held for a second leaf.";
+
+/** How much narrower a lift-up door is than its body, in mm: must equal the reveal `wallLift` builds (3 mm each side).
+ *  A width, unlike `WALL_DOOR_BAND_INSET_MM`, which is a height.
+ *  see `lift-door-width.parity.test.ts` in the adapter. */
+export const LIFT_DOOR_WIDTH_REVEAL_MM = 6;
+
 /** The width of each lift-up door this body carries, one entry per door, empty for a body that declares none: the
- *  list ADR 0177 A-20's lift count and width-based hinge rule are applied over. Each entry is the body's width shared
- *  between the leaves of one band, not the built door's width: the door the adapter draws is 6 mm narrower than that.
- *  Only a declared `liftUp` makes a door a lift door. */
+ *  list ADR 0177 A-20's lift count and width-based hinge rule are applied over. Each entry is the built door's width,
+ *  the body's less `LIFT_DOOR_WIDTH_REVEAL_MM`. Only a declared `liftUp` makes a door a lift door.
+ *  Fails closed on a lift-up declaration of more than one leaf per band: the adapter builds one flap, so no width
+ *  is held for a second. */
 export function liftDoorWidthsMm(
   query: FrontPopulationQuery,
 ): readonly number[] {
   if (!declaresLiftUp(query.rule)) return [];
-  const leafWidthMm = query.widthMm / leavesPerBandOf(query);
-  return Array.from<number>({ length: doorLeafCount(query) }).fill(leafWidthMm);
+  if (leavesPerBandOf(query) !== ONE_LIFT_LEAF_PER_BAND) {
+    throw new UndeclaredFrontPopulationError({
+      buildId: query.buildId,
+      declared: query.rule,
+      reason: LIFT_LEAF_REFUSAL_REASON,
+    });
+  }
+  const doorWidthMm = query.widthMm - LIFT_DOOR_WIDTH_REVEAL_MM;
+  return Array.from<number>({ length: doorLeafCount(query) }).fill(doorWidthMm);
 }
 
 /** Read as `=== true` because `BodyCatalog` is a port: a definition from outside TypeScript can carry any value. */
@@ -388,8 +424,8 @@ export function drawerCount(query: FrontPopulationQuery): number {
   return usableCountOf(query, rule.drawers, "drawers");
 }
 
-/** How many fronts of this body open: its door leaves and its drawers. The quantity a push-to-open latch is billed
- *  over, one per front, and zero for a body with nothing that opens (an open shelf). */
+/** How many fronts of this body open: its door leaves and its drawers, zero for a body with nothing that opens (an open
+ *  shelf). Not the latch count: a latch is billed over door leaves alone, a drawer opens on a push runner. */
 export function openingFrontCount(query: FrontPopulationQuery): number {
   return doorLeafCount(query) + drawerCount(query);
 }

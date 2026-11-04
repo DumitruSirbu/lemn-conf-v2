@@ -166,6 +166,7 @@ describe("the snapshot's total, added up by hand", () => {
           perDrawerMinor: 50_000,
           perPushToOpenMinor: 3_000,
           perLiftMinor: 15_000,
+          perPushRunnerMinor: 75_000,
         },
       ],
     },

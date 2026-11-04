@@ -70,6 +70,7 @@ describe("the field address against the plan's §8.4 (b), literally", () => {
       "perDrawerMinor",
       "perPushToOpenMinor",
       "perLiftMinor",
+      "perPushRunnerMinor",
     ]);
     expect([...addressModule.MATERIAL_FIELDS]).toEqual(["percentOfCabinets"]);
     expect([...addressModule.ACCESSORY_FIELDS]).toEqual(["perUnitMinor"]);
@@ -93,7 +94,7 @@ describe("the field address against the plan's §8.4 (b), literally", () => {
     const fields: readonly string[] = addressModule.ADDRESS_FIELDS;
 
     expect(new Set(fields).size).toBe(fields.length);
-    expect(fields).toHaveLength(5 + 4 + 1 + 1 + 2);
+    expect(fields).toHaveLength(5 + 5 + 1 + 1 + 2);
     expect(barrel.ADDRESS_FIELDS).toBe(addressModule.ADDRESS_FIELDS);
   });
 

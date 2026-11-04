@@ -176,6 +176,16 @@ priced."
 - The ADR 0092 Amendment C quantifier for Hettich below Standard gains a lift term, derived from the declared rates and
   never restated.
 
+**Amendment, 2026-11-03 — OQ-17: the third hinge reads the door's width, not the body's.** Evidence tier: owner answer
+coordinator-relayed (a relay, not a verbatim transcript), doc-quoted from `docs/milestones/M10-price-dashboard.md` §6.3
+OQ-17, whose recorded answer is "The door." Source-verified for the door's width at
+`packages/three-adapter/src/kitchen-parts.ts:1615` (`W - 0.006`).
+
+- "Wider than 500 mm" compares the **door's** width, strictly (`> 500`, as OQ-5a built it). The door is the body less a
+  6 mm reveal, the same door the 3D adapter builds. A parity test holds the pricing figure and the adapter's together.
+- Bodies of 501 to 506 mm therefore take 2 hinges, where the body's width gave them 3.
+- The strict boundary and OQ-5a are unchanged; only the quantity compared moves.
+
 ### Other rows settled here
 
 - **S-24:** no "current version" fallback inside pricing (`docs/CONFIGURATION_MODEL.md`, via ADR 0062 seam 3). Behaviour

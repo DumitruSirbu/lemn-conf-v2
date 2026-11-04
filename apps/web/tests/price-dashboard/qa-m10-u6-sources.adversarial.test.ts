@@ -82,15 +82,14 @@ describe("what a browser is sent", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("is read through the source by the page route and by the hardware and materials sources, which need the saved defaults, and by nothing else", () => {
+  it("is read through the source by the page route and by the read the hardware and materials sources share, which needs the saved defaults, and by nothing else", () => {
     const importers = filesUnder(SOURCE_ROOT)
       .filter((path) => /kitchen-defaults-source["']/.test(sourceOf(path)))
       .map((path) => path.slice(SOURCE_ROOT.length + 1));
 
     expect(importers).toEqual([
       "app/[locale]/staff/catalog/defaults/page.tsx",
-      "price-dashboard/hardware-source.ts",
-      "price-dashboard/material-source.ts",
+      "price-dashboard/item-page-read.ts",
     ]);
   });
 

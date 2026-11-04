@@ -182,6 +182,8 @@ are not a reading of the prose; they are recoverable from the numbers alone.
 **Count.** One per **door leaf** and one per **drawer**. Per front, not per body and not per band — a
 push latch is fitted to each front that opens, which is the same denominator the hinge rule uses.
 
+*Amended 2026-11-03: drawers take no latch and a runner is priced instead; see the amendment at the end of this record.*
+
 ~~…on a placement whose `handle` is `"push"` and only there. The handle mode is per placement
 (`DisplayEntry.handle`, §6.5), so the count is read there and not from the catalogue.~~
 
@@ -1220,3 +1222,25 @@ above stand as written; this names what it supersedes.
   A-8; [ADR 0178](0178-the-m10-dashboard-storage-lifecycle-defaults-notice-seen-and-digest.md) A-9). The rounding seam
   that Amendment left open is ADR 0177 A-1.
 - No amount is approved by this amendment; the lift rate is a placeholder (plan OQ-12).
+
+## Amendment — 2026-11-03: a push-to-open latch is per door leaf, a push-to-open drawer bills a push-runner rate
+
+**Evidence tier: owner answers of 2026-11-03, coordinator-relayed (a relay, not a verbatim transcript), doc-quoted from
+`docs/milestones/M10-price-dashboard.md` §6.3 (OQ-18, OQ-28) and §6.4 (OQ-28a, OQ-28b, OQ-28c). Built in the same change
+as this amendment.** Decision 3's *Count* sentence (*"One per door leaf and one per drawer"*) stands as written above and
+is superseded in part by this amendment.
+
+- **OQ-18, owner answer as recorded in §6.3:** "Push-to-open closes by a magnet on the cabinet's edge; every other front
+  closes on its hinges. One latch per door leaf, lift doors included. Drawers take none: they open on push runners."
+  The latch count is therefore door leaves only, lift doors included, and `countPushToOpen` stops counting drawers.
+- **OQ-28, owner answer as recorded in §6.3:** "Yes, a separate price." A drawer on a push-to-open body opens on a push
+  runner, billed at a new per-tier rate, `perPushRunnerMinor`.
+- **OQ-28a, coordinator's reading, awaiting the owner:** the push-runner rate is billed **instead of** the ordinary
+  drawer rate, not in addition to it, because the push runner replaces the ordinary one.
+- **OQ-28b, coordinator's decision, awaiting the owner:** `perPushRunnerMinor` is refused at 0, since every push-to-open
+  drawer has a runner and the "0 means the class lacks it" convention does not fit.
+- **Amendment C's quantifier gains a push-runner term.** The below-Standard witness in decision 12 is derived from the
+  declared rates, so it now includes the push-runner rate and is not restated here.
+- **The seeded default kitchen's hardware totals do not move** (OQ-28c): its 16 push fronts are top-row door leaves, and
+  only push-to-open drawers change price.
+- **The drafted push-runner rates are placeholders**, as the lift rates are; the owner sets real ones in the dashboard.

@@ -37,6 +37,7 @@ import {
   refuseUnusableText,
   UNREADABLE,
 } from "./book-reading.js";
+import { NEVER_ZERO_HARDWARE_RATES } from "./hardware-rate-fields.js";
 import {
   MAX_LINKED_ACCESSORIES,
   refuseLinkedAccessoryConflicts,
@@ -365,23 +366,43 @@ function refuseUnreadableTier(
     refuseUnreadableWords(declared, named) ??
     refuseOversizedAmount(declared, named) ??
     refuseUnusableRates(declared, named) ??
-    refuseUndeclaredLiftRate(declared, named, kind)
+    refuseUndeclaredRate(declared, named, kind, "perLiftMinor") ??
+    refuseUndeclaredRate(declared, named, kind, "perPushRunnerMinor") ??
+    refuseZeroRate(declared, named, kind)
   );
 }
 
-/** A hardware tier states its lift rate: required, since a book without it would price a lift-up door with no term for
- *  its mechanism. Sign and wholeness are `refuseUnusableRates`'s, which has already run. */
-function refuseUndeclaredLiftRate(
+/** A hardware tier states its lift and push-runner rates: required, since a book without one would price a lift-up
+ *  door or a push-to-open drawer with no term for its mechanism. Sign and wholeness are `refuseUnusableRates`'s, which
+ *  has already run. */
+function refuseUndeclaredRate(
+  declared: Record<string, unknown>,
+  named: string,
+  kind: string,
+  field: "perLiftMinor" | "perPushRunnerMinor",
+): PricingFailure | undefined {
+  if (kind !== "hardware") return undefined;
+  const read = readDeclared(declared, field);
+  if (typeof read === "number") return undefined;
+  return invalidBook(
+    `The ${named} declares no "${field}", which is a whole number of bani. Found: ${describeDeclared(read)}`,
+  );
+}
+
+/** A hardware tier's push-runner rate is above zero: a zero would bill a push-to-open drawer's runner at nothing. */
+function refuseZeroRate(
   declared: Record<string, unknown>,
   named: string,
   kind: string,
 ): PricingFailure | undefined {
   if (kind !== "hardware") return undefined;
-  const read = readDeclared(declared, "perLiftMinor");
-  if (typeof read === "number") return undefined;
-  return invalidBook(
-    `The ${named} declares no "perLiftMinor", which is a whole number of bani. Found: ${describeDeclared(read)}`,
-  );
+  for (const field of NEVER_ZERO_HARDWARE_RATES) {
+    if (readDeclared(declared, field) !== 0) continue;
+    return invalidBook(
+      `The ${named} declares "${field}" as 0, and that rate is never free`,
+    );
+  }
+  return undefined;
 }
 
 /** A tier's or an accessory's rates, whole and never below zero, as a cabinet's are. A rate that is absent or not a

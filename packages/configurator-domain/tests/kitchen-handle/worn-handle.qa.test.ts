@@ -162,7 +162,7 @@ describe("the projection stays total over a body whose fronts cannot be read", (
 });
 
 describe("the worn handle is the oracle's with the front count taken independently", () => {
-  it("names push exactly where the price bills a latch, every row, floor, handle choice and depth", () => {
+  it("names push exactly where the price bills a latch or a push runner, every row, floor, handle choice and depth", () => {
     const wrong: string[] = [];
 
     for (const depthMm of DEPTHS_MM) {
@@ -203,10 +203,11 @@ describe("the worn handle is the oracle's with the front count taken independent
                 : isTopRow && fronts > 0
                   ? "push"
                   : undefined;
-              const latches = countHardwareMechanisms(
+              const { pushToOpen, pushRunners } = countHardwareMechanisms(
                 [entry],
                 catalog,
-              ).pushToOpen;
+              );
+              const latches = pushToOpen + pushRunners;
               if (
                 entry.wornHandle !== expected ||
                 (entry.wornHandle === "push") !== latches > 0

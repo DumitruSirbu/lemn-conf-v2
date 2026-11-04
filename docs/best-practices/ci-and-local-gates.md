@@ -486,7 +486,7 @@ machine carries. Read the workflow's own comments for the history; this section 
 
 | Job id | Name in the checks list | Runs | On a pull request |
 | --- | --- | --- | --- |
-| `e2e-desktop-shard` | `e2e shard (desktop) (i, 6)` | `playwright test --project=desktop --shard=i/6` | skipped |
+| `e2e-desktop-shard` | `e2e shard (desktop) (i, 7)` | `playwright test --project=desktop --shard=i/7` | skipped |
 | `e2e-mobile-shard` | `e2e shard (mobile) (i, 10)` | `playwright test --project=mobile --shard=i/10` | skipped |
 | `e2e-desktop` | **`e2e (desktop)`** | the summary over the desktop shards | skipped |
 | `e2e-mobile` | **`e2e (mobile)`** | the summary over the mobile shards | skipped |
@@ -515,11 +515,11 @@ says. The shard names are free to change and must **not** be required checks.
   skipped required check counts as passing.) On a pull request it carries the shards' own
   `github.event_name != 'pull_request'` condition and reports **skipped**, as the old job did; GitHub
   counts a skipped required check as passing, so nothing new can block a pull request.
-- There are **two shard jobs, not one ~~six-leg~~ ~~nine-leg~~ ~~eleven-leg~~ ~~fourteen-leg~~ ~~fifteen-leg~~ sixteen-leg matrix** (corrected 2026-11-03 for
-  the mobile raise from nine to ten shards after M10 wave U4b's materials specs, on top of the desktop raise from five to six
-  of 2026-11-02: 6 desktop plus 10 mobile legs, read from `.github/workflows/ci.yml`
-  `shard: [1, 2, 3, 4, 5, 6]` in `e2e-desktop-shard` and `shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]` in `e2e-mobile-shard`, and
-  `SHARDS_PER_PROJECT = { desktop: 6, mobile: 10 }` in `scripts/gates/e2e-shard-budget.mjs`; it was eleven at 3 + 9 on
+- There are **two shard jobs, not one ~~six-leg~~ ~~nine-leg~~ ~~eleven-leg~~ ~~fourteen-leg~~ ~~fifteen-leg~~ ~~sixteen-leg~~ seventeen-leg matrix** (corrected 2026-11-04 for
+  the desktop raise from six to seven shards after M10 wave P6b's width specs, on top of the mobile raise from nine to ten after U4b's
+  materials specs: 7 desktop plus 10 mobile legs, read from `.github/workflows/ci.yml`
+  `shard: [1, 2, 3, 4, 5, 6, 7]` in `e2e-desktop-shard` and `shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]` in `e2e-mobile-shard`, and
+  `SHARDS_PER_PROJECT = { desktop: 7, mobile: 10 }` in `scripts/gates/e2e-shard-budget.mjs`; it was eleven at 3 + 9 on
   2026-10-13, nine at 3 + 6 on 2026-10-08, and six when mobile had three
   shards; the count moves with `SHARDS_PER_PROJECT`, so read it there), because a job's `needs` names whole jobs and a
   matrix job's result aggregates all its legs: one matrix could feed only one summary, and

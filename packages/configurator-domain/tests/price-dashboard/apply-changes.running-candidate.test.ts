@@ -57,11 +57,12 @@ function rateOnCreatedTier(
   } as DraftChange;
 }
 
-const [hingeRate, drawerRate, pushRate, liftRate] = [
+const [hingeRate, drawerRate, pushRate, liftRate, pushRunnerRate] = [
   rateOnCreatedTier("perHingeMinor", 4_321),
   rateOnCreatedTier("perDrawerMinor", 5_000),
   rateOnCreatedTier("perPushToOpenMinor", 0),
   rateOnCreatedTier("perLiftMinor", 7_000),
+  rateOnCreatedTier("perPushRunnerMinor", 9_000),
 ];
 
 beforeEach(() => {
@@ -105,6 +106,7 @@ describe("each change is judged against the running candidate", () => {
       drawerRate,
       pushRate,
       liftRate,
+      pushRunnerRate,
     ]);
 
     expect(result.ok).toBe(true);
@@ -117,6 +119,7 @@ describe("each change is judged against the running candidate", () => {
       perDrawerMinor: 5_000,
       perPushToOpenMinor: 0,
       perLiftMinor: 7_000,
+      perPushRunnerMinor: 9_000,
     });
   });
 
@@ -127,6 +130,7 @@ describe("each change is judged against the running candidate", () => {
       drawerRate,
       pushRate,
       liftRate,
+      pushRunnerRate,
     ]);
 
     const [, judgedAtRate] = seam.judgedAgainst;
@@ -145,6 +149,7 @@ describe("each change is judged against the running candidate", () => {
       drawerRate,
       pushRate,
       liftRate,
+      pushRunnerRate,
     ]);
 
     expect(result).toMatchObject({

@@ -11,6 +11,7 @@ const HARDWARE_RATES = [
   "perDrawerMinor",
   "perPushToOpenMinor",
   "perLiftMinor",
+  "perPushRunnerMinor",
 ] as const;
 
 function withHardwareRate(
@@ -45,8 +46,20 @@ describe("the book parser and negative tier and accessory amounts", () => {
     },
   );
 
-  it.each(HARDWARE_RATES)("accepts a hardware tier's %s at zero", (field) => {
-    expect(parsePriceBook(withHardwareRate(field, 0)).ok).toBe(true);
+  it.each(HARDWARE_RATES.filter((field) => field !== "perPushRunnerMinor"))(
+    "accepts a hardware tier's %s at zero",
+    (field) => {
+      expect(parsePriceBook(withHardwareRate(field, 0)).ok).toBe(true);
+    },
+  );
+
+  it("refuses a hardware tier's perPushRunnerMinor at zero, naming it, since a free push runner bills nothing", () => {
+    const result = parsePriceBook(withHardwareRate("perPushRunnerMinor", 0));
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.failure.code).toBe("INVALID_PRICE_BOOK");
+    expect(result.failure.detail).toContain("perPushRunnerMinor");
   });
 
   it.each(["sinkProtectiveCover", "dishDryingRack"] as const)(

@@ -122,6 +122,7 @@ describe("two classes that carry one name", () => {
         "perDrawerMinor",
         "perPushToOpenMinor",
         "perLiftMinor",
+        "perPushRunnerMinor",
       ] as const
     ).map(
       (field): DraftChange => ({

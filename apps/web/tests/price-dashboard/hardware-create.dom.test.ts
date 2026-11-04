@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 //
 // Creating a class of hardware (frame D4C): Romanian name and description and a price for each mechanism, each read before
-// anything is sent; one write puts the class and its four rates in "De publicat", inactive; a refusal, a failure and an answer
+// anything is sent; one write puts the class and its rates in "De publicat", inactive; a refusal, a failure and an answer
 // that comes late each leave the form as it was, except that a class that was created is always told.
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
@@ -35,6 +35,7 @@ const HINGE = roCopy("priceDashboard.hardware.priceHinge");
 const SLIDE = roCopy("priceDashboard.hardware.priceSlide");
 const PUSH = roCopy("priceDashboard.hardware.pricePush");
 const LIFT = roCopy("priceDashboard.hardware.priceLift");
+const PUSH_RUNNER = roCopy("priceDashboard.hardware.pricePushRunner");
 const CREATE = roCopy("priceDashboard.hardware.createAction");
 const SAVE_FAILED = roCopy("priceDashboard.errors.saveFailed");
 const CREATE_REFUSED = roCopy("priceDashboard.hardware.createRefused");
@@ -67,20 +68,21 @@ function fillEverything(container: HTMLElement): void {
   typeInField(container, SLIDE, "300");
   typeInField(container, PUSH, "100");
   typeInField(container, LIFT, "0");
+  typeInField(container, PUSH_RUNNER, "700");
 }
 
 describe("the form", () => {
-  it("opens inactive and empty, with a Romanian name and description and four prices and no Russian field, and Create off", async () => {
+  it("opens inactive and empty, with a Romanian name and description and a price per mechanism and no Russian field, and Create off", async () => {
     const container = await mountForm();
 
     expect(
       allIn<HTMLInputElement>(container, "input").map((input) => input.value),
-    ).toEqual(["", "", "", "", "", ""]);
+    ).toEqual(["", "", "", "", "", "", ""]);
     expect(
       allIn<HTMLLabelElement>(container, "label").map((label) =>
         label.textContent.trim(),
       ),
-    ).toEqual([NAME, DESCRIPTION, HINGE, SLIDE, PUSH, LIFT]);
+    ).toEqual([NAME, DESCRIPTION, HINGE, SLIDE, PUSH, LIFT, PUSH_RUNNER]);
     expect(
       allIn(container, '[data-testid="hardware-chip"]').map(
         (chip) => chip.textContent,
@@ -152,8 +154,38 @@ describe("the form", () => {
   });
 });
 
+describe("a push-runner price", () => {
+  it("is refused at zero and when emptied, with the words for a price above zero, and keeps Create off", async () => {
+    const container = await mountForm();
+    fillEverything(container);
+
+    typeInField(container, PUSH_RUNNER, "0");
+
+    expect(
+      fieldNamed(container, PUSH_RUNNER).getAttribute("aria-invalid"),
+    ).toBe("true");
+    expect(alertsIn(container)).toEqual([
+      roCopy("priceDashboard.errors.aboveZero"),
+    ]);
+    expect(buttonNamed(container, CREATE)).toHaveProperty("disabled", true);
+    typeInField(container, PUSH_RUNNER, "");
+    expect(alertsIn(container)).toEqual([
+      roCopy("priceDashboard.errors.aboveZero"),
+    ]);
+  });
+
+  it("is accepted above zero, so Create turns on", async () => {
+    const container = await mountForm();
+    fillEverything(container);
+
+    typeInField(container, PUSH_RUNNER, "10");
+
+    expect(buttonNamed(container, CREATE)).toHaveProperty("disabled", false);
+  });
+});
+
 describe("creating", () => {
-  it("sends one write with the trimmed words and all four prices in bani, zero included, and nothing else", async () => {
+  it("sends one write with the trimmed words and every price in bani, zero included, and nothing else", async () => {
     const container = await mountForm();
     fillEverything(container);
     expect(buttonNamed(container, CREATE)).toHaveProperty("disabled", false);
@@ -174,6 +206,7 @@ describe("creating", () => {
             perDrawerMinor: 30_000,
             perPushToOpenMinor: 10_000,
             perLiftMinor: 0,
+            perPushRunnerMinor: 70_000,
           },
         },
       },
@@ -307,7 +340,9 @@ describe("an answer that comes late", () => {
     expect(container.textContent).toContain(
       roCopy("priceDashboard.hardware.createdNotice"),
     );
-    expect(mounted?.draftServer.state().draft.changes).toHaveLength(5);
+    expect(mounted?.draftServer.state().draft.changes).toHaveLength(
+      1 + HARDWARE_RATE_FIELDS.length,
+    );
   });
 
   it("sends once when Create is pressed twice while the first is out", async () => {

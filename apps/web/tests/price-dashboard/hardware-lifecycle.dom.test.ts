@@ -430,9 +430,9 @@ describe("an answer that arrives late", () => {
   it("is dropped when the person has asked about another class since: the dialog is the second class's", async () => {
     mounted = await mountHardwareList(hardwarePageOf());
     await openMenuOf(mounted.container, HETTICH, HETTICH_NAME);
-    await openMenuOf(mounted.container, BLUM, BLUM_NAME);
     const releaseFirst = mounted.lifecycle.holdNextUsage();
     await press(menuEntry(mounted.container, HETTICH, DEACTIVATE));
+    await openMenuOf(mounted.container, BLUM, BLUM_NAME);
     await press(menuEntry(mounted.container, BLUM, DEACTIVATE));
     expect(openDialog()?.textContent).toContain(
       roCopy("priceDashboard.lifecycle.deactivateTitle", { name: BLUM_NAME }),

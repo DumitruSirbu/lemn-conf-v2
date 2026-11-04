@@ -19,7 +19,7 @@ import type { PricingFailure } from "./price-lines.js";
 const TERMS_IN_THE_WIDEST_FORMULA = 4;
 
 /** The largest count a book amount is multiplied by: a millimetre dimension, since every other
- *  multiplier (steps, door leaves, hinges, drawers, latches, sinks) stays far below ten thousand. */
+ *  multiplier (steps, door leaves, hinges, drawers, push runners, latches, sinks) stays far below ten thousand. */
 const MAX_BOOK_AMOUNT_MULTIPLIER = MAX_DESIGN_DIMENSION_MM;
 
 /**

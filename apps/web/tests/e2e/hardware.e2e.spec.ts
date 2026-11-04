@@ -137,7 +137,7 @@ test.describe("the hardware screens on a phone, 390 x 844", () => {
   });
 
   test.describe("D4A: the list, under either server", () => {
-    test("every class is a card with all four rates, the lift among them, at the book's amounts; no field in a card, nothing wider than the screen, every control 44 px; RO and RU", async ({
+    test("every class is a card with all five rates, the lift and the push runner among them, at the book's amounts; no field in a card, nothing wider than the screen, every control 44 px; RO and RU", async ({
       page,
     }) => {
       for (const locale of LOCALES) {
@@ -150,7 +150,7 @@ test.describe("the hardware screens on a phone, 390 x 844", () => {
           const active = activeRatesOf(tierId);
           expect(
             await listedRatesOf(row),
-            `${locale}: ${tierId} draws the book's four amounts`,
+            `${locale}: ${tierId} draws the book's five amounts`,
           ).toEqual(active);
           for (const field of RATE_FIELDS) {
             await expect(
@@ -178,7 +178,7 @@ test.describe("the hardware screens on a phone, 390 x 844", () => {
       }
     });
 
-    test("the four rates of a card stand two by two, so none is cut and the lift is the fourth", async ({
+    test("the five rates of a card stand two by two, so none is cut and the push runner stands alone on the third line", async ({
       page,
     }) => {
       await openHardwareList(page);
@@ -191,7 +191,16 @@ test.describe("the hardware screens on a phone, 390 x 844", () => {
       const lefts = new Set(boxes.map((box) => Math.round(box?.x ?? -1)));
       const tops = new Set(boxes.map((box) => Math.round(box?.y ?? -1)));
       expect(lefts.size, "two columns").toBe(2);
-      expect(tops.size, "two lines").toBe(2);
+      expect(tops.size, "three lines: two, two and one").toBe(3);
+      const topOf = (field: (typeof RATE_FIELDS)[number]) =>
+        Math.round(boxes[RATE_FIELDS.indexOf(field)]?.y ?? -1);
+      const otherTops = RATE_FIELDS.filter(
+        (field) => field !== "perPushRunnerMinor",
+      ).map(topOf);
+      expect(
+        topOf("perPushRunnerMinor"),
+        "the push runner stands alone on the last line",
+      ).toBeGreaterThan(Math.max(...otherTops));
       const rowBox = await row.boundingBox();
       for (const box of boxes) {
         expect(box, "each rate is drawn").not.toBeNull();
@@ -394,7 +403,7 @@ test.describe("the hardware screens on a phone, 390 x 844", () => {
           await expect(rateField(page, words, field)).toBeVisible();
         }
         await expect(editPageOf(page).locator("input[type=text]")).toHaveCount(
-          4,
+          RATE_FIELDS.length,
         );
         await expect(
           saveRatesButton(page, words),
@@ -618,7 +627,7 @@ test.describe("the hardware screens on a phone, 390 x 844", () => {
   });
 
   test.describe("D4C: a new class, under either server", () => {
-    test("Romanian only, a name, a description and four prices; Create stays off and says why, and nothing is sent; refusals show only where something was typed", async ({
+    test("Romanian only, a name, a description and five prices; Create stays off and says why, and nothing is sent; refusals show only where something was typed", async ({
       page,
     }) => {
       const words = wordsOf("ro");
@@ -632,7 +641,9 @@ test.describe("the hardware screens on a phone, 390 x 844", () => {
           name: romanian("priceDashboard.hardware.newTitle"),
         }),
       ).toBeVisible();
-      await expect(form.locator("input[type=text]")).toHaveCount(6);
+      await expect(form.locator("input[type=text]")).toHaveCount(
+        RATE_FIELDS.length + 2,
+      );
       await expect(
         form.getByLabel(words("priceDashboard.hardware.nameLabel"), {
           exact: true,
@@ -682,7 +693,7 @@ test.describe("the hardware screens on a phone, 390 x 844", () => {
           exact: true,
         })
         .fill("Clasa de proba");
-      const prices = ["10", "20", "30", "40"];
+      const prices = ["10", "20", "30", "40", "50"];
       for (const [index, field] of RATE_FIELDS.entries()) {
         await form
           .getByLabel(words(`priceDashboard.hardware.${priceKeyOf(field)}`), {
@@ -693,7 +704,7 @@ test.describe("the hardware screens on a phone, 390 x 844", () => {
 
       await expect(
         form.getByRole("alert"),
-        "all six values are valid",
+        "all seven values are valid",
       ).toHaveCount(0);
       await expect(
         create,
@@ -1239,5 +1250,6 @@ function priceKeyOf(field: RateField): string {
     perDrawerMinor: "priceSlide",
     perPushToOpenMinor: "pricePush",
     perLiftMinor: "priceLift",
+    perPushRunnerMinor: "pricePushRunner",
   }[field];
 }

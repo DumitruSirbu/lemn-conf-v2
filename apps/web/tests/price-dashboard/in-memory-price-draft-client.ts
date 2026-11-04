@@ -91,6 +91,7 @@ export function inMemoryPriceDraftClient(
   };
 
   const client: PriceDraftClient = {
+    acceptsCreatedRowText: true,
     readState: () => {
       calls.push({ kind: "readState" });
       return Promise.resolve(state);

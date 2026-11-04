@@ -6,7 +6,6 @@ import {
   cabinetDepthMmOf,
   countHardwareMechanisms,
   doorLeafHeightsMm,
-  drawerCount,
   frontPopulationQueryFor,
   KITCHEN_L_DESIGN,
   type Design,
@@ -171,7 +170,7 @@ describe("a body below the top row whose definition takes no handle", () => {
   );
 });
 
-/** Latches the review's rows imply: one per opening front on each row that reads push-to-open. */
+/** Latches the review's rows imply: one per door leaf on each row that reads push-to-open. */
 function latchesTheReviewImplies(design: Design): number {
   const { groups } = priceAndProject(design);
   const catalog = buildKitchenLBodyCatalog(cabinetDepthMmOf(design));
@@ -181,10 +180,10 @@ function latchesTheReviewImplies(design: Design): number {
     .filter((entry) =>
       review.rowDetails[entry.placementId]?.facts.includes(HANDLE_WORDS.push),
     )
-    .reduce((total, entry) => total + openingFrontsOf(entry, catalog), 0);
+    .reduce((total, entry) => total + doorLeavesOf(entry, catalog), 0);
 }
 
-function openingFrontsOf(
+function doorLeavesOf(
   entry: DisplayEntry,
   catalog: ReturnType<typeof buildKitchenLBodyCatalog>,
 ): number {
@@ -192,7 +191,7 @@ function openingFrontsOf(
     body: entry,
     definition: catalog.get(entry.buildId) ?? {},
   });
-  return doorLeafHeightsMm(query).length + drawerCount(query);
+  return doorLeafHeightsMm(query).length;
 }
 
 /** The latches the price bills: the count `priceDesign` multiplies by the book's rate. */

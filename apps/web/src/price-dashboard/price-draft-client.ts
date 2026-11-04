@@ -65,6 +65,11 @@ export interface PriceDraftClient {
         request: CreateHardwareClassRequestWire,
       ) => Promise<CreateHardwareClassOutcome>)
     | undefined;
+  /**
+   * Whether `change` takes the words of a created row. Absent where the draft route does not, which the screen reads as
+   * words that cannot be changed: nothing is sent.
+   */
+  readonly acceptsCreatedRowText?: boolean | undefined;
 }
 
 const STATE_ADDRESS = "/api/staff/prices";

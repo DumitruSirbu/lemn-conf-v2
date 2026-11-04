@@ -63,16 +63,16 @@ function resultOf(book: PriceBook, changes: readonly DraftChange[]) {
 describe("a change that names a row is judged against the draft so far", () => {
   const tier = tierDraft("hw.new");
   const PERMUTATIONS: readonly (readonly number[])[] = [
-    [0, 1, 2, 3, 4],
-    [1, 0, 2, 3, 4],
-    [1, 2, 0, 3, 4],
-    [1, 2, 3, 4, 0],
-    [4, 3, 2, 1, 0],
-    [2, 0, 4, 1, 3],
+    [0, 1, 2, 3, 4, 5],
+    [1, 0, 2, 3, 4, 5],
+    [1, 2, 0, 3, 4, 5],
+    [1, 2, 3, 4, 5, 0],
+    [5, 4, 3, 2, 1, 0],
+    [2, 0, 4, 1, 5, 3],
   ];
 
   it.each(PERMUTATIONS)(
-    "accepts a class and its four rates exactly when the creation comes first (order %j)",
+    "accepts a class and its rates exactly when the creation comes first (order %j)",
     (...order) => {
       const changes = order.map((index) => elementAt(tier, index));
       const creationAt = changes.indexOf(elementAt(tier, 0));
@@ -158,6 +158,7 @@ describe("a change that names a row is judged against the draft so far", () => {
       setRate("hw.a", "perDrawerMinor", 2),
       setRate("hw.a", "perPushToOpenMinor", 3),
       setRate("hw.a", "perLiftMinor", 4),
+      setRate("hw.a", "perPushRunnerMinor", 5),
     ];
 
     expect(refusalCodes(resultOf(BASE, changes))).toBe(
@@ -549,7 +550,8 @@ describe("a created hardware class", () => {
       tier?.perDrawerMinor,
       tier?.perPushToOpenMinor,
       tier?.perLiftMinor,
-    ]).toEqual([1_000, 2_000, 3_000, 4_000]);
+      tier?.perPushRunnerMinor,
+    ]).toEqual([1_000, 2_000, 3_000, 4_000, 5_000]);
   });
 
   it.each([
@@ -877,6 +879,7 @@ describe("over drafts of creations, words, prices and deletions in any order", (
             "perDrawerMinor",
             "perHingeMinor",
             "perLiftMinor",
+            "perPushRunnerMinor",
             "perPushToOpenMinor",
             "ruleId",
             "tierId",

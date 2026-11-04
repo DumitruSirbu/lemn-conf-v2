@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 //
-// One hardware class's page (frame D4B): four rate fields that read what they are typed as before anything is sent, a Save
+// One hardware class's page (frame D4B): five rate fields that read what they are typed as before anything is sent, a Save
 // that sends one change of "De publicat" per changed rate and shows only what the server stored, and the class's switch and
 // deletion, which are the dialogs' and not the draft's.
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -46,6 +46,7 @@ const HINGE = roCopy("priceDashboard.hardware.priceHinge");
 const SLIDE = roCopy("priceDashboard.hardware.priceSlide");
 const PUSH = roCopy("priceDashboard.hardware.pricePush");
 const LIFT = roCopy("priceDashboard.hardware.priceLift");
+const PUSH_RUNNER = roCopy("priceDashboard.hardware.pricePushRunner");
 const SAVE = roCopy("priceDashboard.common.save");
 const CANCEL = roCopy("priceDashboard.common.cancel");
 const lei = (minor: number) =>
@@ -86,13 +87,13 @@ async function mountHettich(
   return mounted.container;
 }
 
-describe("the four rates", () => {
-  it("are four fields, the lift last, each holding the rate the draft would leave and naming what is active", async () => {
+describe("the rates", () => {
+  it("are a field for each, the push runner last, each holding the rate the draft would leave and naming what is active", async () => {
     const container = await mountHettich();
     const hettich = tierOf(HETTICH);
 
     expect(
-      [HINGE, SLIDE, PUSH, LIFT].map(
+      [HINGE, SLIDE, PUSH, LIFT, PUSH_RUNNER].map(
         (label) => fieldNamed(container, label).value,
       ),
     ).toEqual([
@@ -100,11 +101,18 @@ describe("the four rates", () => {
       plainLeiOf(hettich.perDrawerMinor),
       plainLeiOf(hettich.perPushToOpenMinor),
       plainLeiOf(hettich.perLiftMinor),
+      plainLeiOf(hettich.perPushRunnerMinor),
     ]);
     expect(container.textContent).toContain(
       roCopy("priceDashboard.common.activeValueWithHint", {
         amount: lei(hettich.perLiftMinor),
         hint: roCopy("priceDashboard.hardware.priceLiftHint"),
+      }),
+    );
+    expect(container.textContent).toContain(
+      roCopy("priceDashboard.common.activeValueWithHint", {
+        amount: lei(hettich.perPushRunnerMinor),
+        hint: roCopy("priceDashboard.hardware.pricePushRunnerHint"),
       }),
     );
   });
@@ -139,6 +147,21 @@ describe("the four rates", () => {
 });
 
 describe("what is typed", () => {
+  it("is refused on the push-runner field at zero, Save stays off and nothing is sent", async () => {
+    const container = await mountHettich();
+
+    typeInField(container, PUSH_RUNNER, "0");
+
+    expect(
+      fieldNamed(container, PUSH_RUNNER).getAttribute("aria-invalid"),
+    ).toBe("true");
+    expect(
+      allIn(container, '[role="alert"]').map((alert) => alert.textContent),
+    ).toContain(roCopy("priceDashboard.errors.aboveZero"));
+    expect(buttonNamed(container, SAVE)).toHaveProperty("disabled", true);
+    expect(mounted?.draftServer.calls).toEqual([]);
+  });
+
   it("is refused on its own field when it is not a multiple of ten lei, Save stays off and nothing is sent", async () => {
     const container = await mountHettich();
 
@@ -339,7 +362,9 @@ describe("Save", () => {
     expect(mounted.draftServer.calls.map((call) => call.kind)).toEqual([
       "change",
     ]);
-    expect(mounted.draftServer.state().draft.changes.length).toBe(5);
+    expect(mounted.draftServer.state().draft.changes.length).toBe(
+      1 + HARDWARE_RATE_FIELDS.length,
+    );
   });
 });
 
@@ -481,12 +506,14 @@ describe("deleting a class only the draft holds", () => {
 });
 
 describe("the page in Russian", () => {
-  it("draws with the Russian words and the same four fields", async () => {
+  it("draws with the Russian words and the same fields", async () => {
     mounted = await mountHardwareEdit(HETTICH, hardwarePageOf(), {
       locale: "ru",
     });
 
-    expect(allIn(mounted.container, "input")).toHaveLength(4);
+    expect(allIn(mounted.container, "input")).toHaveLength(
+      HARDWARE_RATE_FIELDS.length,
+    );
     expect(mounted.container.querySelector("h1")?.textContent).toBe("Hettich");
   });
 });

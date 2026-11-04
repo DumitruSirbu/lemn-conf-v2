@@ -1790,6 +1790,8 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       notNumber:
         "Scrie doar cifre și o virgulă pentru bani, de exemplu {example}.",
       negative: "Suma nu poate fi negativă.",
+      // Drafted, not approved: a rate that is never free, refused at zero and when empty.
+      aboveZero: "Completează un preț mai mare decât zero.",
       tooManyDecimals: "Cel mult două zecimale, de exemplu {example}.",
       notMultipleOfTen:
         "Prețul se scrie în multipli de {step} lei, de exemplu {example}.",
@@ -2043,6 +2045,8 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       columnSlide: "Glisieră (pereche)",
       columnPush: "Push-to-open",
       columnLift: "Mecanism rabatabil",
+      // Drafted, not approved: the push-runner column, price and hint wording await the owner.
+      columnPushRunner: "Glisieră push-to-open",
       columnState: "Stare",
       newTitle: "Clasă nouă de feronerie",
       nameLabel: "Nume",
@@ -2066,9 +2070,15 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       pricePush: "Preț pe mecanism push-to-open",
       priceLift: "Preț pe mecanism rabatabil",
       priceLiftHint: "Pentru dulapul suspendat rabatabil",
+      pricePushRunner: "Preț pe glisieră push-to-open",
+      pricePushRunnerHint:
+        "Un sertar al unui corp push-to-open primește acest preț în locul prețului pe glisieră.",
+      // Drafted, not approved: the approved sentence, with the push-runner exception added.
       newPricesNote:
-        "Completează prețurile; un mecanism pe care clasa nu-l are se lasă la zero.",
+        "Completează prețurile; un mecanism pe care clasa nu-l are se lasă la zero, în afară de prețul pe glisieră push-to-open.",
       createAction: "Creează clasa",
+      // Drafted, not approved: the button that saves a created class's new name.
+      renameAction: "Redenumește",
       createdNotice:
         "Clasa a fost creată în „De publicat”. O activezi după ce publici.",
       createdRemoved: "Clasa a fost scoasă din „De publicat”.",

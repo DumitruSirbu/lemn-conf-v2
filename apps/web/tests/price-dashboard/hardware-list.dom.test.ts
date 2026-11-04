@@ -57,7 +57,7 @@ afterEach(() => {
 });
 
 describe("a class's row", () => {
-  it("shows the four rates of the book, the lift beside the hinge, slide and push-to-open, each under its own words", async () => {
+  it("shows the rates of the book, the push runner after the lift, each under its own words", async () => {
     mounted = await mountHardwareList(hardwarePageOf());
 
     const cells = allIn(
@@ -70,6 +70,7 @@ describe("a class's row", () => {
       roCopy("priceDashboard.hardware.columnSlide"),
       roCopy("priceDashboard.hardware.columnPush"),
       roCopy("priceDashboard.hardware.columnLift"),
+      roCopy("priceDashboard.hardware.columnPushRunner"),
     ]);
     const hettich = tierOf(HETTICH);
     expect(cells.map((cell) => cell.children[1]?.textContent)).toEqual([
@@ -77,6 +78,7 @@ describe("a class's row", () => {
       lei(hettich.perDrawerMinor),
       lei(hettich.perPushToOpenMinor),
       lei(hettich.perLiftMinor),
+      lei(hettich.perPushRunnerMinor),
     ]);
   });
 

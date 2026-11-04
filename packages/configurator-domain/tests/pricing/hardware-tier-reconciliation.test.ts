@@ -81,11 +81,13 @@ function hardwareLineAt(tierId: string) {
   return line;
 }
 
-/** The four counts, pinned as numbers: product facts answerable without any amount (ADR 0092 Amendment C). The seeded
- *  kitchen stands no lift-up door, so its lift count is zero and its hardware line carries no lift term. */
+/** The counts, pinned as numbers: product facts answerable without any amount (ADR 0092 Amendment C). The seeded
+ *  kitchen stands no lift-up door and no drawer on a push-to-open body, so its lift and push-runner counts are zero and
+ *  its hardware line carries neither term. */
 const SEEDED_MECHANISM_COUNTS = {
   hinges: 74,
   drawers: 5,
+  pushRunners: 0,
   pushToOpen: 16,
   lifts: 0,
 };
@@ -192,11 +194,12 @@ describe("a push-to-open kitchen's hardware is not zero", () => {
     ),
   };
 
-  /** Every opening front except two: `base-corner-x-900`'s leaf and `wall-corner-return-570`'s declare
-   *  `canHandle: false` and stand below the top row, so no recorded mode reaches them. */
-  const PUSH_FRONTS_WHEN_PERMITTED = 39;
+  /** Every door leaf except two: `base-corner-x-900`'s leaf and `wall-corner-return-570`'s declare
+   *  `canHandle: false` and stand below the top row, so no recorded mode reaches them. The kitchen's drawers take no
+   *  latch: each is a push runner. */
+  const PUSH_DOOR_LEAVES_WHEN_PERMITTED = 34;
 
-  it("counts a latch on every front the customer can choose one for", () => {
+  it("counts a latch on every door leaf the customer can choose one for, and a push runner on every drawer", () => {
     expect(
       countHardwareMechanisms(
         projectDesignForDisplay(PUSH_WHEREVER_PERMITTED, CATALOG).flatMap(
@@ -206,12 +209,14 @@ describe("a push-to-open kitchen's hardware is not zero", () => {
       ),
     ).toEqual({
       ...SEEDED_MECHANISM_COUNTS,
-      pushToOpen: PUSH_FRONTS_WHEN_PERMITTED,
+      drawers: 0,
+      pushRunners: SEEDED_MECHANISM_COUNTS.drawers,
+      pushToOpen: PUSH_DOOR_LEAVES_WHEN_PERMITTED,
     });
   });
 
   it.each(EVERY_TIER_ID)(
-    "bills %s the latches on top of the hinges and drawers it already carries",
+    "bills %s the latches on top of the hinges, and its drawers at the push-runner rate in place of the drawer rate",
     (tierId) => {
       const amount = hardwareAmountOf(PUSH_WHEREVER_PERMITTED, tierId);
 
@@ -219,8 +224,8 @@ describe("a push-to-open kitchen's hardware is not zero", () => {
       expect(amount).toBe(
         tenLeiOf(
           tier.perHingeMinor * SEEDED_MECHANISM_COUNTS.hinges +
-            tier.perDrawerMinor * SEEDED_MECHANISM_COUNTS.drawers +
-            tier.perPushToOpenMinor * PUSH_FRONTS_WHEN_PERMITTED,
+            tier.perPushRunnerMinor * SEEDED_MECHANISM_COUNTS.drawers +
+            tier.perPushToOpenMinor * PUSH_DOOR_LEAVES_WHEN_PERMITTED,
         ),
       );
       expect(amount).toBeGreaterThan(0);
@@ -262,7 +267,13 @@ describe("a recorded push on a body that permits no mode is billed no latch", ()
         ).flatMap((group) => group.entries),
         CATALOG,
       ),
-    ).toEqual({ hinges: 2, drawers: 0, pushToOpen: 0, lifts: 0 });
+    ).toEqual({
+      hinges: 2,
+      drawers: 0,
+      pushRunners: 0,
+      pushToOpen: 0,
+      lifts: 0,
+    });
   });
 
   it.each(EVERY_TIER_ID)("bills %s for the hinges alone", (tierId) => {
@@ -309,6 +320,8 @@ function hettichAgainstStandard() {
     pushSurchargeMinor:
       hettich.perPushToOpenMinor - standard.perPushToOpenMinor,
     liftSurchargeMinor: hettich.perLiftMinor - standard.perLiftMinor,
+    pushRunnerSurchargeMinor:
+      hettich.perPushRunnerMinor - standard.perPushRunnerMinor,
     drawerSavingMinor: standard.perDrawerMinor - hettich.perDrawerMinor,
   };
 }
@@ -320,11 +333,12 @@ function surchargeOf(
   return (
     rates.hingeSurchargeMinor * counts.hinges +
     rates.pushSurchargeMinor * counts.pushToOpen +
+    rates.pushRunnerSurchargeMinor * counts.pushRunners +
     rates.liftSurchargeMinor * counts.lifts
   );
 }
 
-/** The hardware line over all four counts, on a design the seeded kitchen does not hold: one lift-up door, so the lift
+/** The hardware line over every count, on a design the seeded kitchen does not hold: one lift-up door, so the lift
  *  term is the only one a three-rate line would miss. */
 describe("a lift-up door's hardware line carries the lift term", () => {
   it.each(EVERY_TIER_ID)(
@@ -384,6 +398,7 @@ describe("the tier rates relate to each other in ways the book itself decides", 
     const counts = {
       hinges: HINGES_ON_A_WIDE_LIFT_DOOR,
       drawers: 3 * threeDrawerBases,
+      pushRunners: 0,
       pushToOpen: 0,
       lifts: 1,
     };
@@ -458,7 +473,13 @@ describe("the tier rates relate to each other in ways the book itself decides", 
         ),
         CATALOG,
       ),
-    ).toEqual({ hinges: 0, drawers: 3, pushToOpen: 0, lifts: 0 });
+    ).toEqual({
+      hinges: 0,
+      drawers: 3,
+      pushRunners: 0,
+      pushToOpen: 0,
+      lifts: 0,
+    });
     expect(
       hardwareAmountAt("hardware.soft-close") -
         hardwareAmountAt(BOOK.hardware.defaultTierId),

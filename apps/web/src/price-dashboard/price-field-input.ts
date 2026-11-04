@@ -27,6 +27,7 @@ export type LeiInputRefusal =
   | "empty"
   | "notNumber"
   | "negative"
+  | "zero"
   | "tooManyDecimals"
   | "notMultipleOfTen"
   | "tooBig";
@@ -48,6 +49,14 @@ export function readLeiInputOverHeld(
   const amount = readLeiAmount(text);
   const isHeld = amount.kind === "amount" && heldMinors.includes(amount.minor);
   return isHeld ? amount : refusingNonTens(amount);
+}
+
+/** A reading of a rate that is never free: nothing typed and an amount of zero are refused alike, since a zero would
+ *  bill the mechanism at nothing. */
+export function refusingZero(reading: LeiInputReading): LeiInputReading {
+  const isEmpty = reading.kind === "refused" && reading.refusal === "empty";
+  const isZero = reading.kind === "amount" && reading.minor === 0;
+  return isEmpty || isZero ? refusedLei("zero") : reading;
 }
 
 /** The amount as a person types it back: the grouping spaces of `formatLeiAmount` left out. */

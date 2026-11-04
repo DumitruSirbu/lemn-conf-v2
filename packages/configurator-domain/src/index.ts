@@ -63,6 +63,8 @@ export {
   drawerCount,
   frontPopulationQueryFor,
   FRIDGE_HOUSING_DOOR_BAND_HEIGHTS_MM,
+  LIFT_DOOR_WIDTH_REVEAL_MM,
+  liftDoorWidthsMm,
   NO_DOOR_BANDS,
   NO_DRAWERS,
   NO_OPENING_FRONTS,

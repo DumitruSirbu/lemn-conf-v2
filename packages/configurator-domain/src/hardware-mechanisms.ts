@@ -1,5 +1,5 @@
-// How many mechanisms a kitchen's hardware is priced by: hinges, drawers, push-to-open latches and lifts,
-// counted over a design's bodies from their front-population declarations.
+// How many mechanisms a kitchen's hardware is priced by: hinges, drawers, push runners, push-to-open latches
+// and lifts, counted over a design's bodies from their front-population declarations.
 //
 // Hardware is priced per mechanism, never per handle (ADR 0070 decision 1): a push-to-open body carries
 // hinges and runners and no handle, so a per-handle basis billed a whole push-to-open kitchen at zero.
@@ -15,11 +15,11 @@
 // Nothing here reads a mesh or a `kind`: every number comes from the placement's own catalogue entry
 // through `frontPopulationQueryFor`, so no height can be sourced from a definition's nominal.
 import {
+  doorLeafCount,
   doorLeafHeightsMm,
   drawerCount,
   frontPopulationQueryFor,
   liftDoorWidthsMm,
-  openingFrontCount,
   type DeclaresFronts,
   type FrontPopulationQuery,
 } from "./front-population.js";
@@ -27,11 +27,14 @@ import { isPushToOpen, type PushToOpenQuery } from "./push-to-open.js";
 import type { DisplayEntry } from "./queries/design-projection.js";
 import type { BodyCatalog } from "./void-engine.js";
 
-/** The mechanisms a kitchen's hardware is priced by: hinges, drawers, push-to-open latches and one lift per
- *  lift-up door (ADR 0177 A-20). A cargo pull-out counts as one drawer (ADR 0092 decision 8). */
+/** The mechanisms a kitchen's hardware is priced by: hinges, drawers, push runners, push-to-open latches and one lift
+ *  per lift-up door (ADR 0177 A-20). A cargo pull-out counts as one drawer (ADR 0092 decision 8). A drawer is counted
+ *  under `drawers` or under `pushRunners`, never both: on a push-to-open body it opens on a push runner, and it takes
+ *  no latch. */
 export interface HardwareMechanismCounts {
   readonly hinges: number;
   readonly drawers: number;
+  readonly pushRunners: number;
   readonly pushToOpen: number;
   readonly lifts: number;
 }
@@ -56,6 +59,7 @@ export const WIDE_LIFT_DOOR_THRESHOLD_MM = 500;
 export const NO_HARDWARE_MECHANISMS: HardwareMechanismCounts = {
   hinges: 0,
   drawers: 0,
+  pushRunners: 0,
   pushToOpen: 0,
   lifts: 0,
 };
@@ -93,14 +97,14 @@ function mechanismsOn(
   const declared = definition ?? DECLARES_NOTHING;
   const query = frontPopulationQueryFor({ body: entry, definition: declared });
   const liftDoorWidths = liftDoorWidthsMm(query);
+  const isPushOpen = isPushToOpen(pushToOpenQueryFor(entry, declared));
+  const drawers = drawerCount(query);
 
   return {
     hinges: countHingesOn(query, liftDoorWidths),
-    drawers: drawerCount(query),
-    pushToOpen: countPushToOpen(
-      pushToOpenQueryFor(entry, declared),
-      openingFrontCount(query),
-    ),
+    drawers: isPushOpen ? 0 : drawers,
+    pushRunners: isPushOpen ? drawers : 0,
+    pushToOpen: isPushOpen ? doorLeafCount(query) : 0,
     lifts: liftDoorWidths.length,
   };
 }
@@ -120,7 +124,8 @@ interface DeclaresMechanismFacts extends DeclaresFronts {
  *  price. */
 const DECLARES_NOTHING: DeclaresMechanismFacts = {};
 
-/** The facts `isPushToOpen` reads: the floor and the recorded mode are the **placement's** (§6.5: two
+/** The facts `isPushToOpen` reads, through the one call the scene draws its bars by (`scene-sync.ts`), so billing and
+ *  scene cannot disagree: the floor and the recorded mode are the **placement's** (§6.5: two
  *  `base-sink-800`s can carry different handles), the kitchen's handle is the **design's**, the permission is the
  *  **catalogue row's**. A row declaring no permission reads as permitting none, which decides nothing on any
  *  reachable path: `doorLeafHeightsMm` has already refused an uncatalogued body. */
@@ -169,16 +174,6 @@ function hingesOnLiftDoor(doorWidthMm: number): number {
     : HINGES_PER_DOOR_LEAF;
 }
 
-/** One latch per opening front on a push-to-open body, none elsewhere (ADR 0092 decision 3): per front,
- *  the denominator the hinge rule also uses. Whether the body is push-to-open is `isPushToOpen`'s
- *  answer; `scene-sync.ts` draws the bar by the same call. */
-function countPushToOpen(
-  front: PushToOpenQuery,
-  openingFronts: number,
-): number {
-  return isPushToOpen(front) ? openingFronts : 0;
-}
-
 function addCounts(
   left: HardwareMechanismCounts,
   right: HardwareMechanismCounts,
@@ -186,6 +181,7 @@ function addCounts(
   return {
     hinges: left.hinges + right.hinges,
     drawers: left.drawers + right.drawers,
+    pushRunners: left.pushRunners + right.pushRunners,
     pushToOpen: left.pushToOpen + right.pushToOpen,
     lifts: left.lifts + right.lifts,
   };
