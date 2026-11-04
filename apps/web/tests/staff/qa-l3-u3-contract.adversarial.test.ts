@@ -76,6 +76,8 @@ function detailWith(overrides: Partial<Detail>): Detail {
   return {
     id: KITCHEN_ID,
     name: "Casa din Orhei",
+    revision: "1",
+    isChangedSinceSeen: false,
     design: KITCHEN_L_DESIGN,
     asSent: KITCHEN_L_DESIGN,
     isSent: true,
@@ -84,6 +86,7 @@ function detailWith(overrides: Partial<Detail>): Detail {
     updatedAt: UPDATED,
     client: CLIENT,
     request: { reference: "LEM-2026-0417", sentAt: SENT },
+    sentTotal: null,
     status: { value: "contacted", change: { by: STAFF, at: CHANGED } },
     notes,
     notesTruncated: false,

@@ -1,8 +1,12 @@
+import { randomInt } from "node:crypto";
+
 import {
   DIGEST_STOPPING_STATUSES,
   DIGEST_WINDOW_MS,
   REQUEST_STATUSES,
+  isDigestEligible,
 } from "@lemnaria/configurator-domain";
+import type { RequestStatus } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -31,6 +35,8 @@ export interface ChangeKitchenSpec {
   readonly kitchenName?: string;
   /** `accounts.name`. */
   readonly customerName?: string;
+  /** No request is stored for the kitchen, as after a restore of the designs alone: no reference, no request revision. */
+  readonly hasNoRequest?: boolean;
 }
 
 export interface PlantedChangeKitchen {
@@ -58,6 +64,11 @@ export interface ChangeWorld extends DashboardStaffWorld {
   seenRevisionOf(designId: string): Promise<string | undefined>;
   /** The whole seen row: the revision, the account that set it and the instant it was set. */
   seenMarkOf(designId: string): Promise<SeenMark | undefined>;
+  /**
+   * Writes the kitchen's seen row around the store, as a holder of the application credential could: any revision, with
+   * no audit row, and not held to the kitchen's own.
+   */
+  plantSeenMark(designId: string, revision: string): Promise<void>;
 }
 
 export interface SeenMark {
@@ -86,6 +97,7 @@ export function describeKitchenChangeStoreContract(
   describeMarkSeen(suiteName, newWorld);
   describeClaimDigestDay(suiteName, newWorld);
   describeDigestEligibility(suiteName, newWorld);
+  describeDigestAgreesWithTheDomain(suiteName, newWorld);
   describeRecordDigested(suiteName, newWorld);
 }
 
@@ -106,7 +118,7 @@ function describeMarkSeen(
         audit: auditRecordOf(staff, KITCHEN_SEEN),
       });
 
-      expect(result).toEqual({ kind: "ok" });
+      expect(result).toEqual({ kind: "ok", changedAfterSeen: false });
       expect(await world.seenRevisionOf(kitchen.designId)).toBe(saved);
       expect(await world.auditEventsOf(staff.accountId)).toEqual([
         { action: "kitchen-seen", designId: kitchen.designId, detail: {} },
@@ -125,7 +137,7 @@ function describeMarkSeen(
         audit: auditRecordOf(staff, KITCHEN_SEEN),
       });
 
-      expect(result).toEqual({ kind: "ok" });
+      expect(result).toEqual({ kind: "ok", changedAfterSeen: false });
       expect(await world.seenRevisionOf(kitchen.designId)).toBe(saved);
       expect(await world.auditEventsOf(staff.accountId)).toEqual([
         { action: "kitchen-seen", designId: kitchen.designId, detail: {} },
@@ -133,6 +145,25 @@ function describeMarkSeen(
       expect(await eligibleAmong(world, [kitchen])).toEqual([]);
       await world.saveKitchen(kitchen.designId);
       expect(await eligibleAmong(world, [kitchen])).toEqual([]);
+    });
+
+    it("answers changedAfterSeen false for a kitchen never sent even when the revision displayed is not the current one: it never shows the badge", async () => {
+      const world = await newWorld();
+      const staff = await world.aStaffMember();
+      const kitchen = await world.aKitchen({});
+      await world.saveKitchen(kitchen.designId);
+      await world.saveKitchen(kitchen.designId);
+
+      const result = await world.store.markSeen({
+        designId: kitchen.designId,
+        displayedRevision: kitchen.revision,
+        audit: auditRecordOf(staff, KITCHEN_SEEN),
+      });
+
+      expect(result).toEqual({ kind: "ok", changedAfterSeen: false });
+      expect(await world.seenRevisionOf(kitchen.designId)).toBe(
+        kitchen.revision,
+      );
     });
 
     it("records a displayed revision older than the current one as it is, so the badge stays on", async () => {
@@ -147,11 +178,52 @@ function describeMarkSeen(
         audit: auditRecordOf(staff, KITCHEN_SEEN),
       });
 
-      expect(result).toEqual({ kind: "ok" });
+      expect(result).toEqual({ kind: "ok", changedAfterSeen: true });
       expect(await world.seenRevisionOf(kitchen.designId)).toBe(
         kitchen.revision,
       );
       expect(kitchen.revision).not.toBe(current);
+    });
+
+    it("answers changedAfterSeen false for the revision the kitchen was sent at, which no save has moved", async () => {
+      const world = await newWorld();
+      const staff = await world.aStaffMember();
+      const kitchen = await world.aKitchen({ sentAt: WHEN_SENT });
+
+      const result = await world.store.markSeen({
+        designId: kitchen.designId,
+        displayedRevision: kitchen.revision,
+        audit: auditRecordOf(staff, KITCHEN_SEEN),
+      });
+
+      expect(result).toEqual({ kind: "ok", changedAfterSeen: false });
+    });
+
+    it("answers for the seen revision the mark left stored: false at the current revision, true after a save and a stale mark that leaves the earlier revision, false once the newest is marked", async () => {
+      const world = await newWorld();
+      const staff = await world.aStaffMember();
+      const kitchen = await world.aKitchen({ sentAt: WHEN_SENT });
+      const answerOf = async (displayedRevision: string) => {
+        const result = await world.store.markSeen({
+          designId: kitchen.designId,
+          displayedRevision,
+          audit: auditRecordOf(staff, KITCHEN_SEEN),
+        });
+        return result.kind === "ok" ? result.changedAfterSeen : result.kind;
+      };
+      const second = await world.saveKitchen(kitchen.designId);
+
+      const atCurrent = await answerOf(second);
+      const third = await world.saveKitchen(kitchen.designId);
+      const staleAfterASave = await answerOf(kitchen.revision);
+      const newest = await answerOf(third);
+
+      expect([atCurrent, staleAfterASave, newest]).toEqual([
+        false,
+        true,
+        false,
+      ]);
+      expect(await world.seenRevisionOf(kitchen.designId)).toBe(third);
     });
 
     it("refuses a displayed revision ahead of the current one, writing no mark and no audit row", async () => {
@@ -276,7 +348,7 @@ function describeMarkSeen(
       await mark(saved);
       const stale = await mark(kitchen.revision);
 
-      expect(stale).toEqual({ kind: "ok" });
+      expect(stale).toEqual({ kind: "ok", changedAfterSeen: false });
       expect(await world.seenRevisionOf(kitchen.designId)).toBe(saved);
     });
 
@@ -333,7 +405,11 @@ function describeMarkSeen(
         await mark(saved),
       ];
 
-      expect(answers).toEqual([{ kind: "ok" }, { kind: "ok" }, { kind: "ok" }]);
+      expect(answers).toEqual([
+        { kind: "ok", changedAfterSeen: false },
+        { kind: "ok", changedAfterSeen: false },
+        { kind: "ok", changedAfterSeen: false },
+      ]);
       expect(await world.seenRevisionOf(kitchen.designId)).toBe(saved);
       expect(await world.auditEventsOf(staff.accountId)).toHaveLength(3);
     });
@@ -361,7 +437,8 @@ function describeMarkSeen(
             : [mark(kitchen.revision), mark(saved)],
         );
 
-        expect(answers).toEqual([{ kind: "ok" }, { kind: "ok" }]);
+        // Whether each answer says "changed" depends on which upsert the database ran last, so only the kind is pinned.
+        expect(answers.map((answer) => answer.kind)).toEqual(["ok", "ok"]);
         expect(await world.seenRevisionOf(kitchen.designId)).toBe(saved);
       },
     );
@@ -775,6 +852,158 @@ function describeDigestEligibility(
       expect(await eligibleAmong(world, [deleted, unsent])).toEqual([]);
     });
 
+    it("refuses an instant that is not a valid date, before any statement", async () => {
+      const world = await newWorld();
+
+      for (const now of [
+        new Date(Number.NaN),
+        new Date(8.64e15),
+        new Date("+010000-01-01T00:00:00.000Z"),
+        new Date("-000001-12-31T23:59:59.999Z"),
+      ]) {
+        await dashboardFailureOf(
+          world.store.listDigestEligible(now),
+          "invalid-request",
+        );
+      }
+    });
+
+    it("refuses a mark by a client's session as not recorded, and records one by an operator's", async () => {
+      const world = await newWorld();
+      const client = await world.aClientWithALiveSession();
+      const operator = await world.aStaffMemberWhoIsNotAnAdministrator();
+      const kitchen = await world.aKitchen({ sentAt: WHEN_SENT });
+      const mark = (staff: typeof client) =>
+        world.store.markSeen({
+          designId: kitchen.designId,
+          displayedRevision: kitchen.revision,
+          audit: auditRecordOf(staff, KITCHEN_SEEN),
+        });
+
+      await dashboardFailureOf(mark(client), "not-recorded");
+      expect(await world.seenRevisionOf(kitchen.designId)).toBeUndefined();
+      expect(await world.auditEventsOf(client.accountId)).toEqual([]);
+
+      expect((await mark(operator)).kind).toBe("ok");
+      expect(await world.seenRevisionOf(kitchen.designId)).toBe(
+        kitchen.revision,
+      );
+    });
+
+    it("ignores a seen row written above the kitchen's revision, which the store never writes: an unchanged kitchen stays unchanged", async () => {
+      const world = await newWorld();
+      const kitchen = await world.aKitchen({ sentAt: WHEN_SENT });
+      await world.plantSeenMark(
+        kitchen.designId,
+        await world.aRevisionAfter(kitchen.revision, 1),
+      );
+
+      expect(await eligibleAmong(world, [kitchen])).toEqual([]);
+    });
+
+    it("reads a seen row written at the kitchen's revision as a real mark: it hides the change until the next save", async () => {
+      const world = await newWorld();
+      const kitchen = await world.aKitchen({ sentAt: WHEN_SENT });
+      const second = await world.saveKitchen(kitchen.designId);
+      await world.plantSeenMark(kitchen.designId, second);
+      const listed = async () =>
+        (await eligibleAmong(world, [kitchen])).length === 1;
+
+      const whileCurrent = await listed();
+      await world.saveKitchen(kitchen.designId);
+      const afterTheNextSave = await listed();
+
+      expect([whileCurrent, afterTheNextSave]).toEqual([false, true]);
+    });
+
+    it("sent at revision 3, a first mark at revision 1 leaves it unchanged and out of the digest: the effective seen revision is the greater of the mark and the latest request's", async () => {
+      const world = await newWorld();
+      const staff = await world.aStaffMember();
+      const kitchen = await world.aKitchen({ sentAt: WHEN_SENT });
+      await world.saveKitchen(kitchen.designId);
+      const third = await world.saveKitchen(kitchen.designId);
+      await world.resendKitchen(kitchen.designId);
+
+      const answer = await world.store.markSeen({
+        designId: kitchen.designId,
+        displayedRevision: kitchen.revision,
+        audit: auditRecordOf(staff, KITCHEN_SEEN),
+      });
+
+      expect(answer).toEqual({ kind: "ok", changedAfterSeen: false });
+      expect(await world.seenRevisionOf(kitchen.designId)).toBe(
+        kitchen.revision,
+      );
+      expect(await eligibleAmong(world, [kitchen])).toEqual([]);
+      await world.saveKitchen(kitchen.designId);
+      expect(await eligibleAmong(world, [kitchen])).toHaveLength(1);
+      expect(third).not.toBe(kitchen.revision);
+    });
+
+    it("lists a changed kitchen once even when an entry is recorded for a revision it has not reached: that entry holds nothing", async () => {
+      const world = await newWorld();
+      const kitchen = await world.aKitchen({ sentAt: WHEN_SENT });
+      const current = await world.saveKitchen(kitchen.designId);
+      const dayKey = aDayNobodyClaimed();
+      await world.store.claimDigestDay(dayKey);
+
+      await world.store.recordDigested(dayKey, [
+        {
+          designId: kitchen.designId,
+          revision: await world.aRevisionAfter(current, 3),
+        },
+      ]);
+
+      expect(await eligibleAmong(world, [kitchen])).toHaveLength(1);
+    });
+
+    it("leaves out a kitchen with neither an account name nor a request reference, and still lists the others", async () => {
+      const world = await newWorld();
+      const staff = await world.aStaffMember();
+      const nameless = await world.aKitchen({
+        sentAt: WHEN_SENT,
+        hasNoRequest: true,
+      });
+      const named = await world.aKitchen({
+        sentAt: WHEN_SENT,
+        customerName: "Ana Rusu",
+      });
+      await world.store.markSeen({
+        designId: nameless.designId,
+        displayedRevision: nameless.revision,
+        audit: auditRecordOf(staff, KITCHEN_SEEN),
+      });
+      await world.saveKitchen(nameless.designId);
+      await world.saveKitchen(named.designId);
+
+      const rows = await eligibleAmong(world, [nameless, named]);
+
+      expect(rows.map((row) => row.designId)).toEqual([named.designId]);
+    });
+
+    it("holds a digested revision against a stale first mark below the revision the kitchen was sent at", async () => {
+      const world = await newWorld();
+      const staff = await world.aStaffMember();
+      const kitchen = await world.aKitchen({ sentAt: WHEN_SENT });
+      await world.saveKitchen(kitchen.designId);
+      await world.saveKitchen(kitchen.designId);
+      await world.resendKitchen(kitchen.designId);
+      const fourth = await world.saveKitchen(kitchen.designId);
+      const dayKey = aDayNobodyClaimed();
+      await world.store.claimDigestDay(dayKey);
+      await world.store.recordDigested(dayKey, [
+        { designId: kitchen.designId, revision: fourth },
+      ]);
+
+      await world.store.markSeen({
+        designId: kitchen.designId,
+        displayedRevision: kitchen.revision,
+        audit: auditRecordOf(staff, KITCHEN_SEEN),
+      });
+
+      expect(await eligibleAmong(world, [kitchen])).toEqual([]);
+    });
+
     it("does not touch the kitchen when its day is claimed: a send that fails leaves it eligible", async () => {
       const world = await newWorld();
       const kitchen = await world.aKitchen({ sentAt: WHEN_SENT });
@@ -784,6 +1013,152 @@ function describeDigestEligibility(
 
       expect(await eligibleAmong(world, [kitchen])).toHaveLength(1);
     });
+  });
+}
+
+type DigestedCell =
+  | "absent"
+  | "at-the-seen-revision"
+  | "above-the-seen-revision"
+  | "day-claimed-without-entries";
+
+const DIGESTED_CELLS: readonly DigestedCell[] = [
+  "absent",
+  "at-the-seen-revision",
+  "above-the-seen-revision",
+  "day-claimed-without-entries",
+];
+
+/** The stored status of a cell: none stored, then each status staff may set. */
+const STATUS_CELLS: readonly (string | undefined)[] = [
+  undefined,
+  ...REQUEST_STATUSES,
+];
+
+/** A clock change inside the window, then none: autumn 2026 for the first, spring 2026 for the second. */
+const WINDOW_CELLS = [
+  {
+    name: "the autumn clock change",
+    sentAt: new Date(NOW.getTime() - 30 * DAY_MS),
+  },
+  {
+    name: "the spring clock change",
+    sentAt: new Date("2026-03-20T12:00:00.000Z"),
+  },
+].flatMap(({ name, sentAt }) =>
+  [-1, 0, 1].map((offsetMs) => ({
+    name: `${name}, ${String(offsetMs)} ms from the edge`,
+    sentAt,
+    now: new Date(sentAt.getTime() + DIGEST_WINDOW_MS + offsetMs),
+  })),
+);
+
+/**
+ * S-d2: the membership of `listDigestEligible` equals the domain's `isDigestEligible` over a grid of cells (changed or
+ * not, a digest entry absent, at, or above the seen revision, or only a claimed day; each status and none; the window's
+ * edge across a clock change), and a client-deleted or never-sent kitchen is never listed. The two facts the domain
+ * takes from SQL are known by how each cell was built, not read back, and the window and the statuses are the domain's
+ * own constants, so a restated 720 hours or a restated pair of statuses cannot pass.
+ */
+function describeDigestAgreesWithTheDomain(
+  suiteName: string,
+  newWorld: () => Promise<ChangeWorld>,
+): void {
+  describe(`${suiteName}: listDigestEligible against the domain's isDigestEligible`, () => {
+    it("lists a kitchen exactly when the domain judges it eligible, in every cell of changed, digested and status", async () => {
+      const world = await newWorld();
+      const cells = [];
+      for (const isChanged of [false, true]) {
+        for (const digested of DIGESTED_CELLS) {
+          for (const status of STATUS_CELLS) {
+            const kitchen = await world.aKitchen({
+              sentAt: WHEN_SENT,
+              ...(status === undefined ? {} : { status }),
+            });
+            if (isChanged) await world.saveKitchen(kitchen.designId);
+            cells.push({ kitchen, isChanged, digested, status });
+          }
+        }
+      }
+      const dayKey = aDayNobodyClaimed();
+      await world.store.claimDigestDay(dayKey);
+      const entries = [];
+      for (const { kitchen, digested } of cells) {
+        if (digested === "at-the-seen-revision") {
+          entries.push({
+            designId: kitchen.designId,
+            revision: kitchen.revision,
+          });
+        }
+        if (digested === "above-the-seen-revision") {
+          entries.push({
+            designId: kitchen.designId,
+            revision: await world.aRevisionAfter(kitchen.revision, 1),
+          });
+        }
+      }
+      await world.store.recordDigested(dayKey, entries);
+
+      const listed = new Set(
+        (
+          await eligibleAmong(
+            world,
+            cells.map((cell) => cell.kitchen),
+          )
+        ).map((row) => row.designId),
+      );
+
+      for (const { kitchen, isChanged, digested, status } of cells) {
+        const expected = isDigestEligible({
+          nowMs: NOW.getTime(),
+          sentAtMs: WHEN_SENT.getTime(),
+          status: (status ?? "new") as RequestStatus,
+          isChangedSinceSeen: isChanged,
+          isDigestedSinceSeen: digested === "above-the-seen-revision",
+        });
+        expect(
+          listed.has(kitchen.designId),
+          `${isChanged ? "changed" : "unchanged"}, ${digested}, ${String(status)}`,
+        ).toBe(expected);
+      }
+      expect(listed.size).toBeGreaterThan(0);
+      expect(listed.size).toBeLessThan(cells.length);
+    }, 180_000);
+
+    it("lists a kitchen exactly when the domain judges it eligible at the window's edge, a millisecond before it, at it and after it, across a clock change", async () => {
+      const world = await newWorld();
+      const cells = [];
+      for (const cell of WINDOW_CELLS) {
+        const kitchen = await world.aKitchen({ sentAt: cell.sentAt });
+        await world.saveKitchen(kitchen.designId);
+        cells.push({ ...cell, kitchen });
+      }
+
+      for (const { name, sentAt, now, kitchen } of cells) {
+        const rows = await world.store.listDigestEligible(now);
+        const expected = isDigestEligible({
+          nowMs: now.getTime(),
+          sentAtMs: sentAt.getTime(),
+          status: "new",
+          isChangedSinceSeen: true,
+          isDigestedSinceSeen: false,
+        });
+        expect(
+          rows.some((row) => row.designId === kitchen.designId),
+          name,
+        ).toBe(expected);
+      }
+      const verdicts = cells.map(({ now, sentAt }) =>
+        isDigestEligible({
+          nowMs: now.getTime(),
+          sentAtMs: sentAt.getTime(),
+          status: "new",
+          isChangedSinceSeen: true,
+          isDigestedSinceSeen: false,
+        }),
+      );
+      expect(verdicts).toEqual([true, false, false, true, false, false]);
+    }, 180_000);
   });
 }
 
@@ -948,6 +1323,44 @@ function describeRecordDigested(
         ]),
       ).rejects.toThrow();
     });
+
+    it("refuses an empty list for a round that was never claimed: no entry is not an answer about a day nobody claimed", async () => {
+      const world = await newWorld();
+
+      await dashboardFailureOf(
+        world.store.recordDigested(aDayNobodyClaimed(), []),
+        "invalid-request",
+      );
+    });
+
+    it("refuses a round that is not a calendar day, and entries that are not a design's id and a revision's shape, recording none of the entries beside them", async () => {
+      const world = await newWorld();
+      const kitchen = await world.aKitchen({ sentAt: WHEN_SENT });
+      const current = await world.saveKitchen(kitchen.designId);
+      const dayKey = aDayNobodyClaimed();
+      await world.store.claimDigestDay(dayKey);
+      const wellFormed = { designId: kitchen.designId, revision: current };
+
+      await dashboardFailureOf(
+        world.store.recordDigested("2026-13-45", [wellFormed]),
+        "invalid-request",
+      );
+      for (const entry of [
+        { designId: "not a design id", revision: current },
+        { designId: kitchen.designId, revision: "0" },
+        { designId: kitchen.designId, revision: "01" },
+        { designId: kitchen.designId, revision: "1e3" },
+        { designId: kitchen.designId, revision: "9223372036854775808" },
+        { designId: kitchen.designId, revision: "" },
+      ]) {
+        await dashboardFailureOf(
+          world.store.recordDigested(dayKey, [wellFormed, entry]),
+          "invalid-request",
+        );
+      }
+
+      expect(await eligibleAmong(world, [kitchen])).toHaveLength(1);
+    });
   });
 }
 
@@ -978,14 +1391,22 @@ function rowOf(
   return row;
 }
 
-let nextClaimedDay = 0;
+const claimedDays = new Set<string>();
 
-/** A day key no other test, nor an earlier run against a shared database, has claimed. */
-function aDayNobodyClaimed(): string {
-  nextClaimedDay += 1;
-  const year = String(3000 + (Date.now() % 6000));
-  const date = new Date(Date.UTC(2001, 0, 1 + (nextClaimedDay % 360)));
-  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(date.getUTCDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+/**
+ * A day key no other test, nor an earlier run against a shared database, has claimed: a random year from 3000 to 8999, a
+ * random month and a day every month has, and never one this process has handed out. A real day is never claimed in
+ * those years, and the rounds the application cannot delete stay in the database between runs.
+ */
+export function aDayNobodyClaimed(): string {
+  for (;;) {
+    const year = 3000 + randomInt(6000);
+    const month = String(1 + randomInt(12)).padStart(2, "0");
+    const day = String(1 + randomInt(28)).padStart(2, "0");
+    const dayKey = `${String(year)}-${month}-${day}`;
+    if (!claimedDays.has(dayKey)) {
+      claimedDays.add(dayKey);
+      return dayKey;
+    }
+  }
 }

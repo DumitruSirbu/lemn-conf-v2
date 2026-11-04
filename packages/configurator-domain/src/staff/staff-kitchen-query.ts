@@ -29,6 +29,8 @@ export const STAFF_KITCHEN_PAGE_SIZE = 20;
 
 const FIRST_PAGE = 1;
 
+const ONLY_CHANGED_TEXT = "true";
+
 /** Digits only, no sign, no leading zero: the one way a page number is written. */
 const PAGE_NUMBER_TEXT = /^[1-9][0-9]*$/;
 
@@ -40,6 +42,12 @@ export interface StaffKitchenQuery {
   readonly search: string | null;
   /** From 1. */
   readonly page: number;
+  /**
+   * Only the sent kitchens that changed after staff last saw them (ADR 0178 A-12). Present only as `true`: a query that
+   * does not ask for it has no member, so a reader tests `onlyChanged === true`. Whether a kitchen "changed" is the
+   * store's judgement, made in SQL; this field carries the request and nothing else.
+   */
+  readonly onlyChanged?: boolean;
 }
 
 export type StaffKitchenQueryField =
@@ -47,6 +55,7 @@ export type StaffKitchenQueryField =
   | "status"
   | "q"
   | "page"
+  | "onlyChanged"
   | "query";
 
 export type StaffKitchenQueryRefusalCode =
@@ -81,8 +90,9 @@ export function readStaffKitchenQuery(raw: unknown): StaffKitchenQueryReading {
   const status = readStatusFilter(ownValueOf(raw, "status"));
   const search = readSearch(ownValueOf(raw, "q"));
   const page = readPage(ownValueOf(raw, "page"));
+  const onlyChanged = readOnlyChanged(ownValueOf(raw, "onlyChanged"));
   const issues = [
-    ...[segment, status, search, page].flatMap(issueOf),
+    ...[segment, status, search, page, onlyChanged].flatMap(issueOf),
     ...statusOutsideSentConflicts(segment, status),
   ];
   if (
@@ -90,6 +100,7 @@ export function readStaffKitchenQuery(raw: unknown): StaffKitchenQueryReading {
     !status.ok ||
     !search.ok ||
     !page.ok ||
+    !onlyChanged.ok ||
     issues.length > 0
   ) {
     return { ok: false, issues };
@@ -101,6 +112,7 @@ export function readStaffKitchenQuery(raw: unknown): StaffKitchenQueryReading {
       status: status.value,
       search: search.value,
       page: page.value,
+      ...(onlyChanged.value ? { onlyChanged: true } : {}),
     },
   };
 }
@@ -177,6 +189,15 @@ function readPage(value: unknown): FieldReading<number> {
   return isCountablePage(page)
     ? accepted(page)
     : refused("page", "NOT_A_PAGE_NUMBER");
+}
+
+/** The one way to ask for it is the text `true`; a query that does not ask omits the member. */
+function readOnlyChanged(value: unknown): FieldReading<boolean> {
+  if (isAbsent(value)) return accepted(false);
+  if (typeof value !== "string") return refused("onlyChanged", "NOT_TEXT");
+  return value === ONLY_CHANGED_TEXT
+    ? accepted(true)
+    : refused("onlyChanged", "UNKNOWN_VALUE");
 }
 
 function isAbsent(value: unknown): boolean {
