@@ -218,9 +218,8 @@ describe("the count is global, whatever the list is narrowed to", () => {
     );
     const body = await listedBody(cookie);
 
-    expect(await jsonOf(poll)).toEqual({
-      count: body.changedCount,
-    });
+    expect(body.changedCount).toBe(1);
+    expect(await jsonOf(poll)).toEqual({ count: 1 });
   });
 });
 
