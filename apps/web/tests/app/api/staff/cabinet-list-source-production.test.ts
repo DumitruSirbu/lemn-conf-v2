@@ -8,7 +8,6 @@ import {
   readCabinetDetail,
   readCabinetList,
 } from "@/price-dashboard/cabinet-list-source";
-import { PRICE_STORES_GLOBAL_KEY } from "@/lib/server/price-stores";
 import { CLIENT_NETWORK_SOURCE_VARIABLE } from "@/lib/server/rate-limit/network-source";
 
 import {
@@ -16,6 +15,7 @@ import {
   freshAccountWorld,
 } from "../../../support/account-world";
 import { freshStaffWorld, type StaffWorld } from "../../../support/staff-world";
+import { forgetHeldPriceStores } from "../../../support/held-price-stores";
 
 vi.mock("@/lib/server/account/session-store-instance", () =>
   import("../../../support/account-world").then((world) =>
@@ -36,14 +36,11 @@ beforeEach(() => {
   staffWorld = freshStaffWorld();
   console_ = captureConsole();
   vi.stubEnv(CLIENT_NETWORK_SOURCE_VARIABLE, "vercel");
-  // Production's stores are the database's, and with no connection to make they answer "unavailable"; naming none keeps
-  // this file off a database whatever the shell exports.
-  vi.stubEnv("DATABASE_URL", "");
-  (globalThis as Record<symbol, unknown>)[PRICE_STORES_GLOBAL_KEY] = undefined;
+  forgetHeldPriceStores();
 });
 
 afterEach(() => {
-  (globalThis as Record<symbol, unknown>)[PRICE_STORES_GLOBAL_KEY] = undefined;
+  forgetHeldPriceStores();
   vi.unstubAllEnvs();
   vi.restoreAllMocks();
 });

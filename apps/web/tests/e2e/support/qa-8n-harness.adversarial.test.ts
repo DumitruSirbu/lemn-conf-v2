@@ -21,7 +21,10 @@ import {
   requireNoMailVariable,
   withholdMailVariables,
 } from "./fake-mail-environment";
-import { inheritedEnvironmentOf } from "./production-policy-server";
+import {
+  DEPLOYMENT_ENVIRONMENT_VARIABLE,
+  inheritedEnvironmentOf,
+} from "./production-policy-server";
 
 const MARKER = "QA-8N-HARNESS-MARKER-5d81c0";
 const UNRELATED = "QA_8N_UNRELATED_VARIABLE";
@@ -270,6 +273,7 @@ describe("what the second, production-policy server inherits", () => {
   const OTHER_NOT_INHERITED = [
     DIGEST_SECRET_VARIABLE,
     CLIENT_NETWORK_SOURCE_VARIABLE,
+    DEPLOYMENT_ENVIRONMENT_VARIABLE,
     E2E_RATE_LIMIT_POLICY_FLAG,
     RUN_SECRET_VARIABLE,
   ];

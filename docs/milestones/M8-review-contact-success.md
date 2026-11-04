@@ -12516,6 +12516,7 @@ then the push and the pull request. *Visual reading:* every wave's criteria and 
 by name only.** [ADR 0155](../decisions/0155-the-mint-asks-a-keyed-per-day-per-network-limiter-first-and-refuses-what-it-cannot-judge-the-owner-names-the-network-source-and-a-destructive-mutant-never-touches-a-database.md),
 decision 12. **And Q35 (the two-tab race) is open: this gate cannot be ticked while the two-tab spec is red unless the owner accepts the residual.**)*
 *(Dated 2026-10-09: a mail line is added to the phase gate: `LEMNARIA_E2E_FAKE_MAIL` is defined on no deployment. [ADR 0154](../decisions/0154-mail-leaves-through-one-provider-neutral-port-and-one-resend-adapter-that-sends-once-and-answers-with-one-of-seven-kinds-and-the-shops-notice-is-the-stored-review-printed-never-priced-again.md), *What later waves inherit*.)*
+*(Dated 2026-11-04, wave W1: a price-book line is added beside the mail's: **`LEMNARIA_E2E_FAKE_PRICE_BOOK` is defined on no deployment, read by name only.** Where it is set to `1` a production build prices from the seeded sample, so a deployment that held it would show a sample price to a customer.)*
 
 ## Launch gate — `POST /api/designs` must not meet real traffic until this is checked off
 

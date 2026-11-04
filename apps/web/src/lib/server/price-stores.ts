@@ -23,13 +23,12 @@ export interface PriceStores {
   readonly availability: CatalogueAvailabilityStore;
 }
 
-/** What the price stores' choice reads of the environment, and nothing else. */
+/** What `selectPriceStores` reads of the environment, and nothing else. */
 export interface PriceStoreEnvironment {
   readonly NODE_ENV?: string | undefined;
   readonly [FAKE_PRICE_BOOK_FLAG]?: string | undefined;
   readonly VERCEL_ENV?: string | undefined;
   readonly [CLIENT_NETWORK_SOURCE_VARIABLE]?: string | undefined;
-  readonly DATABASE_URL?: string | undefined;
 }
 
 export type PriceStoreSelection = "seeded-fakes" | "production";
@@ -86,10 +85,8 @@ function isNamed(
  * route refuses (A-10), and each read writes its own line of the cause. A value the driver refuses is not that case: it
  * throws, to the request that met it, and is tried again by the next.
  */
-function productionPriceStores(
-  environment: PriceStoreEnvironment,
-): PriceStores {
-  if (!environment.DATABASE_URL) {
+function productionPriceStores(databaseUrl: string | undefined): PriceStores {
+  if (!databaseUrl) {
     return {
       priceBook: UNAVAILABLE_PRICE_BOOK_STORE,
       availability: UNAVAILABLE_CATALOGUE_AVAILABILITY_STORE,
@@ -138,7 +135,7 @@ async function makePriceStores(
   environment: PriceStoreEnvironment,
 ): Promise<PriceStores> {
   if (selectPriceStores(environment) === "production") {
-    return productionPriceStores(environment);
+    return productionPriceStores(process.env.DATABASE_URL);
   }
   const { seedFakePriceStores } = await import(
     "@/lib/server/price-book-test-seed"

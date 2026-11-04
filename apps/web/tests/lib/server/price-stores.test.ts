@@ -7,22 +7,16 @@ import {
   FAKE_PRICE_BOOK_FLAG,
   FAKE_PRICE_BOOK_FLAG_ENABLED,
 } from "@/lib/server/fake-price-book-flag";
-import {
-  getPriceStores,
-  PRICE_STORES_GLOBAL_KEY,
-  selectPriceStores,
-} from "@/lib/server/price-stores";
+import { getPriceStores, selectPriceStores } from "@/lib/server/price-stores";
 import { NO_PRICE_BOOK } from "@/price/price-book-root";
+
+import { forgetHeldPriceStores } from "../../support/held-price-stores";
 
 // Which stores the environment asks for: the seeded fakes for development, test and the flagged e2e server, and for
 // everything else the real stores, or where no connection can be made the stores that answer "unavailable" (A-10, RK-16).
 
-function forgetTheProcessStores(): void {
-  Reflect.deleteProperty(globalThis, PRICE_STORES_GLOBAL_KEY);
-}
-
 afterEach(() => {
-  forgetTheProcessStores();
+  forgetHeldPriceStores();
   vi.unstubAllEnvs();
 });
 
@@ -111,7 +105,7 @@ describe("the stores of this process", () => {
   it("are the unavailable ones in production with no connection to make, and answer 'unavailable' to every call", async () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("DATABASE_URL", "");
-    forgetTheProcessStores();
+    forgetHeldPriceStores();
 
     const { priceBook, availability } = await getPriceStores();
 

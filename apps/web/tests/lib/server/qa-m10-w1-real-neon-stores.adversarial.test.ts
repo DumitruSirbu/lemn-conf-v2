@@ -5,27 +5,24 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { readActivePriceBook } from "@/lib/server/active-price-book";
+import { getPriceStores } from "@/lib/server/price-stores";
+
 import {
-  getPriceStores,
-  PRICE_STORES_GLOBAL_KEY,
-} from "@/lib/server/price-stores";
+  AN_UNREACHABLE_DATABASE_URL,
+  forgetHeldPriceStores,
+} from "../../support/held-price-stores";
 
 // Adversarial QA with the persistence package's own Neon stores, never replaced: what making them costs, and what a
 // connection string the driver refuses does to a request. No request reaches a network.
 
-const DATABASE = "postgres://user:pass@w1-qa.database.invalid/db";
 const SECRET_WORD = "w1-qa-secret-7f3a";
 const SECRET_BEARING_REFUSAL = `${SECRET_WORD} is not a connection string`;
-
-function forgetTheProcessStores(): void {
-  Reflect.deleteProperty(globalThis, PRICE_STORES_GLOBAL_KEY);
-}
 
 let network: ReturnType<typeof vi.fn>;
 let written: ReturnType<typeof vi.spyOn>;
 
 beforeEach(() => {
-  forgetTheProcessStores();
+  forgetHeldPriceStores();
   network = vi.fn(() => Promise.reject(new Error("no network in this test")));
   vi.stubGlobal("fetch", network);
   vi.stubEnv("VERCEL_ENV", "production");
@@ -33,7 +30,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  forgetTheProcessStores();
+  forgetHeldPriceStores();
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
@@ -41,7 +38,7 @@ afterEach(() => {
 
 describe("production's stores made by the persistence package", () => {
   it("are its two Neon stores, made without a request to the network", async () => {
-    vi.stubEnv("DATABASE_URL", DATABASE);
+    vi.stubEnv("DATABASE_URL", AN_UNREACHABLE_DATABASE_URL);
 
     const { priceBook, availability } = await getPriceStores();
 
@@ -69,7 +66,7 @@ describe("production's stores made by the persistence package", () => {
 
       expect(refusal).toBeInstanceOf(Error);
       expect((refusal as Error).message).not.toContain(leak);
-      vi.stubEnv("DATABASE_URL", DATABASE);
+      vi.stubEnv("DATABASE_URL", AN_UNREACHABLE_DATABASE_URL);
       const mended = await getPriceStores();
       expect(mended.priceBook).toBeInstanceOf(NeonPriceBookStore);
       expect(await getPriceStores()).toBe(mended);

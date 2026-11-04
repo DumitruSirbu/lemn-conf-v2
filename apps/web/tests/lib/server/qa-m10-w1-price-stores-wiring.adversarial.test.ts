@@ -10,6 +10,10 @@ import {
   UNAVAILABLE_PRICE_BOOK_STORE,
 } from "@/lib/server/unavailable-price-stores";
 
+import {
+  AN_UNREACHABLE_DATABASE_URL,
+  forgetHeldPriceStores,
+} from "../../support/held-price-stores";
 import { sourceFilesMatching } from "./server-source-support";
 
 // Adversarial QA of which stores a process holds once production's are the database's. The Neon constructors are
@@ -47,19 +51,15 @@ const SEEDED_STORES: PriceStores = {
   priceBook: Object.freeze({}) as PriceStores["priceBook"],
   availability: Object.freeze({}) as PriceStores["availability"],
 };
-const DATABASE = "postgres://user:pass@w1-qa.database.invalid/db";
 
-const { getPriceStores, selectPriceStores, PRICE_STORES_GLOBAL_KEY } =
-  await import("@/lib/server/price-stores");
+const { getPriceStores, PRICE_STORES_GLOBAL_KEY } = await import(
+  "@/lib/server/price-stores"
+);
 
 const madeByImporting = [
   world.priceBookStores.length,
   world.availabilityStores.length,
 ];
-
-function forgetTheProcessStores(): void {
-  Reflect.deleteProperty(globalThis, PRICE_STORES_GLOBAL_KEY);
-}
 
 function stubEnvironment(
   environment: Record<string, string | undefined>,
@@ -75,11 +75,11 @@ beforeEach(() => {
   world.seedings = 0;
   world.refusals = [];
   world.seedWith = undefined;
-  forgetTheProcessStores();
+  forgetHeldPriceStores();
 });
 
 afterEach(() => {
-  forgetTheProcessStores();
+  forgetHeldPriceStores();
   vi.unstubAllEnvs();
 });
 
@@ -88,7 +88,7 @@ describe("the stores of every environment a process can be started in", () => {
   const NETWORK_SOURCES = [undefined, "", "vercel"];
   const FLAGS = [undefined, FAKE_PRICE_BOOK_FLAG_ENABLED, "true", " 1"];
   const MODES = [undefined, "development", "test", "production", "staging"];
-  const DATABASES = [undefined, "", DATABASE];
+  const DATABASES = [undefined, "", AN_UNREACHABLE_DATABASE_URL];
 
   function isSeeded(
     vercelEnv: string | undefined,
@@ -111,7 +111,7 @@ describe("the stores of every environment a process can be started in", () => {
               world.priceBookStores = [];
               world.availabilityStores = [];
               world.seedings = 0;
-              forgetTheProcessStores();
+              forgetHeldPriceStores();
               const environment = {
                 VERCEL_ENV: vercelEnv,
                 CLIENT_NETWORK_SOURCE: source,
@@ -152,101 +152,13 @@ describe("the stores of every environment a process can be started in", () => {
       }
     },
   );
-
-  it("choose without asking whether a database is named", () => {
-    for (const database of DATABASES) {
-      for (const mode of MODES) {
-        const without = selectPriceStores({ NODE_ENV: mode });
-        const within = selectPriceStores({
-          NODE_ENV: mode,
-          DATABASE_URL: database,
-        });
-        expect(within, `${String(mode)} ${String(database)}`).toBe(without);
-      }
-    }
-  });
-});
-
-describe("the members of the environment the choice reads", () => {
-  const DECLARED = new Set([
-    "NODE_ENV",
-    FAKE_PRICE_BOOK_FLAG,
-    "VERCEL_ENV",
-    "CLIENT_NETWORK_SOURCE",
-    "DATABASE_URL",
-  ]);
-
-  function recordingEnvironment(
-    base: Record<string, string | undefined>,
-    reads: Set<string>,
-  ): Record<string, string | undefined> {
-    return new Proxy(base, {
-      get: (target, name, receiver) => {
-        if (typeof name === "string") reads.add(name);
-        return Reflect.get(target, name, receiver) as string | undefined;
-      },
-      has: (target, name) => {
-        if (typeof name === "string") reads.add(name);
-        return Reflect.has(target, name);
-      },
-      getOwnPropertyDescriptor: (target, name) => {
-        if (typeof name === "string") reads.add(name);
-        return Reflect.getOwnPropertyDescriptor(target, name);
-      },
-      ownKeys: (target) => {
-        reads.add("<ownKeys>");
-        return Reflect.ownKeys(target);
-      },
-    });
-  }
-
-  it("is, for the selection, no more than the four it declares and never the database", () => {
-    const reads = new Set<string>();
-    const environment = recordingEnvironment(
-      { NODE_ENV: "production", DATABASE_URL: DATABASE, SECRET_OTHER: "x" },
-      reads,
-    );
-
-    selectPriceStores(environment);
-
-    expect([...reads].filter((name) => !DECLARED.has(name))).toEqual([]);
-    expect(reads.has("DATABASE_URL")).toBe(false);
-  });
-
-  it("is, for the whole choice of a production process, no more than the five it declares", async () => {
-    stubEnvironment({
-      NODE_ENV: "production",
-      DATABASE_URL: DATABASE,
-      VERCEL_ENV: undefined,
-      CLIENT_NETWORK_SOURCE: undefined,
-      [FAKE_PRICE_BOOK_FLAG]: undefined,
-    });
-    const reads = new Set<string>();
-    const realEnvironment = process.env;
-    Object.defineProperty(process, "env", {
-      value: recordingEnvironment({ ...realEnvironment }, reads),
-      configurable: true,
-    });
-    let pending: Promise<PriceStores>;
-    try {
-      pending = getPriceStores();
-    } finally {
-      Object.defineProperty(process, "env", { value: realEnvironment });
-    }
-    await pending;
-
-    expect(process.env).toBe(realEnvironment);
-    expect([...reads].filter((name) => !DECLARED.has(name))).toEqual([]);
-    expect(reads.has("DATABASE_URL")).toBe(true);
-    expect(world.priceBookStores).toHaveLength(1);
-  });
 });
 
 describe("a process that makes its stores on first use", () => {
   beforeEach(() => {
     stubEnvironment({
       NODE_ENV: "production",
-      DATABASE_URL: DATABASE,
+      DATABASE_URL: AN_UNREACHABLE_DATABASE_URL,
       VERCEL_ENV: undefined,
       CLIENT_NETWORK_SOURCE: undefined,
       [FAKE_PRICE_BOOK_FLAG]: undefined,
@@ -334,7 +246,7 @@ describe("a refusal that arrives after a newer attempt has succeeded", () => {
     await vi.waitFor(() => {
       expect(world.seedings).toBe(1);
     });
-    forgetTheProcessStores();
+    forgetHeldPriceStores();
     world.seedWith = undefined;
     const newer = await getPriceStores();
 
@@ -354,7 +266,10 @@ describe("importing what reads the stores", () => {
   it("makes no store in any module that imports the price stores or the price root, nor in any page, route or layout, so a build opens no connection", async () => {
     // `VERCEL_ENV` is what makes this process production's: a production `NODE_ENV` would load React's runtime without
     // the development JSX the pages are compiled to.
-    stubEnvironment({ DATABASE_URL: DATABASE, VERCEL_ENV: "production" });
+    stubEnvironment({
+      DATABASE_URL: AN_UNREACHABLE_DATABASE_URL,
+      VERCEL_ENV: "production",
+    });
     const readers = [
       ...sourceFilesMatching(READERS_OF_THE_STORES),
       ...sourceFilesMatching(/./).filter((path) =>

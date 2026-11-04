@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { designNotFoundResponse } from "@/lib/server/design-errors";
-import { PRICE_STORES_GLOBAL_KEY } from "@/lib/server/price-stores";
 import {
   FAKE_PRICE_BOOK_FLAG,
   FAKE_PRICE_BOOK_FLAG_ENABLED,
@@ -22,7 +21,8 @@ import {
   wireOf,
   type AccountWorld,
 } from "../../../support/account-world";
-import { holdNoActivePriceVersion } from "../../../support/held-price-stores";
+import { forgetHeldPriceStores } from "../../../support/held-price-stores";
+import { holdNoActivePriceVersion } from "../../../support/no-active-price-version";
 import {
   SENT_AT,
   freshStaffWorld,
@@ -528,13 +528,8 @@ describe("what the answer holds", () => {
   });
 });
 
-/** The price stores are the process's own, made once; an earlier test may have made the production ones. */
-function forgetThePriceStoresOfEarlierTests(): void {
-  Reflect.deleteProperty(globalThis, PRICE_STORES_GLOBAL_KEY);
-}
-
 describe("the kitchen's mark, revision and estimates", () => {
-  afterEach(forgetThePriceStoresOfEarlierTests);
+  afterEach(forgetHeldPriceStores);
 
   const STORED_TOTAL = { totalMinor: 1_234_500, currency: "MDL" } as const;
 
@@ -618,7 +613,7 @@ describe("the kitchen's mark, revision and estimates", () => {
 
   it("prices the current estimate with the active book, apart from the stored total", async () => {
     vi.stubEnv(FAKE_PRICE_BOOK_FLAG, FAKE_PRICE_BOOK_FLAG_ENABLED);
-    forgetThePriceStoresOfEarlierTests();
+    forgetHeldPriceStores();
     const { session } = await signedInOperator();
     const { id } = plantKitchen({ design: aDesign("current") });
     plantRequestSentAt(id, { pricedTotal: STORED_TOTAL });
