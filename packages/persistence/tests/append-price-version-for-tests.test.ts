@@ -51,8 +51,8 @@ describe("appendPriceVersionForTests", () => {
     expect(driver.statements).toHaveLength(1);
     const [statement] = driver.statements;
     expect(normalised(statement?.text ?? "")).toBe(
-      "insert into price_book_versions (id, sequence_number, label, note, book, change_summary, published_by_account_id) " +
-        "select ?::text, coalesce(max(sequence_number), 0) + 1, ?::text, ''::text, ?::jsonb, '[]'::jsonb, ?::text " +
+      "insert into price_book_versions ( id, sequence_number, label, note, book, change_summary, change_count, published_by_account_id ) " +
+        "select ?::text, coalesce(max(sequence_number), 0) + 1, ?::text, ''::text, ?::jsonb, '[]'::jsonb, 0, ?::text " +
         "from price_book_versions returning id, sequence_number::text as sequence_number",
     );
     expect(statement?.values).toEqual([

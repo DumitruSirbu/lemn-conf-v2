@@ -232,6 +232,7 @@ function statementInputOf(
     note: request.note,
     bookJson: publishable.bookJson,
     changeSummaryJson: publishable.changeSummaryJson,
+    changeCount: publishable.changeCount,
     createdItemKinds: publishable.createdItems.map(({ kind }) => kind),
     createdItemIds: publishable.createdItems.map(itemIdOf),
     detailJson: detailJsonWithout(audit, STAMPED_PUBLISH_KEYS),

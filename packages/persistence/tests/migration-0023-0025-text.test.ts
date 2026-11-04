@@ -197,7 +197,7 @@ describe("each is additive and re-runnable, so the pipeline may apply it unatten
 describe("0023 creates price_book_versions, append-only, with no state column", () => {
   const text = statementsOf(VERSIONS);
 
-  it("holds the nine columns of the plan, in order, and none for a state", () => {
+  it("holds the ten columns of the plan, in order, and none for a state", () => {
     columnsInOrder(text, [
       "id text primary key",
       "sequence_number bigint not null",
@@ -205,10 +205,18 @@ describe("0023 creates price_book_versions, append-only, with no state column", 
       "note text not null",
       "book jsonb not null",
       "change_summary jsonb not null",
+      "change_count integer not null",
       "published_at timestamptz not null default now()",
       "published_by_account_id text not null",
     ]);
     expect(text).not.toMatch(/\bstate\b|\bstatus\b|\bis_active\b|\bactive\b/);
+  });
+
+  it("stores the publisher's confirmed count with no default, so an insert that omits it fails not null", () => {
+    expect(text).toContain(
+      "constraint price_book_versions_change_count_is_a_count check (change_count >= 0)",
+    );
+    expect(text).not.toMatch(/change_count[^,]*\bdefault\b/);
   });
 
   it("makes the sequence number positive and unique, which is what a second racing publish meets", () => {
@@ -262,10 +270,10 @@ describe("0023 creates price_book_versions, append-only, with no state column", 
     expect(text).not.toMatch(/\breferences\b|\bcreate index\b/);
   });
 
-  it("prescribes select, and insert on the seven columns that leave out published_at, and nothing more", () => {
+  it("prescribes select, and insert on the eight columns that leave out published_at, and nothing more", () => {
     expect(grantsPrescribedBy(VERSIONS)).toEqual([
       "GRANT SELECT ON TABLE public.price_book_versions TO app_designs;",
-      "GRANT INSERT (id, sequence_number, label, note, book, change_summary, published_by_account_id) ON TABLE public.price_book_versions TO app_designs;",
+      "GRANT INSERT (id, sequence_number, label, note, book, change_summary, change_count, published_by_account_id) ON TABLE public.price_book_versions TO app_designs;",
     ]);
   });
 });

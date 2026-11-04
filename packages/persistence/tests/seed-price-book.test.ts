@@ -75,13 +75,13 @@ describe("the seed statement", () => {
     expect(driver.statements).toHaveLength(1);
     const text = normalised(driver.statements[0]?.text ?? "");
     expect(text).toContain(
-      "insert into price_book_versions (id, sequence_number, label, note, book, change_summary, published_by_account_id)",
+      "insert into price_book_versions ( id, sequence_number, label, note, book, change_summary, change_count, published_by_account_id )",
     );
     expect(text).toContain(
       "where not exists (select 1 from price_book_versions) and exists (select 1 from accounts where id = ?::text)",
     );
     expect(text).toContain(
-      "select ?::text, 1, ?::text, ?::text, ?::jsonb, '[]'::jsonb, ?::text",
+      "select ?::text, 1, ?::text, ?::text, ?::jsonb, '[]'::jsonb, 0, ?::text",
     );
   });
 

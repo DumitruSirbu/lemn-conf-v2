@@ -260,6 +260,27 @@ describe("reading the versions", () => {
     );
   });
 
+  it("takes each row's change count from the stored column and never loads the change summary", async () => {
+    answerQueryWith([
+      {
+        total: 1,
+        id: VERSION_ID,
+        sequence_number: "1",
+        label: "L",
+        published_ms: "1790000000000",
+        change_count: 0,
+        is_active: true,
+      },
+    ]);
+
+    await newStore().listVersions({ page: 1 });
+
+    const text = normalised(loneStatement());
+    expect(text).toContain("v.change_count,");
+    expect(text).not.toContain("change_summary");
+    expect(text).not.toContain("jsonb_array_length");
+  });
+
   it.each([0, -1, 1.5, Number.NaN, 100_001, Number.MAX_SAFE_INTEGER])(
     "refuses page %s before it sends anything",
     async (page) => {
@@ -673,7 +694,7 @@ describe("a publish", () => {
 
     const text = normalised(statement);
     expect(text).toContain(
-      "insert into price_book_versions (id, sequence_number, label, note, book, change_summary, published_by_account_id) select ?::text, ?::bigint + 1,",
+      "insert into price_book_versions ( id, sequence_number, label, note, book, change_summary, change_count, published_by_account_id ) select ?::text, ?::bigint + 1,",
     );
     expect(text).not.toContain("published_at");
     expect(text).toContain(
@@ -696,6 +717,7 @@ describe("a publish", () => {
       JSON.stringify(BOOK),
       VERSION_ID,
       JSON.stringify([DEPTH_CHANGE]),
+      1,
       AUDIT_ID,
       "price-published",
       JSON.stringify({ provisional: true }),
@@ -707,7 +729,7 @@ describe("a publish", () => {
     const { statement } = await publishAndCapture([PUBLISHED_ROW]);
 
     expect(normalised(statement)).toContain(
-      "?::jsonb || jsonb_build_object('version', ?::text), ?::jsonb, a.account_id",
+      "?::jsonb || jsonb_build_object('version', ?::text), ?::jsonb, ?::int, a.account_id",
     );
     expect(statement.values).toContain(JSON.stringify(BOOK));
   });

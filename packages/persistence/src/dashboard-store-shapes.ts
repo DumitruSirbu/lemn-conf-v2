@@ -1,5 +1,8 @@
-import { HandleSchema } from "@lemnaria/configurator-domain";
-import type { ItemRef } from "@lemnaria/configurator-domain";
+import {
+  HandleSchema,
+  countPendingPrices,
+} from "@lemnaria/configurator-domain";
+import type { DraftChange, ItemRef } from "@lemnaria/configurator-domain";
 
 import type { PublishPriceBookRequest } from "./m10-ports.js";
 
@@ -244,6 +247,7 @@ export interface StorablePublish {
   readonly expectedActiveSequence: number;
   readonly bookJson: string;
   readonly changeSummaryJson: string;
+  /** `countPendingPrices` over the summary: the one count the stored column and the audit pre-check both take. */
   readonly changeCount: number;
   readonly createdItems: readonly ItemRef[];
 }
@@ -279,7 +283,7 @@ export function storablePublishOf(
     expectedActiveSequence,
     bookJson,
     changeSummaryJson,
-    changeCount: (changeSummary as readonly unknown[]).length,
+    changeCount: countPendingPrices(changeSummary as readonly DraftChange[]),
     createdItems: Array.from<ItemRef>(createdItems),
   };
 }

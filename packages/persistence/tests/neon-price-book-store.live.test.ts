@@ -137,6 +137,11 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
       expect(await world.store.readVersion(appended.versionId)).toMatchObject({
         version: { state: "active", changeSummary: [] },
       });
+      const listed = await world.store.listVersions({ page: 1 });
+      expect(listed.versions[0]).toMatchObject({
+        versionId: appended.versionId,
+        changeCount: 0,
+      });
     });
 
     it("refuses to seed while any version exists, leaving the table byte-identical and writing no audit row", async () => {
@@ -173,8 +178,8 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
 
       const failure = await rejectionOf(
         staff.sql()`
-          insert into price_book_versions (id, sequence_number, label, note, book, change_summary, published_by_account_id)
-          values (${"d".repeat(21)}, ${sequenceNumber}, 'twin', '', '{}'::jsonb, '[]'::jsonb, ${member.accountId})
+          insert into price_book_versions (id, sequence_number, label, note, book, change_summary, change_count, published_by_account_id)
+          values (${"d".repeat(21)}, ${sequenceNumber}, 'twin', '', '{}'::jsonb, '[]'::jsonb, 0, ${member.accountId})
         `,
       );
 
