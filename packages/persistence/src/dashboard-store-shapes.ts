@@ -242,6 +242,11 @@ export function sequenceNumberOf(value: unknown): number | undefined {
   return Number(value);
 }
 
+/** `Array.from` reads a hole as `undefined`, which JSON would store as `null`. */
+function isArrayOfObjects(value: unknown): value is readonly object[] {
+  return Array.isArray(value) && Array.from<unknown>(value).every(isJsonObject);
+}
+
 /** What a publish request holds once every member is judged: the JSON as the statement takes it, and the items. */
 export interface StorablePublish {
   readonly expectedActiveSequence: number;
@@ -255,8 +260,8 @@ export interface StorablePublish {
 /**
  * The publish request judged as the Neon store judges it, and as the fake does so that both turn away the same request:
  * revisions of the digit shape, a whole non-negative sequence, a label and a note a table holds, a book that is an
- * object and a summary that is an array (each JSON a table takes), and items the log can keep. `undefined` when any
- * member is not.
+ * object and a summary that is an array of objects (each JSON a table takes), and items the log can keep. `undefined`
+ * when any member is not.
  */
 export function storablePublishOf(
   request: PublishPriceBookRequest,
@@ -270,7 +275,7 @@ export function storablePublishOf(
     isVersionLabel(request.label) &&
     isVersionNote(request.note) &&
     isJsonObject(book) &&
-    Array.isArray(changeSummary) &&
+    isArrayOfObjects(changeSummary) &&
     Array.isArray(createdItems) &&
     createdItems.every(isStorableItem);
   if (!isWellFormed) return undefined;

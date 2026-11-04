@@ -1055,7 +1055,8 @@ describe("wave S2 adversarial QA: what the statements' text and the stores' shap
         const failures = [
           () =>
             newStore().publish(aPublishRequest({ book: { text } as never })),
-          () => newStore().publish(aPublishRequest({ changeSummary: [text] })),
+          () =>
+            newStore().publish(aPublishRequest({ changeSummary: [{ text }] })),
           () =>
             newStore().writeDraft({
               expectedDraftRevision: "3",
@@ -1067,6 +1068,25 @@ describe("wave S2 adversarial QA: what the statements' text and the stores' shap
         for (const call of failures) {
           await failureOf(call, "invalid-request");
         }
+
+        expect(queryDriver.statements).toHaveLength(0);
+      },
+    );
+
+    it.each([
+      ["a number", 42],
+      ["a string", "x"],
+      ["an array", [DEPTH_CHANGE]],
+    ])(
+      "refuses a change summary entry that is %s before it sends anything",
+      async (_name, entry) => {
+        await failureOf(
+          () =>
+            newStore().publish(
+              aPublishRequest({ changeSummary: [DEPTH_CHANGE, entry] }),
+            ),
+          "invalid-request",
+        );
 
         expect(queryDriver.statements).toHaveLength(0);
       },
@@ -1086,7 +1106,7 @@ describe("wave S2 adversarial QA: what the statements' text and the stores' shap
   describe("the bound on a stored document, counted in bytes of compact text", () => {
     const BOUND = 2_097_152;
     const BOOK_WRAPPER_BYTES = '{"text":""}'.length;
-    const ARRAY_WRAPPER_BYTES = '[""]'.length;
+    const ARRAY_WRAPPER_BYTES = '[{"text":""}]'.length;
 
     it("sends a book of exactly the bound and refuses one byte more", async () => {
       answerQueryWith([PUBLISHED_ROW]);
@@ -1108,7 +1128,7 @@ describe("wave S2 adversarial QA: what the statements' text and the stores' shap
 
     it("sends a change summary and draft changes of exactly the bound and refuses one byte more", async () => {
       const entry = (bytes: number) => [
-        "x".repeat(bytes - ARRAY_WRAPPER_BYTES),
+        { text: "x".repeat(bytes - ARRAY_WRAPPER_BYTES) },
       ];
       const draft = (changes: readonly unknown[]) =>
         newStore().writeDraft({

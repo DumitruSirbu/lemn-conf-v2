@@ -1,4 +1,8 @@
-import { isSameItem, type ItemRef } from "../pricing/catalogue-availability.js";
+import {
+  isSameItem,
+  type ItemKind,
+  type ItemRef,
+} from "../pricing/catalogue-availability.js";
 
 import type { BookFieldAddress, DraftChange } from "./book-field-address.js";
 
@@ -42,12 +46,32 @@ export function changedRowOf(
     : rows.find((row) => isSameItem(row, named));
 }
 
-/** A stored change is JSON: one whose address is not an object belongs to no row and counts as a price of its own. */
+/**
+ * A stored change is JSON, so anything can be in it. An entry that names no address, or a row that is no item, belongs
+ * to no row and counts as a price of its own: the count never throws and never exceeds the number of entries.
+ */
 function addressOf(change: DraftChange): BookFieldAddress | undefined {
+  if (!isObject(change)) return undefined;
   const address: unknown = (change as { readonly address?: unknown }).address;
-  return typeof address === "object" && address !== null
-    ? (address as BookFieldAddress)
+  return isObject(address) ? (address as BookFieldAddress) : undefined;
+}
+
+const ITEM_KINDS: ReadonlySet<unknown> = new Set<ItemKind>([
+  "material",
+  "hardware",
+  "finish",
+  "handle",
+  "accessory",
+]);
+
+function itemOf(candidate: unknown): ItemRef | undefined {
+  return isObject(candidate) && ITEM_KINDS.has(candidate["kind"])
+    ? (candidate as unknown as ItemRef)
     : undefined;
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function createdOrDeletedRow(
@@ -59,7 +83,7 @@ function createdOrDeletedRow(
     case "accessory-created":
       return { kind: "accessory", accessoryId: address.accessoryId };
     case "item-deleted":
-      return address.item;
+      return itemOf(address.item);
     default:
       return undefined;
   }
@@ -76,7 +100,7 @@ function rowNamedBy(
     case "accessory":
       return { kind: "accessory", accessoryId: address.accessoryId };
     case "created-row-text":
-      return address.item;
+      return itemOf(address.item);
     default:
       return createdOrDeletedRow(address);
   }
