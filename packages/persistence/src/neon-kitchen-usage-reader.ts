@@ -37,8 +37,10 @@ export const USAGE_DESIGN_PAGE_SIZE = 100;
  * A tier is counted from the stored document's `settings`, and a linked accessory from the build ids it was given that
  * the document places: both paths migration never rewrites. Everything else (a colour, a handle, a built-in accessory) is
  * counted by running the caller's predicate, which is the domain's `usesItem`, over each stored design after
- * `migrateDesign`, in one walk shared by every such probe of the call. A design the product cannot read is not skipped:
- * the walk fails, because skipping it would count it as not using the item.
+ * `migrateDesign`, in one walk shared by every such probe of the call. A design the product cannot read is left out of
+ * that walk: nobody can open it, and no deletion is judged by such a count (a colour, a handle and a built-in accessory
+ * are never deleted), which only warns before an item is switched off. The two SQL counts, which a deletion is judged by,
+ * read the stored document as written and so never leave a design out.
  */
 export class NeonKitchenUsageReader implements KitchenUsageReader {
   private readonly sql: ApplicationSql;
@@ -96,7 +98,10 @@ export class NeonKitchenUsageReader implements KitchenUsageReader {
     let afterId = "";
     for (;;) {
       const page = await this.readDesignPage(afterId);
-      for (const row of page) tallyUse(counts, migratedDesignOf(row));
+      for (const row of page) {
+        const design = readableDesignOf(row);
+        if (design !== undefined) tallyUse(counts, design);
+      }
       if (page.length < USAGE_DESIGN_PAGE_SIZE) return counts;
       afterId = lastIdOf(page);
     }
@@ -146,23 +151,23 @@ function tallyUse(
   }
 }
 
-/** The caller's predicate may throw (a body the catalogue does not hold): that is a failure to count, with no cause. */
+/** A predicate that throws for a design (a body the catalogue does not hold) finds the design not using the item. */
 function isUsedBy(probe: MigratedDesignProbe, design: Design): boolean {
   try {
     return probe.isUsedBy(design);
   } catch {
-    throw unexpectedAnswer(COUNT_USAGE);
+    return false;
   }
 }
 
 /** The failure is dropped whole: a refusal of a document can quote its text. */
-function migratedDesignOf(row: Row): Design {
+function readableDesignOf(row: Row): Design | undefined {
   const schemaVersion = row["schema_version"];
-  if (typeof schemaVersion !== "number") throw unexpectedAnswer(COUNT_USAGE);
+  if (typeof schemaVersion !== "number") return undefined;
   try {
     return migrateDesign(schemaVersion, row["document"]);
   } catch {
-    throw unexpectedAnswer(COUNT_USAGE);
+    return undefined;
   }
 }
 

@@ -365,9 +365,9 @@ export type ItemUsageProbe =
  * per probe, in the probes' order, which is what `usageCountOf` requires of the counts it is given.
  *
  * Every probe names a different item (`invalid-request` otherwise). A design its client deleted is never counted, and a
- * design counts once however many of its levels use the item. A stored design that cannot be read as the product reads it
- * makes a `migrated-design` probe fail (`unexpected-answer`) rather than read as not using the item: a count that is too
- * low would let a used item be deleted.
+ * design counts once however many of its levels use the item. A `migrated-design` probe leaves out a stored design that
+ * cannot be read as the product reads it, which nobody can open and which no deletion is judged by; a `settings-tier` or
+ * `placed-bodies` probe reads the stored document as written and leaves none out.
  */
 export interface KitchenUsageReader {
   countEach(probes: readonly ItemUsageProbe[]): Promise<ItemUsageCounts>;

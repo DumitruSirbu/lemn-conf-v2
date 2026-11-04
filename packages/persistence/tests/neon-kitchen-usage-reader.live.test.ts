@@ -43,8 +43,7 @@ const PLANTED_MARK = "2001-01-01T00:00:00.000Z";
  * written as stored rows, against `usesItem` over the migrated designs. This is the half of the parity the offline test
  * (`neon-kitchen-usage-reader.parity.test.ts`) cannot run: the statements themselves, the exclusion of a design its client
  * deleted, and the keyset walk over real ids. Every reading is a difference from one taken before the rows were planted,
- * so designs the database already holds do not matter, except that **the walk fails on any design in the database the
- * product cannot read** (it never counts one as not using an item), so the walk arms need a database of readable designs.
+ * so designs the database already holds do not matter, and the walk leaves out any it cannot read.
  *
  * Every planted design names an id this file minted at random, and `afterAll` deletes by those ids alone (ADR 0151).
  */

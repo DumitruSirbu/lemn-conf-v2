@@ -8,14 +8,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { usageProbesFor } from "../src/item-usage-probes.js";
 import type { ItemUsageProbe } from "../src/m10-ports.js";
-import { DashboardStoreError } from "../src/m10-ports.js";
 import { NeonKitchenUsageReader } from "../src/neon-kitchen-usage-reader.js";
 import { WELL_FORMED_UNREACHABLE_VALUE } from "./support/leaked-connection-markers.js";
 import {
   answerQueryWith,
   resetQueryDriver,
 } from "./support/mocked-neon-query-driver.js";
-import { rejectionOf } from "./support/rejection-of.js";
 import {
   BUILD_IDS_OF_THE_EQUIVALENT_ROW,
   LINKED_THROUGH_EQUIVALENT,
@@ -33,7 +31,7 @@ vi.mock("@neondatabase/serverless", async (importOriginal) =>
 );
 
 /**
- * The usage reader against M3's `usesItem`, over the fixture designs every parity check shares (current and older stored
+ * The usage reader against the domain's `usesItem`, over the fixture designs every parity check shares (current and older stored
  * versions, a colour on a cabinet alone, a cabinet that cannot wear its colour, a tier the book no longer holds, a seeded
  * body earning a linked accessory through its equivalent, a deleted design).
  *
@@ -241,7 +239,11 @@ describe("the stored-document model of the placed-bodies statement", () => {
 describe("a stored design the product cannot read", () => {
   const COLOUR: ItemRef = { kind: "finish", finishId: "veneer.nuc" };
 
-  it("fails the walk and leaks nothing of the document, rather than count the design as not using the item", async () => {
+  function everyDesignProbe(): ItemUsageProbe {
+    return { via: "migrated-design", item: COLOUR, isUsedBy: () => true };
+  }
+
+  it("is left out of the walk, which still counts every readable design, and nothing of its document is read out", async () => {
     answerQueryWith([
       ...ROWS,
       {
@@ -251,31 +253,25 @@ describe("a stored design the product cannot read", () => {
       },
     ]);
 
-    const rejection = await rejectionOf(
-      newReader().countEach(usageProbesFor([COLOUR], USAGE_BASIS)),
-    );
+    const counts = await newReader().countEach([everyDesignProbe()]);
 
-    expect(rejection).toBeInstanceOf(DashboardStoreError);
-    expect((rejection as DashboardStoreError).failure).toBe(
-      "unexpected-answer",
-    );
-    expect(JSON.stringify(rejection)).not.toContain("DOCUMENT-TEXT-SECRET");
-    expect((rejection as DashboardStoreError).cause).toBeUndefined();
+    expect(counts).toEqual([{ item: COLOUR, designCount: ROWS.length }]);
+    expect(JSON.stringify(counts)).not.toContain("DOCUMENT-TEXT-SECRET");
   });
 
-  it("fails the walk for a stored version this build never wrote", async () => {
-    answerQueryWith([{ ...ROWS[0], schema_version: 99 }]);
+  it("is left out when its stored version is one this build never wrote, or is not a number", async () => {
+    answerQueryWith([
+      { ...ROWS[0], schema_version: 99 },
+      { ...ROWS[0], schema_version: "5" },
+      ...ROWS,
+    ]);
 
-    const rejection = await rejectionOf(
-      newReader().countEach(usageProbesFor([COLOUR], USAGE_BASIS)),
-    );
+    const counts = await newReader().countEach([everyDesignProbe()]);
 
-    expect((rejection as DashboardStoreError).failure).toBe(
-      "unexpected-answer",
-    );
+    expect(counts).toEqual([{ item: COLOUR, designCount: ROWS.length }]);
   });
 
-  it("fails the walk when the predicate throws, as usesItem does for a body the catalogue lacks", async () => {
+  it("is a design not using the item when the predicate throws for it, without the throw leaving the reader", async () => {
     answerQueryWith(ROWS);
     const probe: ItemUsageProbe = {
       via: "migrated-design",
@@ -285,11 +281,8 @@ describe("a stored design the product cannot read", () => {
       },
     };
 
-    const rejection = await rejectionOf(newReader().countEach([probe]));
+    const counts = await newReader().countEach([probe]);
 
-    expect((rejection as DashboardStoreError).failure).toBe(
-      "unexpected-answer",
-    );
-    expect(JSON.stringify(rejection)).not.toContain("DOCUMENT-TEXT-SECRET");
+    expect(counts).toEqual([{ item: COLOUR, designCount: 0 }]);
   });
 });

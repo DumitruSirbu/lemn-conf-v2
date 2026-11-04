@@ -1,3 +1,4 @@
+import { Client } from "@neondatabase/serverless";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { runMigrations } from "../src/migrate.js";
@@ -18,7 +19,7 @@ import { createNeonUsageWorld } from "./support/neon-usage-world.js";
 import { holdExclusiveTestSchemaLock } from "./support/test-schema-lock.js";
 
 // Exclusive: a save moves the availability head and the one defaults row, which every other dashboard suite reads, and the
-// contract's publish arm appends a version that nothing can remove (the plan's S3).
+// contract's publish arm appends a version that nothing can remove.
 holdExclusiveTestSchemaLock();
 
 const SUITE_NAME = "NeonKitchenDefaultsStore (live test database)";
@@ -74,17 +75,38 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
       return rows[0];
     }
 
+    /** Runs a statement the table must refuse inside a transaction that is rolled back, so a check that were missing
+     *  would change no row of the one shared defaults row. */
+    async function refusalOf(statement: string): Promise<unknown> {
+      const client = new Client(liveTestDatabaseUrl);
+      await client.connect();
+      try {
+        await client.query("begin");
+        return await client.query(statement).then(
+          () => undefined,
+          (refusal: unknown) => refusal,
+        );
+      } finally {
+        await client.query("rollback").catch(() => undefined);
+        await client.end();
+      }
+    }
+
     it("holds exactly one row, and refuses a second", async () => {
       const rows =
         await staff.sql()`select count(*)::int as rows from kitchen_defaults`;
       expect(rows[0]?.["rows"]).toBe(1);
 
-      await expect(
-        staff.sql()`insert into kitchen_defaults (singleton, revision, defaults) values (false, 0, '{}')`,
-      ).rejects.toMatchObject({ code: "23514" });
-      await expect(
-        staff.sql()`insert into kitchen_defaults (singleton, revision, defaults) values (true, 0, '{}')`,
-      ).rejects.toMatchObject({ code: "23505" });
+      expect(
+        await refusalOf(
+          "insert into kitchen_defaults (singleton, revision, defaults) values (false, 0, '{}')",
+        ),
+      ).toMatchObject({ code: "23514" });
+      expect(
+        await refusalOf(
+          "insert into kitchen_defaults (singleton, revision, defaults) values (true, 0, '{}')",
+        ),
+      ).toMatchObject({ code: "23505" });
     });
 
     it("records the saver and the instant of the last save, from the session and the clock", async () => {
@@ -93,7 +115,7 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
       const head = (await world.availability.readCurrent()).revision;
       const saved = await world.store.read();
 
-      await world.store.save({
+      const result = await world.store.save({
         expectedRevision:
           saved.kind === "saved" ? saved.saved.revision : INITIAL_REVISION,
         expectedAvailabilityRevision: head,
@@ -108,6 +130,7 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
       });
 
       const row = await rowOf();
+      expect(result.kind).toBe("ok");
       expect(row?.["saved_by_account_id"]).toBe(member.accountId);
       expect(row?.["defaults"]).toEqual({ handle: "steel" });
     });
@@ -139,21 +162,25 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
     });
 
     it("refuses defaults that are not an object, or hold more than the table's ceiling", async () => {
-      await expect(
-        staff.sql()`update kitchen_defaults set defaults = '[]'::jsonb`,
-      ).rejects.toMatchObject({ code: "23514" });
-      await expect(
-        staff.sql()`update kitchen_defaults set defaults = jsonb_build_object('x', repeat('x', 65536))`,
-      ).rejects.toMatchObject({ code: "23514" });
+      expect(
+        await refusalOf("update kitchen_defaults set defaults = '[]'::jsonb"),
+      ).toMatchObject({ code: "23514" });
+      expect(
+        await refusalOf(
+          "update kitchen_defaults set defaults = jsonb_build_object('x', repeat('x', 65536))",
+        ),
+      ).toMatchObject({ code: "23514" });
     });
 
     it("refuses a saver that is not the shape of an account id, and a negative revision", async () => {
-      await expect(
-        staff.sql()`update kitchen_defaults set saved_by_account_id = 'short'`,
-      ).rejects.toMatchObject({ code: "23514" });
-      await expect(
-        staff.sql()`update kitchen_defaults set revision = -1`,
-      ).rejects.toMatchObject({ code: "23514" });
+      expect(
+        await refusalOf(
+          "update kitchen_defaults set saved_by_account_id = 'short'",
+        ),
+      ).toMatchObject({ code: "23514" });
+      expect(
+        await refusalOf("update kitchen_defaults set revision = -1"),
+      ).toMatchObject({ code: "23514" });
     });
   });
 });
