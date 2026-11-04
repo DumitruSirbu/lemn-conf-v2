@@ -254,8 +254,20 @@ describe("the row as a control", () => {
     expect(useConfiguratorStore.getState().hasBeenEdited).toBe(false);
   });
 
-  it("cannot be pressed in a browser that may not write, and says so as the chips do", () => {
-    openThePanelOn(kitchenWith({}), BASE_CABINET_ID, { canWrite: false });
+  it("cannot be pressed in a browser that may not write: a handle of its own stays when the row is pressed", () => {
+    const wearing = kitchenWith({});
+    openThePanelOn(
+      {
+        ...wearing,
+        placements: wearing.placements.map((placement) =>
+          placement.id === BASE_CABINET_ID
+            ? { ...placement, body: { ...placement.body, handle: "black" } }
+            : placement,
+        ),
+      },
+      BASE_CABINET_ID,
+      { canWrite: false },
+    );
     const row = elementAt(FOLLOW_ROW) as HTMLButtonElement;
     const chip = elementAt("handle-black") as HTMLButtonElement;
 
@@ -263,7 +275,8 @@ describe("the row as a control", () => {
     expect(chip.disabled).toBe(true);
     press(FOLLOW_ROW);
     expect(useConfiguratorStore.getState().lastRejection).toBeNull();
-    expect(ownHandleOf(BASE_CABINET_ID)).toBeUndefined();
+    expect(ownHandleOf(BASE_CABINET_ID)).toBe("black");
+    expect(row.getAttribute("aria-pressed")).toBe("false");
   });
 
   it("is disabled with the chips' reason, and the reason is readable without reaching the button", () => {

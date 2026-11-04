@@ -1,4 +1,4 @@
-// Adversarial QA for `clearHandle`. The wave's own file samples four cabinets; this one walks every cabinet of two
+// Adversarial QA for `clearHandle`. `clear-handle.test.ts` samples four cabinets; this one walks every cabinet of two
 // shipped kitchens against every kitchen handle setting, because the panel reads the module line from a frame in
 // metres and the price from the placement's whole millimetres, and a sample can miss the one cabinet where they part.
 import { describe, expect, it } from "vitest";
