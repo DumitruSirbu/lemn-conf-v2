@@ -10,6 +10,7 @@
 // design reads are real, and the listing's one item is built from the design the server actually stored.
 import {
   isDesignId,
+  isDesignRevisionShape,
   presetNameFactsOf,
   presetRoomOf,
   type Design,
@@ -40,7 +41,6 @@ const PRESET_IMAGE_PATH = `${PRESET_LIST_PATH}/${FAKE_PRESET_ID}/image`;
 const DESIGN_PATH = /^\/ro\/d\/([^/]+)$/;
 /** `waitForURL` matches the whole address, not its path. */
 const DESIGN_URL = /\/ro\/d\/[^/]+$/;
-const REVISION_SHAPE = /^[1-9][0-9]{0,18}$/;
 const SAVED_STATUS = 201;
 const OK_STATUS = 200;
 
@@ -261,7 +261,7 @@ async function answerSave(
   const designId = PRESET_POST_PATH.exec(new URL(request.url()).pathname)?.[1];
   const body = request.postDataJSON() as SavedBody;
   expect(designId).toBeDefined();
-  expect(body.revision).toMatch(REVISION_SHAPE);
+  expect(isDesignRevisionShape(body.revision)).toBe(true);
   expect(["image/webp", "image/png", "image/jpeg"]).toContain(body.imageType);
   expect(body.image.length).toBeGreaterThan(0);
   expect(body.image).not.toContain("data:");

@@ -381,7 +381,10 @@ describe("what the domain's validation accepts", () => {
   propertyTest.prop([requestTheDomainAccepts(targetPastTheColumn)])(
     "is refused by the domain as the revision, when the design's revision is past the column",
     (raw) => {
-      expect(validateRaw(raw).ok).toBe(false);
+      const validation = validateRaw(raw);
+      expect(validation.ok ? [] : validation.issues).toEqual([
+        { field: "design.revision", code: "MALFORMED" },
+      ]);
     },
   );
 });
