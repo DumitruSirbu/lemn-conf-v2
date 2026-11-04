@@ -61,6 +61,8 @@ export interface KitchensListedDetail {
   /** Rows on the page, 0 to the page size. */
   readonly rowCount: number;
   readonly hasSearch: boolean;
+  /** Optional: a row without it reads as not filtered. */
+  readonly onlyChanged?: boolean;
 }
 
 /** Rows the audit page shows at most. The persistence package keeps its own page size, which must equal this. */
@@ -108,6 +110,7 @@ const KITCHENS_LISTED_KEYS = Object.freeze([
   "page",
   "rowCount",
   "hasSearch",
+  "onlyChanged",
 ]);
 
 const AUDIT_VIEWED_KEYS = Object.freeze([
@@ -198,12 +201,15 @@ function readKitchensListedEntry(detail: unknown): StaffAuditEntryReading {
   const page = ownValueOf(detail, "page");
   const rowCount = ownValueOf(detail, "rowCount");
   const hasSearch = ownValueOf(detail, "hasSearch");
+  const isOnlyChangedNamed = Object.hasOwn(detail, "onlyChanged");
+  const onlyChanged = ownValueOf(detail, "onlyChanged");
   if (
     !isStaffKitchenSegment(segment) ||
     !(status === null || isRequestStatus(status)) ||
     !isPositiveSafeInteger(page) ||
     !isRowCountUpTo(rowCount, STAFF_KITCHEN_PAGE_SIZE) ||
-    typeof hasSearch !== "boolean"
+    typeof hasSearch !== "boolean" ||
+    !isBooleanWhereNamed(isOnlyChangedNamed, onlyChanged)
   ) {
     return refused("INVALID_DETAIL");
   }
@@ -211,9 +217,21 @@ function readKitchensListedEntry(detail: unknown): StaffAuditEntryReading {
     ok: true,
     entry: {
       action: "kitchens-listed",
-      detail: Object.freeze({ segment, status, page, rowCount, hasSearch }),
+      detail: Object.freeze({
+        segment,
+        status,
+        page,
+        rowCount,
+        hasSearch,
+        ...(typeof onlyChanged === "boolean" ? { onlyChanged } : {}),
+      }),
     },
   };
+}
+
+/** A member that may be left out but, once named, is a boolean: a named `undefined` is a wrong detail, not an absent one. */
+function isBooleanWhereNamed(isNamed: boolean, value: unknown): boolean {
+  return !isNamed || typeof value === "boolean";
 }
 
 function readAuditViewedEntry(detail: unknown): StaffAuditEntryReading {

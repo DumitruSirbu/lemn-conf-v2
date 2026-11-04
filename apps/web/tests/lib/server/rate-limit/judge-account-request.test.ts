@@ -35,6 +35,7 @@ import {
   STAFF_PRICE_DRAFT_BY_ACCOUNT_POLICY,
   STAFF_PRICES_READ_BY_ACCOUNT_POLICY,
   STAFF_STATUS_BY_ACCOUNT_POLICY,
+  STAFF_SEEN_BY_ACCOUNT_POLICY,
   STAFF_UNHIDE_BY_ACCOUNT_POLICY,
   type LimitPolicy,
 } from "@/lib/server/rate-limit/limit-policy";
@@ -290,6 +291,10 @@ describe("the subject stage: an address's or an account's own buckets", () => {
         [STAFF_UNHIDE_BY_ACCOUNT_POLICY],
       ],
       [
+        { purpose: "staff-seen", headers: HEADERS, accountId: ACCOUNT_ID },
+        [STAFF_SEEN_BY_ACCOUNT_POLICY],
+      ],
+      [
         {
           purpose: "staff-prices-read",
           headers: HEADERS,
@@ -510,6 +515,7 @@ describe("what a judgement writes down", () => {
     ["staff-note", "staff-note"],
     ["staff-status", "staff-status"],
     ["staff-unhide", "staff-unhide"],
+    ["staff-seen", "staff-seen"],
     ["staff-prices-read", "staff-prices"],
     ["staff-price-draft", "staff-price-draft"],
   ] as const)("names the flow of %s as %s", async (purpose, event) => {
@@ -530,6 +536,7 @@ describe("what a judgement writes down", () => {
         "staff-note": STAFF_NOTE_BY_ACCOUNT_POLICY,
         "staff-status": STAFF_STATUS_BY_ACCOUNT_POLICY,
         "staff-unhide": STAFF_UNHIDE_BY_ACCOUNT_POLICY,
+        "staff-seen": STAFF_SEEN_BY_ACCOUNT_POLICY,
         "staff-prices-read": STAFF_PRICES_READ_BY_ACCOUNT_POLICY,
         "staff-price-draft": STAFF_PRICE_DRAFT_BY_ACCOUNT_POLICY,
       }[purpose].name,

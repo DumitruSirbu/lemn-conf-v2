@@ -48,9 +48,13 @@ const CEDILLA_S = ROMANIAN_CEDILLA_LETTERS.charAt(0);
 const CEDILLA_T = ROMANIAN_CEDILLA_LETTERS.charAt(2);
 const COMMA_BELOW_S = ROMANIAN_COMMA_BELOW_LETTERS.charAt(0);
 const COMMA_BELOW_T = ROMANIAN_COMMA_BELOW_LETTERS.charAt(2);
-const OPERATIONS = ["listPage", "readOne"] as const;
+const OPERATIONS = ["listPage", "countChanged", "readOne"] as const;
 const NOTHING_FOUND = [{ total: 0, changed_count: 0, id: null }];
 const READABLE_ACCOUNT_COLUMNS = ["id", "email", "name", "phone"];
+
+function squashedEffectiveSeenRevision(): string {
+  return EFFECTIVE_SEEN_REVISION.replace(/\s+/g, " ").trim().toLowerCase();
+}
 
 function normalised(statement: SentQuery): string {
   return statement.text.replace(/\s+/g, " ").trim().toLowerCase();
@@ -611,18 +615,20 @@ describe("the statements for one kitchen", () => {
 });
 
 describe("every statement is a read", () => {
-  it("sends only selects, in no transaction, for both operations", async () => {
+  it("sends only selects, in no transaction, for every operation", async () => {
     resetQueryDriver();
     answerQueryWith(NOTHING_FOUND);
+    answerQueryWith([{ changed_count: 0 }]);
     answerQueryWith([aKitchenRow()]);
     answerQueryWith([]);
 
     await newReader().listPage(aQuery());
+    await newReader().countChanged();
     await newReader().readOne(DESIGN_ID);
 
     expect(queryDriver.transactions).toHaveLength(0);
     const statements = everySentQuery();
-    expect(statements).toHaveLength(3);
+    expect(statements).toHaveLength(4);
     for (const statement of statements) {
       const text = normalised(statement);
       expect(text).toMatch(/^(with .*)?select /);
@@ -821,8 +827,87 @@ describe("a failure of the database", () => {
   });
 });
 
+describe("the changed count a poll reads", () => {
+  async function sentByCount(rows: unknown = [{ changed_count: 3 }]) {
+    resetQueryDriver();
+    answerQueryWith(rows);
+    const count = await newReader().countChanged();
+    return { count, statement: loneStatement() };
+  }
+
+  it("is the count the statement answers, in one lone read", async () => {
+    const { count, statement } = await sentByCount([{ changed_count: 3 }]);
+
+    expect(count).toBe(3);
+    expect(normalised(statement)).toMatch(/^with latest_submission as/);
+    expect(normalised(statement)).toMatch(
+      /select count\(\*\)::int as changed_count from changed$/,
+    );
+  });
+
+  it("states the list's two CTEs word for word, so the badge and the counter cannot judge differently", async () => {
+    const counted = normalised((await sentByCount()).statement);
+    const listed = normalised(await sentByList(aQuery()));
+    const countedCtes = counted.slice(0, counted.indexOf(" select count(*)"));
+    const listedCtes = listed.slice(0, listed.indexOf(", matching as ("));
+
+    expect(countedCtes).toContain(squashedEffectiveSeenRevision());
+    expect(countedCtes).toBe(listedCtes);
+  });
+
+  it("names only columns of contact_submissions that the application role may select", async () => {
+    const text = normalised((await sentByCount()).statement);
+
+    const referenced = columnsReferencedThrough("cs", text);
+    expect(referenced.size).toBeGreaterThan(0);
+    for (const column of referenced) {
+      expect([
+        ...readableSubmissionColumns(),
+        ...COLUMNS_ADDED_BY_0026,
+      ]).toContain(column);
+    }
+  });
+
+  it("reads no account, no status row, no kitchen document and no page", async () => {
+    const text = normalised((await sentByCount()).statement);
+
+    for (const table of ["accounts", "design_request_states", "limit"]) {
+      expect(text, table).not.toContain(table);
+    }
+    expect(text).not.toContain("document");
+    expect(text).not.toMatch(/\b(insert|update|delete)\b/);
+  });
+
+  it.each([
+    ["no row", []],
+    ["a count that is not a whole number", [{ changed_count: 1.5 }]],
+    ["a negative count", [{ changed_count: -1 }]],
+    ["a count that is text", [{ changed_count: "3" }]],
+    ["two rows", [{ changed_count: 1 }, { changed_count: 1 }]],
+  ])("refuses %s as an unexpected answer", async (_label, rows) => {
+    resetQueryDriver();
+    answerQueryWith(rows);
+
+    const failure = await failureOf(() => newReader().countChanged());
+
+    expect(failure).toMatchObject({
+      operation: "count changed staff kitchens",
+      failure: "unexpected-answer",
+    });
+  });
+
+  it("answers a missing grant as unavailable, with no driver text", async () => {
+    failQueryWith(Object.assign(new Error("secret text"), { code: "42501" }));
+
+    const failure = await failureOf(() => newReader().countChanged());
+
+    expect(failure.failure).toBe("unavailable");
+    expect(failure.message).not.toContain("secret text");
+  });
+});
+
 describe("the operations the reader offers", () => {
-  it("are exactly the two the port names, and no method that writes", () => {
+  it("are exactly the three the port names, and no method that writes", () => {
     const methods = Object.getOwnPropertyNames(
       NeonStaffKitchenReader.prototype,
     ).filter((name) => name !== "constructor");

@@ -39,6 +39,7 @@ import type { StatementTag } from "../src/preset-statements.js";
 import type { PresetToRecord } from "../src/preset-repository.js";
 import { readDatabaseUrl } from "../src/read-database-url.js";
 import {
+  staffChangedCountStatement,
   staffKitchenListStatement,
   staffKitchenNotesStatement,
   staffKitchenStatement,
@@ -1351,6 +1352,7 @@ describe.skipIf(!hasLiveDatabase)("the application's database role", () => {
           page: 1,
           onlyChanged: true,
         }),
+        staffChangedCountStatement(recordedStatement),
         staffKitchenStatement(recordedStatement, "0".repeat(21)),
         staffKitchenNotesStatement(recordedStatement, "0".repeat(21)),
       ]) {

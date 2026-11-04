@@ -166,6 +166,10 @@ export class FakeStaffKitchenReader implements StaffKitchenReader {
     }
   }
 
+  countChanged(): Promise<number> {
+    return Promise.resolve(this.changedCountOfAllKitchens());
+  }
+
   readOne(designId: string): Promise<StaffKitchenReading> {
     const kitchen = this.kitchens.get(designId);
     if (
@@ -185,15 +189,19 @@ export class FakeStaffKitchenReader implements StaffKitchenReader {
     const offset = staffKitchenOffsetOf(query.page);
     return {
       total: matching.length,
-      changedCount: [...this.kitchens.values()].filter((kitchen) =>
-        this.isChangedAfterSeen(kitchen),
-      ).length,
+      changedCount: this.changedCountOfAllKitchens(),
       page: query.page,
       pageSize: STAFF_KITCHEN_PAGE_SIZE,
       kitchens: matching
         .slice(offset, offset + STAFF_KITCHEN_PAGE_SIZE)
         .map((kitchen) => this.listedOf(kitchen)),
     };
+  }
+
+  private changedCountOfAllKitchens(): number {
+    return [...this.kitchens.values()].filter((kitchen) =>
+      this.isChangedAfterSeen(kitchen),
+    ).length;
   }
 
   private isMatching(

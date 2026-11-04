@@ -278,21 +278,24 @@ describe("the effective seen revision is one text in the four statements that ju
     });
     answerQueryWith([]);
     await newStore().listDigestEligible(new Date("2026-11-10T08:00:00.000Z"));
-    const [list, kitchen, mark, digest] = queryDriver.statements.map((s) =>
-      squashed(s.text),
+    answerQueryWith([{ changed_count: 0 }]);
+    await reader.countChanged();
+    const [list, kitchen, mark, digest, count] = queryDriver.statements.map(
+      (s) => squashed(s.text),
     );
     if (
       list === undefined ||
       kitchen === undefined ||
       mark === undefined ||
-      digest === undefined
+      digest === undefined ||
+      count === undefined
     ) {
       throw new Error("a statement was not sent");
     }
-    return { list, kitchen, mark, digest };
+    return { list, kitchen, mark, digest, count };
   }
 
-  it("is the constant, word for word, in the list, the kitchen's statement, the seen mark and the digest", async () => {
+  it("is the constant, word for word, in the list, the kitchen's statement, the seen mark, the digest and the count", async () => {
     const statements = await everyStatementThatJudgesIt();
 
     for (const [which, text] of Object.entries(statements)) {
