@@ -282,3 +282,58 @@ describe("the count of any JSON a summary may hold", () => {
     );
   });
 });
+
+/**
+ * The rule as a person states it, written without the domain's lookups: a row the draft creates or deletes is one price
+ * together with every change that is about it; each other change is a price of its own.
+ */
+function referenceCountOf(summary: readonly DraftChange[]): number {
+  const rowOf = (change: DraftChange): string | undefined => {
+    const address = change.address as unknown as Record<string, unknown> & {
+      item?: { kind: string; tierId?: string; accessoryId?: string };
+    };
+    switch (address["kind"]) {
+      case "hardware-tier-created":
+      case "hardware":
+        return `hardware/${String(address["tierId"])}`;
+      case "material":
+        return `material/${String(address["tierId"])}`;
+      case "accessory-created":
+      case "accessory":
+        return `accessory/${String(address["accessoryId"])}`;
+      case "created-row-text":
+      case "item-deleted": {
+        const { item } = address as { item: Record<string, string> };
+        const id = item["tierId"] ?? item["accessoryId"];
+        return `${String(item["kind"])}/${String(id)}`;
+      }
+      default:
+        return undefined;
+    }
+  };
+  const changedRows = new Set(
+    summary
+      .filter(({ address }) =>
+        ["hardware-tier-created", "accessory-created", "item-deleted"].includes(
+          address.kind,
+        ),
+      )
+      .map(rowOf),
+  );
+  const aboutNoChangedRow = summary.filter((change) => {
+    const row = rowOf(change);
+    return row === undefined || !changedRows.has(row);
+  });
+  return aboutNoChangedRow.length + changedRows.size;
+}
+
+describe("the count of a valid summary", () => {
+  it("equals the rule stated plainly, for any summary of any address kind", () => {
+    fc.assert(
+      fc.property(changeSummaryArbitrary, (summary) => {
+        expect(countPendingPrices(summary)).toBe(referenceCountOf(summary));
+      }),
+      { numRuns: 2_000 },
+    );
+  });
+});

@@ -7,6 +7,13 @@ import type { DraftChange } from "@lemnaria/configurator-domain";
 import { DashboardStoreError } from "../src/m10-ports.js";
 import type { PublishPriceBookRequest } from "../src/m10-ports.js";
 import { NeonPriceBookStore } from "../src/neon-price-book-store.js";
+import {
+  listVersionsStatement,
+  readActiveVersionStatement,
+  readDraftStatement,
+  readVersionStatement,
+  seedPriceBookStatement,
+} from "../src/price-book-statements.js";
 import { changeSummaryArbitrary } from "./support/change-summary-arbitrary.js";
 import { WELL_FORMED_UNREACHABLE_VALUE } from "./support/leaked-connection-markers.js";
 import {
@@ -198,4 +205,49 @@ describe("an object entry whose row is no item (NeonPriceBookStore)", () => {
       }
     },
   );
+});
+
+describe("no statement of the price book derives a count from the stored summary", () => {
+  const textOf = (strings: TemplateStringsArray) => strings.join("?");
+
+  it("names jsonb_array_length in none of the seven statements", async () => {
+    const direct = [
+      readActiveVersionStatement(textOf),
+      readVersionStatement(textOf, "v"),
+      listVersionsStatement(textOf, { offset: 0, limit: 10 }),
+      readDraftStatement(textOf),
+      seedPriceBookStatement(textOf, {
+        versionId: "v",
+        label: "L",
+        note: "",
+        bookJson: "{}",
+        ownerAccountId: "o",
+      }),
+    ];
+    resetQueryDriver();
+    answerQueryWith([PUBLISHED_ROW]);
+    answerQueryWith([
+      { revision: "4", is_session_live: true, audited_rows: 1 },
+    ]);
+    const store = new NeonPriceBookStore(WELL_FORMED_UNREACHABLE_VALUE);
+    await store.publish(aPublishRequest([]));
+    await store.writeDraft({
+      expectedDraftRevision: "3",
+      changes: [],
+      audit: {
+        session: SESSION,
+        entry: {
+          action: "price-draft-changed",
+          detail: { changeKind: "depth-rule" },
+        },
+      },
+    });
+
+    const sent = queryDriver.statements.map(({ text }) => text);
+
+    expect(sent).toHaveLength(2);
+    for (const text of [...direct, ...sent]) {
+      expect(text).not.toContain("jsonb_array_length");
+    }
+  });
 });
