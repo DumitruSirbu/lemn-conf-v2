@@ -7,7 +7,10 @@
 import { act, createElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { DraftChange } from "@lemnaria/configurator-domain";
+import type {
+  DraftChange,
+  NewKitchenSettings,
+} from "@lemnaria/configurator-domain";
 
 import { AccessoryCreateScreen } from "@/price-dashboard/accessory-create";
 import { AccessoryEditScreen } from "@/price-dashboard/accessory-edit";
@@ -334,55 +337,71 @@ describe("a build with no server behind the accessory screens", () => {
 
   const fetchSpy = () => vi.spyOn(globalThis, "fetch");
 
-  it.each([
-    ["with the saved defaults read", {}],
-    ["with the saved defaults unreadable", undefined],
-  ])(
-    "offers a list no switch and no deletion that could be pressed, and counts nothing, %s",
-    async (_label, defaults) => {
-      vi.stubEnv("NODE_ENV", "production");
-      const page = productionPageOf({
-        linked: [PUBLISHED_RULE],
-        defaults,
-      });
-      const draftServer = inMemoryPriceDraftClient(page.state);
-      mountScreen(
-        createElement(AccessoryListScreen, {
-          locale: "ro",
-          context: FRAME(),
-          page,
-          client: draftServer.client,
+  async function mountProductionList(defaults: NewKitchenSettings | undefined) {
+    vi.stubEnv("NODE_ENV", "production");
+    const page = productionPageOf({ linked: [PUBLISHED_RULE], defaults });
+    const draftServer = inMemoryPriceDraftClient(page.state);
+    mountScreen(
+      createElement(AccessoryListScreen, {
+        locale: "ro",
+        context: FRAME(),
+        page,
+        client: draftServer.client,
+      }),
+    );
+    await flushPromises(5);
+    const container = extraScreen?.container;
+    if (container === undefined) throw new Error("nothing is mounted");
+    return { container, draftServer };
+  }
+
+  const EVERY_ENTRY = [
+    [SINK_COVER, COVER_NAME],
+    [DRYING_RACK, RACK_NAME],
+    [PUBLISHED, PUBLISHED_RULE.name],
+  ] as const;
+
+  it("offers a list no switch and no deletion that could be pressed: no dialog opens, nothing is counted or written", async () => {
+    const { container, draftServer } = await mountProductionList(undefined);
+    const fetched = fetchSpy();
+
+    for (const [accessoryId, name] of EVERY_ENTRY) {
+      await openMenuOf(container, accessoryId, name);
+      for (const words of [DEACTIVATE, DELETE]) {
+        await press(menuEntry(container, accessoryId, words));
+        expect(openDialog(), `${accessoryId}: ${words}`).toBeNull();
+      }
+    }
+
+    expect(draftServer.calls).toEqual([]);
+    expect(fetched).not.toHaveBeenCalled();
+    for (const held of USAGE) {
+      expect(container.textContent).not.toContain(
+        roCopy("priceDashboard.lifecycle.usedByAccessory", {
+          count: held.designCount,
         }),
       );
-      await flushPromises(5);
-      const container = extraScreen?.container;
-      if (container === undefined) throw new Error("nothing is mounted");
-      const fetched = fetchSpy();
+    }
+  });
 
-      for (const [accessoryId, name] of [
-        [SINK_COVER, COVER_NAME],
-        [DRYING_RACK, RACK_NAME],
-        [PUBLISHED, PUBLISHED_RULE.name],
-      ] as const) {
-        await openMenuOf(container, accessoryId, name);
-        for (const words of [DEACTIVATE, DELETE]) {
-          await press(menuEntry(container, accessoryId, words));
-          await leaveInertDialog();
-        }
-      }
+  // A production page is given no saved defaults (nothing yet reads them), so this state cannot arise there: it holds that
+  // a page that was given them still claims no count and writes nothing, when a linked accessory's deletion opens its dialog.
+  it("opens, with saved defaults read, a dialog for a linked accessory's deletion that says the kitchens could not be counted and whose confirmation is inert", async () => {
+    const { container, draftServer } = await mountProductionList({});
+    const fetched = fetchSpy();
 
-      expect(openDialog()).toBeNull();
-      expect(draftServer.calls).toEqual([]);
-      expect(fetched).not.toHaveBeenCalled();
-      for (const held of USAGE) {
-        expect(container.textContent).not.toContain(
-          roCopy("priceDashboard.lifecycle.usedByAccessory", {
-            count: held.designCount,
-          }),
-        );
+    for (const [accessoryId, name] of EVERY_ENTRY) {
+      await openMenuOf(container, accessoryId, name);
+      for (const words of [DEACTIVATE, DELETE]) {
+        await press(menuEntry(container, accessoryId, words));
+        await leaveInertDialog();
       }
-    },
-  );
+    }
+
+    expect(openDialog()).toBeNull();
+    expect(draftServer.calls).toEqual([]);
+    expect(fetched).not.toHaveBeenCalled();
+  });
 
   it("offers the cover and the built-ins no deletion in production either, with the reason that fits each", async () => {
     vi.stubEnv("NODE_ENV", "production");

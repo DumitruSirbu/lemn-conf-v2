@@ -18,7 +18,11 @@ import {
   readLeiInputOverHeld,
 } from "@/price-dashboard/price-field-input";
 
-import { bookWithLinked, LINKED_BUILD_ID } from "./accessory-harness";
+import {
+  bookWithLinked,
+  LINKED_BUILD_ID,
+  PUBLISHED_RULE,
+} from "./accessory-harness";
 
 const BANI_PER_LEU = 100;
 const LEI_PER_TEN = 10;
@@ -138,7 +142,7 @@ describe("the price of an accessory as typed", () => {
 describe("what the field reads against what the book takes", () => {
   const books: readonly [string, PriceBook][] = [
     ["the sample book", SAMPLE_PRICE_BOOK],
-    ["a book that holds a linked accessory", bookWithLinked([])],
+    ["a book that holds a linked accessory", bookWithLinked([PUBLISHED_RULE])],
   ];
 
   it.each(books)(

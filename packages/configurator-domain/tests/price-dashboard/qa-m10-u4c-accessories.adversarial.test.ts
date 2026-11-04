@@ -1,4 +1,4 @@
-// Adversarial QA of the accessory wave's domain edges: the sink cover is never switched off however the state is arranged,
+// Adversarial QA of the accessories' domain edges: the sink cover is never switched off however the state is arranged,
 // the cabinet types a select offers are exactly those a creation accepts (for any string, not only the book's own ids), and
 // taking a creation back out of the draft takes only that accessory's changes with it.
 import * as fc from "fast-check";
@@ -11,6 +11,7 @@ import {
 import type { DraftChange } from "../../src/price-dashboard/book-field-address.js";
 import { judgeAvailabilityChange } from "../../src/price-dashboard/item-lifecycle.js";
 import { PALETTE_ENTRY_IDS } from "../../src/materials.js";
+import { judgeCreatedRowText } from "../../src/price-dashboard/created-row-text.js";
 import { linkTargetBuildIdsOf } from "../../src/price-dashboard/link-target.js";
 import type { ItemRef } from "../../src/pricing/catalogue-availability.js";
 import { ALWAYS_PRESENT_ACCESSORY_ID } from "../../src/pricing/price-book.js";
@@ -138,11 +139,17 @@ describe("the sink cover is never switched off, whatever state the write is judg
 });
 
 describe("a built-in accessory has no way into the draft's deletions", () => {
-  it.each([COVER, RACK])(
-    "refuses a deletion of %j as a change of the draft",
-    (item) => {
+  it.each(["sinkProtectiveCover", "dishDryingRack"])(
+    "refuses a deletion of %s as a change of the draft",
+    (accessoryId) => {
       const applied = applyChanges(BOOK, [
-        { address: { kind: "item-deleted", item }, value: true },
+        {
+          address: {
+            kind: "item-deleted",
+            item: { kind: "accessory", accessoryId },
+          },
+          value: true,
+        },
       ]);
 
       expect(applied.ok).toBe(false);
@@ -280,5 +287,52 @@ describe("taking a creation back out of the draft", () => {
     expect(
       revertChange(changes, { kind: "accessory-created", accessoryId: "zzz" }),
     ).toEqual(changes);
+  });
+});
+
+describe("text a created accessory is named with, as a forged request could carry it", () => {
+  const LINE_BREAKS = ["\n", "\r", "\r\n", "\u2028", "\u2029", "\u0085"];
+  const OTHER_CONTROLS = ["\t", "\u0007", "\u0000", "\u007f"];
+
+  it.each(["name", "description"] as const)(
+    "refuses a line break or a control character inside a %s, whatever else the text says",
+    (field) => {
+      for (const character of [...LINE_BREAKS, ...OTHER_CONTROLS]) {
+        expect(
+          judgeCreatedRowText(`Suport${character}farfurii`, field),
+          JSON.stringify(character),
+        ).toEqual({ ok: false, code: "TEXT_FORBIDDEN_CHARACTER" });
+      }
+    },
+  );
+
+  it("refuses the same characters at the ends of the text, where trimming would otherwise hide them", () => {
+    for (const character of [...LINE_BREAKS, ...OTHER_CONTROLS]) {
+      expect(
+        judgeCreatedRowText(`${character}Suport`, "name"),
+        JSON.stringify(character),
+      ).toEqual({ ok: false, code: "TEXT_FORBIDDEN_CHARACTER" });
+      expect(
+        judgeCreatedRowText(`Suport${character}`, "name"),
+        JSON.stringify(character),
+      ).toEqual({ ok: false, code: "TEXT_FORBIDDEN_CHARACTER" });
+    }
+  });
+
+  it("is refused on creation as it is on judging, so no draft can carry it", () => {
+    for (const character of [...LINE_BREAKS, ...OTHER_CONTROLS]) {
+      const applied = applyChanges(BOOK, [
+        {
+          address: { kind: "accessory-created", accessoryId: "created-1" },
+          value: {
+            linkedBuildId: SUPPLIED,
+            perUnitMinor: 1_000,
+            name: `Suport${character}farfurii`,
+          },
+        },
+      ]);
+
+      expect(applied.ok, JSON.stringify(character)).toBe(false);
+    }
   });
 });

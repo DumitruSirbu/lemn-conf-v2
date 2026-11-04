@@ -99,6 +99,7 @@ describe("a name the form refuses", () => {
     ["only a zero-width space", ZERO_WIDTH_SPACE, EMPTY],
     ["a direction override", `Suport${BIDI_OVERRIDE}drow`, FORBIDDEN],
     ["a bell", "Suport\u0007", FORBIDDEN],
+    ["a tab", "Suport\tcu rand", FORBIDDEN],
     ["a lone surrogate half", `Suport${LONE_SURROGATE}`, FORBIDDEN],
     [
       "a letter not composed (s and a combining comma)",

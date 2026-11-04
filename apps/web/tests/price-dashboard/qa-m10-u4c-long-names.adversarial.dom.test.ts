@@ -5,7 +5,10 @@
 // widen a page past the screen. The DOM says where the name is drawn and the stylesheet says what that element may do.
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { MAX_BOOK_NAME_LENGTH } from "@lemnaria/configurator-domain";
+import {
+  MAX_BOOK_NAME_LENGTH,
+  type DraftChange,
+} from "@lemnaria/configurator-domain";
 
 import { resetStaffSessionExpiryForTests } from "@/staff/staff-session-expiry";
 
@@ -15,7 +18,6 @@ import { allIn } from "../support/render-with-intl";
 import {
   accessoryPageOf,
   CREATED,
-  CREATED_ACCESSORY,
   LINKED_BUILD_ID,
   mountAccessoryCreate,
   mountAccessoryEdit,
@@ -117,10 +119,16 @@ describe("a cabinet type no space can break", () => {
 });
 
 describe("an accessory named with the longest name the book takes", () => {
-  const longCreation = CREATED_ACCESSORY.map((change) => ({
-    ...change,
-    value: { ...(change.value as object), name: LONG_ACCESSORY_NAME },
-  })) as typeof CREATED_ACCESSORY;
+  const longCreation: readonly DraftChange[] = [
+    {
+      address: { kind: "accessory-created", accessoryId: CREATED },
+      value: {
+        linkedBuildId: LINKED_BUILD_ID,
+        perUnitMinor: 8_000,
+        name: LONG_ACCESSORY_NAME,
+      },
+    },
+  ];
 
   it("is drawn whole in the list, in a name that wraps anywhere", async () => {
     mounted = await mountAccessoryList(
