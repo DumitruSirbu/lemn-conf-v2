@@ -1185,12 +1185,12 @@ hooks; the coordinator applies `0020`–`0022` there, and no grant is needed the
 anywhere.** The grant text below is **as written in S2's migration headers at branch `m10/s2`; re-check it against the
 merged files** before applying. Apply order: `0023_create_price_book_versions`, `0024_create_price_book_draft`,
 `0025_create_catalogue_availability_changes` (which also creates `catalogue_availability_head`). The ledger reads 1–22
-before and 1–25 after. Do not apply until M10 is about to merge: applying puts the shared ledger ahead of every other
-checkout (`ledgerAheadOfCheckoutError`).
+before and 1–25 after. Every apply is asked of the owner first (M10 plan §6.3). Applying puts the shared ledger ahead
+of every other checkout (`ledgerAheadOfCheckoutError`).
 
 ```sql
 GRANT SELECT ON TABLE public.price_book_versions TO app_designs;
-GRANT INSERT (id, sequence_number, label, note, book, change_summary, published_by_account_id) ON TABLE public.price_book_versions TO app_designs;
+GRANT INSERT (id, sequence_number, label, note, book, change_summary, change_count, published_by_account_id) ON TABLE public.price_book_versions TO app_designs;
 GRANT SELECT ON TABLE public.price_book_draft TO app_designs;
 GRANT UPDATE (revision, changes, base_version_id, updated_at, updated_by_account_id) ON TABLE public.price_book_draft TO app_designs;
 GRANT SELECT ON TABLE public.catalogue_availability_head TO app_designs;
