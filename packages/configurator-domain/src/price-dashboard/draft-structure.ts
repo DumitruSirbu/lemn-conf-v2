@@ -37,6 +37,31 @@ export function deletedItemsOf(
 }
 
 /**
+ * The items the draft deletes that the book it started from holds, each once, in draft order: the deletions no creation of
+ * the same item precedes. A row the draft creates and then deletes was never in that book, so it has no user and is left
+ * out; these are the items a publish owes a usage guard for.
+ */
+export function deletedBookItemsOf(
+  changes: readonly DraftChange[],
+): readonly ItemRef[] {
+  const read = readChanges(changes);
+  const creations = creationsOf(read);
+  const deleted = deletionsOf(read)
+    .filter(
+      (deletion) =>
+        !creations.some(
+          ({ index, item }) =>
+            index < deletion.index && isSameItem(item, deletion.item),
+        ),
+    )
+    .map(({ item }) => item);
+  return deleted.filter(
+    (item, position) =>
+      deleted.findIndex((earlier) => isSameItem(earlier, item)) === position,
+  );
+}
+
+/**
  * The indexes of the accepted creations of a hardware class that no accepted change gives every rate `book`'s tiers
  * state, after the creation: the class would be priced at a rate nobody set. A class the draft deletes after its
  * creation owes nothing.
