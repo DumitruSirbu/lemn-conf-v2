@@ -217,7 +217,7 @@ describe("a publish landing between the route's reads and its write", () => {
   });
 });
 
-describe("a switch that changes nothing (the behaviour as built)", () => {
+describe("a switch that changes nothing", () => {
   function activationRowsFor(item: ItemRef, active: boolean) {
     return activationRows().filter(
       ({ detail }) =>
@@ -229,19 +229,20 @@ describe("a switch that changes nothing (the behaviour as built)", () => {
     );
   }
 
-  it("is a 200 that moves the head and writes a row when the item is already on", async () => {
+  it("is a 200 naming the head as it is, writing nothing and moving nothing, when the item is already on", async () => {
     const { cookie } = await administrator();
     const before = await availabilityHead();
 
     const answer = await switchItem(cookie, PAINTED, true);
 
     expect(answer.status).toBe(200);
-    expect(await availabilityHead()).not.toBe(before);
+    expect(await jsonOf(answer)).toEqual({ revision: before });
+    expect(await availabilityHead()).toBe(before);
     expect(await disabledNow()).toEqual([]);
-    expect(activationRowsFor(PAINTED, true)).toHaveLength(1);
+    expect(activationRowsFor(PAINTED, true)).toHaveLength(0);
   });
 
-  it("is a 200 that moves the head and writes a row when the item is already off", async () => {
+  it("is a 200 naming the head as it is, writing nothing and moving nothing, when the item is already off", async () => {
     const { cookie } = await administrator();
     await switchItem(cookie, PAINTED, false);
     const before = await availabilityHead();
@@ -249,12 +250,13 @@ describe("a switch that changes nothing (the behaviour as built)", () => {
     const answer = await switchItem(cookie, PAINTED, false);
 
     expect(answer.status).toBe(200);
-    expect(BigInt(await availabilityHead())).toBe(BigInt(before) + 1n);
+    expect(await jsonOf(answer)).toEqual({ revision: before });
+    expect(await availabilityHead()).toBe(before);
     expect(await disabledNow()).toEqual([PAINTED]);
-    expect(activationRowsFor(PAINTED, false)).toHaveLength(2);
+    expect(activationRowsFor(PAINTED, false)).toHaveLength(1);
   });
 
-  it("makes another administrator's pending switch changed-meanwhile though nothing on sale changed", async () => {
+  it("leaves another administrator's pending switch to go through, since nothing on sale changed", async () => {
     const first = await administrator("first@example.test");
     const second = await administrator("second@example.test");
     const pageRead = await availabilityHead();
@@ -262,12 +264,11 @@ describe("a switch that changes nothing (the behaviour as built)", () => {
     await switchItem(first.cookie, PAINTED, true);
     const answer = await switchItem(second.cookie, VENEER, false, pageRead);
 
-    expect(answer.status).toBe(409);
-    expect(await jsonOf(answer)).toEqual({ status: "changed-meanwhile" });
-    expect(await disabledNow()).toEqual([]);
+    expect(answer.status).toBe(200);
+    expect(await disabledNow()).toEqual([VENEER]);
   });
 
-  it("makes a publish prepared before it availability-changed-meanwhile", async () => {
+  it("leaves a publish prepared before it to go through, since the head did not move", async () => {
     const admin = await administrator();
     const active = await prices.stores.priceBook.readActive();
     if (active.kind !== "found") throw new Error("no active version");
@@ -293,10 +294,10 @@ describe("a switch that changes nothing (the behaviour as built)", () => {
       },
     });
 
-    expect(publish.kind).toBe("availability-changed-meanwhile");
+    expect(publish.kind).toBe("ok");
   });
 
-  it("writes one audit row per request, so a run of them up to the hourly bucket grows the log by that many", async () => {
+  it("writes no audit row for a run of them, so the log does not grow however many are made", async () => {
     const { cookie } = await administrator();
     const rowsBefore = allRows().length;
 
@@ -304,7 +305,7 @@ describe("a switch that changes nothing (the behaviour as built)", () => {
       await switchItem(cookie, PAINTED, true);
     }
 
-    expect(allRows().length - rowsBefore).toBe(25);
+    expect(allRows().length - rowsBefore).toBe(0);
     expect(await disabledNow()).toEqual([]);
   });
 });

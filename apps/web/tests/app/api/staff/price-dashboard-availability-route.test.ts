@@ -401,6 +401,51 @@ describe("the route's answer is the domain's verdict", () => {
   );
 });
 
+describe("a switch that changes nothing", () => {
+  it("is 200 with the current head, writes nothing and moves nothing, whatever revision it names", async () => {
+    const { cookie } = await administrator();
+    const stale = await head();
+    await switchItem(cookie, SOFT_CLOSE, false);
+    const current = await head();
+    const rowsBefore = activationRows().length;
+    const write = vi.spyOn(prices.stores.availability, "setActive");
+
+    const alreadyOn = await switchItem(cookie, PAINTED, true, stale);
+    const alreadyOff = await switchItem(cookie, SOFT_CLOSE, false, stale);
+
+    expect(alreadyOn.status).toBe(200);
+    expect(alreadyOff.status).toBe(200);
+    expect(await jsonOf(alreadyOn)).toEqual({ revision: current });
+    expect(await jsonOf(alreadyOff)).toEqual({ revision: current });
+    expect(write).not.toHaveBeenCalled();
+    expect(await head()).toBe(current);
+    expect(await disabledNow()).toEqual([SOFT_CLOSE]);
+    expect(activationRows()).toHaveLength(rowsBefore);
+  });
+
+  it("spends a bucket token, like any request that is admitted and valid", async () => {
+    const { cookie } = await administrator();
+    limiterLedger.counted.length = 0;
+
+    await switchItem(cookie, PAINTED, true);
+
+    expect(
+      limiterLedger.counted.filter((name) => name === THE_BUCKET),
+    ).toHaveLength(1);
+  });
+
+  it("is not taken for one when the book does not state the item: a stale revision is then changed-meanwhile", async () => {
+    const { cookie } = await administrator();
+    const stale = await head();
+    await switchItem(cookie, PAINTED, false);
+
+    const answer = await switchItem(cookie, NOT_IN_THE_BOOK, true, stale);
+
+    expect(answer.status).toBe(409);
+    expect(await jsonOf(answer)).toEqual({ status: "changed-meanwhile" });
+  });
+});
+
 describe("a switch against a head that moved", () => {
   it("is 409 changed-meanwhile, writes nothing, and reads no defaults: the head is read first", async () => {
     const { cookie } = await administrator();

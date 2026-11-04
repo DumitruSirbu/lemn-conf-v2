@@ -5,9 +5,12 @@ import { NextResponse } from "next/server";
 import {
   CATALOGUE_ACTIVATION_AUDIT_ACTION,
   HandleSchema,
+  isItemDisabled,
+  isItemStated,
   judgeAvailabilityChange,
   readStoredNewKitchenSettings,
   type AvailabilityRefusalCode,
+  type CatalogueAvailability,
   type CatalogueActivationAuditInput,
   type ItemRef,
   type NewKitchenSettings,
@@ -59,7 +62,8 @@ import type {
 // `price.edit`, the body's members, the account's bucket (the draft's own, shared, and failing closed), and only then the
 // stores. The availability head is read first and the saved defaults second, so a defaults save landing between the two is
 // judged against its new defaults, and one landing after both fails the write's compare-and-set on the head. The write
-// and its audit row commit in one transaction or not at all. Anything thrown that is not mapped here is a `503` that
+// and its audit row commit in one transaction or not at all. A request that asks for the state an item is already in
+// writes nothing and is answered with the head as it is, whatever revision it names. Anything thrown that is not mapped here is a `503` that
 // carries no cause, from the route's `answerUnavailableOnFailure`.
 
 /** What a saved row of defaults is when none was ever saved: a new kitchen then starts from the fixed fallbacks. */
@@ -182,12 +186,15 @@ async function performSetActive(
 ): Promise<NextResponse> {
   const stores = await getPriceStores();
   const availability = await readDashboardAvailability(stores);
-  if (availability.revision !== request.expectedRevision) {
-    return changedMeanwhile();
-  }
   const book = await readActiveBook(stores);
   if (book === undefined) {
     return refused(dashboardConflictResponse("no-active-version"));
+  }
+  if (isAlreadyAsRequested(request, { availability, book })) {
+    return succeeded(setResponse({ revision: availability.revision }));
+  }
+  if (availability.revision !== request.expectedRevision) {
+    return changedMeanwhile();
   }
   const defaults = await readSavedDefaults(stores);
   const verdict = judgeAvailabilityChange(request, {
@@ -209,6 +216,23 @@ async function performSetActive(
   });
   if (result.kind === "changed-meanwhile") return changedMeanwhile();
   return succeeded(setResponse({ revision: result.revision }));
+}
+
+/**
+ * Whether the head already holds the item in the state asked for, so that nothing would change. Such a request writes
+ * nothing and moves nothing, which is why it is answered whatever revision it names. An item the book does not state is
+ * never "as requested": it goes on to be refused.
+ */
+function isAlreadyAsRequested(
+  { item, active }: AvailabilityRequest,
+  {
+    availability,
+    book,
+  }: { availability: CatalogueAvailability; book: PriceBook },
+): boolean {
+  return (
+    isItemStated(item, book) && isItemDisabled(availability, item) === !active
+  );
 }
 
 /** The active version's book, or `undefined` before any version was published. A stored book that is not one is thrown. */
