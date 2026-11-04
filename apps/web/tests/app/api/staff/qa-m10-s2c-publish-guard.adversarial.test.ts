@@ -257,10 +257,7 @@ describe("a publish whose draft deletes an item a saved design names", () => {
     await administratorWhoDeletes(VENEER);
     aDesignNaming(VENEER);
 
-    const answer = await publishDraft({
-      cookie: undefined,
-      json: await publishBody(),
-    });
+    const answer = await publishDraft({ json: await publishBody() });
 
     expect(answer.status).toBe(401);
     expect(JSON.stringify(await jsonOf(answer))).not.toContain("item-in-use");
