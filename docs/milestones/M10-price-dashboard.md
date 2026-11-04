@@ -734,6 +734,11 @@ asked again. Production is applied through the runbook. Order:
 From that apply, the shared ledger is ahead of `main` and of every older branch, so their live suites fail with
 `ledgerAheadOfCheckoutError` until M10 merges. `main`'s CI may too, if it shares the database (unverified, OQ-29).
 
+**Owner approval in chat, 2026-11-04 (one-time):** migrations `0028` (S5, `design_price_notices`) and `0029` (S3,
+`kitchen_defaults`), both reviewed, for every environment in the same order: S5 then S3 merge into
+`m10-price-dashboard`, the live suite applies them to the test database, then preview and production through the runbook.
+Nothing later is covered.
+
 ### 6.4 Queued for the owner (from 2026-11-03)
 
 The owner is away for 12 hours from 2026-11-03 and asked that no wave wait on a decision. Each entry below was built on

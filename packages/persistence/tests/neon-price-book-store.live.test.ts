@@ -6,9 +6,11 @@ import { appendPriceVersionForTests } from "../src/append-price-version-for-test
 import {
   AVAILABILITY_CHANGED_MEANWHILE,
   CHANGED_MEANWHILE,
+  INITIAL_REVISION,
 } from "../src/m10-ports.js";
 import { runMigrations } from "../src/migrate.js";
 import { NeonCatalogueAvailabilityStore } from "../src/neon-catalogue-availability-store.js";
+import { NeonKitchenDefaultsStore } from "../src/neon-kitchen-defaults-store.js";
 import { NeonPriceBookStore } from "../src/neon-price-book-store.js";
 import { SEQUENCE_NUMBER_IS_UNIQUE } from "../src/price-book-statements.js";
 import { seedPriceBook } from "../src/seed-price-book.js";
@@ -482,10 +484,44 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
       }
     }
 
-    // The plan's S-b names a racing pair of one publish and one defaults save. The contract has the publish against an
-    // availability write; the defaults save belongs to S3, whose `KitchenDefaultsStore` does not exist yet.
-    it.skip("lets exactly one of a publish and a defaults save racing at one availability revision succeed — needs KitchenDefaultsStore (S3)", () => {
-      // Written by S3 against the same head row.
+    it("lets exactly one of a publish and a defaults save racing at one availability revision succeed", async () => {
+      const world = await newWorld();
+      const member = await world.aStaffMember();
+      const defaults = new NeonKitchenDefaultsStore(liveTestDatabaseUrl);
+      const head = (await world.availability.readCurrent()).revision;
+      const saved = await defaults.read();
+      const request = await publishRequestFor(
+        world.store,
+        world.availability,
+        member,
+        { expectedAvailabilityRevision: head },
+      );
+
+      const [published, savedDefaults] = await Promise.all([
+        world.store.publish(request),
+        defaults.save({
+          expectedRevision:
+            saved.kind === "saved" ? saved.saved.revision : INITIAL_REVISION,
+          expectedAvailabilityRevision: head,
+          defaults: { handle: "steel" },
+          audit: auditRecordOf(member, {
+            action: "kitchen-defaults-saved",
+            detail: { changedFields: ["handle"] },
+          }),
+        }),
+      ]);
+
+      expect(
+        [published.kind, savedDefaults.kind].filter((kind) => kind === "ok"),
+      ).toHaveLength(1);
+      expect(
+        [published.kind, savedDefaults.kind].filter(
+          (kind) => kind === "availability-changed-meanwhile",
+        ),
+      ).toHaveLength(1);
+      expect((await world.availability.readCurrent()).revision).toBe(
+        await world.aRevisionAfter(head, 1),
+      );
     });
   });
 });

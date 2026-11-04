@@ -2,8 +2,10 @@ import type {
   CatalogueActivationAuditInput,
   CatalogueAvailability,
   DashboardAuditEntry,
+  Design,
   DraftChange,
   ItemRef,
+  ItemUsageCounts,
   PricePublishedDetail,
 } from "@lemnaria/configurator-domain";
 
@@ -326,10 +328,62 @@ export interface KitchenDefaultsStore {
 // ---------------------------------------------------------------------------------------------------------------------
 // KitchenUsageReader
 
-/** The one read the dashboard's disable and delete dialogs and the publish-time judgement make. */
+/**
+ * How one item's use is read from the saved designs. The store never sees a book or a catalogue: the caller derives each
+ * probe from them with the domain (`usageProbesFor`), so a fixed list of build ids is never kept here.
+ *
+ * - `settings-tier`: a material or hardware class, used by the designs whose settings name it and, when `isFallback`, by
+ *   those that name none (they are priced at the book's default tier).
+ * - `placed-bodies`: a linked accessory, used by the designs that place any of `buildIds`, the catalogue rows priced as
+ *   the row it is linked to. None, for an accessory the book does not state: it is never used.
+ * - `migrated-design`: a colour, a handle or a built-in accessory, which depend on what the catalogue lets a body wear,
+ *   on a sink set and on what migration rewrites. The reader runs `isUsedBy` over each stored design as the product reads
+ *   it (`migrateDesign`).
+ */
+export type ItemUsageProbe =
+  | {
+      readonly via: "settings-tier";
+      readonly item: Extract<
+        ItemRef,
+        { readonly kind: "material" | "hardware" }
+      >;
+      readonly isFallback: boolean;
+    }
+  | {
+      readonly via: "placed-bodies";
+      readonly item: Extract<ItemRef, { readonly kind: "accessory" }>;
+      readonly buildIds: readonly string[];
+    }
+  | {
+      readonly via: "migrated-design";
+      readonly item: ItemRef;
+      readonly isUsedBy: (design: Design) => boolean;
+    };
+
+/**
+ * The one read the dashboard's disable and delete dialogs and the publish-time judgement make. It owes exactly one entry
+ * per probe, in the probes' order, which is what `usageCountOf` requires of the counts it is given.
+ *
+ * Every probe names a different item and is of the way of reading that suits its kind (`invalid-request` otherwise): a
+ * `settings-tier` probe a material or hardware class, a `placed-bodies` probe a linked accessory, and a `migrated-design`
+ * probe a colour, a handle or a built-in accessory. A design its client deleted is never counted, and a design counts
+ * once however many of its levels use the item. A `migrated-design` probe leaves out a stored design that cannot be read
+ * as the product reads it, or a body of which the predicate cannot place; it is left out of every count of the call and
+ * added to `unreadableDesigns`, so the caller can say that the count is of the designs that could be read. No deletion is
+ * judged by such a count. A `settings-tier` or `placed-bodies` probe reads the stored document as written and leaves none
+ * out. A predicate or a migration that fails any other way fails the call (`unexpected-answer`): it never reads as unused.
+ */
 export interface KitchenUsageReader {
-  /** The number of saved designs, not deleted by their client, that use the item at any level. */
-  count(item: ItemRef): Promise<number>;
+  countEach(probes: readonly ItemUsageProbe[]): Promise<KitchenUsageResult>;
+}
+
+/**
+ * What a count answers: one entry per probe, and how many stored designs the walk for the `migrated-design` probes could
+ * not read (0 when no such probe was asked).
+ */
+export interface KitchenUsageResult {
+  readonly counts: ItemUsageCounts;
+  readonly unreadableDesigns: number;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

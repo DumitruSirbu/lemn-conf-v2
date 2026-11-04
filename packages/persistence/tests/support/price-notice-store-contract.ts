@@ -330,6 +330,382 @@ export function describePriceNoticeStoreContract(
         "invalid-request",
       );
     });
+
+    it("refuses a version id that is not a version id's shape, for a first open and for an acknowledgement, writing nothing", async () => {
+      const world = await newWorld();
+      const designId = await world.aDesignId();
+      const pair = await currentPair(world);
+      const malformed = { ...pair, versionId: "not a version id" };
+
+      await dashboardFailureOf(
+        world.store.recordIfAbsent(designId, malformed),
+        "invalid-request",
+      );
+      await dashboardFailureOf(
+        world.store.recordAcknowledged(designId, malformed),
+        "invalid-request",
+      );
+
+      expect(await world.store.readAcknowledged(designId)).toBe(NEVER_RECORDED);
+    });
+  });
+
+  describe(`${suiteName}: the pair is stored whole`, () => {
+    it("moves the revision alone when an acknowledgement keeps the version", async () => {
+      const world = await newWorld();
+      const designId = await world.aDesignId();
+      const { versionId } = await currentPair(world);
+      const head = await switchOneItemOff(world, await world.aStaffMember());
+      expect(head).not.toBe(INITIAL_REVISION);
+      await world.store.recordAcknowledged(designId, {
+        versionId,
+        availabilityRevision: INITIAL_REVISION,
+      });
+
+      await world.store.recordAcknowledged(designId, {
+        versionId,
+        availabilityRevision: head,
+      });
+
+      expect(await world.store.readAcknowledged(designId)).toEqual({
+        kind: "recorded",
+        acknowledged: { versionId, availabilityRevision: head },
+      });
+    });
+
+    it("moves the version alone when an acknowledgement keeps the revision", async () => {
+      const world = await newWorld();
+      const designId = await world.aDesignId();
+      const first = await currentPair(world);
+      const second = await publishNextVersion(
+        world.priceBook,
+        world.availability,
+        await world.aStaffMember(),
+      );
+      expect(second.versionId).not.toBe(first.versionId);
+      await world.store.recordAcknowledged(designId, {
+        versionId: first.versionId,
+        availabilityRevision: INITIAL_REVISION,
+      });
+
+      await world.store.recordAcknowledged(designId, {
+        versionId: second.versionId,
+        availabilityRevision: INITIAL_REVISION,
+      });
+
+      expect(await world.store.readAcknowledged(designId)).toEqual({
+        kind: "recorded",
+        acknowledged: {
+          versionId: second.versionId,
+          availabilityRevision: INITIAL_REVISION,
+        },
+      });
+    });
+
+    it("keeps the last acknowledgement even when it is the older pair: there is no ordering of acknowledgements", async () => {
+      const world = await newWorld();
+      const designId = await world.aDesignId();
+      const older = await currentPair(world);
+      const newerVersion = await publishNextVersion(
+        world.priceBook,
+        world.availability,
+        await world.aStaffMember(),
+      );
+      const head = await switchOneItemOff(world, await world.aStaffMember());
+      const newer = {
+        versionId: newerVersion.versionId,
+        availabilityRevision: head,
+      };
+      const olderPair = {
+        versionId: older.versionId,
+        availabilityRevision: INITIAL_REVISION,
+      };
+      await world.store.recordAcknowledged(designId, newer);
+
+      expect(await world.store.recordAcknowledged(designId, olderPair)).toEqual(
+        { kind: "ok" },
+      );
+
+      expect(await world.store.readAcknowledged(designId)).toEqual({
+        kind: "recorded",
+        acknowledged: olderPair,
+      });
+    });
+
+    it("answers ok again for the same acknowledgement, and the marker is unchanged", async () => {
+      const world = await newWorld();
+      const designId = await world.aDesignId();
+      const pair = await currentPair(world);
+
+      const results = [
+        await world.store.recordAcknowledged(designId, pair),
+        await world.store.recordAcknowledged(designId, pair),
+      ];
+
+      expect(results).toEqual([{ kind: "ok" }, { kind: "ok" }]);
+      expect(await world.store.readAcknowledged(designId)).toEqual({
+        kind: "recorded",
+        acknowledged: pair,
+      });
+    });
+
+    it("leaves another design's marker alone when one design is acknowledged", async () => {
+      const world = await newWorld();
+      const [acknowledged, bystander] = [
+        await world.aDesignId(),
+        await world.aDesignId(),
+      ];
+      const pair = await currentPair(world);
+      await world.store.recordIfAbsent(bystander, pair);
+      const head = await switchOneItemOff(world, await world.aStaffMember());
+
+      await world.store.recordAcknowledged(acknowledged, {
+        versionId: pair.versionId,
+        availabilityRevision: head,
+      });
+
+      expect(await world.store.readAcknowledged(bystander)).toEqual({
+        kind: "recorded",
+        acknowledged: pair,
+      });
+    });
+
+    it("ends at exactly one of two racing acknowledgements, never at a version of one and a revision of the other", async () => {
+      const world = await newWorld();
+      const first = await currentPair(world);
+      const second = await publishNextVersion(
+        world.priceBook,
+        world.availability,
+        await world.aStaffMember(),
+      );
+      const head = await switchOneItemOff(world, await world.aStaffMember());
+      const pairA = {
+        versionId: first.versionId,
+        availabilityRevision: INITIAL_REVISION,
+      };
+      const pairB = { versionId: second.versionId, availabilityRevision: head };
+
+      for (let attempt = 0; attempt < 8; attempt += 1) {
+        const designId = await world.aDesignId();
+        if (attempt % 2 === 1)
+          await world.store.recordIfAbsent(designId, pairA);
+        const results = await Promise.all([
+          world.store.recordAcknowledged(designId, pairA),
+          world.store.recordAcknowledged(designId, pairB),
+        ]);
+
+        expect(results).toEqual([{ kind: "ok" }, { kind: "ok" }]);
+        const read = await world.store.readAcknowledged(designId);
+        expect([
+          { kind: "recorded", acknowledged: pairA },
+          { kind: "recorded", acknowledged: pairB },
+        ]).toContainEqual(read);
+      }
+    });
+
+    it("holds a marker the caller can no longer change through the pair it passed or the one it read", async () => {
+      const world = await newWorld();
+      const designId = await world.aDesignId();
+      const pair = { ...(await currentPair(world)) };
+      await world.store.recordIfAbsent(designId, pair);
+
+      (pair as { versionId: string }).versionId = "B".repeat(21);
+      const read = await world.store.readAcknowledged(designId);
+      if (read.kind !== "recorded") throw new Error("the marker was not read");
+      (read.acknowledged as { versionId: string }).versionId = "C".repeat(21);
+
+      const again = await world.store.readAcknowledged(designId);
+      expect(
+        again.kind === "recorded" && again.acknowledged.versionId,
+      ).not.toBe("B".repeat(21));
+      expect(
+        again.kind === "recorded" && again.acknowledged.versionId,
+      ).not.toBe("C".repeat(21));
+    });
+  });
+
+  describe(`${suiteName}: the edges of what a pair and a design id may be`, () => {
+    const REVISIONS_REFUSED = [
+      "",
+      " ",
+      "-1",
+      "-0",
+      "+1",
+      " 1",
+      "1 ",
+      "1\n",
+      "1e3",
+      "1.0",
+      "0x1",
+      "00",
+      "01",
+      "9223372036854775808",
+      "10000000000000000000",
+      "99999999999999999999",
+      "٣",
+      "１",
+    ];
+    const IDS_REFUSED = [
+      "",
+      "A".repeat(20),
+      "A".repeat(22),
+      `${"A".repeat(20)}\n`,
+      `${"A".repeat(20)} `,
+      `${"A".repeat(20)}é`,
+      `${"A".repeat(20)}١`,
+      `${"A".repeat(20)}.`,
+      `${"A".repeat(20)}/`,
+    ];
+
+    it.each(REVISIONS_REFUSED)(
+      "refuses the revision %j for a first open and for an acknowledgement, writing nothing",
+      async (availabilityRevision) => {
+        const world = await newWorld();
+        const designId = await world.aDesignId();
+        const { versionId } = await currentPair(world);
+        const pair = { versionId, availabilityRevision };
+
+        await dashboardFailureOf(
+          world.store.recordIfAbsent(designId, pair),
+          "invalid-request",
+        );
+        await dashboardFailureOf(
+          world.store.recordAcknowledged(designId, pair),
+          "invalid-request",
+        );
+
+        expect(await world.store.readAcknowledged(designId)).toBe(
+          NEVER_RECORDED,
+        );
+      },
+    );
+
+    it.each(IDS_REFUSED)(
+      "refuses the version id %j for a first open and for an acknowledgement, writing nothing",
+      async (versionId) => {
+        const world = await newWorld();
+        const designId = await world.aDesignId();
+        const pair = { ...(await currentPair(world)), versionId };
+
+        await dashboardFailureOf(
+          world.store.recordIfAbsent(designId, pair),
+          "invalid-request",
+        );
+        await dashboardFailureOf(
+          world.store.recordAcknowledged(designId, pair),
+          "invalid-request",
+        );
+
+        expect(await world.store.readAcknowledged(designId)).toBe(
+          NEVER_RECORDED,
+        );
+      },
+    );
+
+    it.each(IDS_REFUSED)(
+      "refuses the design id %j on every method, so nothing is read or written for it",
+      async (designId) => {
+        const world = await newWorld();
+        const pair = await currentPair(world);
+
+        await dashboardFailureOf(
+          world.store.readAcknowledged(designId),
+          "invalid-request",
+        );
+        await dashboardFailureOf(
+          world.store.recordIfAbsent(designId, pair),
+          "invalid-request",
+        );
+        await dashboardFailureOf(
+          world.store.recordAcknowledged(designId, pair),
+          "invalid-request",
+        );
+      },
+    );
+
+    it.each([
+      ["undefined", undefined],
+      ["null", null],
+      ["a number", 7],
+      ["an object", {}],
+    ])(
+      "refuses %s where a design id, a version id or a revision belongs",
+      async (_name, notText) => {
+        const world = await newWorld();
+        const designId = await world.aDesignId();
+        const pair = await currentPair(world);
+        const asText = notText as unknown as string;
+
+        await dashboardFailureOf(
+          world.store.readAcknowledged(asText),
+          "invalid-request",
+        );
+        await dashboardFailureOf(
+          world.store.recordIfAbsent(asText, pair),
+          "invalid-request",
+        );
+        await dashboardFailureOf(
+          world.store.recordIfAbsent(designId, { ...pair, versionId: asText }),
+          "invalid-request",
+        );
+        await dashboardFailureOf(
+          world.store.recordAcknowledged(designId, {
+            ...pair,
+            availabilityRevision: asText,
+          }),
+          "invalid-request",
+        );
+
+        expect(await world.store.readAcknowledged(designId)).toBe(
+          NEVER_RECORDED,
+        );
+      },
+    );
+
+    it("accepts ids made of the whole alphabet's edges, and judges such a version as unknown rather than malformed", async () => {
+      const world = await newWorld();
+      const designId = `_-${"Az09".repeat(4)}_-z`;
+      expect(designId).toHaveLength(21);
+      const edgeVersionId = `-_${"Zz90".repeat(4)}-_a`;
+      expect(edgeVersionId).toHaveLength(21);
+
+      await world.store.recordIfAbsent(designId, {
+        versionId: edgeVersionId,
+        availabilityRevision: INITIAL_REVISION,
+      });
+      const acknowledgement = await world.store.recordAcknowledged(designId, {
+        versionId: edgeVersionId,
+        availabilityRevision: INITIAL_REVISION,
+      });
+
+      expect(await world.store.readAcknowledged(designId)).toEqual({
+        kind: "recorded",
+        acknowledged: {
+          versionId: edgeVersionId,
+          availabilityRevision: INITIAL_REVISION,
+        },
+      });
+      expect(acknowledgement).toBe(UNKNOWN_VERSION);
+    });
+
+    it.each(["0", "1", "9223372036854775806", "9223372036854775807"])(
+      "round-trips the revision %s of a first open as the same text",
+      async (availabilityRevision) => {
+        const world = await newWorld();
+        const designId = await world.aDesignId();
+        const { versionId } = await currentPair(world);
+
+        await world.store.recordIfAbsent(designId, {
+          versionId,
+          availabilityRevision,
+        });
+
+        expect(await world.store.readAcknowledged(designId)).toEqual({
+          kind: "recorded",
+          acknowledged: { versionId, availabilityRevision },
+        });
+      },
+    );
   });
 }
 

@@ -1,12 +1,13 @@
 import {
   HandleSchema,
   countPendingPrices,
+  isBuiltInAccessoryId,
   isRevisionShape,
 } from "@lemnaria/configurator-domain";
 import type { ItemRef } from "@lemnaria/configurator-domain";
 
 import { isDesignRevision } from "./design-revision.js";
-import type { PublishPriceBookRequest } from "./m10-ports.js";
+import type { ItemUsageProbe, PublishPriceBookRequest } from "./m10-ports.js";
 
 export { isRevisionShape };
 
@@ -313,4 +314,117 @@ export function storablePublishOf(
     changeCount: countPendingPrices(changeSummary),
     createdItems: Array.from<ItemRef>(createdItems),
   };
+}
+
+/**
+ * The most JSON a defaults save sends: 16 KiB of compact text, for the six settings a new kitchen starts with. The table
+ * checks 64 KiB of `jsonb` text (`0029`), as far above this as `0024`'s ceiling is above its own limit.
+ */
+export const MAX_STORED_DEFAULTS_BYTES = 16_384;
+
+/**
+ * The JSON text of defaults the table takes and reads back as they were sent (`storableJsonTextOf`, as an object), or
+ * `undefined` for defaults that are not an object or that exceed `MAX_STORED_DEFAULTS_BYTES`.
+ */
+export function storableDefaultsJsonOf(defaults: unknown): string | undefined {
+  const jsonText = storableJsonTextOf(defaults, "object");
+  const isWithinLimit =
+    jsonText !== undefined &&
+    new TextEncoder().encode(jsonText).length <= MAX_STORED_DEFAULTS_BYTES;
+  return isWithinLimit && !holdsAValueJsonWouldChange(defaults)
+    ? jsonText
+    : undefined;
+}
+
+/**
+ * Whether the value holds one that JSON writes as `null` (a number that is not finite, or an array member with no JSON
+ * form), which would read back as something other than what was sent. It runs after `JSON.stringify` has accepted the
+ * value, so the value has no cycle. Iterative, so a deep value cannot overflow the stack.
+ */
+function holdsAValueJsonWouldChange(value: unknown): boolean {
+  const pending: unknown[] = [value];
+  while (pending.length > 0) {
+    const current = pending.pop();
+    if (typeof current === "number" && !Number.isFinite(current)) return true;
+    if (Array.isArray(current)) {
+      for (const member of current as unknown[]) {
+        if (isWithoutJsonForm(member)) return true;
+        pending.push(member);
+      }
+    } else if (isJsonObject(current)) {
+      pending.push(...Object.values(current));
+    }
+  }
+  return false;
+}
+
+function isWithoutJsonForm(member: unknown): boolean {
+  return (
+    member === undefined ||
+    typeof member === "function" ||
+    typeof member === "symbol"
+  );
+}
+
+/**
+ * Whether the probes are ones a usage reader can answer with exactly one count each: every probe names a different item,
+ * and carries what its way of reading needs (`ItemUsageProbe`). The fake and the Neon reader turn away the same set.
+ */
+export function isCountableProbeSet(
+  probes: readonly ItemUsageProbe[],
+): boolean {
+  if (!Array.isArray(probes) || !probes.every(hasANamedItem)) return false;
+  const keys = new Set(probes.map(probeKeyOf));
+  return keys.size === probes.length && probes.every(isCountableProbe);
+}
+
+/** A probe may arrive as anything a caller cast, so the item is looked for before it is read. */
+function hasANamedItem(probe: unknown): boolean {
+  if (!isJsonObject(probe)) return false;
+  const { item } = probe;
+  return isJsonObject(item) && isNamedItem(item as unknown as ItemRef);
+}
+
+function probeKeyOf({ item }: ItemUsageProbe): string {
+  return `${item.kind}:${itemIdOf(item)}`;
+}
+
+function isCountableProbe(probe: ItemUsageProbe): boolean {
+  return (
+    isNamedItem(probe.item) &&
+    isWayOfReadingFor(probe.via, probe.item) &&
+    carriesWhatItReads(probe)
+  );
+}
+
+/** Each way of reading suits the kinds of item whose use it can tell, and no other. */
+function isWayOfReadingFor(via: ItemUsageProbe["via"], item: ItemRef): boolean {
+  switch (via) {
+    case "settings-tier":
+      return item.kind === "material" || item.kind === "hardware";
+    case "placed-bodies":
+      return (
+        item.kind === "accessory" && !isBuiltInAccessoryId(item.accessoryId)
+      );
+    case "migrated-design":
+      return (
+        item.kind === "finish" ||
+        item.kind === "handle" ||
+        (item.kind === "accessory" && isBuiltInAccessoryId(item.accessoryId))
+      );
+  }
+}
+
+function carriesWhatItReads(probe: ItemUsageProbe): boolean {
+  switch (probe.via) {
+    case "settings-tier":
+      return typeof probe.isFallback === "boolean";
+    case "placed-bodies":
+      return (
+        Array.isArray(probe.buildIds) &&
+        probe.buildIds.every((id) => typeof id === "string" && id !== "")
+      );
+    case "migrated-design":
+      return typeof probe.isUsedBy === "function";
+  }
 }
