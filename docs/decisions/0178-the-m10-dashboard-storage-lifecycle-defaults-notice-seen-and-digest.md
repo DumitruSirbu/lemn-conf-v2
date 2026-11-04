@@ -214,7 +214,7 @@ applies them, preview first. The exact grant text is written in each wave.
 
 | Number | Table | Wave | Grant |
 | --- | --- | --- | --- |
-| 0025 | `create_price_book_versions` (id, label, note, book jsonb object, change_summary jsonb, published_at, published_by_account_id; **no `state` column: the active version is the newest row**; length checks on label and note) | S2 | `SELECT, INSERT` only (fully append-only) |
+| 0025 | `create_price_book_versions` (id, label, note, book jsonb object, change_summary jsonb, published_at, published_by_account_id; **2026-11-04: gains `change_count`, see the last Amendment**; **no `state` column: the active version is the newest row**; length checks on label and note) | S2 | `SELECT, INSERT` only (fully append-only) |
 | 0026 | `create_price_book_draft` (a **seeded singleton row**, `0009`'s pattern: revision bigint, changes jsonb array, base_version_id, updated_at, updated_by_account_id) | S2 | `SELECT` + `UPDATE` on named columns; no `INSERT` |
 | 0027 | `create_kitchen_defaults` (a **seeded singleton row**: revision, defaults jsonb, saved_at, saved_by_account_id) | S3 | `SELECT` + `UPDATE` on named columns; no `INSERT` |
 | 0028 | `create_catalogue_availability_changes` (item_kind, item_id, active boolean, changed_at default now(), changed_by_account_id; the revision is carried from the head row, F1) **and** the seeded one-row `catalogue_availability_head(revision bigint)` | S2b | Log: `SELECT, INSERT (revision, item_kind, item_id, active, changed_by_account_id)` (no `changed_at`). Head: `SELECT, UPDATE (revision)` |
@@ -236,7 +236,7 @@ rule above).
 New closed-list entries in `staff-audit-action.ts`, written by X0. **Each has a closed key list: kind, ids, codes, counts
 (F4). Never created-row text, never a version label or note, never a name or free text.** The actions: `price-draft-changed` (the change kind, including created / text / deleted), `price-draft-reverted`,
 `price-bulk-changed`, `price-published`, `price-restored-to-draft`, `catalogue-item-active-changed` (renamed 2026-10-26: the stored action is capped at 32 characters by migration `0020`'s check and `STORED_ACTION_SHAPE`) (immediate, A-17),
-`kitchen-defaults-saved`, `kitchen-seen`, `price-catalogue-viewed`. The store fills `sequenceNumber` and `changeCount` (the length of the stored change summary) into the `price-published` detail; the caller's entry omits them (S1 QA, 2026-10-26).
+`kitchen-defaults-saved`, `kitchen-seen`, `price-catalogue-viewed`. The store fills `sequenceNumber` and `changeCount` (the length of the stored change summary; **superseded 2026-11-04**: the count its publisher confirmed, stored with the version, see the last Amendment) into the `price-published` detail; the caller's entry omits them (S1 QA, 2026-10-26).
 
 **Ruling 2026-10-26 (coordinator): hidden extra keys are stripped, enumerable unknown keys are refused.** The audit detail
 readers strip hidden extra keys (non-enumerable, symbol, accessor) rather than refuse them; only enumerable unknown keys are
@@ -319,3 +319,102 @@ only. The M10 plan's S4 row and criterion S-c0 carry the same rule.
 per hour (the staff list's figure); `staff-price-draft-by-account` 600 per hour, shared by the draft's `PUT`, `DELETE` and
 `POST`; events `staff-prices` and `staff-price-draft`. Subjects are made as ADR 0156 requires. Also `staff-seen-by-account`
 600 per hour (K2a; provisional, fail closed). None of these figures is an owner ruling.
+
+## Amendment — 2026-11-04: a version's change count is the count its publisher confirmed, stored with the version (architect's ruling)
+
+**Evidence tier.** Source-verified by the architect, reading the branches at the named commits; the architect ran no
+test. The rule is on `m10/u5c` @ `0f40c208`, and every U5c line cited below was read from that commit
+(`git show`). Its worktree also held uncommitted edits, which are not cited. The held stores are on `m10/s2` @
+`c44978ec` and `m10/s4` @ `678c4131`. `m10/s2` is an ancestor of `m10/s4` (`git merge-base --is-ancestor`), and the
+two carry identical `price-book-statements.ts` and `neon-price-book-store.ts`. QA's defect D1 is as relayed by the coordinator. Reasoning
+marked **[inf]** is the architect's own.
+
+**This supersedes**, and the body above is kept as written:
+- *Staff audit actions*: "`changeCount` (the length of the stored change summary)";
+- plan §8.4(d) X0-5: "`PriceVersionSummary.changeCount` is blessed as **derived** from the stored `change_summary`
+  (not a `0025` column) … nothing stores it twice";
+- *Migrations*: the column list of `create_price_book_versions` (ex-`0025`, now `0023`), which gains one column.
+
+**Context.**
+- U5c adds one count rule, `countPendingPrices` (`packages/configurator-domain/src/price-dashboard/pending-price-count.ts:10`):
+  - one per price set, and each price of a bulk change;
+  - a created class or accessory counts once, with everything the draft says about it (its rates or price, its words,
+    a later deletion);
+  - a deleted keyed row counts once.
+- The chip, the nav badge, the publish button and the confirm dialog all use the rule (`publish-model.ts:229`,
+  `cabinet-list-model.ts:120`, `use-publish-desk.ts:270`). So do the fake store's history row and audit stamp
+  (`fake-price-book-store.ts:143`, `:184`, `:216`, `:272`). QA's D1 is why the fake uses it: the person confirmed 5,
+  and the history row said "10 modificări".
+- **The count is not a function of the array's length.** The contract case `price-book-store-contract.ts:941` ("counts a
+  created class and its rates as one price…") stores five entries: one price, a created class and three of its rates. It expects a count of 2.
+- The held Neon store counts the length in SQL:
+  - `price-book-statements.ts:68`: `listVersions`, `jsonb_array_length(v.change_summary)`;
+  - `:217`: `inserted_version … returning jsonb_array_length(change_summary)`;
+  - `:233`: the audit stamp, which reads that value.
+
+  Its TypeScript pre-check does the same (`dashboard-store-shapes.ts:282`, `.length`).
+
+**Decisions.**
+
+1. **Meaning.** A version's `changeCount` is the number of prices its publisher confirmed: `countPendingPrices` over
+   the change summary it stores, evaluated **once, by the store, at publish**.
+   - It is a fact of the publish, like `published_at`, and is never re-derived on a read.
+   - The `price-published` audit row's `changeCount` and the history row's `PriceVersionSummary.changeCount` are the
+     same stored number, so the two records of one publish cannot disagree.
+   - A version keeps the count it was published with. If the rule changes later, past versions keep their count and
+     new publishes use the new rule.
+2. **Storage.** `0023` gains `change_count integer not null check (change_count >= 0)`. It has **no default**, so every
+   insert must name it.
+   - The column joins the `INSERT` column grant.
+   - The store computes the value from the `changeSummary` it was handed, through `countPendingPrices`. The
+     persistence package already depends on `@lemnaria/configurator-domain`.
+   - **The caller never supplies it.** `PublishPriceBookRequest` gains no member. The forced-value guarantee of
+     S-b ("overwritten if forced through a cast") stands.
+   - `inserted_version` returns the **inserted column**, and the audit stamp reads it from there. So the audit row is
+     still stamped from what was written, as the S1 QA ruling requires.
+   - `listVersions` selects the column and never loads `change_summary`.
+   - The seed and the test-only append helper each insert `'[]'` with `change_count` 0.
+3. **The other counts take the same rule.** This part is definitional only: each is computed in TypeScript already, and
+   none is stored by SQL.
+   - Discard-all's `revertedCount` is `countPendingPrices` over the stored draft, or 0 when the draft is unreadable.
+   - A bulk group's `revertedCount` is the same rule over the removed entries. It equals their number, because a bulk
+     group holds only price sets **[inf]**.
+   - A single revert's `revertedCount` stays 1 (`dashboard-audit-action.ts:427`).
+   - `price-restored-to-draft.changeCount` counts the price fields the restore set. Each is a price set, so the rule
+     gives the same number **[inf]**. This is falsified if a restore ever adds a creation or a deletion.
+4. **Why editing `0023` is allowed.** It is applied nowhere. This record's status line says no migration is applied.
+   The plan's S2 ruling (c) holds S2's live run, the only path that could apply it, to the Z gate. S-g forbids editing
+   only an *applied* file.
+
+**Why the column does not "store it twice"**. X0-5's concern was a copy that could drift from its source. Once the rule
+can change, the summary and the count are two different facts:
+- the summary records what changed;
+- the count records what the publisher confirmed.
+
+Keeping only the summary would let a later rule change rewrite what every past publish says was confirmed, while that
+publish's audit row keeps the old number **[inf]**.
+
+**Alternatives considered.**
+- **(b) Store the length and convert it on display.** Rejected: it is impossible, because the count is not a function of
+  the length (`:941`).
+- **(c) Count in TypeScript at read time.** Rejected for two reasons:
+  - each history page would load `change_summary` for each listed row: up to `PRICE_VERSION_PAGE_SIZE` (20) rows, each
+    up to `0023`'s 4 MiB ceiling;
+  - history would re-derive every past count under whatever rule is current, while the audit rows keep the counts
+    stamped at publish. That leaves two records of one publish disagreeing, which is the class D1 caught.
+- **(d1) Reimplement the rule in SQL** (`jsonb_array_elements`, distinct created rows). Rejected: it is a second
+  implementation, in a second language, needing a parity test for as long as both exist. D1 was exactly two counts
+  that disagreed.
+- **(d2) Keep the count inside `change_summary`** (wrap the array in an object). Rejected: it breaks m8's pinned
+  `DraftChange[]` array and `0023`'s `jsonb_typeof(change_summary) = 'array'` check.
+- **A bounded check** (`change_count` between 1 and the array's length when the array is non-empty). It holds for
+  today's rule **[inf, from the code read]**. Rejected because, once applied, it would freeze the rule's shape into a
+  migration that can never be edited. The bound is asserted as a domain property instead (plan S-b).
+
+**Accepted residual.** A holder of the application credential can insert a version with any `change_count`. They can
+already insert a whole version: residual L1, `0023`'s header. The owner's runbook cross-check gains one clause: a
+version's `change_count` equals its `price-published` audit row's `changeCount`.
+
+**Consequences.**
+- S2 implements the change on `m10/s2`, and S4 takes it by merge. The plan's Lane S gives the hand-off line by line.
+- The owner's queue holds one row on the past-versions behaviour (plan §6.4, OQ-30a).

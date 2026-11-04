@@ -487,8 +487,10 @@ D7 and D8.
 - ↺ removes one change.
 - Restore adds the archived version's differing fields as changes.
 - **The `price-published` audit detail is stamped by the store** (S1 QA, coordinator's ruling, 2026-10-26).
-  `sequenceNumber` is the inserted version's, and `changeCount` is the length of the stored change summary. Callers
-  cannot supply either; the audit entry passed in omits both, as with M4's `availabilityRevision`.
+  `sequenceNumber` is the inserted version's, and `changeCount` is ~~the length of the stored change summary~~
+  **(amended 2026-11-04, ADR 0178's last Amendment)** the version's stored `change_count`: `countPendingPrices` over
+  the summary, computed by the store at publish. Callers cannot supply either; the audit entry passed in omits both, as
+  with M4's `availabilityRevision`.
 - Publish stores the candidate book whole and immutable, plus its change summary. Versions are append-only, and exactly
   one is active.
 - **Security amendments F7 and F10 (2026-10-26):**
@@ -632,7 +634,7 @@ D7 and D8.
   - the digest's rounds and entries (A-13);
   - the owner-run seed (A-10), which takes the owner's account id.
 - **Store-stamped audit keys:** `availabilityRevision` on `catalogue-item-active-changed` (M4), and
-  `sequenceNumber` and `changeCount` on `price-published` (S1 QA). The store fills them from what it wrote, before its
+  `sequenceNumber` and `changeCount` on `price-published` (S1 QA; `changeCount` is the stored `change_count`, 2026-11-04). The store fills them from what it wrote, before its
   own `readStaffAuditEntry` re-check. The caller's entry type omits them.
 - **Every audit action has a closed detail key list** of kinds, ids, codes and counts (§8.4(e)). No created-row text,
   version label, note, search text or customer value ever enters `detail`.
@@ -721,10 +723,12 @@ the stated default and needs only a yes or a correction.
 | OQ-21a | Renaming a created class uses its own "Redenumește" button beside the name, not the page's Save | As built | P6b |
 | OQ-29 | E2E shards moved: mobile 9 → 10 (U4b), desktop 6 → 7 (P6b). If `main`'s branch protection lists shard check names (`e2e (desktop, i, 6)` …) rather than the summary job, it needs the new names; `gh` here has no valid token, so it was not checked | Nothing changed on GitHub | U4b, P6b |
 | OQ-21b | A rename shows no success notice; the heading and the pending chip change | As built | P6b |
-| OQ-30 | How many changes a draft holds, as shown everywhere (chip, badge, publish button, confirm dialog, history row): one per price set; a bulk change counts each of its prices; a created class or accessory counts once with all it holds; a deleted row once | As built (U5c), one rule in the domain, also used for the history's count | U5c |
+| OQ-30 | How many changes a draft holds, as shown everywhere (chip, badge, publish button, confirm dialog, history row): one per price set; a bulk change counts each of its prices; a created class or accessory counts once with all it holds; a deleted row once | As built (U5c), one rule in the domain, also used for the history's count. Stored with each version at publish (ADR 0178, Amendment of 2026-11-04) | U5c; S2 |
+| OQ-30a | If the counting rule changes later, should past versions in "Istoric" keep the count shown when they were published, or be recounted? | **Kept as published**: the count is stored with the version and matches its audit row (ADR 0178, Amendment of 2026-11-04). Recounting would need the summary loaded per history row and would leave the audit row disagreeing | S2 |
 | OQ-31 | The sink cover: ADR 0070 d4 says it "is never toggled off"; D6A/D6C draw both built-in accessories as switchable | **The cover's switch is off with a reason** (the dated ADR wins); the rack stays switchable | U4c |
 | OQ-32 | A created accessory priced at 0 | Accepted, as the domain allows; the form requires a typed amount | U4c |
 | OQ-11c | U4c's 17 new Romanian lines (`accessories.*`, `lifecycle.*` accessory variants) | Built as drafted | U4c |
+| OQ-11d | U5c's new Romanian lines: `publish.staleChangeKept`, `staleChangeWholeDraftOnly`, `noActiveVersion`, `answerUnreadableTitle`/`Body`, `history.restoreCandidateRefused`, and the revised `staleDraftBody` | Built as drafted | U5c |
 | OQ-28c | P6 leaves the seeded default kitchen's hardware total unchanged (its push fronts are top-row doors, no drawers); only push-to-open drawers move | Recorded, no question | P6 |
 
 ---
@@ -1004,7 +1008,7 @@ DraftChange { address, value, groupId?, bulk? }   // groupId = one bulk action (
 
 | Port | Operations |
 | --- | --- |
-| `PriceBookStore` | `readActive()` → `{versionId, sequenceNumber, label, publishedAt, book}` (the newest row) or `NO_ACTIVE_VERSION`; `readVersion(id)`; `listVersions(page)` (state derived: the newest is active, the rest archived); `readDraft()` → `{draftRevision, changes}`; `writeDraft({expectedDraftRevision, changes, audit})` → ok or `changed-meanwhile`; `publish({expectedDraftRevision, expectedActiveSequence, expectedAvailabilityRevision, createdItems, label, note, book, changeSummary, audit})` → ok `{versionId, sequenceNumber, availabilityRevision}`, `changed-meanwhile` or `availability-changed-meanwhile`. One transaction: the head CAS and the created items' inactive log rows (A-17), the insert at `expectedActiveSequence + 1`, the draft-row reset, and the audit row. `book` is computed by the server from the stored draft (F10), never taken from a request. **`changeSummary` is pinned** (m8): the published `DraftChange[]` JSON array, with minted ids and group ids, from which `changeCount` is its length. **Refusals the store does not return:** `item-is-default` and a used deletion are judged by the domain **before** the call, against defaults and usage read at `expectedAvailabilityRevision`, which the CAS keeps current (M5). **Amended 2026-10-26: F7, F10, then X0 review M1, M5 and m8** |
+| `PriceBookStore` | `readActive()` → `{versionId, sequenceNumber, label, publishedAt, book}` (the newest row) or `NO_ACTIVE_VERSION`; `readVersion(id)`; `listVersions(page)` (state derived: the newest is active, the rest archived); `readDraft()` → `{draftRevision, changes}`; `writeDraft({expectedDraftRevision, changes, audit})` → ok or `changed-meanwhile`; `publish({expectedDraftRevision, expectedActiveSequence, expectedAvailabilityRevision, createdItems, label, note, book, changeSummary, audit})` → ok `{versionId, sequenceNumber, availabilityRevision}`, `changed-meanwhile` or `availability-changed-meanwhile`. One transaction: the head CAS and the created items' inactive log rows (A-17), the insert at `expectedActiveSequence + 1`, the draft-row reset, and the audit row. `book` is computed by the server from the stored draft (F10), never taken from a request. **`changeSummary` is pinned** (m8): the published `DraftChange[]` JSON array, with minted ids and group ids, ~~from which `changeCount` is its length~~. **Amended 2026-11-04 (ADR 0178's last Amendment):** `changeCount` is the count the publisher confirmed. The store computes it once at publish, as `countPendingPrices(changeSummary)`, and stores it in `0023`'s `change_count`. `listVersions` and the `price-published` stamp both read that stored value. The request carries no count. **Refusals the store does not return:** `item-is-default` and a used deletion are judged by the domain **before** the call, against defaults and usage read at `expectedAvailabilityRevision`, which the CAS keeps current (M5). **Amended 2026-10-26: F7, F10, then X0 review M1, M5 and m8** |
 | `KitchenDefaultsStore` | `read()` → defaults or `NONE_SAVED` (the seeded row holds `{}`); `save({expectedRevision, expectedAvailabilityRevision, defaults, audit})` → ok `{revision, availabilityRevision}` (m3), `changed-meanwhile` or `availability-changed-meanwhile`. It increments the availability head in the same transaction (A-17, F1). **The store returns only these two CAS refusals** (m2): `item-unavailable` is the domain's judgement under the CAS, made before the call, because the store cannot read `defaults` (`unknown`). **Amended 2026-10-26: F1, then X0 review m2 and m3** |
 | `KitchenUsageReader` | `count(itemRef)` → a count of designs not deleted by the client |
 | `KitchenChangeStore` | `markSeen({designId, displayedRevision, audit})` → ok, `not-found` (outside the staff-list predicate: client-deleted, or neither sent nor held by an account; P-L3-4), or `displayed-revision-ahead` (compared in SQL; F9); `listChanged…` is folded into the staff kitchens statements, which exclude client-deleted designs; `claimDigestDay(dayKey)` → `{kind: "claimed", roundId}` or `ALREADY_CLAIMED`, **where `roundId` is the day key itself** (the round's identity is its day; doc-conflict pin) (insert, `on conflict do nothing`, before sending; F6); `listDigestEligible(now)` (client-deleted excluded); `recordDigested(roundId, entries)` (no audit; F3). **Amended 2026-10-26: result unions named** |
@@ -1024,8 +1028,11 @@ DraftChange { address, value, groupId?, bulk? }   // groupId = one bulk action (
 - **X0-5 shapes:**
   - **`KitchenDefaultsWire`** member names are exactly `DesignSettings`'s (`materialTierId`, `hardwareTierId`,
     `cabinetDepthMm`, `finish`; `handle` from H1) plus `topRowHandle`. Any other name is renamed to these.
-  - **`PriceVersionSummary.changeCount`** is blessed as **derived** from the stored `change_summary` (not a `0025`
-    column). The store or service computes it; nothing stores it twice.
+  - ~~**`PriceVersionSummary.changeCount`** is blessed as **derived** from the stored `change_summary` (not a `0025`
+    column). The store or service computes it; nothing stores it twice.~~ **Superseded 2026-11-04** by ADR 0178's last
+    Amendment. It is the count the publisher confirmed (`countPendingPrices`). The store computes it at publish from
+    the summary it stores, and keeps it in `0023`'s `change_count` column. No caller supplies it. It is not a second copy
+    of the summary's length: the count cannot be derived from the length, and it is fixed at publish.
 - **Amended 2026-10-26 (security):**
   - **creation requests carry no id**; the server mints it (F5);
   - **the publish request carries no book and no `provisional`** (`{expectedDraftRevision, expectedActiveSequence,
@@ -1140,7 +1147,7 @@ The `action` column is a shape check [src: `0020` header], so no migration is ow
 | Number | File | Wave | Grant (exact text written in the wave, pasted into the runbook by the scribe) |
 | --- | --- | --- | --- |
 | — | **Renumbered 2026-10-27 (coordinator ruling A).** M10 takes the next free numbers, contiguous from `0023`, in the order its waves land: S2 → `0023`–`0025`, S4 → `0026`–`0027`, S5 → `0028`, S3 → `0029`. M8B Lot 3's provisional preset-sort and invitation migrations take the next free numbers after M10's. `assertVersionsAreContiguous` (`migration-files.ts:73`) is unchanged. **No live database run happens until these numbers are committed**, because migrations are add-only on the shared test database's ledger | — | — |
-| 0023 | `create_price_book_versions`: id (server-minted, shaped), `sequence_number bigint not null unique check (> 0)`, label (length-checked; 1–80 [inf: `MAX_BOOK_NAME_LENGTH`]), note (≤ 240 [inf: `MAX_BOOK_DESCRIPTION_LENGTH`]), book jsonb object, change_summary jsonb, `published_at default now()`, published_by_account_id. **No `state` column**; the active version is the newest row (F7) | S2 | `SELECT`; `INSERT (id, sequence_number, label, note, book, change_summary, published_by_account_id)`. **No `UPDATE`** (F7) |
+| 0023 | `create_price_book_versions`: id (server-minted, shaped), `sequence_number bigint not null unique check (> 0)`, label (length-checked; 1–80 [inf: `MAX_BOOK_NAME_LENGTH`]), note (≤ 240 [inf: `MAX_BOOK_DESCRIPTION_LENGTH`]), book jsonb object, change_summary jsonb, **`change_count integer not null check (change_count >= 0)`, no default (added 2026-11-04, ADR 0178's last Amendment)**, `published_at default now()`, published_by_account_id. **No `state` column**; the active version is the newest row (F7) | S2 | `SELECT`; `INSERT (id, sequence_number, label, note, book, change_summary, change_count, published_by_account_id)`. **No `UPDATE`** (F7) |
 | 0024 | `create_price_book_draft`: a **seeded singleton** (0009's pattern): revision bigint, changes jsonb array (seeded `[]`), base_version_id, `updated_at default now()`, updated_by_account_id | S2 | `SELECT`; `UPDATE (revision, changes, base_version_id, updated_at, updated_by_account_id)`. **No `INSERT`** (F7) |
 | 0025 | **Two tables, one file** (A-17, F1): `catalogue_availability_head`, a seeded singleton (`revision bigint not null check (>= 0)`, seeded 0), and `catalogue_availability_changes` (`revision bigint primary key`, item_kind, item_id, active boolean, `changed_at default now()`, changed_by_account_id). **No sequence and no trigger.** A row's revision comes from the head update in the same CTE statement (§5 A-17) | S2 (S2b folded in, ruling B) | head: `SELECT, UPDATE (revision)`. log: `SELECT, INSERT (revision, item_kind, item_id, active, changed_by_account_id)`. No `DELETE`, no log `UPDATE` |
 | 0026 | `create_design_staff_seen`: design_id pk, seen_revision bigint, seen_by_account_id, `seen_at default now()` | S4 | `SELECT`; `INSERT (design_id, seen_revision, seen_by_account_id)`; `UPDATE (seen_revision, seen_by_account_id, seen_at)`. No PK update. **Also, as 0026's step (corrected 2026-10-27; it was written "with 0029"), on the existing table (F2):** `GRANT SELECT (priced) ON TABLE public.contact_submissions TO app_designs;`. This is a **runbook grant, not SQL in the migration file**: grants are never in a migration file, because the unattended screen does not recognise them [src: `0009_create_csp_reports.sql:32-34`]. **The first reader is S4's staff kitchen statement for the as-sent estimate, consumed by K2b** |
@@ -1431,8 +1438,9 @@ pushed [coordinator's brief, relayed].
   - P6b: the fifth rate laid out (hardware table from 1440 px; its state column holds the Russian chips at a 1420 px layout, the stand-in for a classic scrollbar); a created class's name renameable with "Redenumește" (off in production until R4a); immediate-effect dialogs name a class by its published name; the hardware list on `ItemRowMenu` (closes on the click; entries keyed by id, which fixed lost focus when Activează became Dezactivează on both lists); shared stylesheet `item-screen.module.css`; `path-segment.ts`; `item-page-read.ts`. Desktop e2e at 7 shards (six put 70 on the fourth).
   - QA found one defect (a published name typed back left a no-op change), fixed. Browser: hardware and materials 62 passed, 4 skipped under `next dev`; the `CI=1` pass last ran at `7441c456` (110 passed, 52 skipped), before the review fixes.
   - Deferred: renaming the description; the rename in a browser (the fake book holds no created class).
+- More R4a hand-offs (2026-11-04): `DASHBOARD_CONFLICTS` gains `item-is-fixed-default` and `item-always-present` from the domain's list (the deferred wire test in `qa-m10-u4a-wire` lists both); the publish page's `blocked` answer is reachable only once `readPublishPage` is given `deletionFacts` (S3's counts) — until then an undeletable kind shows `cannotJudge` with "Încearcă din nou mai târziu", safe but untrue for a row that can never pass.
 - U5c security hand-off to R4a (2026-11-04): when the draft route starts accepting `item-deleted`, `planPublish` (`publish-plan.ts`) must judge `deletedItemsOf(draft.changes)` with the usage reader and the defaults and answer `item-in-use` / `item-is-default`; today only the client judges, and nothing reaches publish because the route refuses deletions.
-- U5c hand-off to S4 (2026-11-04): a published version's `changeCount` is computed with the domain's pending-count rule, not the stored array's length; the held S4 store must write it the same way.
+- U5c hand-off to S4 (2026-11-04): a published version's `changeCount` is computed with the domain's pending-count rule, not the stored array's length; the held S4 store must write it the same way. **Re-addressed 2026-11-04 (architect):** the code is S2's. S2 implements it and S4 takes it by merge. The line-by-line hand-off is in Lane S, *S2 and S4 hand-off: the stored change count*.
 - P6b hand-off to R4a (2026-11-03): to turn renaming on, (a) `readAppliedAddress` (`draft-requests.ts`) and `draft-address.ts` accept `created-row-text` for both change and revert (typing the published name back sends a revert), (b) `FETCHING_PRICE_DRAFT_CLIENT` sets `acceptsCreatedRowText: true`, (c) the three `it.fails` in `qa-m10-u4a-wire.adversarial.test.ts` flip and the `NOT_EDITABLE` pin beside them is deleted. U5c also hands R4a the wording for an `item-is-fixed-default` deletion at publish, which today reuses the "default in Setări implicite" line.
 - P6 hand-off to R4a (2026-11-03): the class-creation route must write through `applyChanges` (which refuses a zero push-runner rate as `ZERO` and a short rate set as `CREATED_TIER_RATES_MISSING`), never re-judge by hand.
 - U4a record (2026-11-03):
@@ -1839,12 +1847,89 @@ P4b), so it runs last and holds nothing up. Migration numbers follow §9.2, not 
 | Wave | Must-fix items | Prod files | Depends on | Reading (in addition to the base) |
 | --- | --- | --- | --- | --- |
 | **S1** fakes | Fakes for all six ports from §8.4(c), with a contract test suite each Neon store will also run | `fake-price-book-store.ts`, `fake-kitchen-defaults-store.ts`, `fake-catalogue-availability-store.ts`, `fake-kitchen-change-store.ts`, `fake-price-notice-store.ts`, `index.ts`. **Six (the usage reader's fake is folded into the defaults fake); over five, stated.** Each fake is small and mechanical, and the contract suites are the review surface. **Plus a test-only item (ruling 2026-10-26):** four pre-existing live files throw inside a `describe.skipIf` body in a worktree with no `.env.*.local`, instead of skipping. They are `count-contact-submissions-for-tests.live`, `delete-contact-submissions-for-tests.live`, `delete-rate-limit-counters-for-tests.live` and `neon-rate-limit-totals.live`, all calling `neon(liveTestDatabaseUrl)` at describe scope. S1 moves each connection into the guarded hooks. This changes no production file, and the census registration does not move | MP-0 | §8.4(c); `fake-staff-kitchen-actions-store.ts`; `account-domain-store-agreement.test.ts` (the agreement-suite pattern) |
-| **S2** book versions, draft and the availability log (S2b folded in, 2026-10-27) | `0023`, `0024`, `0025` (availability head and log); `NeonPriceBookStore` and `NeonCatalogueAvailabilityStore` (the ex-S2b scope: one-CTE availability writes with their audit row, `readCurrent`, `readAt(revision)`, a privilege arm with no log `UPDATE`/`DELETE`; publish in one transaction with its audit row; `changed-meanwhile` compared in SQL); the owner-run `seed-price-book` command (A-10); migration-text tests; privilege-test arms; census rows; **both shared contracts (price book, availability) run live under the exclusive test-schema lock** | 3 migrations, `neon-price-book-store.ts`, `price-book-statements.ts`, `seed-price-book.ts`, `neon-catalogue-availability-store.ts`, `catalogue-availability-statements.ts`. **Five production files plus three migrations; over five, stated, with a mini-review** | S1, X2 | A-10, A-15; §9.2 rows 0023/0024/0025; `migrate.ts` (how an owner-run command is wired); `0011_create_presets.sql` (an append-mostly table's grant). **Recorded choices, 2026-10-26:** (a) the shared store contracts assert over global singletons (the price-book head, the draft and the newest version), so S2's live files hold the test-schema lock (`test-schema-lock.ts`) **exclusively**; (b) the contracts' publish arms leave the test database's newest (active) version as the contract's book, and the defaults arms leave defaults stored, neither of which can be undone (no `DELETE` grant; versions are append-only). Any later live reader of the test database (the R and K waves, e2e) must seed its own active book and defaults rather than assume one, and the test-only seeding helper must **append** a version (A-10's seed command refuses when any version exists). **Rulings of 2026-10-27 (relayed):** (c) **S2's live files run only when M10 is about to merge to `main`.** They call `runMigrations` on the shared test database and freeze migrations `0023`–`0025` there (the numbers of §9.2 and ADR 0178's Amendment of 2026-10-27). The first apply puts the shared ledger ahead of every other checkout (`ledgerAheadOfCheckoutError`, `migration-plan.ts:48-63`), affecting about 28 persistence live files and `ci:local` on other branches, and possibly main's CI if its `TEST_DATABASE_URL` is the same database (**unverified**). ~~Until then S2 merges into `m10-price-dashboard` on its non-live gates (mocked-driver statements, pglite-checked SQL).~~ **Superseded 2026-10-27 (coordinator ruling): S2 stays on its own branch `m10/s2`, unmerged into `m10-price-dashboard`, until the live gate at the merge to `main`.** Reason: the main checkout has `TEST_DATABASE_URL` configured, so any live test there that calls `runMigrations` (S2's own live files, and existing ones such as `migrate.test.ts` and `delete-rate-limit-counters-for-tests.live.test.ts`) would apply `0023`–`0025` to the shared test database as soon as those files are in the checkout, which is the irreversible ledger move the deferral exists to prevent. Waves that need S2's code (S4, S5, S3, and R1/R3's production wiring) branch from or merge `m10/s2` in their worktrees, which have no database environment. S2 merges into the dashboard branch immediately before the live run, then into `main`. S2 status (relayed): QA green; logic, clean-code and security reviewed; non-live gates green at `c44978ec`. The live run is a Z-wave gate (§13.2, Z1/Z2). (d) **A 4 MiB ceiling on `book`, the draft `changes` and `change_summary`, with a store-side byte check too** (precedent: `0011`). (e) The owner runbook text and the S2 grant list are in the runbook section for these tables (S-g). **Added 2026-10-27 (R2 review):** (f) `0024` gains `check (jsonb_typeof(changes) = 'array')` on the draft table while it is still unapplied, as defence in depth for R2's discard path |
+| **S2** book versions, draft and the availability log (S2b folded in, 2026-10-27) | `0023`, `0024`, `0025` (availability head and log); `NeonPriceBookStore` and `NeonCatalogueAvailabilityStore` (the ex-S2b scope: one-CTE availability writes with their audit row, `readCurrent`, `readAt(revision)`, a privilege arm with no log `UPDATE`/`DELETE`; publish in one transaction with its audit row; `changed-meanwhile` compared in SQL); the owner-run `seed-price-book` command (A-10); migration-text tests; privilege-test arms; census rows; **both shared contracts (price book, availability) run live under the exclusive test-schema lock** | 3 migrations, `neon-price-book-store.ts`, `price-book-statements.ts`, `seed-price-book.ts`, `neon-catalogue-availability-store.ts`, `catalogue-availability-statements.ts`. **Five production files plus three migrations; over five, stated, with a mini-review** | S1, X2 | A-10, A-15; §9.2 rows 0023/0024/0025; `migrate.ts` (how an owner-run command is wired); `0011_create_presets.sql` (an append-mostly table's grant). **Recorded choices, 2026-10-26:** (a) the shared store contracts assert over global singletons (the price-book head, the draft and the newest version), so S2's live files hold the test-schema lock (`test-schema-lock.ts`) **exclusively**; (b) the contracts' publish arms leave the test database's newest (active) version as the contract's book, and the defaults arms leave defaults stored, neither of which can be undone (no `DELETE` grant; versions are append-only). Any later live reader of the test database (the R and K waves, e2e) must seed its own active book and defaults rather than assume one, and the test-only seeding helper must **append** a version (A-10's seed command refuses when any version exists). **Rulings of 2026-10-27 (relayed):** (c) **S2's live files run only when M10 is about to merge to `main`.** They call `runMigrations` on the shared test database and freeze migrations `0023`–`0025` there (the numbers of §9.2 and ADR 0178's Amendment of 2026-10-27). The first apply puts the shared ledger ahead of every other checkout (`ledgerAheadOfCheckoutError`, `migration-plan.ts:48-63`), affecting about 28 persistence live files and `ci:local` on other branches, and possibly main's CI if its `TEST_DATABASE_URL` is the same database (**unverified**). ~~Until then S2 merges into `m10-price-dashboard` on its non-live gates (mocked-driver statements, pglite-checked SQL).~~ **Superseded 2026-10-27 (coordinator ruling): S2 stays on its own branch `m10/s2`, unmerged into `m10-price-dashboard`, until the live gate at the merge to `main`.** Reason: the main checkout has `TEST_DATABASE_URL` configured, so any live test there that calls `runMigrations` (S2's own live files, and existing ones such as `migrate.test.ts` and `delete-rate-limit-counters-for-tests.live.test.ts`) would apply `0023`–`0025` to the shared test database as soon as those files are in the checkout, which is the irreversible ledger move the deferral exists to prevent. Waves that need S2's code (S4, S5, S3, and R1/R3's production wiring) branch from or merge `m10/s2` in their worktrees, which have no database environment. S2 merges into the dashboard branch immediately before the live run, then into `main`. S2 status (relayed): QA green; logic, clean-code and security reviewed; non-live gates green at `c44978ec`. The live run is a Z-wave gate (§13.2, Z1/Z2). (d) **A 4 MiB ceiling on `book`, the draft `changes` and `change_summary`, with a store-side byte check too** (precedent: `0011`). (e) The owner runbook text and the S2 grant list are in the runbook section for these tables (S-g). **Added 2026-10-27 (R2 review):** (f) `0024` gains `check (jsonb_typeof(changes) = 'array')` on the draft table while it is still unapplied, as defence in depth for R2's discard path. **Added 2026-11-04 (architect; ADR 0178's last Amendment):** (g) `0023` gains `change_count`, the count the publisher confirmed, computed by the store at publish. The work is listed in *S2 and S4 hand-off: the stored change count* below the table |
 | ~~**S2b** availability log~~ | **Folded into S2 on 2026-10-27 (ruling B).** Its scope, files and criterion S-b2 now belong to S2 | — | — | — |
-| **S4** seen and digest | `0026`, `0027` (ex-`0029`, `0030`); `NeonKitchenChangeStore`; the staff kitchens statement gains `changed_since_seen` (`revision <> effective-seen`, in SQL; **effective-seen is `greatest(seen mark, the latest request's design_revision)`, ruling 2026-10-27, see S-c0**), an `only-changed` filter, changed-first sort and a count; `listDigestEligible($now)` exactly as S-d1 restates it. **Added 2026-10-27 (rulings K2-Q1, K2-Q3):** `markSeen`'s `ok` carries `changedAfterSeen`, computed in the same SQL statement as `designs.revision <> greatest(existing, displayed)` (**now also folding in the latest request's revision, S-c0, 2026-10-27**); the staff-kitchen port gains `StaffKitchenQuery.onlyChanged`, `StaffListedKitchen.isChangedSinceSeen`, `StaffKitchenDetail.isChangedSinceSeen` with the opaque `revision` it displays, `StaffKitchenPage.changedCount`, and the as-sent `priced` total. The fakes join `FakeKitchenChangeStore`. S4 owns all of these in persistence (the port types, the fakes, the shared contracts), **plus one domain field** in a stated window: `onlyChanged` in `configurator-domain/src/staff/staff-kitchen-query.ts`, with its judge | 2 migrations, `neon-kitchen-change-store.ts`, `staff-kitchen-statements.ts` (mod), `kitchen-change-statements.ts` | S2 (sequence) | A-12, A-13; S-18; `0004` header (read only); `design-revision.ts`; `0022_create_design_request_states.sql`; `neon-staff-kitchen-reader.ts` |
+| **S4** seen and digest | `0026`, `0027` (ex-`0029`, `0030`); `NeonKitchenChangeStore`; the staff kitchens statement gains `changed_since_seen` (`revision <> effective-seen`, in SQL; **effective-seen is `greatest(seen mark, the latest request's design_revision)`, ruling 2026-10-27, see S-c0**), an `only-changed` filter, changed-first sort and a count; `listDigestEligible($now)` exactly as S-d1 restates it. **Added 2026-10-27 (rulings K2-Q1, K2-Q3):** `markSeen`'s `ok` carries `changedAfterSeen`, computed in the same SQL statement as `designs.revision <> greatest(existing, displayed)` (**now also folding in the latest request's revision, S-c0, 2026-10-27**); the staff-kitchen port gains `StaffKitchenQuery.onlyChanged`, `StaffListedKitchen.isChangedSinceSeen`, `StaffKitchenDetail.isChangedSinceSeen` with the opaque `revision` it displays, `StaffKitchenPage.changedCount`, and the as-sent `priced` total. The fakes join `FakeKitchenChangeStore`. S4 owns all of these in persistence (the port types, the fakes, the shared contracts), **plus one domain field** in a stated window: `onlyChanged` in `configurator-domain/src/staff/staff-kitchen-query.ts`, with its judge. **Added 2026-11-04:** S4 takes S2's stored-change-count change by merging `m10/s2`, and edits no price-book file itself (*S2 and S4 hand-off* below the table) | 2 migrations, `neon-kitchen-change-store.ts`, `staff-kitchen-statements.ts` (mod), `kitchen-change-statements.ts` | S2 (sequence) | A-12, A-13; S-18; `0004` header (read only); `design-revision.ts`; `0022_create_design_request_states.sql`; `neon-staff-kitchen-reader.ts` |
 | **S5** notice marker | `0028` (ex-`0031`); `NeonPriceNoticeStore` storing the (version, availability revision) pair | 1 migration, `neon-price-notice-store.ts` | S4 (sequence) | A-11 (as amended 2026-10-26); `neon-configuration-repository.ts` (the write-token authorisation it must mirror, read only) |
 | **S3** defaults and usage | `0029` (ex-`0027`); `NeonKitchenDefaultsStore`; `NeonKitchenUsageReader` (jsonb paths; client-deleted rows excluded) with a **parity test against M3's `usesItem`** over shared fixture designs. For a linked accessory, the reader is given the set of build ids that price as the linked row (computed by the domain through `resolveCatalogEquivalent`), never a hand list | 1 migration, `neon-kitchen-defaults-store.ts`, `neon-kitchen-usage-reader.ts`, `kitchen-usage-statements.ts` | S5, M3 | A-9; M3's `item-usage.ts`; `design.ts:170-195` (the settings paths); `0016` (`deleted_by_client_at`) |
 | **S6** backup (OQ-13) | Price-book versions, the availability log and the defaults added to the scheduled export | `backup` statement (one file) | S3 | ADR 0012; `apps/web/src/lib/server/backup-designs.ts` (read only; its route is not S's) |
+
+**S2 and S4 hand-off: the stored change count** (architect, 2026-11-04; ADR 0178's last Amendment). Source-verified at
+`m10/s2` @ `c44978ec`. `m10/s4` @ `678c4131` holds the same bytes in the statements, the store, the fake, `0023`, the
+helper and every named test except one. Measured with `git diff --stat m10/s2 m10/s4` over every file named here, S4
+differs from S2 in exactly three files:
+- `dashboard-store-shapes.ts`: 46 lines added;
+- `m10-ports.ts`: 8 lines changed;
+- `application-role-privileges.test.ts`: 170 lines changed.
+
+*Order.* `countPendingPrices` and the contract case at `price-book-store-contract.ts:941` ("counts a created class and
+its rates as one price…") exist only on `m10/u5c`; `rtk proxy grep` finds no `countPendingPrices` on
+`m10-price-dashboard` @ `413b3100`. Line numbers here are as committed at `0f40c208`, and will drift, so match each case
+by its title.
+1. U5c merges into `m10-price-dashboard`.
+2. S2 merges `m10-price-dashboard` into `m10/s2`. S2 still does not merge into the dashboard branch: ruling (c)
+   stands. Resolve U5c's conflicts as follows:
+   - in the fake, keep the count but store it, as in item 5 below;
+   - in `m10-ports.ts`, take U5c's wording and correct it, as in item 6 below;
+   - in the contract, keep U5c's cases at `:918` ("stores the change summary as the published changes with their
+     group ids, and counts them") and `:941`.
+3. S2 makes the change below.
+4. S4 merges `m10/s2` into `m10/s4`. S4 edits no price-book file. The merge can conflict in the three files S4 already
+   changes:
+   - `dashboard-store-shapes.ts` and `m10-ports.ts`: keep S4's additions and take S2's count lines;
+   - `application-role-privileges.test.ts`: keep S4's arms and take S2's `change_count` in the `price_book_versions`
+     arm.
+
+*S2's items:*
+1. **`0023_create_price_book_versions.sql`.** Editing it is allowed because it is applied nowhere (ADR 0178's status
+   line; ruling (c)).
+   - Add `change_count integer not null constraint price_book_versions_change_count_is_a_count check (change_count >= 0)`
+     after `change_summary`. It takes **no default**. The bounded check was rejected (ADR 0178's last Amendment).
+   - Rewrite the header's "whose length is the version's change count and is stored nowhere else". The count is the
+     publisher's confirmed count, computed by the application at publish.
+   - The grant's `INSERT` list gains `change_count`.
+   - The L1 residual's runbook cross-check gains: "and its `change_count` equals that row's `changeCount`".
+2. **`price-book-statements.ts`.**
+   - `:68`: replace `jsonb_array_length(v.change_summary) as change_count` with `v.change_count`. The list statement
+     must no longer name `change_summary`.
+   - `:210`–`:214`: the publish insert's column list and its `select` gain `change_count` and
+     `${input.changeCount}::int`. `PublishStatementInput` gains `changeCount`, filled by `statementInputOf`
+     (`neon-price-book-store.ts:220`) from `publishable.changeCount`.
+   - `:217`: return `change_count`, not `jsonb_array_length(change_summary)`.
+   - `:233` is unchanged: it still stamps `v.change_count` from `inserted_version`.
+   - `:279`: the seed's insert gains `change_count` with the value `0`.
+   - The comments at `:54`, `:149` and `:158` follow.
+3. **`dashboard-store-shapes.ts:282`.** Replace `(changeSummary as readonly unknown[]).length` with `countPendingPrices`
+   over the same array, imported from `@lemnaria/configurator-domain`. The field's comment at `:247` follows. Both
+   stores take the count from here, so the audit pre-check (`neon-price-book-store.ts:198`) and the stored column
+   cannot differ.
+4. **`append-price-version-for-tests.ts:44`–`:46`.** Insert `change_count` 0 beside `'[]'`.
+5. **`fake-price-book-store.ts`.**
+   - Hold the count computed at publish on the held version.
+   - `listVersions` and the stamp read the held value (on S2 today they read `.length`: `:144`, `:195`, `:231`).
+   - This mirrors the column. It cannot be observed under one rule, and it keeps the fake honest if the rule changes.
+6. **`m10-ports.ts` `:125`, `:135`, `:215`, `:222`.** Change "its length" / "derived and stored nowhere else" to
+   "the prices it holds (`countPendingPrices`), computed by the store at publish and stored with the version".
+7. **Tests that pin the old shape.**
+   - `application-role-privileges.test.ts:460`–`:484`: add `change_count` to `columns` and to `insertable`; the
+     `insertTail` gains `change_count` and `0`.
+   - `migration-0023-0025-text.test.ts`: the column text at about `:207`, and the grant text at `:268`.
+   - `neon-price-book-store.statements.test.ts` near `:235`, `:283`, `:650`: the list row's `change_count` now comes
+     from the column.
+   - The live file and `seed-price-book.test.ts`: the seeded version lists `changeCount` 0.
+8. **Contract `price-book-store-contract.ts:343`**
+   ("records the sequence it inserted and the length of the summary it stored…"). **It must discriminate:**
+   - The summary gains a created class and at least one of its rates: `[DEPTH_TO_40, ANCHOR_TO_5000,
+     hardware-tier-created X, hardware X perHingeMinor]`, so the length is 4 and the count 3.
+   - The forged `changeCount` stays 7, which differs from both.
+   - The expected stamp is 3.
+   - Rename the case to "…and the count of the prices it stored…".
+   - `:918` does not discriminate (length and count are both 3). It may stay as it is.
+9. **A new contract case.** For one publish whose summary holds a created class with its rates:
+   - `listVersions`' `changeCount` equals the `price-published` audit row's `changeCount`;
+   - both equal `countPendingPrices(summary)`.
+
+*Review tier:* Full plus security, as every S wave. Its reading is this block, ADR 0178's last Amendment, and S-b.
 
 **S acceptance:**
 
@@ -1876,8 +1961,23 @@ P4b), so it runs last and holds nothing up. Migration numbers follow §9.2, not 
   - S-b2's property also holds for publish's log rows: they are contiguous from `old + 1`, each `active = false`;
   - `change_summary` round-trips as the published `DraftChange[]` array (m8);
   - **(S1 QA)** the `price-published` audit row's `sequenceNumber` equals the inserted version's and its
-    `changeCount` equals the stored summary's length. A caller-supplied value for either is impossible by type and is
-    overwritten if forced through a cast;
+    `changeCount` equals ~~the stored summary's length~~ **(amended 2026-11-04, ADR 0178's last Amendment) the stored
+    `change_count`, which is `countPendingPrices(summary)`**. A caller-supplied value for either is impossible by type
+    and is overwritten if forced through a cast;
+  - **(2026-11-04) the stored change count** (hand-off above):
+    - **discrimination:** the arm proving the stamp uses a summary whose length differs from its count (a created
+      class plus at least one of its rates). With a summary where the two agree, the arm passes on the old code and
+      proves nothing;
+    - **agreement:** for one publish, `listVersions`' `changeCount`, the stored `change_count` and the audit row's
+      `changeCount` are equal;
+    - **property (fast-check, over the fake):** for any summary drawn from every address kind, including created rows
+      with and without their creation entry and a created row deleted again, all three equal
+      `countPendingPrices(summary)`, are 0 exactly when the summary is empty, and never exceed its length;
+    - the seed's version and the test helper's appended version list `changeCount` 0;
+    - **must-not:** `jsonb_array_length` appears nowhere in `price-book-statements.ts`, and `listVersionsStatement`'s
+      text does not name `change_summary`. Check both with `rtk proxy grep`;
+    - **must-not:** `PublishPriceBookRequest` has no count member, proved by a `@ts-expect-error` arm;
+    - **must-not:** `0023`'s `change_count` has a default. An insert that omits it fails `not null`;
   - **(S1 QA)** `expectedDraftRevision` is shape-checked like every revision (m6's bounded digit shape). A malformed
     value is `invalid-request` and never reaches SQL;
   - must-not: `UPDATE`, `DELETE` or `TRUNCATE` on `price_book_versions` is held;
@@ -2035,8 +2135,9 @@ P4b), so it runs last and holds nothing up. Migration numbers follow §9.2, not 
   - `GET` answers a distinct `409 draft-unreadable` (not `503`).
   - R2 adds a **discard-all** write: `DELETE …/draft` with `{expectedDraftRevision, scope: "all"}`. It resets the
     seeded draft row to `[]` **without parsing the stored changes**, so it works on an unreadable draft.
-  - It is audited as `price-draft-reverted` with `changeKind: "discard-all"` and `revertedCount` set to the number of
-    stored entries, or 0 when unreadable. R2 holds `staff-audit-action.ts` for that one `changeKind` value.
+  - It is audited as `price-draft-reverted` with `changeKind: "discard-all"` and `revertedCount` set to ~~the number of
+    stored entries~~ **(amended 2026-11-04, ADR 0178's last Amendment, decision 3) `countPendingPrices` over the stored
+    draft**, or 0 when unreadable. A bulk group's `revertedCount` uses the same rule. A single revert's stays 1. R2 holds `staff-audit-action.ts` for that one `changeKind` value.
   - **U5b** renders "Renunță la ciornă" on that state.
   - A readable but unapplicable draft keeps healing by revert (accepted).
 - **Q3:** `groupId` on the draft wire is **allowed**. It is an opaque id minted per bulk action and needed for group
