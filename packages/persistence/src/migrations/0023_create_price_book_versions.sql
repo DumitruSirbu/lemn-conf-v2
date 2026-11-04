@@ -23,8 +23,9 @@
 -- character) is the domain's, applied before the insert. `book` and `change_summary` are each bounded to 4 MiB of
 -- `jsonb` text (4194304 bytes), `0011`'s ceiling for a stored document and for its reason: far above any book the
 -- product writes and above what `jsonb` adds in spaces to the application's own, lower limit (2 MiB of compact JSON
--- whose numbers are all whole, checked before any statement; `jsonb` prints any other number out in full), so no honest book meets it and no credential can make a row that every price surface
--- must then load. The ceiling must be in the first apply; it cannot be added to a table that holds versions.
+-- whose numbers are all whole, checked before any statement; `jsonb` prints any other number out in full), so no honest
+-- book meets it and no credential can make a row that every price surface must then load. The ceiling must be in the
+-- first apply; it cannot be added to a table that holds versions.
 --
 -- `published_at` is `now()` by default and is **not in the grant**, so a leaked credential cannot back-date or
 -- forward-date a version (`0011`'s `created_at` reasoning).
