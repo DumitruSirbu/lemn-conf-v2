@@ -16,7 +16,13 @@ import type {
   DashboardDraftWire,
   DashboardStateWire,
 } from "./price-dashboard-wire-contract";
-import { type PublishClient, type RestoreOutcome } from "./publish-client";
+import {
+  isStateRefusal,
+  readStateOrRefusal,
+  type DraftStateRefusal,
+  type PublishClient,
+  type RestoreOutcome,
+} from "./publish-client";
 import { orFailed } from "./async-seams";
 import { FETCHING_PUBLISH_CLIENT } from "./fetching-publish-client";
 import { pendingPriceCountOf } from "./cabinet-list-model";
@@ -146,7 +152,7 @@ export function VersionDetailScreen({
 interface RestoreAnswer {
   readonly outcome: RestoreOutcome;
   /** The state read again after a refusal as `changed-meanwhile`, so the next press carries the revision that is current. */
-  readonly fresh: DashboardStateWire | undefined;
+  readonly fresh: DashboardStateWire | DraftStateRefusal | undefined;
 }
 
 /** Asks the client to restore; a client that rejects has failed, and a refusal as changed-meanwhile reads the state again. */
@@ -161,13 +167,17 @@ async function askToRestore(request: {
     { kind: "failed" },
   );
   if (outcome.kind !== "conflict") return { outcome, fresh: undefined };
-  const fresh = await orFailed(() => client.readState(), undefined);
+  const fresh = await orFailed(() => readStateOrRefusal(client), undefined);
   return { outcome, fresh };
 }
 
 function settled(held: RestoreState, answer: RestoreAnswer): RestoreState {
-  const { outcome, fresh } = answer;
+  const { outcome } = answer;
   const idle = { ...held, isBusy: false };
+  if (outcome.kind === "conflict" && isStateRefusal(answer.fresh)) {
+    return settledByRefusal(idle, answer.fresh);
+  }
+  const fresh = isStateRefusal(answer.fresh) ? undefined : answer.fresh;
   switch (outcome.kind) {
     case "restored":
       return {
@@ -197,6 +207,15 @@ function settled(held: RestoreState, answer: RestoreAnswer): RestoreState {
     case "failed":
       return { ...idle, failure: "save-failed" };
   }
+}
+
+function settledByRefusal(
+  idle: RestoreState,
+  refusal: DraftStateRefusal,
+): RestoreState {
+  return refusal.kind === "draft-unreadable"
+    ? { ...idle, unreadableRevision: refusal.draftRevision }
+    : { ...idle, failure: "no-active-version" };
 }
 
 function VersionHeading({

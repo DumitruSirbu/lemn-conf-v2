@@ -200,7 +200,11 @@ describe("a request that cannot be made or read", () => {
             new Response("<html>gateway</html>", { status: code }),
           ),
         );
-        expect(await call()).toEqual({ kind: "failed" });
+        expect(await call()).toEqual(
+          name === "publish" && code === 200
+            ? { kind: "answer-unreadable" }
+            : { kind: "failed" },
+        );
       }
     });
   }
@@ -307,7 +311,7 @@ describe("the words a route does give", () => {
     });
   });
 
-  it("publish: a 200 that is not a published version is a failure, whatever else it carries", async () => {
+  it("publish: a 200 that is not a published version is an answer nobody can read, whatever else it carries", async () => {
     for (const sent of [
       {},
       { versionId: "a", sequenceNumber: "2", availabilityRevision: "3" },
@@ -318,7 +322,7 @@ describe("the words a route does give", () => {
     ]) {
       answerWith(200, sent);
 
-      expect(await PUBLISH()).toEqual({ kind: "failed" });
+      expect(await PUBLISH()).toEqual({ kind: "answer-unreadable" });
     }
   });
 

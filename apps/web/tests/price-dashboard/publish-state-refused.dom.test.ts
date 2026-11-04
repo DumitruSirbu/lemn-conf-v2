@@ -150,6 +150,43 @@ describe("a draft found unreadable while the page was open", () => {
   });
 });
 
+describe("a re-read that finds the draft unreadable", () => {
+  it("hands over to the page that gives it up, as a write does, and not to the save-failed notice", async () => {
+    const input = inputWithDraft([ANCHOR], "3");
+    const client = {
+      ...spiedPublishClient(input, {
+        revert: () => Promise.resolve({ kind: "conflict" }),
+      }),
+      readStateOrRefusal: () => Promise.resolve(UNREADABLE),
+    };
+    mounted = await mountDesk({ input, client });
+    const { container } = mounted;
+
+    click(requireIn(container, '[data-testid="diff-revert"]'));
+    await settle();
+
+    expect(requireIn(container, UNREADABLE_PAGE).isConnected).toBe(true);
+    expect(container.textContent).not.toContain(SAVE_FAILED);
+  });
+});
+
+describe("a publish answered by a body nobody can read", () => {
+  it("says it is not known whether a version was published, reads the state again, and does not claim the prices did not change", async () => {
+    const { container, client } = await mountWith({
+      publish: () => Promise.resolve({ kind: "answer-unreadable" }),
+    });
+
+    await askToPublish(container);
+
+    const notice = requireIn(container, '[data-testid="publish-notice"]');
+    expect(notice.textContent).toContain(
+      roCopy("priceDashboard.publish.answerUnreadableTitle"),
+    );
+    expect(container.textContent).not.toContain(SERVER_DID_NOT_ANSWER);
+    expect(client.readState).toHaveBeenCalled();
+  });
+});
+
 describe("no published version found while the page was open", () => {
   it.each([
     ["taking a change back", "revert"],

@@ -20,6 +20,8 @@ import type {
 } from "./price-draft-client";
 import {
   type DraftStateRefusal,
+  isStateRefusal,
+  readStateOrRefusal,
   type DraftWriteOutcome,
   type PublishBlock,
   type PublishClient,
@@ -75,7 +77,9 @@ export type PublishNotice =
   | { readonly kind: "conflict" }
   | { readonly kind: "save-failed" }
   | { readonly kind: "discarded" }
-  | { readonly kind: "blocked"; readonly block: PublishBlock };
+  | { readonly kind: "blocked"; readonly block: PublishBlock }
+  /** The publish was answered, but the answer could not be read: whether a version was published is not known. */
+  | { readonly kind: "answer-unreadable" };
 
 export interface PublishDesk {
   readonly state: DashboardStateWire;
@@ -295,6 +299,10 @@ export function usePublishDesk({
         case "no-active-version":
           setStateRefusal(outcome);
           return;
+        case "answer-unreadable":
+          setNotice({ kind: "answer-unreadable" });
+          void refresh();
+          return;
         case "candidate-refused":
           setNotice({
             kind: "candidate-refused",
@@ -410,7 +418,12 @@ function draftClientOf(
       : outcome;
   };
   return {
-    readState: () => client.readState(),
+    readState: async () => {
+      const read = await readStateOrRefusal(client);
+      if (!isStateRefusal(read)) return read;
+      onStateRefusal(read);
+      return undefined;
+    },
     change: (request) => settled(client.change(request)),
     revert: (request) => settled(client.revert(request)),
     bulk: () => Promise.resolve({ kind: "failed" }),

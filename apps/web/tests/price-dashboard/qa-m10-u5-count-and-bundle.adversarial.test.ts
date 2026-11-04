@@ -11,7 +11,7 @@ import { importClosureOf } from "../support/source-import-closure";
 const SOURCE_ROOT = join(import.meta.dirname, "../../src");
 const USE_CLIENT = /^\s*["']use client["']/m;
 const SERVER_ONLY_OR_INVENTED =
-  /(^|\/)(publish-sample|publish-source|cabinet-list-source|shipped-price-book)\.tsx?$|^lib\/server\//;
+  /(^|\/)(publish-sample|publish-sample-client|publish-source|cabinet-list-source|shipped-price-book)\.tsx?$|^lib\/server\//;
 
 describe("what a browser is sent", () => {
   const clientModules = filesUnder(SOURCE_ROOT)

@@ -28,9 +28,11 @@ import type {
   DraftWriteOutcome,
   PublishClient,
   PublishOutcome,
+  RefusalReadingPublishClient,
   RestoreOutcome,
   VersionPageOutcome,
 } from "./publish-client";
+import { isStateRefusal } from "./publish-client";
 import {
   readCandidateRefusals,
   readItemRef,
@@ -53,8 +55,12 @@ const NOT_FOUND_STATUS = 404;
 const FAILED = { kind: "failed" } as const;
 const SESSION_ENDED = { kind: "session-ended" } as const;
 
-export const FETCHING_PUBLISH_CLIENT: PublishClient = {
-  readState,
+export const FETCHING_PUBLISH_CLIENT: RefusalReadingPublishClient = {
+  readState: async () => {
+    const read = await readStateOrRefusal();
+    return isStateRefusal(read) ? undefined : read;
+  },
+  readStateOrRefusal,
   publish,
   change: (request) => writeDraft("PUT", request),
   revert: (request) => writeDraft("DELETE", request),
@@ -92,14 +98,16 @@ function stateRefusalOf({
     : undefined;
 }
 
-async function readState(): Promise<DashboardStateWire | undefined> {
+async function readStateOrRefusal(): Promise<
+  DashboardStateWire | DraftStateRefusal | undefined
+> {
   const answer = await ask(STATE_ADDRESS, { method: "GET" });
-  if (answer?.status === UNAUTHORISED_STATUS) {
+  if (answer === undefined) return undefined;
+  if (answer.status === UNAUTHORISED_STATUS) {
     raiseStaffSessionExpired({ keepsTypedText: true });
   }
-  return answer?.status === OK_STATUS
-    ? readDashboardStateWire(answer.body)
-    : undefined;
+  if (answer.status === OK_STATUS) return readDashboardStateWire(answer.body);
+  return stateRefusalOf(answer);
 }
 
 async function discardDraft(
@@ -135,7 +143,9 @@ async function publish(request: PublishRequestWire): Promise<PublishOutcome> {
 
 function publishedOutcomeOf(body: unknown): PublishOutcome {
   const published = readPublishedWire(body);
-  return published === undefined ? FAILED : { kind: "published", published };
+  return published === undefined
+    ? { kind: "answer-unreadable" }
+    : { kind: "published", published };
 }
 
 /** A label or note the person can correct; a request member the screen never sends wrongly is not theirs to correct. */

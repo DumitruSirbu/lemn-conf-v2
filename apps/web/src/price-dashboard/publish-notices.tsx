@@ -85,6 +85,15 @@ export function NoticeBody({
           </span>
         </FormNotice>
       );
+    case "answer-unreadable":
+      return (
+        <FormNotice
+          tone="warning"
+          title={translate("priceDashboard.publish.answerUnreadableTitle")}
+        >
+          {translate("priceDashboard.publish.answerUnreadableBody")}
+        </FormNotice>
+      );
     case "conflict":
       return (
         <FormNotice tone="warning">

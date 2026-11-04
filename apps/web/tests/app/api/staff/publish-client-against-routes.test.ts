@@ -210,10 +210,32 @@ describe("reading and writing the draft", () => {
     expect(getStaffSessionExpiry()).toEqual({ keepsTypedText: true });
   });
 
-  it("reads a draft that cannot be read as no state, so nothing is shown from it", async () => {
+  it("reads a draft that cannot be read as that refusal, at the revision the route named, and no version as its own", async () => {
     holdUnreadableDraft("9");
+    const unreadable = await FETCHING_PUBLISH_CLIENT.readStateOrRefusal();
+    const plain = await FETCHING_PUBLISH_CLIENT.readState();
+    vi.restoreAllMocks();
+    prices = await freshPriceDashboardWorld({ isPublished: false });
+    const unpublished = await FETCHING_PUBLISH_CLIENT.readStateOrRefusal();
 
-    expect(await FETCHING_PUBLISH_CLIENT.readState()).toBeUndefined();
+    expect(plain, "the plain read keeps its answer").toBeUndefined();
+    expect(unreadable).toEqual({
+      kind: "draft-unreadable",
+      draftRevision: "9",
+    });
+    expect(unpublished).toEqual({ kind: "no-active-version" });
+  });
+
+  it("answers a publish whose 200 cannot be read as an answer nobody can read, not as a failure", async () => {
+    await putChange(cookie ?? "", ANCHOR_ADDRESS, OTHER_ANCHOR_MINOR);
+    const request = publishRequestOf(await stateRead());
+    vi.stubGlobal("fetch", () =>
+      Promise.resolve(new Response("not json", { status: 200 })),
+    );
+
+    expect(await FETCHING_PUBLISH_CLIENT.publish(request)).toEqual({
+      kind: "answer-unreadable",
+    });
   });
 });
 
