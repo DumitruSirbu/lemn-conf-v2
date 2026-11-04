@@ -346,13 +346,13 @@ describe("a publish that deletes an accessory linked to a catalogue row that no 
     bookOfTheWorld = BOOK;
   });
 
-  it("is answered as a state of the data, not as a failure of the server, and writes nothing", async () => {
+  it("fails closed with 503 and writes nothing: the book is unreadable, so no accessory of it can be deleted until the link is mended", async () => {
     const cookie = await administratorWhoDeletes(PLINTH);
     const before = await stateOfTheWorld();
 
     const answer = await publish(cookie);
 
-    expect(answer.status).toBeLessThan(500);
+    expect(answer.status).toBe(503);
     expect(await stateOfTheWorld()).toEqual(before);
   });
 });
