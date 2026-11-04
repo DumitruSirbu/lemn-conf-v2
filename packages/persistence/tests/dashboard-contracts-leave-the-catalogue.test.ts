@@ -8,7 +8,10 @@ import {
   activationEntryFor,
   auditRecordOf,
 } from "./support/dashboard-contract-support.js";
-import { newFakeDashboardWorld } from "./support/fake-dashboard-world.js";
+import {
+  newFakeDashboardWorld,
+  probeTheFakeAccepts,
+} from "./support/fake-dashboard-world.js";
 import { describeKitchenDefaultsStoreContract } from "./support/kitchen-defaults-store-contract.js";
 import { describePriceBookStoreContract } from "./support/price-book-store-contract.js";
 import { describePriceNoticeStoreContract } from "./support/price-notice-store-contract.js";
@@ -75,6 +78,16 @@ describeKitchenDefaultsStoreContract("on a shared catalogue", () =>
     ...world,
     store: world.defaults,
     usage: world.defaults,
+    probeFor: probeTheFakeAccepts,
+    anUnreadableDesign({ isDeletedByClient = false } = {}) {
+      world.defaults.plantDesign({
+        designId: nanoid(),
+        uses: [],
+        isDeletedByClient,
+        isUnreadable: true,
+      });
+      return Promise.resolve();
+    },
     aDesignUsing({ uses, isDeletedByClient = false }) {
       world.defaults.plantDesign({
         designId: nanoid(),

@@ -279,6 +279,18 @@ const EXPECTED_CLASSIFICATION: Readonly<
     reason:
       "the notice contract publishes versions and switches an item off to move the availability head, and a version and a log row are append-only, so no other run may read the newest version or the head meanwhile",
   },
+  "neon-kitchen-defaults-store.live.test.ts": {
+    gate: "live test database",
+    lock: "exclusive",
+    reason:
+      "a save moves the one defaults row and the availability head, and the contract publishes a version and switches an item off, all append-only or global, so no other run may read the head, the newest version or the defaults meanwhile",
+  },
+  "neon-kitchen-usage-reader.live.test.ts": {
+    gate: "live test database",
+    lock: "exclusive",
+    reason:
+      "a count reads the whole designs table, and the walk's before and after readings must differ by the designs the file plants and by nothing else, so no other run may write designs meanwhile",
+  },
   "table-privileges.test.ts": {
     gate: "live test database",
     lock: "none",

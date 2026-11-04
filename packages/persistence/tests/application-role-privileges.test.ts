@@ -16,6 +16,15 @@ import {
   setItemActiveStatement,
 } from "../src/catalogue-availability-statements.js";
 import {
+  readKitchenDefaultsStatement,
+  saveKitchenDefaultsStatement,
+} from "../src/kitchen-defaults-statements.js";
+import {
+  countDesignsChoosingTierStatement,
+  countDesignsPlacingBodiesStatement,
+  readDesignPageStatement,
+} from "../src/kitchen-usage-statements.js";
+import {
   claimDigestDayStatement,
   listDigestEligibleStatement,
   markSeenStatement,
@@ -523,6 +532,23 @@ const STAFF_TABLE_GRANTS: readonly StaffTableGrant[] = [
     notUpdatable: "singleton",
     updateTail:
       "set revision = revision + 1, changes = '[]'::jsonb, updated_at = now(), updated_by_account_id = null where revision = 0",
+    insertTail: null,
+  },
+  {
+    table: "public.kitchen_defaults",
+    columns: [
+      "singleton",
+      "revision",
+      "defaults",
+      "saved_at",
+      "saved_by_account_id",
+    ],
+    insertable: [],
+    updatable: ["revision", "defaults", "saved_at", "saved_by_account_id"],
+    refusedInsertTail: "(revision) values (1)",
+    notUpdatable: "singleton",
+    updateTail:
+      "set revision = revision + 1, defaults = '{}'::jsonb, saved_at = now(), saved_by_account_id = null where revision = 0",
     insertTail: null,
   },
   {
@@ -1514,6 +1540,64 @@ describe.skipIf(!hasLiveDatabase)("the application's database role", () => {
         readAcknowledgedStatement(recordedStatement, A_PROBE_ID),
         recordIfAbsentStatement(recordedStatement, pair),
         recordAcknowledgedStatement(recordedStatement, pair),
+      ]) {
+        await expect(
+          explainOfThePresetStatement(statement),
+        ).resolves.toBeDefined();
+      }
+    },
+  );
+  // The defaults store's two statements and the usage reader's three, the stores' own text built by the same functions,
+  // planned and never run. The save reads and updates `catalogue_availability_head` and updates `kitchen_defaults` besides
+  // writing the audit row, and the reader reads `designs` (its document and `deleted_by_client_at`), so a column a
+  // statement names that the role was not granted is a 42501 here and not at the first save.
+  guardedTest(
+    "can have the kitchen defaults store's and the usage reader's statements planned, once the tables exist",
+    async (context) => {
+      for (const table of [
+        "public.kitchen_defaults",
+        "public.catalogue_availability_head",
+        "public.staff_audit_events",
+        "public.account_sessions",
+        "public.accounts",
+        "public.designs",
+      ]) {
+        await skipUnlessTheTableExists(context, table);
+      }
+      const audit = prepareStaffAuditRecord({
+        sessionTokenHash: "a".repeat(64),
+        idleLifetimeSeconds: {
+          client: 2_592_000,
+          operator: 43_200,
+          administrator: 43_200,
+        },
+        entry: {
+          action: "kitchen-defaults-saved",
+          detail: { changedFields: ["handle"] },
+        } as never,
+        designId: null,
+        subjectAccountId: null,
+      });
+
+      for (const statement of [
+        readKitchenDefaultsStatement(recordedStatement),
+        saveKitchenDefaultsStatement(recordedStatement, {
+          expectedRevision: "0",
+          expectedAvailabilityRevision: "0",
+          defaultsJson: "{}",
+          detailJson: JSON.stringify({ changedFields: ["handle"] }),
+          audit,
+        }),
+        countDesignsChoosingTierStatement(recordedStatement, {
+          settingKey: "materialTierId",
+          tierId: "a-probe",
+          isFallback: true,
+        }),
+        countDesignsPlacingBodiesStatement(recordedStatement, ["a-probe"]),
+        readDesignPageStatement(recordedStatement, {
+          afterId: "",
+          pageSize: 100,
+        }),
       ]) {
         await expect(
           explainOfThePresetStatement(statement),

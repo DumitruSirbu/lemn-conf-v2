@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 
+import type { ItemRef } from "@lemnaria/configurator-domain";
 import { nanoid } from "nanoid";
 
 import { FakeCatalogueAvailabilityStore } from "../../src/fake-catalogue-availability-store.js";
@@ -12,6 +13,7 @@ import { FakeKitchenDefaultsStore } from "../../src/fake-kitchen-defaults-store.
 import { FakePriceBookStore } from "../../src/fake-price-book-store.js";
 import { FakePriceNoticeStore } from "../../src/fake-price-notice-store.js";
 import { FakeSessionStore } from "../../src/fake-session-store.js";
+import type { ItemUsageProbe } from "../../src/m10-ports.js";
 import type {
   DashboardStaffMember,
   DashboardStaffWorld,
@@ -141,4 +143,22 @@ function revisionAfter(revision: string, steps: number): string {
   const after = BigInt(revision) + BigInt(steps);
   if (after > WIDEST_BIGINT) throw new Error("bigint out of range");
   return String(after);
+}
+
+/**
+ * A probe the fake accepts for an item. The fake counts the items its designs were planted as using and reads no fact a
+ * probe carries, so the facts here are placeholders of the right shape: a fallback of false, no build ids, and a
+ * predicate that is never asked.
+ */
+export function probeTheFakeAccepts(item: ItemRef): ItemUsageProbe {
+  switch (item.kind) {
+    case "material":
+    case "hardware":
+      return { via: "settings-tier", item, isFallback: false };
+    case "accessory":
+      return { via: "placed-bodies", item, buildIds: [] };
+    case "finish":
+    case "handle":
+      return { via: "migrated-design", item, isUsedBy: () => false };
+  }
 }

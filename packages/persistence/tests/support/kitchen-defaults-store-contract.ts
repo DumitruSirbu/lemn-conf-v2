@@ -1,3 +1,4 @@
+import { isItemDisabled, usageCountOf } from "@lemnaria/configurator-domain";
 import type { ItemRef } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
@@ -8,6 +9,7 @@ import {
 } from "../../src/m10-ports.js";
 import type {
   CatalogueAvailabilityStore,
+  ItemUsageProbe,
   KitchenDefaultsStore,
   KitchenUsageReader,
   PriceBookStore,
@@ -31,6 +33,12 @@ import type {
 export interface DefaultsWorld extends DashboardStaffWorld {
   readonly store: KitchenDefaultsStore;
   readonly usage: KitchenUsageReader;
+  /** A saved design the product cannot read, which the walk for a colour, a handle or a built-in accessory leaves out. */
+  anUnreadableDesign(spec?: {
+    readonly isDeletedByClient?: boolean;
+  }): Promise<void>;
+  /** How the reader is asked about one item: the world knows the book and catalogue its designs were planted against. */
+  probeFor(item: ItemRef): ItemUsageProbe;
   /** The log whose head a save advances. */
   readonly availability: CatalogueAvailabilityStore;
   /** The other writer that takes the head's compare-and-set, for the race between a save and a publish. */
@@ -281,6 +289,19 @@ function describeSaving(
       expect(retried.kind).toBe("ok");
     });
 
+    it("refuses defaults larger than a kitchen's settings can be, changing nothing", async () => {
+      const world = await newWorld();
+      const staff = await world.aStaffMember();
+      const savedBefore = await world.store.read();
+
+      await dashboardFailureOf(
+        save(world, staff, { defaults: { handle: "x".repeat(20_000) } }),
+        "invalid-request",
+      );
+
+      expect(await world.store.read()).toEqual(savedBefore);
+    });
+
     it("writes nothing when no live session stands behind the call", async () => {
       const world = await newWorld();
       const gone = await world.aStaffMemberWhoseSessionIsRevoked();
@@ -398,6 +419,44 @@ function describeSharedHead(
       );
       expect(await world.auditEventsOf(staff.accountId)).toHaveLength(1);
     });
+
+    it("lets exactly one of a save that makes an item the default and a switch-off of that same item succeed, so the default is never a disabled item", async () => {
+      const world = await newWorld();
+      const staff = await world.aStaffMember();
+      const head = (await world.availability.readCurrent()).revision;
+      const item = aNewItem("material");
+      const tierId = item.kind === "material" ? item.tierId : "";
+      const defaultsBefore = await world.store.read();
+
+      const [saved, switched] = await Promise.all([
+        save(world, staff, {
+          defaults: { materialTierId: tierId },
+          expectedAvailabilityRevision: head,
+        }),
+        world.availability.setActive({
+          item,
+          active: false,
+          expectedRevision: head,
+          audit: auditRecordOf(staff, activationEntryFor(item, false)),
+        }),
+      ]);
+
+      expect(
+        [saved.kind === "ok", switched.kind === "ok"].filter(Boolean),
+      ).toHaveLength(1);
+      expect(isItemDisabled(await world.availability.readCurrent(), item)).toBe(
+        switched.kind === "ok",
+      );
+      const defaultsAfter = await world.store.read();
+      if (saved.kind === "ok") {
+        expect(defaultsAfter).toMatchObject({
+          kind: "saved",
+          saved: { defaults: { materialTierId: tierId } },
+        });
+      } else {
+        expect(defaultsAfter).toEqual(defaultsBefore);
+      }
+    });
   });
 }
 
@@ -434,6 +493,17 @@ function describeSharedHeadWithPublish(
   });
 }
 
+/** The count of one item, asked as the dialogs ask it: through the one-count-per-item rule the judgement reads. */
+async function countUsing(
+  world: DefaultsWorld,
+  item: ItemRef,
+): Promise<number> {
+  return usageCountOf(
+    (await world.usage.countEach([world.probeFor(item)])).counts,
+    item,
+  );
+}
+
 function describeUsage(
   suiteName: string,
   newWorld: () => Promise<DefaultsWorld>,
@@ -445,13 +515,13 @@ function describeUsage(
         kind: "accessory",
         accessoryId: "usage-count-light",
       };
-      const before = await world.usage.count(item);
+      const before = await countUsing(world, item);
 
       await world.aDesignUsing({ uses: [item, aNewItem("material")] });
       await world.aDesignUsing({ uses: [item] });
       await world.aDesignUsing({ uses: [aNewItem("hardware")] });
 
-      expect(await world.usage.count(item)).toBe(before + 2);
+      expect(await countUsing(world, item)).toBe(before + 2);
     });
 
     it("leaves out a design its client deleted", async () => {
@@ -461,11 +531,11 @@ function describeUsage(
         accessoryId: "usage-deleted-light",
       };
       await world.aDesignUsing({ uses: [item] });
-      const kept = await world.usage.count(item);
+      const kept = await countUsing(world, item);
 
       await world.aDesignUsing({ uses: [item], isDeletedByClient: true });
 
-      expect(await world.usage.count(item)).toBe(kept);
+      expect(await countUsing(world, item)).toBe(kept);
     });
 
     it("counts a design once, however many of its levels use the item", async () => {
@@ -474,24 +544,121 @@ function describeUsage(
         kind: "accessory",
         accessoryId: "usage-twice-light",
       };
-      const before = await world.usage.count(item);
+      const before = await countUsing(world, item);
 
       await world.aDesignUsing({ uses: [item, item, item] });
 
-      expect(await world.usage.count(item)).toBe(before + 1);
+      expect(await countUsing(world, item)).toBe(before + 1);
     });
 
     it("keeps an item of one kind apart from another kind's of the same id", async () => {
       const world = await newWorld();
       const material: ItemRef = { kind: "material", tierId: "usage-same-id" };
       const hardware: ItemRef = { kind: "hardware", tierId: "usage-same-id" };
-      const hardwareBefore = await world.usage.count(hardware);
-      const materialBefore = await world.usage.count(material);
+      const hardwareBefore = await countUsing(world, hardware);
+      const materialBefore = await countUsing(world, material);
 
       await world.aDesignUsing({ uses: [material] });
 
-      expect(await world.usage.count(hardware)).toBe(hardwareBefore);
-      expect(await world.usage.count(material)).toBe(materialBefore + 1);
+      expect(await countUsing(world, hardware)).toBe(hardwareBefore);
+      expect(await countUsing(world, material)).toBe(materialBefore + 1);
+    });
+
+    it("answers every probe of one call with exactly one count, in the order asked", async () => {
+      const world = await newWorld();
+      const used: ItemRef = { kind: "material", tierId: "usage-batch-used" };
+      const unused: ItemRef = {
+        kind: "hardware",
+        tierId: "usage-batch-unused",
+      };
+      await world.aDesignUsing({ uses: [used] });
+      await world.aDesignUsing({ uses: [used] });
+
+      const counts = (
+        await world.usage.countEach([
+          world.probeFor(unused),
+          world.probeFor(used),
+        ])
+      ).counts;
+
+      expect(counts.map(({ item }) => item)).toEqual([unused, used]);
+      expect(usageCountOf(counts, used)).toBeGreaterThanOrEqual(2);
+    });
+
+    it("counts the designs the walk could not read, beside the counts and only for a call that walks", async () => {
+      const world = await newWorld();
+      const walked = world.probeFor({ kind: "finish", finishId: "usage-walk" });
+      const tier: ItemRef = { kind: "material", tierId: "usage-unwalked" };
+      const before = (await world.usage.countEach([walked])).unreadableDesigns;
+
+      await world.anUnreadableDesign();
+      await world.anUnreadableDesign({ isDeletedByClient: true });
+
+      const result = await world.usage.countEach([walked]);
+      expect(result.unreadableDesigns).toBe(before + 1);
+      expect(result.counts).toHaveLength(1);
+      expect(
+        (await world.usage.countEach([world.probeFor(tier)])).unreadableDesigns,
+      ).toBe(0);
+    });
+
+    it("answers no counts for no probes", async () => {
+      const world = await newWorld();
+
+      const result = await world.usage.countEach([]);
+
+      expect(result).toEqual({ counts: [], unreadableDesigns: 0 });
+    });
+
+    it.each([
+      ["a material", { kind: "material", tierId: "usage-routing" }],
+      ["a colour", { kind: "finish", finishId: "usage-routing" }],
+      ["a handle", { kind: "handle", handle: "steel" }],
+      [
+        "a linked accessory",
+        { kind: "accessory", accessoryId: "usage-routing" },
+      ],
+      [
+        "a built-in accessory",
+        { kind: "accessory", accessoryId: "dishDryingRack" },
+      ],
+    ] as const)(
+      "refuses a way of reading that does not suit %s",
+      async (_name, item) => {
+        const world = await newWorld();
+        const everyWay: readonly ItemUsageProbe[] = [
+          { via: "settings-tier", item, isFallback: false } as never,
+          { via: "placed-bodies", item, buildIds: [] } as never,
+          { via: "migrated-design", item, isUsedBy: () => false },
+        ];
+        const suited: Record<string, ItemUsageProbe["via"]> = {
+          material: "settings-tier",
+          finish: "migrated-design",
+          handle: "migrated-design",
+          accessory:
+            item.kind === "accessory" && item.accessoryId === "dishDryingRack"
+              ? "migrated-design"
+              : "placed-bodies",
+        };
+
+        for (const probe of everyWay) {
+          if (probe.via === suited[item.kind]) continue;
+          await dashboardFailureOf(
+            world.usage.countEach([probe]),
+            "invalid-request",
+          );
+        }
+      },
+    );
+
+    it("refuses probes that name one item twice, because one of its counts would be the wrong one", async () => {
+      const world = await newWorld();
+      const item: ItemRef = { kind: "material", tierId: "usage-named-twice" };
+
+      await dashboardFailureOf(
+        world.usage.countEach([world.probeFor(item), world.probeFor(item)]),
+        "invalid-request",
+      );
     });
   });
 }

@@ -69,7 +69,7 @@ describe("the stores have the operations of the plan's table, and no other", () 
 
   it("KitchenDefaultsStore, KitchenUsageReader, CatalogueAvailabilityStore, PriceNoticeStore", () => {
     expectTypeOf<keyof KitchenDefaultsStore>().toEqualTypeOf<"read" | "save">();
-    expectTypeOf<keyof KitchenUsageReader>().toEqualTypeOf<"count">();
+    expectTypeOf<keyof KitchenUsageReader>().toEqualTypeOf<"countEach">();
     expectTypeOf<keyof CatalogueAvailabilityStore>().toEqualTypeOf<
       "readCurrent" | "readAt" | "setActive"
     >();
