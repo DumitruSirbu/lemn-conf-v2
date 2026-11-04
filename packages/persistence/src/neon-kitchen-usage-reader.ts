@@ -1,8 +1,15 @@
-import { migrateDesign, usageCountOf } from "@lemnaria/configurator-domain";
+import {
+  UnknownBodyError,
+  migrateDesign,
+  usageCountOf,
+} from "@lemnaria/configurator-domain";
 import type { Design, ItemUsageCounts } from "@lemnaria/configurator-domain";
 import type { NeonQueryFunction } from "@neondatabase/serverless";
 
-import { isCountableProbeSet } from "./dashboard-store-shapes.js";
+import {
+  countsWithUnreadable,
+  isCountableProbeSet,
+} from "./dashboard-store-shapes.js";
 import {
   countDesignsChoosingTierStatement,
   countDesignsPlacingBodiesStatement,
@@ -10,7 +17,11 @@ import {
 } from "./kitchen-usage-statements.js";
 import type { TierSettingKey } from "./kitchen-usage-statements.js";
 import { DashboardStoreError } from "./m10-ports.js";
-import type { ItemUsageProbe, KitchenUsageReader } from "./m10-ports.js";
+import type {
+  ItemUsageProbe,
+  KitchenUsageCounts,
+  KitchenUsageReader,
+} from "./m10-ports.js";
 import {
   onlyRow,
   readRows,
@@ -24,6 +35,12 @@ import { openApplicationDatabase } from "./open-application-database.js";
 type ApplicationSql = NeonQueryFunction<false, false>;
 type MigratedDesignProbe = Extract<ItemUsageProbe, { via: "migrated-design" }>;
 type SqlProbe = Exclude<ItemUsageProbe, MigratedDesignProbe>;
+
+/** What one walk found: the designs each probe's predicate holds of, and the designs it could not read. */
+interface Walk {
+  readonly counts: Map<MigratedDesignProbe, number>;
+  unreadableDesigns: number;
+}
 
 const COUNT_USAGE = "count the kitchens using an item";
 
@@ -50,22 +67,27 @@ export class NeonKitchenUsageReader implements KitchenUsageReader {
     this.sql = openApplicationDatabase(connectionUrl);
   }
 
-  async countEach(probes: readonly ItemUsageProbe[]): Promise<ItemUsageCounts> {
+  async countEach(
+    probes: readonly ItemUsageProbe[],
+  ): Promise<KitchenUsageCounts> {
     if (!isCountableProbeSet(probes)) {
       throw new DashboardStoreError(COUNT_USAGE, "invalid-request");
     }
-    const walked = await this.countByMigratedDesign(
+    const walk = await this.walkMigratedDesigns(
       probes.filter(isMigratedDesignProbe),
     );
     const counts: ItemUsageCounts = await Promise.all(
       probes.map(async (probe) => ({
         item: probe.item,
         designCount: isMigratedDesignProbe(probe)
-          ? walkedCountOf(walked, probe)
+          ? walkedCountOf(walk.counts, probe)
           : await this.countInSql(probe),
       })),
     );
-    return requireOneCountEach(probes, counts);
+    return countsWithUnreadable(
+      requireOneCountEach(probes, counts),
+      walk.unreadableDesigns,
+    );
   }
 
   private async countInSql(probe: SqlProbe): Promise<number> {
@@ -89,20 +111,24 @@ export class NeonKitchenUsageReader implements KitchenUsageReader {
     return requiredCount(onlyRow(rows, COUNT_USAGE)["designs"], COUNT_USAGE);
   }
 
-  /** Walks every stored design once, whatever the number of probes, and counts each design once per probe. */
-  private async countByMigratedDesign(
+  /**
+   * Walks every stored design once, whatever the number of probes, and counts each design once per probe. A design
+   * the product cannot read, or one a predicate cannot place a body of, is left out of every count and added to
+   * `unreadableDesigns` once.
+   */
+  private async walkMigratedDesigns(
     probes: readonly MigratedDesignProbe[],
-  ): Promise<ReadonlyMap<MigratedDesignProbe, number>> {
-    const counts = new Map(probes.map((probe) => [probe, 0]));
-    if (probes.length === 0) return counts;
+  ): Promise<Walk> {
+    const walk: Walk = {
+      counts: new Map(probes.map((probe) => [probe, 0])),
+      unreadableDesigns: 0,
+    };
+    if (probes.length === 0) return walk;
     let afterId = "";
     for (;;) {
       const page = await this.readDesignPage(afterId);
-      for (const row of page) {
-        const design = readableDesignOf(row);
-        if (design !== undefined) tallyUse(counts, design);
-      }
-      if (page.length < USAGE_DESIGN_PAGE_SIZE) return counts;
+      for (const row of page) tallyDesign(walk, row);
+      if (page.length < USAGE_DESIGN_PAGE_SIZE) return walk;
       afterId = lastIdOf(page);
     }
   }
@@ -129,10 +155,10 @@ function tierSettingKeyOf(kind: "material" | "hardware"): TierSettingKey {
 
 /** A probe the walk was given always has a tally; a missing one is a defect, never a count of zero. */
 function walkedCountOf(
-  walked: ReadonlyMap<MigratedDesignProbe, number>,
+  counts: ReadonlyMap<MigratedDesignProbe, number>,
   probe: MigratedDesignProbe,
 ): number {
-  const count = walked.get(probe);
+  const count = counts.get(probe);
   if (count === undefined) throw unexpectedAnswer(COUNT_USAGE);
   return count;
 }
@@ -142,21 +168,33 @@ function lastIdOf(page: readonly Row[]): string {
   return requiredText(last?.["id"], COUNT_USAGE);
 }
 
-function tallyUse(
-  counts: Map<MigratedDesignProbe, number>,
-  design: Design,
-): void {
-  for (const [probe, count] of counts) {
-    if (isUsedBy(probe, design)) counts.set(probe, count + 1);
+function tallyDesign(walk: Walk, row: Row): void {
+  const design = readableDesignOf(row);
+  const used =
+    design === undefined ? undefined : usedProbesOf(walk.counts.keys(), design);
+  if (used === undefined) {
+    walk.unreadableDesigns += 1;
+    return;
+  }
+  for (const probe of used) {
+    walk.counts.set(probe, (walk.counts.get(probe) ?? 0) + 1);
   }
 }
 
-/** A predicate that throws for a design (a body the catalogue does not hold) finds the design not using the item. */
-function isUsedBy(probe: MigratedDesignProbe, design: Design): boolean {
+/**
+ * The probes whose predicate holds of the design, or `undefined` when a body of it is not in the catalogue
+ * (`UnknownBodyError`), which no predicate can answer for. Any other failure of a caller's predicate is a failure to
+ * count, with no cause, and never reads as "not used".
+ */
+function usedProbesOf(
+  probes: Iterable<MigratedDesignProbe>,
+  design: Design,
+): readonly MigratedDesignProbe[] | undefined {
   try {
-    return probe.isUsedBy(design);
-  } catch {
-    return false;
+    return [...probes].filter((probe) => probe.isUsedBy(design));
+  } catch (failure) {
+    if (failure instanceof UnknownBodyError) return undefined;
+    throw unexpectedAnswer(COUNT_USAGE);
   }
 }
 

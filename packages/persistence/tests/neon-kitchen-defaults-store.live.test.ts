@@ -62,6 +62,7 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
       priceBook: new NeonPriceBookStore(liveTestDatabaseUrl),
       probeFor: (item) => usage.probeFor(item),
       aDesignUsing: (spec) => usage.aDesignUsing(spec),
+      anUnreadableDesign: (spec) => usage.anUnreadableDesign(spec),
     });
   }
 

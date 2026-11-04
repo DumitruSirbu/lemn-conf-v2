@@ -26,6 +26,10 @@ export interface NeonUsageWorld {
     readonly uses: readonly ItemRef[];
     readonly isDeletedByClient?: boolean;
   }): Promise<void>;
+  /** A stored design the product cannot read: its document is not a kitchen. */
+  anUnreadableDesign(spec?: {
+    readonly isDeletedByClient?: boolean;
+  }): Promise<void>;
   removeTheRowsItPlanted(): Promise<void>;
 }
 
@@ -83,6 +87,19 @@ export function createNeonUsageWorld(
     return { settings, placements };
   }
 
+  async function plant(
+    document: unknown,
+    isDeletedByClient: boolean,
+  ): Promise<void> {
+    const designId = nanoid();
+    designIds.push(designId);
+    await sql()`
+      insert into designs (id, schema_version, document, deleted_by_client_at)
+      values (${designId}, 5, ${JSON.stringify(document)}::jsonb,
+        case when ${isDeletedByClient}::boolean then now() end)
+    `;
+  }
+
   return {
     probeFor(item) {
       if (item.kind === "accessory") linkedRowOf(item.accessoryId);
@@ -93,15 +110,11 @@ export function createNeonUsageWorld(
       if (probe === undefined) throw new Error("no probe for the item");
       return probe;
     },
-    async aDesignUsing({ uses, isDeletedByClient = false }) {
-      const designId = nanoid();
-      designIds.push(designId);
-      const document = JSON.stringify(documentUsing(uses));
-      await sql()`
-        insert into designs (id, schema_version, document, deleted_by_client_at)
-        values (${designId}, 5, ${document}::jsonb,
-          case when ${isDeletedByClient}::boolean then now() end)
-      `;
+    aDesignUsing({ uses, isDeletedByClient = false }) {
+      return plant(documentUsing(uses), isDeletedByClient);
+    },
+    anUnreadableDesign({ isDeletedByClient = false } = {}) {
+      return plant({ notAKitchen: true }, isDeletedByClient);
     },
     async removeTheRowsItPlanted() {
       if (designIds.length === 0) return;

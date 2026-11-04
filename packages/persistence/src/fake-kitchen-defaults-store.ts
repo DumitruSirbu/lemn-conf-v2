@@ -1,7 +1,8 @@
-import type { ItemRef, ItemUsageCounts } from "@lemnaria/configurator-domain";
+import type { ItemRef } from "@lemnaria/configurator-domain";
 
 import type { FakeCatalogueAvailabilityStore } from "./fake-catalogue-availability-store.js";
 import {
+  countsWithUnreadable,
   isCountableProbeSet,
   storableDefaultsJsonOf,
 } from "./dashboard-store-shapes.js";
@@ -21,17 +22,22 @@ import {
 import type {
   ItemUsageProbe,
   KitchenDefaultsStore,
+  KitchenUsageCounts,
   KitchenUsageReader,
   ReadKitchenDefaultsResult,
   SaveKitchenDefaultsRequest,
   SaveKitchenDefaultsResult,
 } from "./m10-ports.js";
 
-/** A saved design as the usage reader sees it: the items it uses at any level, and whether its client deleted it. */
+/**
+ * A saved design as the usage reader sees it: the items it uses at any level, whether its client deleted it, and whether
+ * the product can read it (an unreadable one uses nothing, and is counted in `unreadableDesigns` when a probe walks).
+ */
 export interface HeldDesignUsage {
   readonly designId: string;
   readonly uses: readonly ItemRef[];
   readonly isDeletedByClient: boolean;
+  readonly isUnreadable?: boolean;
 }
 
 export interface FakeKitchenDefaultsStoreOptions {
@@ -113,7 +119,7 @@ export class FakeKitchenDefaultsStore
     return { kind: "ok", revision, availabilityRevision };
   }
 
-  countEach(probes: readonly ItemUsageProbe[]): Promise<ItemUsageCounts> {
+  countEach(probes: readonly ItemUsageProbe[]): Promise<KitchenUsageCounts> {
     return settle("count the kitchens using an item", () => {
       if (!isCountableProbeSet(probes)) {
         throw new DashboardStoreError(
@@ -121,11 +127,21 @@ export class FakeKitchenDefaultsStore
           "invalid-request",
         );
       }
-      return probes.map(({ item }) => ({
-        item,
-        designCount: this.countUsing(item),
-      }));
+      const isWalked = probes.some(({ via }) => via === "migrated-design");
+      return countsWithUnreadable(
+        probes.map(({ item }) => ({
+          item,
+          designCount: this.countUsing(item),
+        })),
+        isWalked ? this.countUnreadable() : 0,
+      );
     });
+  }
+
+  private countUnreadable(): number {
+    return [...this.designs.values()].filter(
+      (design) => !design.isDeletedByClient && design.isUnreadable === true,
+    ).length;
   }
 
   private countUsing(item: ItemRef): number {
@@ -133,6 +149,7 @@ export class FakeKitchenDefaultsStore
     return [...this.designs.values()].filter(
       (design) =>
         !design.isDeletedByClient &&
+        design.isUnreadable !== true &&
         design.uses.some((used) => itemKeyOf(used) === key),
     ).length;
   }

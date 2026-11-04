@@ -33,6 +33,10 @@ import type {
 export interface DefaultsWorld extends DashboardStaffWorld {
   readonly store: KitchenDefaultsStore;
   readonly usage: KitchenUsageReader;
+  /** A saved design the product cannot read, which the walk for a colour, a handle or a built-in accessory leaves out. */
+  anUnreadableDesign(spec?: {
+    readonly isDeletedByClient?: boolean;
+  }): Promise<void>;
   /** How the reader is asked about one item: the world knows the book and catalogue its designs were planted against. */
   probeFor(item: ItemRef): ItemUsageProbe;
   /** The log whose head a save advances. */
@@ -541,10 +545,30 @@ function describeUsage(
       expect(usageCountOf(counts, used)).toBeGreaterThanOrEqual(2);
     });
 
+    it("counts the designs the walk could not read, beside the counts and only for a call that walks", async () => {
+      const world = await newWorld();
+      const walked = world.probeFor({ kind: "finish", finishId: "usage-walk" });
+      const tier: ItemRef = { kind: "material", tierId: "usage-unwalked" };
+      const before = (await world.usage.countEach([walked])).unreadableDesigns;
+
+      await world.anUnreadableDesign();
+      await world.anUnreadableDesign({ isDeletedByClient: true });
+
+      const counts = await world.usage.countEach([walked]);
+      expect(counts.unreadableDesigns).toBe(before + 1);
+      expect(counts).toHaveLength(1);
+      expect(
+        (await world.usage.countEach([world.probeFor(tier)])).unreadableDesigns,
+      ).toBe(0);
+    });
+
     it("answers no counts for no probes", async () => {
       const world = await newWorld();
 
-      expect(await world.usage.countEach([])).toEqual([]);
+      const counts = await world.usage.countEach([]);
+
+      expect(counts).toEqual([]);
+      expect(counts.unreadableDesigns).toBe(0);
     });
 
     it("refuses probes that name one item twice, because one of its counts would be the wrong one", async () => {

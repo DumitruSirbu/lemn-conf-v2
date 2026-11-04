@@ -366,12 +366,24 @@ export type ItemUsageProbe =
  *
  * Every probe names a different item (`invalid-request` otherwise). A design its client deleted is never counted, and a
  * design counts once however many of its levels use the item. A `migrated-design` probe leaves out a stored design that
- * cannot be read as the product reads it, which nobody can open and which no deletion is judged by; a `settings-tier` or
- * `placed-bodies` probe reads the stored document as written and leaves none out.
+ * cannot be read as the product reads it, or a body of which the predicate cannot place; it is left out of every count of
+ * the call and added to `unreadableDesigns`, so the caller can say that the count is of the designs that could be read. No
+ * deletion is judged by such a count. A `settings-tier` or `placed-bodies` probe reads the stored document as written and
+ * leaves none out. A predicate that fails any other way fails the call (`unexpected-answer`): it never reads as unused.
  */
 export interface KitchenUsageReader {
-  countEach(probes: readonly ItemUsageProbe[]): Promise<ItemUsageCounts>;
+  countEach(probes: readonly ItemUsageProbe[]): Promise<KitchenUsageCounts>;
 }
+
+/**
+ * The counts, one entry per probe, which are what `usageCountOf` reads, and beside them how many stored designs the walk
+ * for the `migrated-design` probes could not read (0 when no such probe was asked). It is a property of the array and not
+ * of an entry: it is one fact about the walk, and it is not enumerable, so the counts compare and print as the plain list
+ * they are. Read it by name; a copy of the array (a spread, `JSON.stringify`) does not carry it.
+ */
+export type KitchenUsageCounts = ItemUsageCounts & {
+  readonly unreadableDesigns: number;
+};
 
 // ---------------------------------------------------------------------------------------------------------------------
 // KitchenChangeStore

@@ -79,6 +79,15 @@ describeKitchenDefaultsStoreContract("on a shared catalogue", () =>
     store: world.defaults,
     usage: world.defaults,
     probeFor: probeTheFakeAccepts,
+    anUnreadableDesign({ isDeletedByClient = false } = {}) {
+      world.defaults.plantDesign({
+        designId: nanoid(),
+        uses: [],
+        isDeletedByClient,
+        isUnreadable: true,
+      });
+      return Promise.resolve();
+    },
     aDesignUsing({ uses, isDeletedByClient = false }) {
       world.defaults.plantDesign({
         designId: nanoid(),

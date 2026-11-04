@@ -1,4 +1,5 @@
 import {
+  UnknownBodyError,
   isSameItem,
   migrateDesign,
   usesItem,
@@ -8,12 +9,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { usageProbesFor } from "../src/item-usage-probes.js";
 import type { ItemUsageProbe } from "../src/m10-ports.js";
+import { DashboardStoreError } from "../src/m10-ports.js";
 import { NeonKitchenUsageReader } from "../src/neon-kitchen-usage-reader.js";
 import { WELL_FORMED_UNREACHABLE_VALUE } from "./support/leaked-connection-markers.js";
 import {
   answerQueryWith,
   resetQueryDriver,
 } from "./support/mocked-neon-query-driver.js";
+import { rejectionOf } from "./support/rejection-of.js";
 import {
   BUILD_IDS_OF_THE_EQUIVALENT_ROW,
   LINKED_THROUGH_EQUIVALENT,
@@ -243,7 +246,7 @@ describe("a stored design the product cannot read", () => {
     return { via: "migrated-design", item: COLOUR, isUsedBy: () => true };
   }
 
-  it("is left out of the walk, which still counts every readable design, and nothing of its document is read out", async () => {
+  it("is left out of the walk and counted as unreadable, while every readable design is still counted", async () => {
     answerQueryWith([
       ...ROWS,
       {
@@ -256,6 +259,7 @@ describe("a stored design the product cannot read", () => {
     const counts = await newReader().countEach([everyDesignProbe()]);
 
     expect(counts).toEqual([{ item: COLOUR, designCount: ROWS.length }]);
+    expect(counts.unreadableDesigns).toBe(1);
     expect(JSON.stringify(counts)).not.toContain("DOCUMENT-TEXT-SECRET");
   });
 
@@ -269,9 +273,29 @@ describe("a stored design the product cannot read", () => {
     const counts = await newReader().countEach([everyDesignProbe()]);
 
     expect(counts).toEqual([{ item: COLOUR, designCount: ROWS.length }]);
+    expect(counts.unreadableDesigns).toBe(2);
   });
 
-  it("is a design not using the item when the predicate throws for it, without the throw leaving the reader", async () => {
+  it("is a design a predicate could not place a body of, left out of every count and counted once as unreadable", async () => {
+    answerQueryWith(ROWS);
+    const placesNoBody = (): boolean => {
+      throw new UnknownBodyError("a-body-the-catalogue-lacks");
+    };
+
+    const counts = await newReader().countEach([
+      { via: "migrated-design", item: COLOUR, isUsedBy: placesNoBody },
+      {
+        via: "migrated-design",
+        item: { kind: "handle", handle: "steel" },
+        isUsedBy: placesNoBody,
+      },
+    ]);
+
+    expect(counts.map(({ designCount }) => designCount)).toEqual([0, 0]);
+    expect(counts.unreadableDesigns).toBe(ROWS.length);
+  });
+
+  it("fails the call when a predicate fails any other way, and leaks nothing of the failure", async () => {
     answerQueryWith(ROWS);
     const probe: ItemUsageProbe = {
       via: "migrated-design",
@@ -281,8 +305,26 @@ describe("a stored design the product cannot read", () => {
       },
     };
 
-    const counts = await newReader().countEach([probe]);
+    const rejection = await rejectionOf(newReader().countEach([probe]));
 
-    expect(counts).toEqual([{ item: COLOUR, designCount: 0 }]);
+    expect(rejection).toBeInstanceOf(DashboardStoreError);
+    expect((rejection as DashboardStoreError).failure).toBe(
+      "unexpected-answer",
+    );
+    expect(JSON.stringify(rejection)).not.toContain("DOCUMENT-TEXT-SECRET");
+    expect((rejection as DashboardStoreError).cause).toBeUndefined();
+  });
+
+  it("reports no unreadable designs for a call that walks nothing", async () => {
+    answerQueryWith([{ designs: 1 }]);
+
+    const counts = await newReader().countEach(
+      usageProbesFor(
+        [{ kind: "material", tierId: "material.veneer" }],
+        USAGE_BASIS,
+      ),
+    );
+
+    expect(counts.unreadableDesigns).toBe(0);
   });
 });

@@ -117,23 +117,28 @@ function savedDefaultsFrom(row: Row): ReadKitchenDefaultsResult {
 /**
  * A save that wrote nothing is told apart by what the statement saw: a defaults revision that was not current is
  * `changed-meanwhile`, and otherwise the head moved (or was lost to a writer racing at the same head), which is
- * `availability-changed-meanwhile`.
+ * `availability-changed-meanwhile`. A reply that shows part of a save (a head that moved, or an audit row, beside no
+ * defaults revision) is no refusal that wrote nothing: it is not read at all.
  */
 function saveResultFrom(row: Row): SaveKitchenDefaultsResult {
   if (!requiredBoolean(row["is_session_live"], SAVE_DEFAULTS)) {
     throw new DashboardStoreError(SAVE_DEFAULTS, "not-recorded");
   }
   const revision = nullableText(row["revision"], SAVE_DEFAULTS);
-  if (revision === null) return refusalFrom(row);
   const availabilityRevision = nullableText(
     row["availability_revision"],
     SAVE_DEFAULTS,
   );
-  const isOneAuditRow = requiredCount(row["audited_rows"], SAVE_DEFAULTS) === 1;
+  const auditedRows = requiredCount(row["audited_rows"], SAVE_DEFAULTS);
+  if (revision === null) {
+    const isNothingWritten = availabilityRevision === null && auditedRows === 0;
+    if (!isNothingWritten) throw unexpectedAnswer(SAVE_DEFAULTS);
+    return refusalFrom(row);
+  }
   const isWellFormed =
     isRevisionShape(revision) &&
     isRevisionShape(availabilityRevision) &&
-    isOneAuditRow;
+    auditedRows === 1;
   if (!isWellFormed) throw unexpectedAnswer(SAVE_DEFAULTS);
   return { kind: "ok", revision, availabilityRevision };
 }

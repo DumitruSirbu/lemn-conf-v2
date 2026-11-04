@@ -2,10 +2,14 @@ import {
   HandleSchema,
   countPendingPrices,
 } from "@lemnaria/configurator-domain";
-import type { ItemRef } from "@lemnaria/configurator-domain";
+import type { ItemRef, ItemUsageCounts } from "@lemnaria/configurator-domain";
 
 import { isDesignRevision } from "./design-revision.js";
-import type { ItemUsageProbe, PublishPriceBookRequest } from "./m10-ports.js";
+import type {
+  ItemUsageProbe,
+  KitchenUsageCounts,
+  PublishPriceBookRequest,
+} from "./m10-ports.js";
 
 // The shapes the M10 stores refuse before any statement: the fakes and the Neon stores share them, so both turn away
 // the same request. None of these reads a value as a number: a revision is an opaque digit run, and the only ordering
@@ -354,7 +358,39 @@ export function storableDefaultsJsonOf(defaults: unknown): string | undefined {
   const isWithinLimit =
     jsonText !== undefined &&
     new TextEncoder().encode(jsonText).length <= MAX_STORED_DEFAULTS_BYTES;
-  return isWithinLimit ? jsonText : undefined;
+  return isWithinLimit && !holdsAValueJsonWouldChange(defaults)
+    ? jsonText
+    : undefined;
+}
+
+/**
+ * Whether the value holds one that JSON writes as `null` (a number that is not finite, or an array member with no JSON
+ * form), which would read back as something other than what was sent. It runs after `JSON.stringify` has accepted the
+ * value, so the value has no cycle. Iterative, so a deep value cannot overflow the stack.
+ */
+function holdsAValueJsonWouldChange(value: unknown): boolean {
+  const pending: unknown[] = [value];
+  while (pending.length > 0) {
+    const current = pending.pop();
+    if (typeof current === "number" && !Number.isFinite(current)) return true;
+    if (Array.isArray(current)) {
+      for (const member of current as unknown[]) {
+        if (isWithoutJsonForm(member)) return true;
+        pending.push(member);
+      }
+    } else if (isJsonObject(current)) {
+      pending.push(...Object.values(current));
+    }
+  }
+  return false;
+}
+
+function isWithoutJsonForm(member: unknown): boolean {
+  return (
+    member === undefined ||
+    typeof member === "function" ||
+    typeof member === "symbol"
+  );
 }
 
 /**
@@ -364,9 +400,16 @@ export function storableDefaultsJsonOf(defaults: unknown): string | undefined {
 export function isCountableProbeSet(
   probes: readonly ItemUsageProbe[],
 ): boolean {
-  if (!Array.isArray(probes)) return false;
+  if (!Array.isArray(probes) || !probes.every(hasANamedItem)) return false;
   const keys = new Set(probes.map(probeKeyOf));
   return keys.size === probes.length && probes.every(isCountableProbe);
+}
+
+/** A probe may arrive as anything a caller cast, so the item is looked for before it is read. */
+function hasANamedItem(probe: unknown): boolean {
+  if (!isJsonObject(probe)) return false;
+  const { item } = probe;
+  return isJsonObject(item) && isNamedItem(item as unknown as ItemRef);
 }
 
 function probeKeyOf({ item }: ItemUsageProbe): string {
@@ -398,4 +441,15 @@ function isCountableProbe(probe: ItemUsageProbe): boolean {
     case "migrated-design":
       return typeof probe.isUsedBy === "function";
   }
+}
+
+/** The counts with the number of designs the walk could not read, as a property that is not enumerable. */
+export function countsWithUnreadable(
+  counts: ItemUsageCounts,
+  unreadableDesigns: number,
+): KitchenUsageCounts {
+  return Object.defineProperty([...counts], "unreadableDesigns", {
+    value: unreadableDesigns,
+    enumerable: false,
+  }) as unknown as KitchenUsageCounts;
 }
