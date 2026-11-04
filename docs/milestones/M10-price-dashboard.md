@@ -709,6 +709,24 @@ built yet. Each row that changes behaviour names the work it adds.
 
 Nothing is open for the owner from the waves merged so far.
 
+**Standing rule: every migration run against any database is asked of the owner first, every time.** An approval
+covers the migrations it names and nothing later.
+
+**Owner approval in chat, 2026-11-04 (one-time):** migrations `0023`–`0027`, as they stand once the steps below are done,
+may be applied to the shared test database and to production. This changes ruling (c)'s timing (S2 row, §13.2): the
+live run no longer waits for the merge to `main`. It does not cover `0028`, `0029` or any later migration, which are
+asked again. Production is applied through the runbook. Order:
+1. S2's stored change count lands on `m10/s2`, reviewed.
+2. S4 merges `m10/s2`.
+3. Every planned edit to `0023`–`0027` is confirmed on the branch tips.
+4. S2, then S4, merge into `m10-price-dashboard`.
+5. `ci:local` in the main checkout applies the migrations.
+6. Production, through the runbook, once step 5 is green. The coordinator tells the owner first, and the secret is
+   never printed.
+
+From that apply, the shared ledger is ahead of `main` and of every older branch, so their live suites fail with
+`ledgerAheadOfCheckoutError` until M10 merges. `main`'s CI may too, if it shares the database (unverified, OQ-29).
+
 ### 6.4 Queued for the owner (from 2026-11-03)
 
 The owner is away for 12 hours from 2026-11-03 and asked that no wave wait on a decision. Each entry below was built on
