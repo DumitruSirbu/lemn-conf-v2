@@ -964,6 +964,34 @@ function describeHistory(
       ).toMatchObject({ changeCount: 2 });
     });
 
+    it("stamps the audit row with the same count it lists the version with, counted once at the publish", async () => {
+      const world = await newWorld();
+      const staff = await world.aStaffMember();
+      const rate = (field: string) => ({
+        address: { kind: "hardware", tierId: "created-class", field },
+        value: 1_000,
+      });
+      const summary = [
+        {
+          address: { kind: "hardware-tier-created", tierId: "created-class" },
+          value: { name: "Clasa noua", description: "O clasa." },
+        },
+        rate("perHingeMinor"),
+        rate("perDrawerMinor"),
+        rate("perLiftMinor"),
+        ANCHOR_TO_5000,
+      ];
+
+      await publish(world, staff, { changeSummary: summary });
+
+      const listed = (await world.store.listVersions({ page: 1 })).versions[0];
+      const stamped = (await world.auditEventsOf(staff.accountId)).map(
+        ({ detail }) => (detail as { changeCount?: number }).changeCount,
+      );
+      expect(listed?.changeCount).toBe(2);
+      expect(stamped).toEqual([2]);
+    });
+
     it("lists a page past the last as no versions, with the same total", async () => {
       const world = await newWorld();
       await publishNextVersion(

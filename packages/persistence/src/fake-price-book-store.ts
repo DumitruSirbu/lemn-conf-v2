@@ -51,6 +51,8 @@ interface HeldVersion {
   readonly publishedAt: Date;
   readonly book: unknown;
   readonly changeSummary: readonly unknown[];
+  /** Counted once, when the version is published, and never derived again. */
+  readonly changeCount: number;
 }
 
 export interface FakePriceBookStoreOptions {
@@ -140,7 +142,7 @@ export class FakePriceBookStore implements PriceBookStore {
           label: held.label,
           state: this.stateOf(held),
           publishedAt: new Date(held.publishedAt),
-          changeCount: changeCountOf(held.changeSummary),
+          changeCount: held.changeCount,
         })),
       };
     });
@@ -175,13 +177,16 @@ export class FakePriceBookStore implements PriceBookStore {
     request: PublishPriceBookRequest,
   ): Promise<PublishPriceBookResult> {
     requirePublishable(request);
+    const changeCount = changeCountOf(
+      request.changeSummary as readonly unknown[],
+    );
     const staged = await this.ledger.stage({
       operation: "publish the price book",
       record: request.audit,
       accepts: ["price-published"],
       provisional: {
         sequenceNumber: request.expectedActiveSequence + 1,
-        changeCount: changeCountOf(request.changeSummary as readonly unknown[]),
+        changeCount,
       },
     });
     const newestSequence = this.versions.at(-1)?.sequenceNumber ?? 0;
@@ -207,13 +212,14 @@ export class FakePriceBookStore implements PriceBookStore {
       changeSummary: structuredClone(
         request.changeSummary as readonly unknown[],
       ),
+      changeCount,
     };
     this.versions.push(held);
     this.draftChanges = [];
     this.draftRevision.advance();
     staged.commit({
       sequenceNumber: held.sequenceNumber,
-      changeCount: changeCountOf(held.changeSummary),
+      changeCount,
     });
     return {
       kind: "ok",
