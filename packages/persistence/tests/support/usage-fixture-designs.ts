@@ -76,6 +76,21 @@ function withoutSettings(design: Design): unknown {
   return documentOf({ ...design, settings: undefined });
 }
 
+function withoutPlacements(
+  placementIds: readonly string[],
+  base: Design = KITCHEN_L_DESIGN,
+): Design {
+  return {
+    ...base,
+    placements: base.placements.filter(({ id }) => !placementIds.includes(id)),
+  };
+}
+
+/** The placements a rack hangs in over the shipped kitchen's sink: the lowest one, and the top box above it. */
+const SINK_ID = "p0";
+const LOWEST_RACK_HOST_ID = "p11";
+const TOP_BOX_RACK_HOST_ID = "p17";
+
 /** A body the catalogue prices as another row: a placement of it earns what a placement of that row earns. */
 const SEEDED_PLACEMENT = KITCHEN_L_DESIGN.placements.find(
   (placement) =>
@@ -114,6 +129,10 @@ function linkedRule(
 /** A linked accessory earned through a seeded body's equivalent, and one linked to a row no fixture places. */
 export const LINKED_THROUGH_EQUIVALENT = "linked-through-equivalent";
 export const LINKED_TO_AN_UNPLACED_ROW = "linked-to-an-unplaced-row";
+/** A linked accessory whose row the shipped kitchen places many times over: a design earns it once, not once per cabinet. */
+export const LINKED_TO_A_ROW_PLACED_MANY_TIMES =
+  "linked-to-a-row-placed-many-times";
+const ROW_PLACED_MANY_TIMES_ID = "wall-cabinet";
 /** An accessory id the book does not state. */
 export const NOT_IN_THE_BOOK = "accessory-the-book-lacks";
 /** A tier id a stored design names though the book holds no such tier. */
@@ -124,6 +143,7 @@ const BOOK: PriceBook = {
   linkedAccessories: [
     linkedRule(LINKED_THROUGH_EQUIVALENT, EQUIVALENT_ROW_ID),
     linkedRule(LINKED_TO_AN_UNPLACED_ROW, UNPLACED_ROW_ID),
+    linkedRule(LINKED_TO_A_ROW_PLACED_MANY_TIMES, ROW_PLACED_MANY_TIMES_ID),
   ],
 };
 
@@ -214,6 +234,70 @@ export const USAGE_FIXTURES: readonly UsageFixtureDesign[] = [
     isDeletedByClient: false,
   },
   {
+    name: "a kitchen with cabinets and no sink, so no cover and no rack",
+    schemaVersion: 5,
+    document: documentOf(withoutPlacements([SINK_ID])),
+    isDeletedByClient: false,
+  },
+  {
+    name: "a sink whose lowest rack host is gone and whose top box above it still hosts the rack",
+    schemaVersion: 5,
+    document: documentOf(withoutPlacements([LOWEST_RACK_HOST_ID])),
+    isDeletedByClient: false,
+  },
+  {
+    name: "a sink with no wall cabinet over it at all, so a cover and no rack",
+    schemaVersion: 5,
+    document: documentOf(
+      withoutPlacements([LOWEST_RACK_HOST_ID, TOP_BOX_RACK_HOST_ID]),
+    ),
+    isDeletedByClient: false,
+  },
+  {
+    name: "a kitchen that names only a hardware class",
+    schemaVersion: 5,
+    document: documentOf(
+      withSettings({
+        cabinetDepthMm: DEPTH_MM,
+        hardwareTierId: "hardware.premium",
+      }),
+    ),
+    isDeletedByClient: false,
+  },
+  {
+    name: "a kitchen that names the book's fallback material and hardware, which a design naming none is also priced at",
+    schemaVersion: 5,
+    document: documentOf(
+      withSettings({
+        cabinetDepthMm: DEPTH_MM,
+        materialTierId: SAMPLE_PRICE_BOOK.material.defaultTierId,
+        hardwareTierId: SAMPLE_PRICE_BOOK.hardware.defaultTierId,
+      }),
+    ),
+    isDeletedByClient: false,
+  },
+  {
+    name: "a kitchen whose only handle is written on a cabinet that cannot wear one",
+    schemaVersion: 5,
+    document: documentOf(withBodyOf(PLAIN_PLACEMENT_ID, { handle: "steel" })),
+    isDeletedByClient: false,
+  },
+  {
+    name: "a kitchen stored before cabinet depth, with the room as it was then",
+    schemaVersion: 2,
+    document: {
+      ...(withoutSettings(KITCHEN_L_DESIGN) as object),
+      room: { shape: "L", widthMm: 3600, depthMm: 2400, heightMm: 2600 },
+    },
+    isDeletedByClient: false,
+  },
+  {
+    name: "a deleted kitchen that places the sink and a linked row",
+    schemaVersion: 5,
+    document: documentOf(KITCHEN_L_DESIGN),
+    isDeletedByClient: true,
+  },
+  {
     name: "a deleted kitchen that names everything",
     schemaVersion: 5,
     document: documentOf(
@@ -248,5 +332,6 @@ export const USAGE_ITEMS: readonly ItemRef[] = [
   { kind: "accessory", accessoryId: "dishDryingRack" },
   { kind: "accessory", accessoryId: LINKED_THROUGH_EQUIVALENT },
   { kind: "accessory", accessoryId: LINKED_TO_AN_UNPLACED_ROW },
+  { kind: "accessory", accessoryId: LINKED_TO_A_ROW_PLACED_MANY_TIMES },
   { kind: "accessory", accessoryId: NOT_IN_THE_BOOK },
 ];
