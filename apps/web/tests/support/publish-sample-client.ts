@@ -1,5 +1,6 @@
 import {
   applyChanges,
+  countPendingPrices,
   type ApplyChangesResult,
   judgeVersionLabel,
   revertChange,
@@ -166,7 +167,7 @@ export function makeSamplePublishClient(start: SampleDeskStart): PublishClient {
         label,
         state: "active",
         publishedAt,
-        changeCount: desk.state.draft.changes.length,
+        changeCount: countPendingPrices(desk.state.draft.changes),
       },
       ...desk.versions.map((version) => ({
         ...version,

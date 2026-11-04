@@ -1,5 +1,6 @@
 import {
   applyChanges,
+  countPendingPrices,
   isSameAddress,
   readEditableFields,
   type AppliedAddress,
@@ -247,7 +248,7 @@ function versionOf(
       label: published.label,
       state: published.isActive ? "active" : "archived",
       publishedAt: published.publishedAt,
-      changeCount: content.changes.length,
+      changeCount: countPendingPrices(content.changes),
     },
     note: "",
     book: content.book,
