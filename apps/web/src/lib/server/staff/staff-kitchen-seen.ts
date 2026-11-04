@@ -19,9 +19,9 @@ import { designNotFoundResponse } from "@/lib/server/design-errors";
 import { judgeAccountSubject } from "@/lib/server/rate-limit/judge-account-request";
 import type { HeaderReader } from "@/lib/server/rate-limit/network-source";
 import { judgeDisplayedRevision } from "@/lib/server/staff/displayed-revision";
-import { admitStaff } from "@/lib/server/staff/staff-admission";
 import { getKitchenChangeStore } from "@/lib/server/staff/kitchen-change-store-instance";
 import { actingSessionOf } from "@/lib/server/staff/staff-acting-session";
+import { admitStaff } from "@/lib/server/staff/staff-admission";
 import {
   onlyMembersOf,
   type Judged,
@@ -32,11 +32,8 @@ import {
   staffSeenMarkedResponse,
 } from "@/lib/server/staff/staff-responses";
 
-// A staff member marks a kitchen seen at the revision the page displayed (ADR 0178 A-12). The route has checked the
-// origin, the media type and the body's size. From there: the session and `contact.read` (a client reaches no store),
-// the id's shape, the body's one member, the account's own bucket (which **fails closed**), and only then the store,
-// which commits the mark and its `kitchen-seen` row together or neither. Anything the store throws, a missing audit
-// row included, is the route's `503`: a mark is never written without its row.
+// Anything the store throws, a missing audit row included, is the route's `503`: a mark is never written without its
+// row (ADR 0178 A-12).
 
 /** The log event of the seen mark: the route names its failure wrapper by it too. */
 export const STAFF_SEEN_EVENT = "staff-seen" as const satisfies AccountEvent;
@@ -62,9 +59,9 @@ export async function markKitchenSeenAsStaff(
     capability: "contact.read",
   });
   if (admission.kind === "refused") return admission.response;
-  if (!isDesignId(designId)) return notFound(designId);
+  if (!isDesignId(designId)) return refused(designNotFoundResponse(designId));
   const judged = judgedDisplayedRevision(bodyText);
-  if (judged.kind === "refused") return refusal(judged.response);
+  if (judged.kind === "refused") return refused(judged.response);
   const limited = await refusalOfSeenLimit(admission.session, headers);
   if (limited !== undefined) return limited;
   const result = await getKitchenChangeStore().markSeen({
@@ -113,18 +110,13 @@ function answerOfSeen(
       reportAccountEvent({ event: STAFF_SEEN_EVENT, outcome: "succeeded" });
       return staffSeenMarkedResponse(result.changedAfterSeen);
     case "not-found":
-      return notFound(designId);
+      return refused(designNotFoundResponse(designId));
     case "displayed-revision-ahead":
-      return refusal(staffSeenConflictResponse());
+      return refused(staffSeenConflictResponse());
   }
 }
 
-function notFound(designId: string): NextResponse {
-  reportAccountEvent({ event: STAFF_SEEN_EVENT, outcome: "refused" });
-  return designNotFoundResponse(designId);
-}
-
-function refusal(response: NextResponse): NextResponse {
+function refused(response: NextResponse): NextResponse {
   reportAccountEvent({ event: STAFF_SEEN_EVENT, outcome: "refused" });
   return response;
 }

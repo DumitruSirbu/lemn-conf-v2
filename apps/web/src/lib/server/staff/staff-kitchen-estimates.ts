@@ -15,9 +15,8 @@ import type {
   StaffKitchenEstimatesWire,
 } from "@/staff/staff-kitchens-wire-contract";
 
-// The two totals the kitchen page shows. The sent one is what was stored with the request: read, never priced again, so
-// a publish that follows cannot move it (ADR 0154). The current one is priced now, with the active book and the
-// availability current at this read. The pricing's refusal is carried as its own code and never as a zero.
+// The sent total is read from what was stored with the request and never priced again, so a later publish cannot move
+// it (ADR 0154).
 
 /** The pricing code a kitchen gets when it has no document this build reads, or one the catalogue cannot be built for:
  *  the pricing has no code for either, and in both no body of the kitchen can be resolved. */

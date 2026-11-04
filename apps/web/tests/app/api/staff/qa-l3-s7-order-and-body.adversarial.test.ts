@@ -916,7 +916,7 @@ describe("the query string and the method", () => {
     },
   );
 
-  it("exports one method for each route and no route file beside the five under the kitchen's paths", () => {
+  it("exports one method for each route and no route file beside the seven the kitchen's paths hold", () => {
     const appRoot = join(__dirname, "../../../../src/app/api/staff/kitchens");
     const routeFiles = filesUnder(appRoot, /^route\.ts$/)
       .map((path) => path.slice(appRoot.length))

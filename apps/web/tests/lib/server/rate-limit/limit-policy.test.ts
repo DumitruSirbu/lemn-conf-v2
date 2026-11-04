@@ -49,6 +49,7 @@ const PURPOSE_RECORD: Record<PolicyPurpose, true> = {
   "preset-creation": true,
   read: true,
   "preset-read": true,
+  "staff-changed-count": true,
   "csp-report": true,
   "contact-every-by-block": true,
   "contact-new-by-block-hour": true,

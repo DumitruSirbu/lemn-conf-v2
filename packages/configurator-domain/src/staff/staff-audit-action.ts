@@ -61,10 +61,7 @@ export interface KitchensListedDetail {
   /** Rows on the page, 0 to the page size. */
   readonly rowCount: number;
   readonly hasSearch: boolean;
-  /**
-   * Whether the page was asked for the changed kitchens alone. Every row written now names it; a row written before the
-   * filter existed does not, and is read without it rather than refused.
-   */
+  /** Optional: a row without it reads as not filtered. */
   readonly onlyChanged?: boolean;
 }
 

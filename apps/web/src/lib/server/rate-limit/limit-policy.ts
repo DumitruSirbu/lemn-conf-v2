@@ -94,6 +94,14 @@ export const READS_PER_BLOCK_FIGURE = 600;
 export const PRESET_READS_PER_BLOCK_FIGURE = 1200;
 
 /**
+ * PROVISIONAL, the engineer's figure and not the owner's: 3,600 an hour for each network block, for the menu counter's
+ * poll. One tab asks once a minute, so 3,600 is six times what ten staff tabs behind one network need. The poll has its
+ * own bucket so a timer cannot spend the 600 of `READS_PER_BLOCK_FIGURE` that pages and the design reads share. The
+ * owner's answer changes this constant and no code.
+ */
+export const STAFF_CHANGED_COUNT_PER_BLOCK_FIGURE = 3600;
+
+/**
  * PROVISIONAL until the owner answers Q47: 100 browser reports of a policy violation an hour for each network block
  * (ADR 0161 decision 2). One page with a broken add-on sends a few; 100 is enough to learn that something is wrong and
  * small enough that a flood costs little. While no network source is named the one shared bucket holds all visitors'
@@ -290,6 +298,14 @@ export const PRESET_READ_POLICY = policyOf("preset-read-by-block", {
   figure: PRESET_READS_PER_BLOCK_FIGURE,
   window: utcMinutes(READ_WINDOW_MINUTES),
 });
+
+export const STAFF_CHANGED_COUNT_POLICY = policyOf(
+  "staff-changed-count-by-block",
+  {
+    figure: STAFF_CHANGED_COUNT_PER_BLOCK_FIGURE,
+    window: utcMinutes(READ_WINDOW_MINUTES),
+  },
+);
 
 export const CSP_REPORT_POLICY = policyOf("csp-report-by-block", {
   figure: CSP_REPORTS_PER_BLOCK_FIGURE,
@@ -613,6 +629,7 @@ export type PolicyPurpose =
   | "preset-creation"
   | "read"
   | "preset-read"
+  | "staff-changed-count"
   | "csp-report"
   | "contact-every-by-block"
   | "contact-new-by-block-hour"
@@ -674,6 +691,10 @@ const TWINS_OF_PURPOSE: Readonly<Record<PolicyPurpose, Twins>> = {
   },
   read: { production: READ_POLICY, e2e: READ_POLICY },
   "preset-read": { production: PRESET_READ_POLICY, e2e: PRESET_READ_POLICY },
+  "staff-changed-count": {
+    production: STAFF_CHANGED_COUNT_POLICY,
+    e2e: STAFF_CHANGED_COUNT_POLICY,
+  },
   "csp-report": { production: CSP_REPORT_POLICY, e2e: CSP_REPORT_POLICY },
   "contact-every-by-block": {
     production: CONTACT_EVERY_BY_BLOCK_POLICY,

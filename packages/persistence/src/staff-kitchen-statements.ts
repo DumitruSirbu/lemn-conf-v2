@@ -134,9 +134,8 @@ export function staffKitchenListStatement<Statement>(
 }
 
 /**
- * The number of sent kitchens changed after staff last saw them, and nothing else: the menu counter's poll. It states
- * the list's `latest_submission` and `changed` CTEs word for word and stops at the count, so it joins no account, no
- * status row and no document. The CTE ranks every submission once per call, so the caller bounds how often it asks.
+ * The number of sent kitchens changed after staff last saw them, for the menu counter's poll. The CTE ranks every
+ * submission once per call, so the caller bounds how often it asks.
  */
 export function staffChangedCountStatement<Statement>(
   sql: StatementTag<Statement>,

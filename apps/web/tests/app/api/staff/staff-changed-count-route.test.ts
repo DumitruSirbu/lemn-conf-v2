@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { STAFF_CHANGED_COUNT_POLICY } from "@/lib/server/rate-limit/limit-policy";
 import { CLIENT_NETWORK_SOURCE_VARIABLE } from "@/lib/server/rate-limit/network-source";
 import { CHANGED_COUNT_POLL_INTERVAL_SECONDS } from "@/staff/changed-count-poll-interval";
 
@@ -9,6 +10,7 @@ import {
   READ_POLICY_NAME,
   accountRequest,
   captureConsole,
+  expectAWaitWithinTheWindowOf,
   freshAccountWorld,
   jsonOf,
   limiterLedger,
@@ -48,6 +50,7 @@ const { GET: LIST } = await import("@/app/api/staff/kitchens/route");
  */
 
 const SESSION_TOUCH = "sessions.touch";
+const POLL_POLICY_NAME = STAFF_CHANGED_COUNT_POLICY.name;
 const COUNT_PATH = "/api/staff/kitchens/changed-count";
 const POLL_INTERVAL_MS = CHANGED_COUNT_POLL_INTERVAL_SECONDS * 1000;
 const START = new Date("2026-11-04T10:00:00.000Z");
@@ -130,14 +133,15 @@ describe("who may read it", () => {
     expect(staffWorld.calls).toEqual([]);
   });
 
-  it("is refused with the network's read limit before the session is read", async () => {
+  it("is refused with the poll's own network limit before the session is read", async () => {
     const { session } = await signedInOperator();
-    limiterLedger.refusing.set(READ_POLICY_NAME, 30);
+    limiterLedger.refusing.set(POLL_POLICY_NAME, 30);
     world.calls.length = 0;
 
     const answer = await COUNT(countRequest({ cookie: session.cookie }));
 
     expect(answer.status).toBe(429);
+    expectAWaitWithinTheWindowOf(answer, POLL_POLICY_NAME);
     expect(staffWorld.calls).toEqual([]);
   });
 });
@@ -153,6 +157,48 @@ async function cookieOf(who: string | undefined): Promise<string | undefined> {
     )
   ).session.cookie;
 }
+
+describe("the poll's network budget", () => {
+  it("counts a poll in its own bucket and never in the one pages and design reads share", async () => {
+    const { session } = await signedInOperator();
+
+    await countFor(session.cookie);
+
+    expect(limiterLedger.counted).toEqual([POLL_POLICY_NAME]);
+    expect(limiterLedger.counted).not.toContain(READ_POLICY_NAME);
+  });
+
+  it("is not stopped by a network whose page reads are spent", async () => {
+    const { session } = await signedInOperator();
+    limiterLedger.refusing.set(READ_POLICY_NAME, 30);
+
+    const answer = await COUNT(countRequest({ cookie: session.cookie }));
+
+    expect(answer.status).toBe(200);
+  });
+
+  it("refuses a poll with the shape of the read refusal: status, body and cache header", async () => {
+    const { session } = await signedInOperator();
+    limiterLedger.refusing.set(POLL_POLICY_NAME, 30);
+    const refusedPoll = await COUNT(countRequest({ cookie: session.cookie }));
+    limiterLedger.refusing.clear();
+    limiterLedger.refusing.set(READ_POLICY_NAME, 30);
+    const refusedRead = await LIST(
+      accountRequest("/api/staff/kitchens", {
+        cookie: session.cookie,
+        headers: { "x-forwarded-for": "192.0.2.10" },
+      }),
+    );
+
+    expect([refusedPoll.status, await jsonOf(refusedPoll)]).toEqual([
+      refusedRead.status,
+      await jsonOf(refusedRead),
+    ]);
+    expect(refusedPoll.headers.get("cache-control")).toBe(
+      refusedRead.headers.get("cache-control"),
+    );
+  });
+});
 
 describe("what a poll leaves behind", () => {
   it("writes no audit row, where every list view writes one", async () => {

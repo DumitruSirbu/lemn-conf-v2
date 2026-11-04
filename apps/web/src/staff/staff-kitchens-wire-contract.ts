@@ -279,8 +279,8 @@ export interface StaffAuditInvalidQueryWire {
 // Standalone types beside the shapes above, none of which gains a member: a reader of the list or the kitchen as they
 // stand is unaffected, and a screen that shows the mark reads the `Marked` form.
 
-/** Whether the kitchen's revision differs from the one staff last saw, or else the one it was sent at. The comparison
- *  is made in SQL; the revision itself stays opaque. */
+/** Whether the kitchen's revision differs from the greater of the seen mark and the latest request's revision. The
+ *  comparison is made in SQL; the revision itself stays opaque. */
 export interface StaffChangedMarkWire {
   readonly changedAfterSeen: boolean;
 }

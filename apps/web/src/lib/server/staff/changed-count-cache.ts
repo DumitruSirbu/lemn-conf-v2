@@ -4,11 +4,8 @@ import type { StaffKitchenReader } from "@lemnaria/persistence";
 
 import { CHANGED_COUNT_POLL_INTERVAL_SECONDS } from "@/staff/changed-count-poll-interval";
 
-// The number of changed kitchens is the same for every staff member (it is global: every sent, visible, changed
-// kitchen, whatever any list is narrowed to), and reading it ranks every submission. So the read is shared: one count
-// serves every poll of one reader for a poll interval, and polls that arrive while it is being read wait for that read
-// instead of starting another. Admission runs before this is asked, so a caller without the capability reads nothing.
-// The bound is per server instance, and a count can trail a mark by up to the interval; a list read is always fresh.
+// The count is global and ranks every submission, so one read serves every poll of a reader for one interval. The bound
+// is per server instance and the count can trail a seen mark by up to the interval (ADR 0178 A-12).
 
 const INTERVAL_MS = CHANGED_COUNT_POLL_INTERVAL_SECONDS * 1000;
 

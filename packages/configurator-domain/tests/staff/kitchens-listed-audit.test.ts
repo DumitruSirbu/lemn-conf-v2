@@ -243,7 +243,7 @@ describe("kitchens-listed: one served page of the kitchens list", () => {
       expect(detail).toMatchObject({ onlyChanged: true });
     });
 
-    it("holds exactly five members, none of them text a person typed", () => {
+    it("holds exactly the five members a row written before the filter named, none of them text a person typed", () => {
       expect(Object.keys(detailOf(VALID_DETAIL)).sort()).toEqual([
         "hasSearch",
         "page",
