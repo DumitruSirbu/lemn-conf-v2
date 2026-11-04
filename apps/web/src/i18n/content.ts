@@ -2327,8 +2327,7 @@ export function resolveContent(translate: ContentTranslator) {
         black: translate("panel.handleLabels.black"),
         push: translate("panel.handleLabels.push"),
       },
-      handleDefaultNote: (label: string) =>
-        translate("panel.handleDefaultNote", { label }),
+      handleFollowsKitchen: translate("panel.handleFollowsKitchen"),
       widthTitle: translate("panel.widthTitle"),
       widthValue: (widthMm: number) =>
         translate("panel.widthValue", { widthMm }),

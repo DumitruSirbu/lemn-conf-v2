@@ -126,7 +126,6 @@ const FUNCTION_FAMILIES = [
   "panel.noOffersTooNarrow",
   "panel.offerSize",
   "panel.savePausedNotice",
-  "panel.handleDefaultNote",
   "panel.widthValue",
   "price.amountWithCurrency",
   "priceBreakdown.placementLabel",
@@ -167,12 +166,12 @@ describe("the localized content resolver", () => {
   });
 
   it.each(CATALOGUES)(
-    "maps all 262 resolved strings through the %s catalogue",
+    "maps all 263 resolved strings through the %s catalogue",
     (locale, messages) => {
       const { content, translate } = contentAndOracleFor(locale, messages);
       const leaves = stringLeaves(content);
 
-      expect(leaves).toHaveLength(262);
+      expect(leaves).toHaveLength(263);
       for (const { path, value } of leaves) {
         // The step is stated twice — as a sentence and as the top bar's pill — from one pair of
         // numbers, so neither spelling can drift from the other.
@@ -236,9 +235,6 @@ describe("the localized content resolver", () => {
       );
       expect(content.panel.savePausedNotice("14:05")).toBe(
         translate("panel.savePausedNotice", { time: "14:05" }),
-      );
-      expect(content.panel.handleDefaultNote("label-token")).toBe(
-        translate("panel.handleDefaultNote", { label: "label-token" }),
       );
       expect(content.panel.widthValue(600)).toBe(
         translate("panel.widthValue", { widthMm: 600 }),

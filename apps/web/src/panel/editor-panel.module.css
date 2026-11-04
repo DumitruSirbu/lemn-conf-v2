@@ -536,6 +536,11 @@
   color: var(--accent-strong);
 }
 
+.followRowDetail {
+  font: 400 11px/1.2 var(--font-ui);
+  color: var(--ink-faint);
+}
+
 /* §13.1: the reason travels with the greyed control. Small and faint **on a chip row**, where it
  * repeats across every chip and the note above has already said it once in full. */
 .chipReason {

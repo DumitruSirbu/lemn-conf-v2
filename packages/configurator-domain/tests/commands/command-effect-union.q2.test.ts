@@ -21,6 +21,7 @@ function namesAPlacement(effect: CommandEffect): boolean {
     case "finish_set":
     case "finish_cleared":
     case "handle_set":
+    case "handle_cleared":
       return true;
     case "material_tier_set":
     case "hardware_tier_set":

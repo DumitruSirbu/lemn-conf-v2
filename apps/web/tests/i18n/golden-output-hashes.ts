@@ -459,10 +459,6 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "5ad6eb8cf5e7afa6ec32c30d2e592d74e290dd2d03df4bc5495387c16e10d40f",
   "content.panel.countForSlot.count-20":
     "56436812994246271997f1e52182ad64607d6b12428064b4826caecf352a9e11",
-  "content.panel.handleDefaultNote.push":
-    "b99a3fc0970fda9b8916562374706e389f69a9fa4aa1680d87048bf22c644838",
-  "content.panel.handleDefaultNote.steel":
-    "3b9a5b5570952cf09ca28b3f985617ec50067c17c61418d1e3efc87cd61626b1",
   "content.panel.headerMeta.wall-a-base-600x860":
     "efc4ee7681d724f2c43568de06c643f6b265c31616200f36dce1d389505ed12f",
   "content.panel.noOffersForBody.base":
@@ -833,6 +829,8 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "e7e6ad699ff3c5a2f296ed1100f2bbfc646101fba791ca9b610d4c2c5c52b733",
   "content.static.panel.finishTitle":
     "f3c777b0c0e9ea2db23447b207af7dec34a688711c3920092b40ba5e35a3b2ae",
+  "content.static.panel.handleFollowsKitchen":
+    "0dc8247e6c50de83366be30e824f2c08bd4003b5df88f9dbb7bc6d7045e6d88b",
   "content.static.panel.handleLabels.black":
     "cfaf92e3872b557705bd8e2b6bec49fccd9083045ee944631a9ac691a7dca8e5",
   "content.static.panel.handleLabels.push":

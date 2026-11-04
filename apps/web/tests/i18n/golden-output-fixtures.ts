@@ -133,7 +133,6 @@ export const CONTENT_FUNCTION_FAMILIES = [
   "panel.noOffersTooNarrow",
   "panel.offerSize",
   "panel.savePausedNotice",
-  "panel.handleDefaultNote",
   "panel.widthValue",
   "price.amountWithCurrency",
   "priceBreakdown.placementLabel",
@@ -259,19 +258,6 @@ export const FUNCTION_CONTENT_FIXTURES: readonly GoldenFixture[] = [
       time,
       () => romanianContent.panel.savePausedNotice(time),
       () => translate("panel.savePausedNotice", { time }),
-    ),
-  ),
-  ...(
-    [
-      { id: "steel", value: romanianContent.panel.handleLabels.steel },
-      { id: "push", value: romanianContent.panel.handleLabels.push },
-    ] as const
-  ).map(({ id, value: label }) =>
-    contentFixture(
-      "panel.handleDefaultNote",
-      id,
-      () => romanianContent.panel.handleDefaultNote(label),
-      () => translate("panel.handleDefaultNote", { label }),
     ),
   ),
   ...[200, 800, 1_200].map((widthMm) =>

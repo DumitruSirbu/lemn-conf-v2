@@ -260,7 +260,8 @@ describe("golden-output fixture coverage", () => {
     // M10 T3b: +1 for `priceBreakdown.depthLineScope`.
     // +2 for `globalSettings.kitchenHandleHeading` and `.kitchenHandleHint`.
     // M10 T2: -1 for the retired `globalSettings.depthNote`.
-    expect(RESOLVED_STATIC_CONTENT).toHaveLength(262);
+    // +1 for `panel.handleFollowsKitchen`.
+    expect(RESOLVED_STATIC_CONTENT).toHaveLength(263);
     // +3 for the notice's subject, line and figure.
     // +2 for `panel.savePausedNotice`'s two times.
     // M8 8M S4: +4 for `submissionResult.channelLine`'s three channels and `.whatsappMessage`.
@@ -268,7 +269,8 @@ describe("golden-output fixture coverage", () => {
     // M8 8M2 S3: -1 for the retired `submissionResult.whatsappMessage`.
     // +6 for `leadNotice.groupCount`'s four counts and `.preheader` with and without a locality.
     // M10 T3b: +3 for `priceBreakdown.depthLine` and `globalSettings.depthNotePriced`'s zero and surcharge forms.
-    expect(FUNCTION_CONTENT_FIXTURES).toHaveLength(78);
+    // -2 for the retired `panel.handleDefaultNote`.
+    expect(FUNCTION_CONTENT_FIXTURES).toHaveLength(76);
     // 7L S3: +2 for `room.suggestion.title` and `room.suggestion.switchToLinear`.
     // +1 for `room.compose.limitReached`.
     expect(ROOM_FIXTURES).toHaveLength(73);
@@ -311,7 +313,8 @@ describe("golden-output fixture coverage", () => {
     // M10 T3b: +1 static and +3 function fixtures for the depth line and the priced depth sentence.
     // +2 static fixtures for the whole-kitchen handle row's heading and hint.
     // M10 T2: -1 static fixture for the retired `globalSettings.depthNote`.
-    expect(GOLDEN_FIXTURES).toHaveLength(583);
+    // +1 static fixture for `panel.handleFollowsKitchen`, -2 function ones for the retired `panel.handleDefaultNote`.
+    expect(GOLDEN_FIXTURES).toHaveLength(582);
     expect(new Set(GOLDEN_FIXTURES.map((fixture) => fixture.id)).size).toBe(
       GOLDEN_FIXTURES.length,
     );
