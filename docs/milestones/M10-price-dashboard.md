@@ -721,6 +721,7 @@ the stated default and needs only a yes or a correction.
 | OQ-21a | Renaming a created class uses its own "Redenumește" button beside the name, not the page's Save | As built | P6b |
 | OQ-29 | E2E shards moved: mobile 9 → 10 (U4b), desktop 6 → 7 (P6b). If `main`'s branch protection lists shard check names (`e2e (desktop, i, 6)` …) rather than the summary job, it needs the new names; `gh` here has no valid token, so it was not checked | Nothing changed on GitHub | U4b, P6b |
 | OQ-21b | A rename shows no success notice; the heading and the pending chip change | As built | P6b |
+| OQ-30 | How many changes a draft holds, as shown everywhere (chip, badge, publish button, confirm dialog, history row): one per price set; a bulk change counts each of its prices; a created class or accessory counts once with all it holds; a deleted row once | As built (U5c), one rule in the domain, also used for the history's count | U5c |
 | OQ-28c | P6 leaves the seeded default kitchen's hardware total unchanged (its push fronts are top-row doors, no drawers); only push-to-open drawers move | Recorded, no question | P6 |
 
 ---
@@ -1426,6 +1427,7 @@ pushed [coordinator's brief, relayed].
   - P6b: the fifth rate laid out (hardware table from 1440 px; its state column holds the Russian chips at a 1420 px layout, the stand-in for a classic scrollbar); a created class's name renameable with "Redenumește" (off in production until R4a); immediate-effect dialogs name a class by its published name; the hardware list on `ItemRowMenu` (closes on the click; entries keyed by id, which fixed lost focus when Activează became Dezactivează on both lists); shared stylesheet `item-screen.module.css`; `path-segment.ts`; `item-page-read.ts`. Desktop e2e at 7 shards (six put 70 on the fourth).
   - QA found one defect (a published name typed back left a no-op change), fixed. Browser: hardware and materials 62 passed, 4 skipped under `next dev`; the `CI=1` pass last ran at `7441c456` (110 passed, 52 skipped), before the review fixes.
   - Deferred: renaming the description; the rename in a browser (the fake book holds no created class).
+- U5c hand-off to S4 (2026-11-04): a published version's `changeCount` is computed with the domain's pending-count rule, not the stored array's length; the held S4 store must write it the same way.
 - P6b hand-off to R4a (2026-11-03): to turn renaming on, (a) `readAppliedAddress` (`draft-requests.ts`) and `draft-address.ts` accept `created-row-text` for both change and revert (typing the published name back sends a revert), (b) `FETCHING_PRICE_DRAFT_CLIENT` sets `acceptsCreatedRowText: true`, (c) the three `it.fails` in `qa-m10-u4a-wire.adversarial.test.ts` flip and the `NOT_EDITABLE` pin beside them is deleted. U5c also hands R4a the wording for an `item-is-fixed-default` deletion at publish, which today reuses the "default in Setări implicite" line.
 - P6 hand-off to R4a (2026-11-03): the class-creation route must write through `applyChanges` (which refuses a zero push-runner rate as `ZERO` and a short rate set as `CREATED_TIER_RATES_MISSING`), never re-judge by hand.
 - U4a record (2026-11-03):
