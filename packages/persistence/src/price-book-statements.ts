@@ -3,6 +3,7 @@ import {
   designPlacesBodies,
   tierSettingKeyOf,
 } from "./kitchen-usage-statements.js";
+import { buildIdsOf } from "./m10-ports.js";
 import type { DeletedItem } from "./m10-ports.js";
 import type { StatementTag } from "./preset-statements.js";
 import { sqlFragment, statementFrom } from "./sql-fragment.js";
@@ -185,14 +186,9 @@ export function deletedItemsJsonOf(
         deleted.item.kind === "accessory"
           ? null
           : tierSettingKeyOf(deleted.item.kind),
-      build_ids: deleted.item.kind === "accessory" ? buildIdsOf(deleted) : [],
+      build_ids: buildIdsOf(deleted),
     })),
   );
-}
-
-function buildIdsOf(deleted: DeletedItem): readonly string[] {
-  const { buildIds } = deleted as { readonly buildIds?: readonly string[] };
-  return buildIds ?? [];
 }
 
 /** The designs that use a deleted item, over `designs d`, in the words the usage reader's counts use (`kitchen-usage-statements.ts`). */
@@ -214,15 +210,17 @@ function deletedItemIsUsed(): SqlFragment {
 }
 
 /**
- * The publish, in one statement whose branches depend on one another in this order: `in_use` lists each deleted item a
- * saved design names, and `unlinked_deletions` each deleted accessory whose build ids lack the `linkedBuildId` of its rule
- * in the active book; `draft_row` locks the draft at the revision read (two publishes meet here first); `moved_head` moves
- * the availability head by `greatest(k, 1)` only while it is still at the revision read and neither of those two is
- * non-empty, and a head that did not move changes no row and then nothing else is written; `reset_draft`,
- * `inserted_version`, `logged` and `audited` follow. The audit row's `sequenceNumber` and `changeCount` are read from the
- * inserted version row's columns. The book is stored with its `version` set to the version's id. The last select reports
- * each branch, and raises `PUBLISH_RACED` for the one state it must not leave. A sequence number taken raises 23505.
- * `in_use` is read only for a live administrator session, so a caller who may not publish learns nothing of the designs.
+ * The publish, in one statement whose branches depend on one another in this order: `active_book` is the version at
+ * `expectedActiveSequence` (versions are append-only, so it is the book the plan was built from, however many have
+ * followed); `in_use` lists each deleted item a saved design names, `unlinked_deletions` each deleted accessory whose build
+ * ids lack the `linkedBuildId` of its rule in that book, and `restated_creations` each created row that book already
+ * states; `draft_row` locks the draft at the revision read (two publishes meet here first); `moved_head` moves the
+ * availability head by `greatest(k, 1)` only while it is still at the revision read and none of those three is non-empty,
+ * and a head that did not move changes no row and then nothing else is written; `reset_draft`, `inserted_version`,
+ * `logged` and `audited` follow. The audit row's `sequenceNumber` and `changeCount` are read from the inserted version
+ * row's columns. The book is stored with its `version` set to the version's id. The last select reports each branch, and
+ * raises `PUBLISH_RACED` for the one state it must not leave. A sequence number taken raises 23505. `in_use` is read only
+ * for a live administrator session, so a caller who may not publish learns nothing of the designs.
  */
 export function publishStatement<Statement>(
   sql: StatementTag<Statement>,
@@ -253,8 +251,7 @@ export function publishStatement<Statement>(
     active_book as (
       select v.book
       from price_book_versions v
-      order by v.sequence_number desc
-      limit 1
+      where v.sequence_number = ${input.expectedActiveSequence}::bigint
     ),
     deleted_items as (
       select t.position, t.kind, t.item_id, t.setting_key, t.build_ids
@@ -273,6 +270,22 @@ export function publishStatement<Statement>(
           ) as linked
           where linked ->> 'accessoryId' = deleted.item_id
             and linked ->> 'linkedBuildId' in (select jsonb_array_elements_text(deleted.build_ids))
+        )
+    ),
+    restated_creations as (
+      select c.position
+      from created_items c
+      cross join active_book b
+      where (
+          c.kind = 'accessory'
+          and jsonb_path_exists(b.book, '$.linkedAccessories[*] ? (@.accessoryId == $id)', jsonb_build_object('id', c.item_id))
+        )
+        or (
+          c.kind = 'hardware'
+          and (
+            jsonb_path_exists(b.book, '$.hardware.tiers[*] ? (@.tierId == $id)', jsonb_build_object('id', c.item_id))
+            or jsonb_path_exists(b.book, '$.material.tiers[*] ? (@.tierId == $id)', jsonb_build_object('id', c.item_id))
+          )
         )
     ),
     in_use as (
@@ -294,6 +307,7 @@ export function publishStatement<Statement>(
         and exists (select 1 from draft_row)
         and not exists (select 1 from in_use)
         and not exists (select 1 from unlinked_deletions)
+        and not exists (select 1 from restated_creations)
         and (select coalesce(max(sequence_number), 0) from price_book_versions)
           = ${input.expectedActiveSequence}::bigint
       returning revision
@@ -346,6 +360,7 @@ export function publishStatement<Statement>(
         = ${input.expectedActiveSequence}::bigint as is_sequence_current,
       (select coalesce(jsonb_agg(u.position order by u.position), '[]'::jsonb) from in_use u) as in_use_positions,
       (select count(*) from unlinked_deletions)::int as unlinked_accessories,
+      (select count(*) from restated_creations)::int as restated_creations,
       power(
         case
           when (select count(*) from moved_head) = 1

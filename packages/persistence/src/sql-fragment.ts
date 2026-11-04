@@ -1,9 +1,10 @@
 import type { StatementTag } from "./preset-statements.js";
 
 /**
- * A piece of SQL text with its bound values, which another fragment or statement can contain. A tagged template cannot
- * be interpolated into another one (the driver would bind it as a value), so a predicate two statements must share is a
- * fragment: both splice the same text, and the statement is sent through `statementFrom` as one tagged template.
+ * A piece of SQL text with its bound values, which another fragment or statement can contain. A predicate two statements
+ * must share is a fragment: `sqlFragment` splices an `instanceof SqlFragment` value in as text and binds any other, and
+ * `statementFrom` sends the result as one tagged template. The splice is this module's own, so the same text reaches the
+ * driver, a recording tag and the privilege test's tag alike, whatever each does with a nested query.
  */
 export class SqlFragment {
   readonly strings: readonly string[];

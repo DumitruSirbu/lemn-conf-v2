@@ -90,6 +90,7 @@ const REFUSED_ROW = {
   is_sequence_current: true,
   in_use_positions: [],
   unlinked_accessories: 0,
+  restated_creations: 0,
   publish_complete: 1,
 };
 
@@ -274,11 +275,64 @@ describe("what the store makes of the guard's reply", () => {
     );
   });
 
-  it("refuses as an invalid request a linked accessory the book does not place by its row, over a use", async () => {
+  it.each([
+    [
+      "a linked accessory the book does not place by its row",
+      { unlinked_accessories: 1 },
+    ],
+    ["a created row the book already states", { restated_creations: 1 }],
+  ])(
+    "refuses %s as an invalid request, over a use",
+    async (_name, contradiction) => {
+      await failureOf(
+        publishAnswered({ ...contradiction, in_use_positions: [1] }),
+        "invalid-request",
+      );
+    },
+  );
+
+  it.each([
+    [
+      "a linked accessory the book does not place by its row",
+      { unlinked_accessories: 1 },
+    ],
+    ["a created row the book already states", { restated_creations: 1 }],
+  ])(
+    "answers changed-meanwhile, not an invalid request, when %s but the plan was built from a version that has since been replaced",
+    async (_name, contradiction) => {
+      const result = await publishAnswered({
+        ...contradiction,
+        is_sequence_current: false,
+        in_use_positions: [1],
+      });
+
+      expect(result).toBe(CHANGED_MEANWHILE);
+    },
+  );
+
+  it("judges both against the version at the sequence the publisher saw, not the newest", async () => {
+    await publishAnswered({});
+
+    const text = normalised(sentStatement());
+    expect(text).toContain(
+      "active_book as ( select v.book from price_book_versions v where v.sequence_number = ?::bigint )",
+    );
+  });
+
+  it("refuses a NUL in a build id before it sends anything", async () => {
+    resetQueryDriver();
+
     await failureOf(
-      publishAnswered({ unlinked_accessories: 1, in_use_positions: [1] }),
+      newStore().publish(
+        aPublishRequest({
+          deletedItems: [{ item: ACCESSORY, buildIds: ["base\u0000drawer"] }],
+          changeSummary: [itemDeleted(ACCESSORY)],
+        }),
+      ),
       "invalid-request",
     );
+
+    expect(queryDriver.statements).toHaveLength(0);
   });
 
   it("reads a reply with no deleted item in use as the compare-and-set refusals it was", async () => {

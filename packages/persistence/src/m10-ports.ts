@@ -225,6 +225,16 @@ export type DeletedItem =
       readonly buildIds: readonly string[];
     };
 
+const NO_BUILD_IDS: readonly string[] = Object.freeze([]);
+
+/** The build ids a linked accessory is placed by; none for a tier, whatever a caller sent beside it. */
+export function buildIdsOf(deleted: DeletedItem): readonly string[] {
+  if (deleted.item.kind !== "accessory" || !("buildIds" in deleted)) {
+    return NO_BUILD_IDS;
+  }
+  return deleted.buildIds;
+}
+
 export interface PublishPriceBookRequest {
   readonly expectedDraftRevision: string;
   /** The sequence number of the version the publisher saw as active, or 0 while none exists. The new row takes the next. */
@@ -292,8 +302,13 @@ export type PublishPriceBookResult =
  * The store does not return `item-is-default`: the domain judges it **before** the call, against defaults read at
  * `expectedAvailabilityRevision`, which the compare-and-set keeps current (M5). A deletion that gained a user is the
  * store's to refuse, because that compare-and-set does not see a design save: the statement counts the designs that name
- * each deleted item (`item-in-use`) and answers it over a stale draft, sequence or head, once the call has a live session
- * and a well-formed request.
+ * each deleted item.
+ *
+ * A publish answers in this order: a request that fails the shape check (`invalid-request`, before any statement); a call
+ * with no live session (`not-recorded`); a deleted accessory the book at `expectedActiveSequence` does not place by its
+ * build ids, or a created row that book already states (`invalid-request`, or `changed-meanwhile` when that sequence is
+ * no longer the newest, since the plan was built from a book that has since been replaced); a deleted item a saved design
+ * names (`item-in-use`); then the compare-and-set refusals.
  */
 export interface PriceBookStore {
   readActive(): Promise<ReadActiveVersionResult>;

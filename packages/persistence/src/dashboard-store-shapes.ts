@@ -312,7 +312,12 @@ export function storablePublishOf(
   if (!isWellFormed) return undefined;
   const bookJson = storableJsonTextOf(book, "object");
   const changeSummaryJson = storableJsonTextOf(changeSummary, "array");
-  if (bookJson === undefined || changeSummaryJson === undefined) {
+  const deletedItemsJson = storableJsonTextOf(deletedItems, "array");
+  if (
+    bookJson === undefined ||
+    changeSummaryJson === undefined ||
+    deletedItemsJson === undefined
+  ) {
     return undefined;
   }
   return {
@@ -336,37 +341,46 @@ function areTheDeletionsOf(
   deletedItems: unknown,
 ): deletedItems is readonly DeletedItem[] {
   if (!Array.isArray(deletedItems)) return false;
-  if (!(deletedItems as unknown[]).every(isGuardableDeletedItem)) return false;
-  const held = new Set((deletedItems as DeletedItem[]).map(deletedItemKeyOf));
+  const guardable = deletedItems.filter(isGuardableDeletedItem);
+  if (guardable.length !== deletedItems.length) return false;
+  const held = new Set(guardable.map(deletedItemKeyOf));
   const owed = new Set(
     deletedBookItemsOf(changeSummary as readonly DraftChange[]).map(itemKeyOf),
   );
   return (
-    held.size === deletedItems.length &&
+    held.size === guardable.length &&
     held.size === owed.size &&
     [...owed].every((key) => held.has(key))
   );
 }
 
-function isGuardableDeletedItem(candidate: unknown): boolean {
-  if (!isJsonObject(candidate) || !isJsonObject(candidate["item"])) {
-    return false;
+function isGuardableDeletedItem(candidate: unknown): candidate is DeletedItem {
+  if (!isJsonObject(candidate)) return false;
+  const { item } = candidate;
+  if (!isJsonObject(item)) return false;
+  const { tierId, accessoryId } = item;
+  switch (item["kind"]) {
+    case "material":
+    case "hardware":
+      return isNonEmptyText(tierId);
+    case "accessory":
+      return (
+        isNonEmptyText(accessoryId) &&
+        !isBuiltInAccessoryId(accessoryId) &&
+        isNonEmptyTexts(candidate["buildIds"])
+      );
+    default:
+      return false;
   }
-  const item = candidate["item"] as unknown as ItemRef;
-  if (!isNamedItem(item)) return false;
-  if (item.kind === "material" || item.kind === "hardware") return true;
-  return (
-    item.kind === "accessory" &&
-    !isBuiltInAccessoryId(item.accessoryId) &&
-    isNonEmptyTexts(candidate["buildIds"])
-  );
+}
+
+function isNonEmptyText(value: unknown): value is string {
+  return typeof value === "string" && value !== "";
 }
 
 function isNonEmptyTexts(value: unknown): boolean {
   return (
-    Array.isArray(value) &&
-    value.length > 0 &&
-    value.every((id) => typeof id === "string" && id !== "")
+    Array.isArray(value) && value.length > 0 && value.every(isNonEmptyText)
   );
 }
 
@@ -374,7 +388,8 @@ function deletedItemKeyOf({ item }: DeletedItem): string {
   return itemKeyOf(item);
 }
 
-function itemKeyOf(item: ItemRef): string {
+/** The key two refs to one item share. */
+export function itemKeyOf(item: ItemRef): string {
   return `${item.kind}:${itemIdOf(item)}`;
 }
 

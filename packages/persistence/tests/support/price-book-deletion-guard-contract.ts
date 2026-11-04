@@ -1,6 +1,7 @@
 import type { DraftChange, ItemRef } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
+import { CHANGED_MEANWHILE } from "../../src/m10-ports.js";
 import type {
   CatalogueAvailabilityStore,
   DeletedItem,
@@ -8,6 +9,7 @@ import type {
   PublishPriceBookRequest,
 } from "../../src/m10-ports.js";
 import {
+  A_BOOK,
   aBookLinking,
   aDeletedItem,
   aNewItem,
@@ -126,6 +128,7 @@ export function describeDeletionGuardContract(
   describeWhatTheGuardLetsThrough(suiteName, newWorld);
   describeTheRequestsItTurnsAway(suiteName, newWorld);
   describeAgreementWithTheCount(suiteName, newWorld);
+  describeTheBookThePlanWasBuiltFrom(suiteName, newWorld);
 }
 
 function describeWhatTheGuardRefuses(
@@ -441,6 +444,156 @@ function describeAgreementWithTheCount(
         expect(counted).toBe(live);
         expect(verdict.kind === "item-in-use").toBe(counted > 0);
         expect(verdict.kind).not.toBe("ok");
+      },
+    );
+  });
+}
+
+function describeTheBookThePlanWasBuiltFrom(
+  suiteName: string,
+  newWorld: () => Promise<DeletionGuardWorld>,
+): void {
+  describe(`${suiteName}: a publish judged against the version its plan was built from`, () => {
+    /** The sequence a publisher saw, after which another publish replaced the book with `A_BOOK`. */
+    async function aSequenceThatHasSincePassed(
+      world: DeletionGuardWorld,
+      staff: DashboardStaffMember,
+      seenBook: unknown,
+    ): Promise<number> {
+      const seen = await publishNextVersion(
+        world.store,
+        world.availability,
+        staff,
+        seenBook,
+      );
+      await publishNextVersion(world.store, world.availability, staff, A_BOOK);
+      return seen.sequenceNumber;
+    }
+
+    it("answers changed-meanwhile, not an invalid request, when a later publish dropped the rule of a deleted accessory", async () => {
+      const world = await newWorld();
+      const staff = await world.aStaffMember();
+      const item = aNewItem("accessory");
+      const seen = await aSequenceThatHasSincePassed(
+        world,
+        staff,
+        aBookLinking([(item as { accessoryId: string }).accessoryId]),
+      );
+      const before = await stateOf(world, staff);
+
+      const result = await publishWith(
+        world,
+        staff,
+        deleting([item], {
+          expectedActiveSequence: seen,
+          createdItems: aNewItemPair(),
+        }),
+      );
+
+      expect(result).toBe(CHANGED_MEANWHILE);
+      expect(await stateOf(world, staff)).toEqual(before);
+    });
+
+    it("still refuses as an invalid request an accessory the newest book does not state, when that is the version the publisher saw", async () => {
+      const world = await newWorld();
+      const staff = await world.aStaffMember();
+      await publishNextVersion(world.store, world.availability, staff);
+      const item = aNewItem("accessory");
+      const before = await stateOf(world, staff);
+
+      await dashboardFailureOf(
+        publishWith(
+          world,
+          staff,
+          deleting([item], { createdItems: aNewItemPair() }),
+        ),
+        "invalid-request",
+      );
+
+      expect(await stateOf(world, staff)).toEqual(before);
+    });
+
+    const RESTATED_ROWS = [
+      [
+        "a hardware class",
+        { kind: "hardware", tierId: "standard" } as const,
+        A_BOOK,
+      ],
+      ["a material", { kind: "hardware", tierId: "pal" } as const, A_BOOK],
+    ] as const;
+
+    it.each(RESTATED_ROWS)(
+      "refuses a created row that the book already states (%s), as an invalid request, writing nothing",
+      async (_name, created, book) => {
+        const world = await newWorld();
+        const staff = await world.aStaffMember();
+        await publishNextVersion(world.store, world.availability, staff, book);
+        const before = await stateOf(world, staff);
+
+        await dashboardFailureOf(
+          publishWith(world, staff, { createdItems: [created] }),
+          "invalid-request",
+        );
+
+        expect(await stateOf(world, staff)).toEqual(before);
+      },
+    );
+
+    it("refuses a created linked accessory that the book already states, as an invalid request, writing nothing", async () => {
+      const world = await newWorld();
+      const staff = await world.aStaffMember();
+      const created = aNewItem("accessory");
+      await publishNextVersion(
+        world.store,
+        world.availability,
+        staff,
+        aBookLinking([(created as { accessoryId: string }).accessoryId]),
+      );
+      const before = await stateOf(world, staff);
+
+      await dashboardFailureOf(
+        publishWith(world, staff, { createdItems: [created] }),
+        "invalid-request",
+      );
+
+      expect(await stateOf(world, staff)).toEqual(before);
+    });
+
+    it("answers changed-meanwhile for a created row the version the publisher saw stated but the newest book no longer does", async () => {
+      const world = await newWorld();
+      const staff = await world.aStaffMember();
+      const seen = await aSequenceThatHasSincePassed(world, staff, A_BOOK);
+      const before = await stateOf(world, staff);
+
+      const result = await publishWith(world, staff, {
+        createdItems: [{ kind: "hardware", tierId: "standard" }],
+        expectedActiveSequence: seen,
+      });
+
+      expect(result).toBe(CHANGED_MEANWHILE);
+      expect(await stateOf(world, staff)).toEqual(before);
+    });
+
+    it.each([
+      ["NUL", "base\u0000drawer"],
+      ["a lone surrogate", "base\ud800drawer"],
+    ])(
+      "refuses a build id holding %s as an invalid request, writing nothing",
+      async (_name, buildId) => {
+        const world = await newWorld();
+        const staff = await world.aStaffMember();
+        const item = await aDeletableItem(world, staff, "accessory");
+        const before = await stateOf(world, staff);
+
+        await dashboardFailureOf(
+          publishWith(world, staff, {
+            changeSummary: [itemDeleted(item)],
+            deletedItems: [{ item, buildIds: [buildId] } as DeletedItem],
+          }),
+          "invalid-request",
+        );
+
+        expect(await stateOf(world, staff)).toEqual(before);
       },
     );
   });

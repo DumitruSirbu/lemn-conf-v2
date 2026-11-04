@@ -8,6 +8,7 @@ import {
   storableJsonTextOf,
   storablePublishOf,
 } from "./dashboard-store-shapes.js";
+import type { StorablePublish } from "./dashboard-store-shapes.js";
 
 import type { FakeCatalogueAvailabilityStore } from "./fake-catalogue-availability-store.js";
 import {
@@ -19,6 +20,7 @@ import type { FakeDashboardAuditLedger } from "./fake-dashboard-support.js";
 import type { FakeHeldDesigns } from "./fake-held-designs.js";
 import {
   AVAILABILITY_CHANGED_MEANWHILE,
+  buildIdsOf,
   CHANGED_MEANWHILE,
   DashboardStoreError,
   NO_ACTIVE_VERSION,
@@ -209,11 +211,25 @@ export class FakePriceBookStore implements PriceBookStore {
       },
       onlyAdministrators: true,
     });
-    const itemsInUse = this.guardDeletions(publishable.deletedItems);
+    const newestSequence = this.versions.at(-1)?.sequenceNumber ?? 0;
+    const planBook = this.versions.find(
+      (version) => version.sequenceNumber === request.expectedActiveSequence,
+    )?.book;
+    if (isContradictedByTheBook(publishable, planBook)) {
+      if (request.expectedActiveSequence !== newestSequence) {
+        return CHANGED_MEANWHILE;
+      }
+      throw new DashboardStoreError(
+        "publish the price book",
+        "invalid-request",
+      );
+    }
+    const itemsInUse = publishable.deletedItems
+      .map(({ item }) => item)
+      .filter((item) => this.designs.countUsing(item) > 0);
     if (itemsInUse.length > 0) {
       return { kind: "item-in-use", items: itemsInUse };
     }
-    const newestSequence = this.versions.at(-1)?.sequenceNumber ?? 0;
     if (
       request.expectedDraftRevision !== this.draftRevision.current() ||
       request.expectedActiveSequence !== newestSequence
@@ -256,27 +272,6 @@ export class FakePriceBookStore implements PriceBookStore {
     };
   }
 
-  /**
-   * The deleted items a saved design names, as the statement finds them. A linked accessory whose build ids lack its
-   * rule's `linkedBuildId` in the active book is a request the store refuses, as the statement's `unlinked_deletions` is.
-   */
-  private guardDeletions(
-    deletedItems: readonly DeletedItem[],
-  ): readonly ItemRef[] {
-    const activeBook = this.versions.at(-1)?.book;
-    for (const deleted of deletedItems) {
-      if (!hasItsLinkedBuildId(deleted, activeBook)) {
-        throw new DashboardStoreError(
-          "publish the price book",
-          "invalid-request",
-        );
-      }
-    }
-    return deletedItems
-      .map(({ item }) => item)
-      .filter((item) => this.designs.countUsing(item) > 0);
-  }
-
   /** The head after the publish's own move: once per created item, each logged off, or once when there are none. */
   private logCreatedItems(createdItems: readonly ItemRef[]): string {
     if (createdItems.length === 0) return this.availability.head.advance();
@@ -305,18 +300,50 @@ export class FakePriceBookStore implements PriceBookStore {
   }
 }
 
-/** Whether a deleted linked accessory's build ids hold the `linkedBuildId` of its rule in the book; a tier carries none. */
-function hasItsLinkedBuildId(deleted: DeletedItem, book: unknown): boolean {
-  if (deleted.item.kind !== "accessory") return true;
-  const { accessoryId } = deleted.item;
-  const buildIds = (deleted as { readonly buildIds?: unknown }).buildIds;
-  const rules = isJsonObject(book) ? book["linkedAccessories"] : undefined;
-  if (!Array.isArray(rules) || !Array.isArray(buildIds)) return false;
-  return (rules as unknown[]).some(
-    (rule) =>
-      isJsonObject(rule) &&
-      rule["accessoryId"] === accessoryId &&
-      typeof rule["linkedBuildId"] === "string" &&
-      (buildIds as unknown[]).includes(rule["linkedBuildId"]),
+/**
+ * Whether the book at the sequence the plan was built from contradicts the request: a deleted linked accessory whose build
+ * ids lack its rule's `linkedBuildId`, or a created row the book already states. Both are what the statement's
+ * `unlinked_deletions` and `restated_creations` find.
+ */
+function isContradictedByTheBook(
+  { deletedItems, createdItems }: StorablePublish,
+  book: unknown,
+): boolean {
+  const states = (path: readonly string[], key: string, id: string) =>
+    rowsAt(book, path).some((row) => isJsonObject(row) && row[key] === id);
+  const isRestated = (created: ItemRef) =>
+    (created.kind === "accessory" &&
+      states(["linkedAccessories"], "accessoryId", created.accessoryId)) ||
+    (created.kind === "hardware" &&
+      (states(["hardware", "tiers"], "tierId", created.tierId) ||
+        states(["material", "tiers"], "tierId", created.tierId)));
+  return (
+    deletedItems.some((deleted) => !hasItsLinkedBuildId(deleted, book)) ||
+    createdItems.some(isRestated)
   );
 }
+
+/** Whether a deleted linked accessory's build ids hold the `linkedBuildId` of its rule in the book; a tier carries none. */
+function hasItsLinkedBuildId(deleted: DeletedItem, book: unknown): boolean {
+  const { item } = deleted;
+  if (item.kind !== "accessory") return true;
+  const buildIds = buildIdsOf(deleted);
+  return rowsAt(book, ["linkedAccessories"]).some(
+    (rule) =>
+      isJsonObject(rule) &&
+      rule["accessoryId"] === item.accessoryId &&
+      typeof rule["linkedBuildId"] === "string" &&
+      buildIds.includes(rule["linkedBuildId"]),
+  );
+}
+
+/** The rows of the array the path names in the book, or none where the book has no such array. */
+function rowsAt(book: unknown, path: readonly string[]): readonly unknown[] {
+  let at: unknown = book;
+  for (const key of path) {
+    at = isJsonObject(at) ? at[key] : undefined;
+  }
+  return Array.isArray(at) ? at : NO_ROWS;
+}
+
+const NO_ROWS: readonly unknown[] = Object.freeze([]);

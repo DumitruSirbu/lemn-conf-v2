@@ -100,6 +100,12 @@ type Candidate =
   | { readonly ok: true; readonly book: PriceBook }
   | { readonly ok: false; readonly refusals: readonly CandidateRefusalWire[] };
 
+/** The rows priced as the one an accessory is linked to, then that row itself where the catalogue no longer holds it. */
+function withTheRulesOwnRow(linkedBuildId: string): readonly string[] {
+  const priced = buildIdsPricedAs(shippedCatalogue(), linkedBuildId);
+  return priced.includes(linkedBuildId) ? priced : [...priced, linkedBuildId];
+}
+
 /** The book the changes make, parsed and judged against the catalogue, or every reason either refuses it. */
 function candidateOf(
   book: PriceBook,
@@ -118,10 +124,4 @@ function refused(
   word: Parameters<typeof dashboardConflictResponse>[0],
 ): PublishPlan {
   return { kind: "refused", response: dashboardConflictResponse(word) };
-}
-
-/** The rows priced as the one an accessory is linked to, then that row itself where the catalogue no longer holds it. */
-function withTheRulesOwnRow(linkedBuildId: string): readonly string[] {
-  const priced = buildIdsPricedAs(shippedCatalogue(), linkedBuildId);
-  return priced.includes(linkedBuildId) ? priced : [...priced, linkedBuildId];
 }

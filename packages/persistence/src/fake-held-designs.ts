@@ -28,7 +28,8 @@ export class FakeHeldDesigns {
   /**
    * How many designs their client has not deleted use the item. A tier or a linked accessory is read from the stored
    * document as written, so a design the product cannot open still counts; any other item is read by opening each
-   * design, which leaves out one it cannot.
+   * design, which leaves out one it cannot. A design that names no tier is not counted for the book's default tier: the
+   * default is read from the book in SQL, and a planted design carries only the items it uses.
    */
   countUsing(item: ItemRef): number {
     const key = itemKeyOf(item);

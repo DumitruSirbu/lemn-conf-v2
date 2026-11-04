@@ -180,10 +180,10 @@ export class NeonPriceBookStore implements PriceBookStore {
 
   /**
    * Of two publishes at one draft revision the second finds the draft locked by the first and then moved, and is
-   * `changed-meanwhile`; a stale availability head is `availability-changed-meanwhile`; a deleted item that a saved design
-   * names is `item-in-use`, which is answered over both. A refusal wrote nothing, the audit row included. A linked
-   * accessory whose build ids lack its rule's `linkedBuildId` in the active book is `invalid-request`. The book is stored
-   * with its `version` set to the new version's id.
+   * `changed-meanwhile`; a stale availability head is `availability-changed-meanwhile`. The answers come in the order the
+   * port documents (`PriceBookStore`): the shape check, no live session, a request the book at `expectedActiveSequence`
+   * contradicts, a deleted item a saved design names, then those refusals. A refusal wrote nothing, the audit row included.
+   * The book is stored with its `version` set to the new version's id.
    */
   async publish(
     request: PublishPriceBookRequest,
@@ -280,7 +280,10 @@ function publishResultFrom(
   if (!requiredBoolean(row["is_session_live"], PUBLISH)) {
     throw new DashboardStoreError(PUBLISH, "not-recorded");
   }
-  if (requiredCount(row["unlinked_accessories"], PUBLISH) > 0) {
+  if (isRequestContradictedByTheBook(row)) {
+    if (!requiredBoolean(row["is_sequence_current"], PUBLISH)) {
+      return CHANGED_MEANWHILE;
+    }
     throw new DashboardStoreError(PUBLISH, "invalid-request");
   }
   const itemsInUse = itemsInUseFrom(row["in_use_positions"], deletedItems);
@@ -291,6 +294,14 @@ function publishResultFrom(
   return isDraftOrSequenceStale
     ? CHANGED_MEANWHILE
     : AVAILABILITY_CHANGED_MEANWHILE;
+}
+
+/** A deleted accessory the book does not place by its build ids, or a created row the book already states. */
+function isRequestContradictedByTheBook(row: Row): boolean {
+  return (
+    requiredCount(row["unlinked_accessories"], PUBLISH) > 0 ||
+    requiredCount(row["restated_creations"], PUBLISH) > 0
+  );
 }
 
 /** The deleted items at the positions the statement found in use, in the request's order; a position it never sent is a defect. */
