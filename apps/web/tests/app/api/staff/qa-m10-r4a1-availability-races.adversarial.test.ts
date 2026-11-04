@@ -25,6 +25,7 @@ import {
   publishNextVersion,
   trySaveDefaults,
   switchItem,
+  writeWithoutJudgement,
 } from "../../../support/availability-route-world";
 import {
   ANCHORED_BOOK,
@@ -57,6 +58,7 @@ vi.mock("@/lib/server/price-stores", () =>
 
 const PAINTED: ItemRef = { kind: "material", tierId: "material.painted-mdf" };
 const VENEER: ItemRef = { kind: "material", tierId: "material.veneer" };
+const MELAMINE: ItemRef = { kind: "material", tierId: "material.melamine" };
 const SOFT_CLOSE: ItemRef = { kind: "hardware", tierId: "hardware.soft-close" };
 
 let world: AccountWorld;
@@ -307,6 +309,129 @@ describe("a switch that changes nothing", () => {
 
     expect(allRows().length - rowsBefore).toBe(0);
     expect(await disabledNow()).toEqual([]);
+  });
+});
+
+describe("the book is read before the revision is compared", () => {
+  const NOT_IN_THE_BOOK: ItemRef = {
+    kind: "material",
+    tierId: "material.unheard-of",
+  };
+
+  it("answers no-active-version to a stale request too, whatever the item, and writes nothing", async () => {
+    prices = await freshPriceDashboardWorld({ isPublished: false });
+    const { cookie } = await administrator();
+    const readDefaults = vi.spyOn(prices.defaults, "read");
+
+    const answers = await Promise.all([
+      switchItem(cookie, PAINTED, false, "7"),
+      switchItem(cookie, PAINTED, true, "7"),
+      switchItem(cookie, NOT_IN_THE_BOOK, true, "7"),
+    ]);
+
+    for (const answer of answers) {
+      expect(answer.status).toBe(409);
+      expect(await jsonOf(answer)).toEqual({ status: "no-active-version" });
+    }
+    expect(readDefaults).not.toHaveBeenCalled();
+    expect(activationRows()).toEqual([]);
+  });
+
+  it.each([
+    ["off", false],
+    ["on", true],
+  ])(
+    "answers changed-meanwhile, never the book's refusal, to a stale request to switch an unstated item %s",
+    async (_description, active) => {
+      const { cookie } = await administrator();
+      const stale = await availabilityHead();
+      await switchItem(cookie, PAINTED, false);
+      const headBefore = await availabilityHead();
+
+      const answer = await switchItem(cookie, NOT_IN_THE_BOOK, active, stale);
+
+      expect(answer.status).toBe(409);
+      expect(await jsonOf(answer)).toEqual({ status: "changed-meanwhile" });
+      expect(await availabilityHead()).toBe(headBefore);
+      expect(activationRows()).toHaveLength(1);
+    },
+  );
+
+  it("answers the book's refusal to a fresh request for the same unstated item", async () => {
+    const { cookie } = await administrator();
+
+    const answer = await switchItem(cookie, NOT_IN_THE_BOOK, true);
+
+    expect(await jsonOf(answer)).toEqual({ status: "item-not-in-active-book" });
+  });
+
+  it("still answers 503 and writes nothing when the book is unreadable, for a request that would have changed nothing", async () => {
+    const { cookie } = await administrator();
+    vi.spyOn(prices.stores.priceBook, "readActive").mockResolvedValue({
+      kind: "found",
+      version: { version: "x", book: { nonsense: true } },
+    } as never);
+    const headBefore = await availabilityHead();
+
+    const answer = await switchItem(cookie, PAINTED, true);
+
+    expect(answer.status).toBe(503);
+    expect(await availabilityHead()).toBe(headBefore);
+  });
+});
+
+describe("a switch that changes nothing asks for no more than it needs", () => {
+  it("reads no saved defaults and writes nothing, so a defaults row that cannot be read does not stop it", async () => {
+    const { cookie } = await administrator();
+    const readDefaults = vi
+      .spyOn(prices.defaults, "read")
+      .mockRejectedValue(new Error("unreadable"));
+    const write = vi.spyOn(prices.stores.availability, "setActive");
+
+    const answer = await switchItem(cookie, PAINTED, true);
+
+    expect(answer.status).toBe(200);
+    expect(readDefaults).not.toHaveBeenCalled();
+    expect(write).not.toHaveBeenCalled();
+  });
+
+  it("is a 200 for an item that is already off and is a default, which no real switch of it ever would be", async () => {
+    const admin = await administrator();
+    await writeWithoutJudgement(admin, MELAMINE, false);
+    const headBefore = await availabilityHead();
+
+    const answer = await switchItem(admin.cookie, MELAMINE, false);
+
+    expect(answer.status).toBe(200);
+    expect(await jsonOf(answer)).toEqual({ revision: headBefore });
+    expect(await availabilityHead()).toBe(headBefore);
+    expect(activationRows()).toHaveLength(1);
+  });
+
+  it("is judged afresh once it is not a no-op: switching that default back on is allowed, then off is refused", async () => {
+    const admin = await administrator();
+    await writeWithoutJudgement(admin, MELAMINE, false);
+
+    const on = await switchItem(admin.cookie, MELAMINE, true);
+    const off = await switchItem(admin.cookie, MELAMINE, false);
+
+    expect(on.status).toBe(200);
+    expect(off.status).toBe(409);
+    expect(await jsonOf(off)).toEqual({ status: "item-is-fixed-default" });
+  });
+
+  it("answers the head it read, even when a real switch lands at the same moment", async () => {
+    const { cookie } = await administrator();
+    const before = await availabilityHead();
+
+    const [noOp, real] = await Promise.all([
+      switchItem(cookie, PAINTED, true),
+      switchItem(cookie, VENEER, false, before),
+    ]);
+
+    expect(real.status).toBe(200);
+    const { revision } = (await jsonOf(noOp)) as { revision: string };
+    expect([before, await availabilityHead()]).toContain(revision);
   });
 });
 

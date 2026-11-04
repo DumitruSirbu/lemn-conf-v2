@@ -6,6 +6,7 @@ import {
   fixedDefaultItemsOf,
   freeColourFinish,
   isItemDisabled,
+  isItemStated,
   isSameItem,
   judgeAvailabilityChange,
   paletteFinish,
@@ -70,6 +71,7 @@ const AN_UNSTATED_ITEM: ItemRef = {
   kind: "material",
   tierId: "material.unheard-of",
 };
+const SOFT_CLOSE: ItemRef = { kind: "hardware", tierId: "hardware.soft-close" };
 const SINK_COVER: ItemRef = {
   kind: "accessory",
   accessoryId: "sinkProtectiveCover",
@@ -103,7 +105,9 @@ const EVERY_ANSWER: Scenario[] = [
       off(AN_UNSTATED_ITEM),
       off(VENEER),
       off(PAINTED),
+      off(PAINTED),
       off(PAINTED, true),
+      off(SOFT_CLOSE, true),
     ],
   ],
   [
@@ -178,9 +182,10 @@ async function saveUnlessEmpty(
 
 describe("the route's answer is the domain's verdict for the state it read", () => {
   const answersSeen = new Set<string>();
+  const noOpsSeen = { fresh: 0, stale: 0 };
 
   it(
-    "holds for any defaults, any unjudged prefix and any sequence of switches, and a write leaves one row and one step",
+    "holds for any defaults, any unjudged prefix and any sequence of switches: a write leaves one row and one step, and a switch to the state an item is in leaves nothing",
     async () => {
       await fc.assert(
         fc.asyncProperty(
@@ -230,7 +235,18 @@ describe("the route's answer is the domain's verdict for the state it read", () 
               answersSeen.add(
                 answer.status === 200 ? "set" : String(body.status),
               );
-              if (operation.isStale) {
+              const isNoOp =
+                isItemStated(operation.item, ANCHORED_BOOK) &&
+                isItemDisabled(availability, operation.item) ===
+                  !operation.active;
+              if (isNoOp) {
+                noOpsSeen[operation.isStale ? "stale" : "fresh"] += 1;
+                expect(answer.status, label).toBe(200);
+                expect(body, label).toEqual({
+                  revision: availability.revision,
+                });
+                expectNothingWritten(after, availability, rowsBefore, label);
+              } else if (operation.isStale) {
                 expect(answer.status, label).toBe(409);
                 expect(body, label).toEqual({ status: "changed-meanwhile" });
                 expectNothingWritten(after, availability, rowsBefore, label);
@@ -266,6 +282,8 @@ describe("the route's answer is the domain's verdict for the state it read", () 
           "last-active-option",
         ]),
       );
+      expect(noOpsSeen.fresh).toBeGreaterThan(10);
+      expect(noOpsSeen.stale).toBeGreaterThan(10);
     },
     TIMEOUT_MS,
   );
