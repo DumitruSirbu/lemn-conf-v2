@@ -1,11 +1,13 @@
-import type { ItemRef } from "@lemnaria/configurator-domain";
+import type { ItemRef, ItemUsageCounts } from "@lemnaria/configurator-domain";
 
 import type { FakeCatalogueAvailabilityStore } from "./fake-catalogue-availability-store.js";
 import {
+  isCountableProbeSet,
+  storableDefaultsJsonOf,
+} from "./dashboard-store-shapes.js";
+import {
   FakeRevisionHead,
-  isJsonObject,
   isRevisionShape,
-  itemIdOf,
   itemKeyOf,
   settle,
 } from "./fake-dashboard-support.js";
@@ -17,6 +19,7 @@ import {
   NONE_SAVED,
 } from "./m10-ports.js";
 import type {
+  ItemUsageProbe,
   KitchenDefaultsStore,
   KitchenUsageReader,
   ReadKitchenDefaultsResult,
@@ -42,7 +45,9 @@ export interface FakeKitchenDefaultsStoreOptions {
  * In-memory `KitchenDefaultsStore` and `KitchenUsageReader` (ADR 0178). A row saved with `{}` is saved, not `NONE_SAVED`:
  * it holds the revision the next save needs. A save advances the defaults revision and the availability head together,
  * with no row in the availability log; it cannot read the book, so whether an item may be the default is the caller's
- * judgement under the head's compare-and-set. Usage counts the planted designs their client has not deleted.
+ * judgement under the head's compare-and-set. Usage counts the planted designs their client has not deleted, by the
+ * items each was planted as using: it reads no probe's facts (a fallback, a set of build ids, a predicate), which only the
+ * Neon reader's own tests can exercise.
  */
 export class FakeKitchenDefaultsStore
   implements KitchenDefaultsStore, KitchenUsageReader
@@ -108,21 +113,28 @@ export class FakeKitchenDefaultsStore
     return { kind: "ok", revision, availabilityRevision };
   }
 
-  count(item: ItemRef): Promise<number> {
+  countEach(probes: readonly ItemUsageProbe[]): Promise<ItemUsageCounts> {
     return settle("count the kitchens using an item", () => {
-      if (itemIdOf(item) === "") {
+      if (!isCountableProbeSet(probes)) {
         throw new DashboardStoreError(
           "count the kitchens using an item",
           "invalid-request",
         );
       }
-      const key = itemKeyOf(item);
-      return [...this.designs.values()].filter(
-        (design) =>
-          !design.isDeletedByClient &&
-          design.uses.some((used) => itemKeyOf(used) === key),
-      ).length;
+      return probes.map(({ item }) => ({
+        item,
+        designCount: this.countUsing(item),
+      }));
     });
+  }
+
+  private countUsing(item: ItemRef): number {
+    const key = itemKeyOf(item);
+    return [...this.designs.values()].filter(
+      (design) =>
+        !design.isDeletedByClient &&
+        design.uses.some((used) => itemKeyOf(used) === key),
+    ).length;
   }
 }
 
@@ -134,7 +146,7 @@ function requireSavable({
   const isWellFormed =
     isRevisionShape(expectedRevision) &&
     isRevisionShape(expectedAvailabilityRevision) &&
-    isJsonObject(defaults);
+    storableDefaultsJsonOf(defaults) !== undefined;
   if (!isWellFormed) {
     throw new DashboardStoreError(
       "save the kitchen defaults",

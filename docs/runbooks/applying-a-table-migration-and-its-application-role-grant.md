@@ -1254,6 +1254,36 @@ is not an `id` in `price_book_versions`, or whose `acknowledged_availability_rev
 `revision`, did not come from the application: an acknowledgement is refused for either, and a first open records the
 server's own current pair.
 
+**Wave S3, `0029_create_kitchen_defaults` (added 2026-11-04; as written in the migration's header at branch `m10/s3`;
+re-check against the merged file). Unapplied anywhere.** Applying it, to any database, is asked of the owner first, every
+time: no earlier approval, of `0023`–`0027` or of `0028`, covers it.
+
+```sql
+GRANT SELECT ON TABLE public.kitchen_defaults TO app_designs;
+GRANT UPDATE (revision, defaults, saved_at, saved_by_account_id) ON TABLE public.kitchen_defaults TO app_designs;
+```
+
+Two lines. **None** of `INSERT`, `DELETE`, `TRUNCATE`, `ALL`, `PUBLIC` or a grant option, and no `UPDATE` of `singleton`.
+`kitchen_defaults` is a seeded singleton (`0009`'s pattern): the migration inserts its one row at revision 0 with
+`on conflict do nothing`, so the application never inserts. Nothing is granted on `designs` or on
+`catalogue_availability_head` for this wave: the usage reader reads `designs` under the `SELECT` it already holds (it reads
+`document`, `schema_version`, `id` and `deleted_by_client_at`, all inside that grant), and a defaults save moves the head
+under `0025`'s `UPDATE (revision)`. The ledger reads 1–28 before and 1–29 after. **Deploy order:** apply `0029` and issue the
+two grants **before the defaults routes or the dashboard's disable and delete judgements deploy**: until then they answer
+503.
+
+**The privilege test is the check.** Its arm for `public.kitchen_defaults` is written to be red with nothing granted and green
+with exactly the two lines above, and its statement-planning arm plans the store's save and read and the reader's three
+counts as the application role. Neither arm has run against any database in this wave (the worktree has no database); run
+the test against the target before trusting the grants.
+
+**After applying, cross-check (owner, by hand).** The application credential can write any defaults into the one row, so
+whoever holds it can change what every new kitchen starts with; it changes no saved kitchen and no price. A `kitchen_defaults`
+row whose `revision` is above 0 and for which `staff_audit_events` holds no `kitchen-defaults-saved` row did not come from
+the application: every save writes both in one statement.
+
+**Not in the nightly export.** A restore leaves new kitchens at the fixed fallbacks until the defaults are saved again.
+
 ## Why step 5 names the application role
 
 The file is safe on any credential (criterion 13): it refuses to run past its guard as an owner. It is also only

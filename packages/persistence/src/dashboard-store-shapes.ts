@@ -5,7 +5,7 @@ import {
 import type { ItemRef } from "@lemnaria/configurator-domain";
 
 import { isDesignRevision } from "./design-revision.js";
-import type { PublishPriceBookRequest } from "./m10-ports.js";
+import type { ItemUsageProbe, PublishPriceBookRequest } from "./m10-ports.js";
 
 // The shapes the M10 stores refuse before any statement: the fakes and the Neon stores share them, so both turn away
 // the same request. None of these reads a value as a number: a revision is an opaque digit run, and the only ordering
@@ -337,4 +337,65 @@ export function storablePublishOf(
     changeCount: countPendingPrices(changeSummary),
     createdItems: Array.from<ItemRef>(createdItems),
   };
+}
+
+/**
+ * The most JSON a defaults save sends: 16 KiB of compact text, for the six settings a new kitchen starts with. The table
+ * checks 64 KiB of `jsonb` text (`0029`), as far above this as `0024`'s ceiling is above its own limit.
+ */
+export const MAX_STORED_DEFAULTS_BYTES = 16_384;
+
+/**
+ * The JSON text of defaults the table takes and reads back as they were sent (`storableJsonTextOf`, as an object), or
+ * `undefined` for defaults that are not an object or that exceed `MAX_STORED_DEFAULTS_BYTES`.
+ */
+export function storableDefaultsJsonOf(defaults: unknown): string | undefined {
+  const jsonText = storableJsonTextOf(defaults, "object");
+  const isWithinLimit =
+    jsonText !== undefined &&
+    new TextEncoder().encode(jsonText).length <= MAX_STORED_DEFAULTS_BYTES;
+  return isWithinLimit ? jsonText : undefined;
+}
+
+/**
+ * Whether the probes are ones a usage reader can answer with exactly one count each: every probe names a different item,
+ * and carries what its way of reading needs (`ItemUsageProbe`). The fake and the Neon reader turn away the same set.
+ */
+export function isCountableProbeSet(
+  probes: readonly ItemUsageProbe[],
+): boolean {
+  if (!Array.isArray(probes)) return false;
+  const keys = new Set(probes.map(probeKeyOf));
+  return keys.size === probes.length && probes.every(isCountableProbe);
+}
+
+function probeKeyOf({ item }: ItemUsageProbe): string {
+  return `${item.kind}:${itemIdOf(item)}`;
+}
+
+/** The kind a caller's item really has: a probe's types say, but the reader also turns away a probe that was cast. */
+function kindOf(item: ItemRef): ItemRef["kind"] {
+  return item.kind;
+}
+
+function isTierKind(kind: ItemRef["kind"]): boolean {
+  return kind === "material" || kind === "hardware";
+}
+
+function isCountableProbe(probe: ItemUsageProbe): boolean {
+  if (!isNamedItem(probe.item)) return false;
+  switch (probe.via) {
+    case "settings-tier":
+      return (
+        isTierKind(kindOf(probe.item)) && typeof probe.isFallback === "boolean"
+      );
+    case "placed-bodies":
+      return (
+        kindOf(probe.item) === "accessory" &&
+        Array.isArray(probe.buildIds) &&
+        probe.buildIds.every((id) => typeof id === "string" && id !== "")
+      );
+    case "migrated-design":
+      return typeof probe.isUsedBy === "function";
+  }
 }
