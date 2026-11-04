@@ -190,6 +190,41 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
       expect(await tablesOf()).toEqual(before);
     });
 
+    it("holds no default for the stored change count: an insert that omits it fails not null, and a negative one fails its check", async () => {
+      const world = await newWorld();
+      const member = await world.aStaffMember();
+      const { sequenceNumber } = await appendPriceVersionForTests(
+        A_BOOK,
+        member.accountId,
+      );
+      const before = await tablesOf();
+
+      // A taken sequence number: were a default ever added, the insert would meet the unique constraint instead of
+      // not null, and in a good state it would be a new row that no one can delete.
+      const withoutCount = await rejectionOf(
+        staff.sql()`
+          insert into price_book_versions (id, sequence_number, label, note, book, change_summary, published_by_account_id)
+          values (${"e".repeat(21)}, ${sequenceNumber}, 'no count', '', '{}'::jsonb, '[]'::jsonb, ${member.accountId})
+        `,
+      );
+      const negativeCount = await rejectionOf(
+        staff.sql()`
+          insert into price_book_versions (id, sequence_number, label, note, book, change_summary, change_count, published_by_account_id)
+          values (${"f".repeat(21)}, ${sequenceNumber}, 'negative', '', '{}'::jsonb, '[]'::jsonb, -1, ${member.accountId})
+        `,
+      );
+
+      expect(withoutCount).toMatchObject({
+        code: "23502",
+        column: "change_count",
+      });
+      expect(negativeCount).toMatchObject({
+        code: "23514",
+        constraint: "price_book_versions_change_count_is_a_count",
+      });
+      expect(await tablesOf()).toEqual(before);
+    });
+
     it("stamps a version and a draft write with the database's clock", async () => {
       const world = await newWorld();
       const member = await world.aStaffMember();
