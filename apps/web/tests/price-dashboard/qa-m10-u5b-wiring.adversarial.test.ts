@@ -7,7 +7,7 @@ import { isValidElement } from "react";
 import { describe, expect, it } from "vitest";
 
 import { publishScreenOf } from "@/app/[locale]/staff/catalog/_lib/publish-read-screen";
-import { SAMPLE_PUBLISH_PAGE } from "@/price-dashboard/publish-sample";
+import { SAMPLE_PUBLISH_PAGE } from "../support/publish-sample";
 import {
   PublishScreen,
   PublishUnavailableScreen,

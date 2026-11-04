@@ -9,7 +9,7 @@ import type { DraftChange } from "@lemnaria/configurator-domain";
 
 import type { CandidateRefusalWire } from "@/price-dashboard/price-dashboard-wire-contract";
 import { MAX_REFUSAL_LINES } from "@/price-dashboard/publish-refusals";
-import { SAMPLE_PUBLISH_PAGE } from "@/price-dashboard/publish-sample";
+import { SAMPLE_PUBLISH_PAGE } from "../support/publish-sample";
 
 import {
   byWords,

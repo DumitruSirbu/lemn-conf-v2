@@ -3,8 +3,8 @@
 import { applyChanges, type DraftChange } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
-import { makeSamplePublishClient } from "@/price-dashboard/publish-sample-client";
-import { SAMPLE_PUBLISH_PAGE } from "@/price-dashboard/publish-sample";
+import { makeSamplePublishClient } from "../support/publish-sample-client";
+import { SAMPLE_PUBLISH_PAGE } from "../support/publish-sample";
 
 const STATE = SAMPLE_PUBLISH_PAGE.state;
 

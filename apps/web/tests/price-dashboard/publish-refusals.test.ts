@@ -11,7 +11,7 @@ import {
   type RefusalContext,
   type RefusalLine,
 } from "@/price-dashboard/publish-refusals";
-import { SAMPLE_PUBLISH_PAGE } from "@/price-dashboard/publish-sample";
+import { SAMPLE_PUBLISH_PAGE } from "../support/publish-sample";
 
 import {
   applied,

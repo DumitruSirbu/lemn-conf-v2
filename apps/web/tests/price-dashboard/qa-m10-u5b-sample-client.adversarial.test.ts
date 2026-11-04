@@ -17,8 +17,8 @@ import type {
   PublishTextRefusalCode,
 } from "@/price-dashboard/price-dashboard-wire-contract";
 import type { PublishClient } from "@/price-dashboard/publish-client";
-import { SAMPLE_PUBLISH_PAGE } from "@/price-dashboard/publish-sample";
-import { makeSamplePublishClient } from "@/price-dashboard/publish-sample-client";
+import { SAMPLE_PUBLISH_PAGE } from "../support/publish-sample";
+import { makeSamplePublishClient } from "../support/publish-sample-client";
 
 const STATE: DashboardStateWire = SAMPLE_PUBLISH_PAGE.state;
 const PAGE_SIZE = 20;

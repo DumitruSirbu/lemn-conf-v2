@@ -8,8 +8,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type { PriceVersionSummaryWire } from "@/price-dashboard/price-dashboard-wire-contract";
 import type { PublishClient } from "@/price-dashboard/publish-client";
-import { sampleVersionIdOf } from "@/price-dashboard/publish-sample-client";
-import { sampleVersionDetail } from "@/price-dashboard/publish-sample";
+import { sampleVersionIdOf } from "../support/publish-sample-client";
+import { sampleVersionDetail } from "../support/publish-sample";
 import { PublishDraftUnreadableScreen } from "@/price-dashboard/publish-unreadable";
 import { VersionDetailScreen } from "@/price-dashboard/version-detail";
 import {

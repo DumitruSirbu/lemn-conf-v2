@@ -13,11 +13,11 @@ import { act, createElement } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { PublishScreen } from "@/price-dashboard/publish-page";
-import { sampleVersionIdOf } from "@/price-dashboard/publish-sample-client";
+import { sampleVersionIdOf } from "../support/publish-sample-client";
 import {
   SAMPLE_PUBLISH_PAGE,
   sampleVersionDetail,
-} from "@/price-dashboard/publish-sample";
+} from "../support/publish-sample";
 import { VersionDetailScreen } from "@/price-dashboard/version-detail";
 
 import roMessages from "../../src/messages/ro.json";

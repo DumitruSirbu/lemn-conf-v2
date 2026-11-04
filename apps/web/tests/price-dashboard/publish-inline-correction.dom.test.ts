@@ -13,7 +13,7 @@ import type {
 
 import type { DraftWriteOutcome } from "@/price-dashboard/publish-client";
 import { formatLei } from "@/price-dashboard/format-lei";
-import { SAMPLE_PUBLISH_PAGE } from "@/price-dashboard/publish-sample";
+import { SAMPLE_PUBLISH_PAGE } from "../support/publish-sample";
 
 import { allIn, click, requireIn, typeInto } from "../support/render-with-intl";
 import {

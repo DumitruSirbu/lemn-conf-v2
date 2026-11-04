@@ -3,7 +3,7 @@
 import type { DraftChange } from "@lemnaria/configurator-domain";
 
 import type { DashboardStateWire } from "@/price-dashboard/price-dashboard-wire-contract";
-import { SAMPLE_PUBLISH_PAGE } from "@/price-dashboard/publish-sample";
+import { SAMPLE_PUBLISH_PAGE } from "../support/publish-sample";
 
 import {
   allIn,

@@ -24,13 +24,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { formatLei } from "@/price-dashboard/format-lei";
 import type { PublishClient } from "@/price-dashboard/publish-client";
-import { makeSamplePublishClient } from "@/price-dashboard/publish-sample-client";
+import { makeSamplePublishClient } from "../support/publish-sample-client";
 import {
   readPendingDraft,
   type PublishPageInput,
 } from "@/price-dashboard/publish-model";
 import { PublishScreen } from "@/price-dashboard/publish-page";
-import { SAMPLE_PUBLISH_PAGE } from "@/price-dashboard/publish-sample";
+import { SAMPLE_PUBLISH_PAGE } from "../support/publish-sample";
 
 import roMessages from "../../src/messages/ro.json";
 import ruMessages from "../../src/messages/ru.json";

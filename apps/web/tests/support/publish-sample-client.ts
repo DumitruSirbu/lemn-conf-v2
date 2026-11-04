@@ -7,14 +7,14 @@ import {
   type PriceBook,
 } from "@lemnaria/configurator-domain";
 
-import { judgeDraft } from "./draft-judgement";
+import { judgeDraft } from "@/price-dashboard/draft-judgement";
 import {
   MAX_VERSION_PAGE,
   type CandidateRefusalWire,
   type DashboardStateWire,
   type PriceVersionSummaryWire,
   type PublishRequestWire,
-} from "./price-dashboard-wire-contract";
+} from "@/price-dashboard/price-dashboard-wire-contract";
 import type {
   DiscardOutcome,
   DraftWriteOutcome,
@@ -22,9 +22,12 @@ import type {
   PublishOutcome,
   RestoreOutcome,
   VersionPageOutcome,
-} from "./publish-client";
-import { planRestore, type VersionDetailInput } from "./publish-model";
-import { publishTextRefusalCodeOf } from "./publish-text-refusal";
+} from "@/price-dashboard/publish-client";
+import {
+  planRestore,
+  type VersionDetailInput,
+} from "@/price-dashboard/publish-model";
+import { publishTextRefusalCodeOf } from "@/price-dashboard/publish-text-refusal";
 
 // A client over memory, for tests: it holds the sample the publish screens are drawn from in them.
 

@@ -222,9 +222,6 @@ describe("every source that names a hardware count or rate names the lift beside
     text: readFileSync(path, "utf8"),
   }));
 
-  /** The staged sample draft edits one drawer rate and one hinge rate as an example change: not an enumeration of rates. */
-  const NAMES_ONE_FIELD_BY_DESIGN = ["price-dashboard/publish-sample.ts"];
-
   const NEIGHBOUR_AND_LIFT: readonly (readonly [RegExp, string])[] = [
     [/perPushToOpenMinor/u, "perLiftMinor"],
     [/perDrawerMinor/u, "perLiftMinor"],
@@ -243,10 +240,7 @@ describe("every source that names a hardware count or rate names the lift beside
     "%s is never named in a file that does not also name %s",
     (neighbour, lift) => {
       const withoutLift = ALL_SOURCES.filter(
-        ({ path, text }) =>
-          neighbour.test(text) &&
-          !text.includes(lift) &&
-          !NAMES_ONE_FIELD_BY_DESIGN.some((site) => path.endsWith(site)),
+        ({ text }) => neighbour.test(text) && !text.includes(lift),
       ).map(({ path }) => path);
 
       expect(withoutLift).toEqual([]);

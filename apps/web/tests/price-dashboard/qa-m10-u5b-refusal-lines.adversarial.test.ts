@@ -11,7 +11,7 @@ import {
   type RefusalLine,
   type RefusalContext,
 } from "@/price-dashboard/publish-refusals";
-import { SAMPLE_PUBLISH_PAGE } from "@/price-dashboard/publish-sample";
+import { SAMPLE_PUBLISH_PAGE } from "../support/publish-sample";
 
 const BOOK = SAMPLE_PUBLISH_PAGE.state.active.book;
 const CONTEXT: RefusalContext = {

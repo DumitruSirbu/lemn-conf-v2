@@ -1,5 +1,6 @@
-// Adversarial QA: production fabricates no price and no sample. Nothing in the app imports the publish sample or its
-// client, from a browser module or a server one, however far the imports go; only the sample's own files and tests do.
+// Adversarial QA: production fabricates no price and no sample. The publish sample and its client are test support, so
+// nothing the app is built from may name them or reach into tests/, from a browser module or a server one, however far the
+// imports go.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -11,25 +12,25 @@ import { importClosureOf } from "../support/source-import-closure";
 const SOURCE_ROOT = join(import.meta.dirname, "../../src");
 const SAMPLE_MODULE = /(^|\/)publish-sample[^/]*\.tsx?$/;
 const OTHER_INVENTED = /(^|\/)shipped-price-book\.tsx?$/;
+const NAMES_A_SAMPLE_OR_TESTS =
+  /(from|import)\s*\(?\s*["'][^"']*(publish-sample|\/tests\/|^tests\/|@\/tests)/;
 
 const modules = filesUnder(SOURCE_ROOT)
   .filter((path) => /\.tsx?$/.test(path))
   .map((path) => path.slice(SOURCE_ROOT.length + 1));
-const sampleModules = modules.filter((path) => SAMPLE_MODULE.test(path));
 
 describe("what the app is built from", () => {
-  it("has sample modules to guard, the client of the sample among them", () => {
-    expect(sampleModules).toContain("price-dashboard/publish-sample.ts");
-    expect(sampleModules).toContain("price-dashboard/publish-sample-client.ts");
+  it("has modules to guard, and none of them is a sample", () => {
+    expect(modules.length).toBeGreaterThan(200);
+    expect(modules.filter((path) => SAMPLE_MODULE.test(path))).toEqual([]);
   });
 
-  it("imports no sample module from a module that is not itself a sample", () => {
-    const importers = modules
-      .filter((path) => !SAMPLE_MODULE.test(path))
-      .filter((path) => {
-        const code = readFileSync(join(SOURCE_ROOT, path), "utf8");
-        return /(from|import)\s*\(?\s*["'][^"']*publish-sample/.test(code);
-      });
+  it("imports no sample, and nothing from tests/, in any module of the app", () => {
+    const importers = modules.filter((path) =>
+      NAMES_A_SAMPLE_OR_TESTS.test(
+        readFileSync(join(SOURCE_ROOT, path), "utf8"),
+      ),
+    );
 
     expect(importers).toEqual([]);
   });
