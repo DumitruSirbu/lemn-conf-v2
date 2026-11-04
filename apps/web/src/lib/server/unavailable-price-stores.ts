@@ -7,9 +7,9 @@ import {
   type PriceBookStore,
 } from "@lemnaria/persistence";
 
-// The stores of production while it has no database-backed price stores. Every call is the store's own refusal,
-// "unavailable": a table is missing. A reader acts on it exactly as it would on a database that cannot answer, so no
-// price surface prices from anything and the contact route answers its one unavailable answer (A-10).
+// The stores production holds where no database connection can be made. Every call is the store's own refusal,
+// "unavailable". A reader acts on it exactly as it would on a database that cannot answer, so no price surface prices
+// from anything and the contact route answers its one unavailable answer (A-10).
 
 function unavailable(operation: DashboardStoreOperation): Promise<never> {
   return Promise.reject(new DashboardStoreError(operation, "unavailable"));

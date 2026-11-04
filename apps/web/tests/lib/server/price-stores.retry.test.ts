@@ -1,10 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  getPriceStores,
-  PRICE_STORES_GLOBAL_KEY,
-  type PriceStores,
-} from "@/lib/server/price-stores";
+import { getPriceStores, type PriceStores } from "@/lib/server/price-stores";
+
+import { forgetHeldPriceStores } from "../../support/held-price-stores";
 
 // A seeding that fails is not kept on `globalThis`: the next request tries again (development and test, where the fakes
 // are seeded). Only the request that met the failure is told of it.
@@ -17,16 +15,12 @@ vi.mock("@/lib/server/price-book-test-seed", () => ({
 
 const A_WORLD = { priceBook: {}, availability: {} } as unknown as PriceStores;
 
-function forgetTheProcessStores(): void {
-  Reflect.deleteProperty(globalThis, PRICE_STORES_GLOBAL_KEY);
-}
-
 beforeEach(() => {
   seeding.seed.mockReset();
-  forgetTheProcessStores();
+  forgetHeldPriceStores();
 });
 
-afterEach(forgetTheProcessStores);
+afterEach(forgetHeldPriceStores);
 
 describe("a failed seeding", () => {
   it("is told to the request that met it and tried again by the next", async () => {

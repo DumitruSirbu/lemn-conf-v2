@@ -11,7 +11,6 @@ import {
   FAKE_PRICE_BOOK_FLAG,
   FAKE_PRICE_BOOK_FLAG_ENABLED,
 } from "@/lib/server/fake-price-book-flag";
-import { PRICE_STORES_GLOBAL_KEY } from "@/lib/server/price-stores";
 import { CLIENT_NETWORK_SOURCE_VARIABLE } from "@/lib/server/rate-limit/network-source";
 
 import {
@@ -19,6 +18,7 @@ import {
   freshAccountWorld,
 } from "../../../support/account-world";
 import { freshStaffWorld, type StaffWorld } from "../../../support/staff-world";
+import { forgetHeldPriceStores } from "../../../support/held-price-stores";
 
 vi.mock("@/lib/server/account/session-store-instance", () =>
   import("../../../support/account-world").then((world) =>
@@ -34,15 +34,11 @@ vi.mock("@/lib/server/staff/staff-audit-store-instance", () =>
 let staffWorld: StaffWorld;
 let console_: ReturnType<typeof captureConsole>;
 
-function forgetTheStores(): void {
-  (globalThis as Record<symbol, unknown>)[PRICE_STORES_GLOBAL_KEY] = undefined;
-}
-
 beforeEach(() => {
   freshAccountWorld();
   staffWorld = freshStaffWorld();
   console_ = captureConsole();
-  forgetTheStores();
+  forgetHeldPriceStores();
   for (const name of [
     "VERCEL_ENV",
     FAKE_PRICE_BOOK_FLAG,
@@ -53,7 +49,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  forgetTheStores();
+  forgetHeldPriceStores();
   vi.unstubAllEnvs();
   vi.restoreAllMocks();
 });

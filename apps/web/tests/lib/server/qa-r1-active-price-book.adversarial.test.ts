@@ -14,11 +14,12 @@ import {
 } from "@/lib/server/active-price-book";
 import { NO_PRICE_BOOK_CAUSES } from "@/lib/server/price-book-log";
 import {
-  PRICE_STORES_GLOBAL_KEY,
   selectPriceStores,
   type PriceStoreEnvironment,
 } from "@/lib/server/price-stores";
 import { NO_PRICE_BOOK } from "@/price/price-book-root";
+
+import { forgetHeldPriceStores } from "../../support/held-price-stores";
 
 // Adversarial QA for M10 wave R1's review round: the version identity a stored book must carry, the bounds on what the
 // store may say is switched off, the closed list of causes a refused book writes, and the store-selection tripwire.
@@ -85,7 +86,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllEnvs();
-  Reflect.deleteProperty(globalThis, PRICE_STORES_GLOBAL_KEY);
+  forgetHeldPriceStores();
 });
 
 describe("a stored book states its version's id as its own version", () => {

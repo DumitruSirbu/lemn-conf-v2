@@ -1,14 +1,13 @@
-// The cabinet list's source where the price stores are the unavailable ones (production, until the database-backed
-// stores exist): the store throws, the source says `unavailable`, and no price is claimed. This is how the list handles
-// the stub: a production build never shows a sample. The real `getPriceStores` is used here, and a deployment variable
-// is how production is chosen.
+// The cabinet list's source where the price stores are the unavailable ones (production with no database connection to
+// make): the store throws, the source says `unavailable`, and no price is claimed. This is how the list handles the
+// stub: a production build never shows a sample. The real `getPriceStores` is used here, and a deployment variable is
+// how production is chosen.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   readCabinetDetail,
   readCabinetList,
 } from "@/price-dashboard/cabinet-list-source";
-import { PRICE_STORES_GLOBAL_KEY } from "@/lib/server/price-stores";
 import { CLIENT_NETWORK_SOURCE_VARIABLE } from "@/lib/server/rate-limit/network-source";
 
 import {
@@ -16,6 +15,7 @@ import {
   freshAccountWorld,
 } from "../../../support/account-world";
 import { freshStaffWorld, type StaffWorld } from "../../../support/staff-world";
+import { forgetHeldPriceStores } from "../../../support/held-price-stores";
 
 vi.mock("@/lib/server/account/session-store-instance", () =>
   import("../../../support/account-world").then((world) =>
@@ -36,11 +36,11 @@ beforeEach(() => {
   staffWorld = freshStaffWorld();
   console_ = captureConsole();
   vi.stubEnv(CLIENT_NETWORK_SOURCE_VARIABLE, "vercel");
-  (globalThis as Record<symbol, unknown>)[PRICE_STORES_GLOBAL_KEY] = undefined;
+  forgetHeldPriceStores();
 });
 
 afterEach(() => {
-  (globalThis as Record<symbol, unknown>)[PRICE_STORES_GLOBAL_KEY] = undefined;
+  forgetHeldPriceStores();
   vi.unstubAllEnvs();
   vi.restoreAllMocks();
 });

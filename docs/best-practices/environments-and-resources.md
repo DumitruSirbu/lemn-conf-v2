@@ -191,6 +191,9 @@ has the rules; ~~`apps/web/.env.example`~~ the repo-root `.env.example` names th
 - **`LEAD_NOTIFICATION_ADDRESS`**: the shop's inbox, exactly one address.
 - **`LEMNARIA_E2E_FAKE_MAIL`**: test instrumentation, **unset on every deployment** (the phase gate checks that the name is in none).
   Beside any mail variable the server treats mail as unavailable, so a deployment set up to send cannot be turned to the fake by it.
+- **`LEMNARIA_E2E_FAKE_PRICE_BOOK`**: test instrumentation, **unset on every deployment** (the phase gate checks that the name is
+  defined on none, by name only). Exactly `1` makes a production build read the seeded sample book instead of the database's price
+  stores, so it is how the e2e server prices anything. Beside `VERCEL_ENV` it is ignored and the database's stores are read.
 - **A pasted value with a trailing newline reads *unavailable*;** the code names the variable and nothing of its value.
 - **Where the owner sets them:** the three on the deployments that will send, add-only (which environments is the owner's; the launch
   gate requires them on production); the flag nowhere. **When they are unset:** mail is unavailable; the reader names the missing variables and no

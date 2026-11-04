@@ -3,7 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { NO_PRICE_BOOK, type PriceBookRoot } from "@/price/price-book-root";
 
+import { freshAccountWorld } from "../support/account-world";
+import { forgetHeldPriceStores } from "../support/held-price-stores";
 import { priceBookRootOf } from "../support/price-book-wrapper";
+import { holdNoActivePriceVersion } from "../support/no-active-price-version";
 
 // Every surface that prices a kitchen reads the same book root, once per request (backlog 176, R1): the three owner
 // doors, the share view, the account's kitchens, the staff's kitchen, and the contact route's ports. With no active
@@ -75,7 +78,6 @@ const { default: StaffKitchenPage } = await import(
 const { makeContactProductionPorts } = await import(
   "@/lib/server/contact/contact-production-ports"
 );
-const { PRICE_STORES_GLOBAL_KEY } = await import("@/lib/server/price-stores");
 
 const DESIGN_ID = "d".repeat(21);
 const locale = "ro";
@@ -109,14 +111,10 @@ const SURFACES: readonly (readonly [string, () => Promise<unknown>])[] = [
   ],
 ];
 
-function forgetTheProcessStores(): void {
-  Reflect.deleteProperty(globalThis, PRICE_STORES_GLOBAL_KEY);
-}
-
-beforeEach(forgetTheProcessStores);
+beforeEach(forgetHeldPriceStores);
 
 afterEach(() => {
-  forgetTheProcessStores();
+  forgetHeldPriceStores();
   vi.unstubAllEnvs();
 });
 
@@ -160,8 +158,9 @@ describe("every surface is handed the one book root of the active version", () =
 });
 
 describe("with no active version every surface refuses (A-10)", () => {
-  beforeEach(() => {
-    vi.stubEnv("NODE_ENV", "production");
+  beforeEach(async () => {
+    freshAccountWorld();
+    await holdNoActivePriceVersion();
   });
 
   it.each(SURFACES)("%s is handed no book", async (_, draw) => {

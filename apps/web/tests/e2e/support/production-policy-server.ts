@@ -68,14 +68,19 @@ const READY_TIMEOUT_MS = 120_000;
 const POLL_INTERVAL_MS = 500;
 const STOP_TIMEOUT_MS = 10_000;
 
+/** Named on a deployment alone: where it is set, the price stores are the database's whatever else the server asks for. */
+export const DEPLOYMENT_ENVIRONMENT_VARIABLE = "VERCEL_ENV";
+
 /**
  * Variables the second server must never inherit: they would choose its secret, policy, network source or public
- * origin, or give it a mail sender. It runs under `CI`, where a Gmail name inherited from the runner would be a real one.
+ * origin, name it a deployment, or give it a mail sender. It runs under `CI`, where a Gmail name inherited from the
+ * runner would be a real one.
  */
 const NOT_INHERITED: readonly string[] = [
   DIGEST_SECRET_VARIABLE,
   PUBLIC_ORIGIN_VARIABLE,
   CLIENT_NETWORK_SOURCE_VARIABLE,
+  DEPLOYMENT_ENVIRONMENT_VARIABLE,
   E2E_RATE_LIMIT_POLICY_FLAG,
   RUN_SECRET_VARIABLE,
   FAKE_MAIL_FLAG_NAME,
@@ -215,7 +220,8 @@ export function environmentOfTheServer(
   environment.DATABASE_URL = unreachableDatabaseUrl ?? resolveTestDatabaseUrl();
   environment[DIGEST_SECRET_VARIABLE] = secret;
   // The suite's own server gets this flag from `playwright.config.ts`, which the runner's environment never holds, so a
-  // second server would otherwise read the real (unavailable) price stores and render no page that prices anything.
+  // second server would otherwise read the database's price stores, against the test database, and price nothing the
+  // suite seeded.
   environment[FAKE_PRICE_BOOK_FLAG] = FAKE_PRICE_BOOK_FLAG_ENABLED;
   if (networkSource !== undefined) {
     environment[CLIENT_NETWORK_SOURCE_VARIABLE] = networkSource;

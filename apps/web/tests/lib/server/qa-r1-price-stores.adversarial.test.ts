@@ -10,9 +10,10 @@ import {
 } from "@/lib/server/fake-price-book-flag";
 import {
   selectPriceStores,
-  PRICE_STORES_GLOBAL_KEY,
   type PriceStoreEnvironment,
 } from "@/lib/server/price-stores";
+
+import { forgetHeldPriceStores } from "../../support/held-price-stores";
 
 // Adversarial QA for M10 wave R1: which stores a process holds. Fakes only for development, test and the e2e flag, anything
 // else the real stores, production fails closed (A-10), and the world held on `globalThis` is seeded once however many
@@ -35,17 +36,13 @@ vi.mock("@/lib/server/price-book-test-seed", async (importOriginal) => {
 const REPOSITORY_ROOT = resolve(import.meta.dirname, "../../../../..");
 const FIRST_CONCURRENT_REQUESTS = 25;
 
-function forgetTheProcessStores(): void {
-  Reflect.deleteProperty(globalThis, PRICE_STORES_GLOBAL_KEY);
-}
-
 beforeEach(() => {
   seeding.calls = 0;
-  forgetTheProcessStores();
+  forgetHeldPriceStores();
 });
 
 afterEach(() => {
-  forgetTheProcessStores();
+  forgetHeldPriceStores();
   vi.unstubAllEnvs();
   vi.resetModules();
 });

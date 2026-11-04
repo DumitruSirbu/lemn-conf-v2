@@ -1,8 +1,10 @@
 import "server-only";
 
-import type {
-  CatalogueAvailabilityStore,
-  PriceBookStore,
+import {
+  NeonCatalogueAvailabilityStore,
+  NeonPriceBookStore,
+  type CatalogueAvailabilityStore,
+  type PriceBookStore,
 } from "@lemnaria/persistence";
 
 import {
@@ -77,14 +79,22 @@ function isNamed(
 }
 
 /**
- * The stores production reads. Until the real stores exist it holds the stores that answer every call "unavailable", so
- * every price surface renders no figure and the contact route refuses (A-10). The real stores replace the two members here
- * and nowhere else, made on first use and never at import or build, as `repository.ts` makes its own.
+ * The stores production reads: the database's, made here on first use and never at import or build, as `repository.ts`
+ * makes its own. With no `DATABASE_URL` there is no connection to make, which is not a defect of a request: production
+ * then holds the stores that answer every call "unavailable", so every price surface renders no figure and the contact
+ * route refuses (A-10), and each read writes its own line of the cause. A value the driver refuses is not that case: it
+ * throws, to the request that met it, and is tried again by the next.
  */
-function productionPriceStores(): PriceStores {
+function productionPriceStores(databaseUrl: string | undefined): PriceStores {
+  if (!databaseUrl) {
+    return {
+      priceBook: UNAVAILABLE_PRICE_BOOK_STORE,
+      availability: UNAVAILABLE_CATALOGUE_AVAILABILITY_STORE,
+    };
+  }
   return {
-    priceBook: UNAVAILABLE_PRICE_BOOK_STORE,
-    availability: UNAVAILABLE_CATALOGUE_AVAILABILITY_STORE,
+    priceBook: new NeonPriceBookStore(),
+    availability: new NeonCatalogueAvailabilityStore(),
   };
 }
 
@@ -125,7 +135,7 @@ async function makePriceStores(
   environment: PriceStoreEnvironment,
 ): Promise<PriceStores> {
   if (selectPriceStores(environment) === "production") {
-    return productionPriceStores();
+    return productionPriceStores(process.env.DATABASE_URL);
   }
   const { seedFakePriceStores } = await import(
     "@/lib/server/price-book-test-seed"
