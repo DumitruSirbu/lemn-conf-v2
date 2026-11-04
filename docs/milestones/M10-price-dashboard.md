@@ -713,7 +713,8 @@ Nothing is open for the owner from the waves merged so far.
 covers the migrations it names and nothing later.
 
 **Owner approval in chat, 2026-11-04 (one-time):** migrations `0023`–`0027`, as they stand once the steps below are done,
-may be applied to the shared test database and to production. This changes ruling (c)'s timing (S2 row, §13.2): the
+may be applied to every environment's database: the shared test database, preview and production. The reason given:
+nothing is launched, so no user is affected. This changes ruling (c)'s timing (S2 row, §13.2): the
 live run no longer waits for the merge to `main`. It does not cover `0028`, `0029` or any later migration, which are
 asked again. Production is applied through the runbook. Order:
 1. S2's stored change count lands on `m10/s2`, reviewed.
@@ -721,7 +722,7 @@ asked again. Production is applied through the runbook. Order:
 3. Every planned edit to `0023`–`0027` is confirmed on the branch tips.
 4. S2, then S4, merge into `m10-price-dashboard`.
 5. `ci:local` in the main checkout applies the migrations.
-6. Production, through the runbook, once step 5 is green. The coordinator tells the owner first, and the secret is
+6. Preview and production, through the runbook, once step 5 is green. The coordinator tells the owner first, and the secret is
    never printed.
 
 From that apply, the shared ledger is ahead of `main` and of every older branch, so their live suites fail with
