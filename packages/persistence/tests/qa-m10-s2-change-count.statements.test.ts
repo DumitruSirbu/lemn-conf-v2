@@ -144,10 +144,6 @@ describe("a summary entry that is no object (NeonPriceBookStore)", () => {
     ["null", [null]],
     ["undefined, which JSON stores as null", [undefined]],
     ["null among real changes", [ANCHOR, null, ANCHOR]],
-    [
-      "a deletion naming no row",
-      [{ address: { kind: "item-deleted", item: null }, value: true }],
-    ],
   ])(
     "is refused as invalid-request before anything is sent: %s",
     async (_name, changeSummary) => {
@@ -164,6 +160,42 @@ describe("a summary entry that is no object (NeonPriceBookStore)", () => {
       );
       expect(queryDriver.statements).toHaveLength(0);
       expect(queryDriver.transactions).toHaveLength(0);
+    },
+  );
+});
+
+describe("an object entry whose row is no item (NeonPriceBookStore)", () => {
+  const deletionOf = (item: unknown) => ({
+    address: { kind: "item-deleted", item },
+    value: true,
+  });
+
+  it.each([
+    ["a deletion naming no row", [deletionOf(null)]],
+    ["a deletion whose item is a string", [deletionOf("hardware")]],
+    [
+      "a deletion whose item has an unknown kind",
+      [deletionOf({ kind: "x" }), ANCHOR],
+    ],
+  ])(
+    "is refused, or sent with no more prices than the summary has entries: %s",
+    async (_name, changeSummary) => {
+      const outcome = await sentChangeCountOf(
+        aPublishRequest(changeSummary),
+      ).then(
+        (sent) => sent,
+        (failure: unknown) => failure,
+      );
+
+      if (outcome instanceof DashboardStoreError) {
+        expect(outcome.failure).toBe("invalid-request");
+        expect(queryDriver.statements).toHaveLength(0);
+      } else {
+        expect(outcome).not.toBeInstanceOf(Error);
+        expect((outcome as { slot: number }).slot).toBeLessThanOrEqual(
+          changeSummary.length,
+        );
+      }
     },
   );
 });

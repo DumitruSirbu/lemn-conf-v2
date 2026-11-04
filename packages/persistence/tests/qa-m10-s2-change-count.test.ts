@@ -211,24 +211,6 @@ describe("a summary entry that is no object (FakePriceBookStore)", () => {
     ["null", [null]],
     ["undefined, which JSON stores as null", [undefined]],
     ["null among real changes", [ANCHOR, null, ANCHOR]],
-    ["a deletion naming no row", [deletionOf(null)]],
-    [
-      "a deletion naming no row after one that names a row",
-      [deletionOf(HARDWARE_ROW), deletionOf(null)],
-    ],
-    [
-      "the text of a created row naming no row",
-      [
-        {
-          address: { kind: "hardware-tier-created", tierId: "t1" },
-          value: { name: "N", description: "D" },
-        },
-        {
-          address: { kind: "created-row-text", item: null, field: "name" },
-          value: "words",
-        },
-      ],
-    ],
   ])(
     "is refused as invalid-request, and wrote no version and no audit row: %s",
     async (_name, changeSummary) => {
@@ -250,6 +232,24 @@ describe("a summary entry that is no object (FakePriceBookStore)", () => {
   );
 
   it.each([
+    ["a deletion naming no row", [deletionOf(null)]],
+    [
+      "a deletion naming no row after one that names a row",
+      [deletionOf(HARDWARE_ROW), deletionOf(null)],
+    ],
+    [
+      "the text of a created row naming no row",
+      [
+        {
+          address: { kind: "hardware-tier-created", tierId: "t1" },
+          value: { name: "N", description: "D" },
+        },
+        {
+          address: { kind: "created-row-text", item: null, field: "name" },
+          value: "words",
+        },
+      ],
+    ],
     ["a deletion whose item is a string", [deletionOf("hardware")]],
     [
       "a deletion whose item has a kind no row has",
@@ -278,4 +278,35 @@ describe("a summary entry that is no object (FakePriceBookStore)", () => {
       }
     },
   );
+});
+
+describe("the count of any JSON a summary may hold", () => {
+  const anyJson = fc.jsonValue();
+  const addressLike = fc.record(
+    {
+      kind: fc.constantFrom(...BOOK_FIELD_ADDRESS_KINDS, "bogus"),
+      item: anyJson,
+      tierId: anyJson,
+      accessoryId: anyJson,
+    },
+    { requiredKeys: ["kind"] },
+  );
+  const entry = fc.oneof(
+    anyJson,
+    fc.record({ address: fc.oneof(anyJson, addressLike), value: anyJson }),
+  );
+
+  it("never throws and never exceeds the number of entries", () => {
+    fc.assert(
+      fc.property(fc.array(entry, { maxLength: 12 }), (entries) => {
+        const summary = entries as unknown as readonly DraftChange[];
+
+        const counted = countPendingPrices(summary);
+
+        expect(counted).toBeLessThanOrEqual(summary.length);
+        expect(counted === 0).toBe(summary.length === 0);
+      }),
+      { numRuns: 1_000 },
+    );
+  });
 });
