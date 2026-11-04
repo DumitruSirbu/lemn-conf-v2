@@ -2,6 +2,8 @@
 // screen is drawn from. Anything that does not make a list is `unavailable`, and no price is claimed.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { DashboardStoreError } from "@lemnaria/persistence";
+
 import { SAMPLE_PRICE_BOOK } from "@lemnaria/configurator-domain";
 
 import {
@@ -78,7 +80,10 @@ describe("anything else is unavailable, and nothing is thrown", () => {
   });
 
   it("for a read that throws, as a store that cannot be reached does", async () => {
-    world.answer = () => Promise.reject(new Error("the store is down"));
+    world.answer = () =>
+      Promise.reject(
+        new DashboardStoreError("read the price draft", "unavailable"),
+      );
 
     expect(await readCabinetList()).toEqual({ kind: "unavailable" });
   });
@@ -148,7 +153,10 @@ describe("one cabinet's page", () => {
   });
 
   it("is unavailable, and not not-found, when the state cannot be had: an unreachable store never reads as an unknown cabinet", async () => {
-    world.answer = () => Promise.reject(new Error("the store is down"));
+    world.answer = () =>
+      Promise.reject(
+        new DashboardStoreError("read the price draft", "unavailable"),
+      );
 
     expect(await readCabinetDetail(BASE_CABINET_RULE)).toEqual({
       kind: "unavailable",

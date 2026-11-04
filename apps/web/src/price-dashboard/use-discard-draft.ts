@@ -2,6 +2,8 @@
 
 import { useCallback, useRef, useState } from "react";
 
+import { raiseStaffSessionExpired } from "@/staff/staff-session-expiry";
+
 import { orFailed } from "./async-seams";
 import type { DashboardDraftWire } from "./price-dashboard-wire-contract";
 import type { DiscardOutcome, PublishClient } from "./publish-client";
@@ -74,6 +76,11 @@ export function useDiscardDraft({
           setRefusedRevision(sentRevision);
           setPhase("idle");
           onConflict();
+          return;
+        case "session-ended":
+          raiseStaffSessionExpired({ keepsTypedText: true });
+          setPhase("confirming");
+          setFailure("failed");
           return;
         case "failed":
           setPhase("confirming");

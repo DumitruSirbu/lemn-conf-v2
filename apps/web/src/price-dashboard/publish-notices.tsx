@@ -85,10 +85,25 @@ export function NoticeBody({
           </span>
         </FormNotice>
       );
+    case "answer-unreadable":
+      return (
+        <FormNotice
+          tone="warning"
+          title={translate("priceDashboard.publish.answerUnreadableTitle")}
+        >
+          {translate("priceDashboard.publish.answerUnreadableBody")}
+        </FormNotice>
+      );
     case "conflict":
       return (
         <FormNotice tone="warning">
           {translate("priceDashboard.errors.changedMeanwhile")}
+        </FormNotice>
+      );
+    case "write-candidate-refused":
+      return (
+        <FormNotice tone="error">
+          {translate("priceDashboard.publish.writeCandidateRefused")}
         </FormNotice>
       );
     case "save-failed":

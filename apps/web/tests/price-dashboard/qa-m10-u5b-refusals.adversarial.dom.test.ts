@@ -6,7 +6,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { CandidateRefusalWire } from "@/price-dashboard/price-dashboard-wire-contract";
-import { SAMPLE_PUBLISH_PAGE } from "@/price-dashboard/publish-sample";
+import { SAMPLE_PUBLISH_PAGE } from "../support/publish-sample";
 
 import {
   byWords,

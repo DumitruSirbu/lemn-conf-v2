@@ -27,12 +27,14 @@ import {
   type TextDiffRow,
 } from "@lemnaria/configurator-domain";
 
+import { pendingPriceCountOf } from "./cabinet-list-model";
 import type {
   DashboardStateWire,
   DraftRevertTargetWire,
   PriceVersionListWire,
   PriceVersionWire,
 } from "./price-dashboard-wire-contract";
+import type { DeletionFacts } from "./publish-deletions";
 
 // Rows are the domain's `diffBooks`, named from address and book. No words, and no price arithmetic beyond the size
 // of a difference.
@@ -44,6 +46,8 @@ export interface PublishPageInput {
   readonly versions: PriceVersionListWire;
   /** The catalogue's Romanian names by build id, as the cabinet list has them. */
   readonly cabinetNames: Readonly<Record<string, string>>;
+  /** What judging a deleted row needs; absent where the saved kitchens' use of a row cannot be counted. */
+  readonly deletionFacts?: DeletionFacts | undefined;
 }
 
 /** An archived (or active) version with the book it replaced, and the draft a restore adds to. */
@@ -177,7 +181,7 @@ export interface PendingDraftView {
   readonly sections: readonly SectionView[];
   /** The changes make a book that shows a row against the active one. A class created and deleted again shows none. */
   readonly hasRows: boolean;
-  /** The draft's changes: the number the header and the menu show. */
+  /** The prices the draft waits to publish: the number the header and the menu show. */
   readonly changeCount: number;
   /** The candidate book differs from the active one. A draft of restated values has rows and cannot be published. */
   readonly canPublish: boolean;
@@ -222,7 +226,7 @@ export function readPendingDraft(
         ),
       ),
       hasRows: rows.length > 0,
-      changeCount: changes.length,
+      changeCount: pendingPriceCountOf({ changes }),
       canPublish: diffBooks(active, candidate).length > 0,
       holdsProvisionalOff: changes.some(isProvisionalOff),
       candidateIsProvisional: candidate.amountsProvisional,

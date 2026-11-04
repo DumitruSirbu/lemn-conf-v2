@@ -1,6 +1,16 @@
 import { ownValueOf } from "@/staff/staff-kitchens-wire-reading";
 
 import {
+  ask,
+  DRAFT_ADDRESS,
+  STATE_ADDRESS,
+  CONFLICT_STATUS,
+  INVALID_INPUT_STATUS,
+  OK_STATUS,
+  UNAUTHORISED_STATUS,
+  type Answer,
+} from "./dashboard-fetch";
+import {
   BULK_REFUSAL_CODES,
   DRAFT_CHANGE_REFUSAL_CODES,
   type BulkChangedWire,
@@ -82,18 +92,7 @@ export interface PriceDraftClient {
   readonly acceptsCreatedRowText?: boolean | undefined;
 }
 
-const STATE_ADDRESS = "/api/staff/prices";
-const DRAFT_ADDRESS = "/api/staff/prices/draft";
 const BULK_ADDRESS = "/api/staff/prices/bulk";
-
-const OK_STATUS = 200;
-const INVALID_INPUT_STATUS = 400;
-const UNAUTHORISED_STATUS = 401;
-const CONFLICT_STATUS = 409;
-
-/** A write states the origin the routes' cross-site guard reads, which `no-referrer` would turn into `null`. */
-const SAME_ORIGIN_REFERRER_POLICY: ReferrerPolicy = "same-origin";
-const NO_REFERRER_POLICY: ReferrerPolicy = "no-referrer";
 
 export const FETCHING_PRICE_DRAFT_CLIENT: PriceDraftClient = {
   readState: async () => {
@@ -121,38 +120,6 @@ const BULK_ANSWERS: RouteAnswers<BulkRefusalCode, BulkChangedWire> = {
   refusalCodes: BULK_REFUSAL_CODES,
 };
 
-interface Answer {
-  readonly status: number;
-  readonly body: unknown;
-}
-
-async function ask(
-  address: string,
-  init:
-    | { readonly method: "GET" }
-    | { readonly method: string; readonly body: string },
-): Promise<Answer | undefined> {
-  const isRead = init.method === "GET";
-  try {
-    const response = await fetch(address, {
-      ...init,
-      ...(isRead ? {} : { headers: { "content-type": "application/json" } }),
-      referrerPolicy: isRead ? NO_REFERRER_POLICY : SAME_ORIGIN_REFERRER_POLICY,
-    });
-    return { status: response.status, body: await readJsonOrNothing(response) };
-  } catch {
-    return undefined;
-  }
-}
-
-async function readJsonOrNothing(response: Response): Promise<unknown> {
-  try {
-    return await response.json();
-  } catch {
-    return undefined;
-  }
-}
-
 async function write<Code extends string, Written>(
   method: "PUT" | "DELETE" | "POST",
   address: string,
@@ -162,6 +129,11 @@ async function write<Code extends string, Written>(
   const answer = await ask(address, { method, body: JSON.stringify(request) });
   if (answer === undefined) return { kind: "failed" };
   return outcomeOf(answer, answers);
+}
+
+/** An answer of the draft route to a change or a revert, sorted as the dashboard's screens sort it. */
+export function draftOutcomeOfAnswer(answer: Answer): DraftChangeOutcome {
+  return outcomeOf(answer, DRAFT_ANSWERS);
 }
 
 function outcomeOf<Code extends string, Written>(

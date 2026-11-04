@@ -3,6 +3,8 @@
 // each material. Anything that does not make a page is `unavailable`, and no figure is claimed.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { DashboardStoreError } from "@lemnaria/persistence";
+
 import { readMaterial, readMaterials } from "@/price-dashboard/material-source";
 import { SAMPLE_MATERIAL_USAGE } from "@/price-dashboard/material-sample";
 import { surchargeAddressOf } from "@/price-dashboard/material-model";
@@ -85,7 +87,10 @@ describe("anything else is unavailable, and nothing is thrown", () => {
   });
 
   it("for a read that throws, as a store that cannot be reached does", async () => {
-    world.answer = () => Promise.reject(new Error("the store is down"));
+    world.answer = () =>
+      Promise.reject(
+        new DashboardStoreError("read the price draft", "unavailable"),
+      );
 
     expect(await readMaterials()).toEqual({ kind: "unavailable" });
   });

@@ -17,6 +17,13 @@ const FOLLOW_UP_LEAVES = [
   "priceDashboard.publish.unreadableBody",
   "priceDashboard.publish.staleDraftTitle",
   "priceDashboard.publish.staleDraftBody",
+  "priceDashboard.publish.staleChangeKept",
+  "priceDashboard.publish.staleChangeWholeDraftOnly",
+  "priceDashboard.publish.noActiveVersion",
+  "priceDashboard.publish.staleDraftWholeBook",
+  "priceDashboard.publish.writeCandidateRefused",
+  "priceDashboard.publish.answerUnreadableTitle",
+  "priceDashboard.publish.answerUnreadableBody",
   "priceDashboard.publish.discardAction",
   "priceDashboard.publish.discardTitle",
   "priceDashboard.publish.discardBody",
@@ -34,6 +41,7 @@ const FOLLOW_UP_LEAVES = [
   "priceDashboard.publish.rowDeleted",
   "priceDashboard.publish.unsentAmountHint",
   "priceDashboard.history.pageFailed",
+  "priceDashboard.history.restoreCandidateRefused",
 ] as const;
 
 /** Cedilla s and t, which Romanian does not write (the comma-below letters are U+0219 and U+021B). Built from code points, not

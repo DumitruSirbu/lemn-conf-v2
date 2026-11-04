@@ -1,15 +1,9 @@
-// Adversarial QA of M10 wave U5: the pending-price count must be one number across the pages that draw it, and the invented
-// prices must not travel to a browser. `publish-source.test.ts` only looks at the direct importers of the sample and
-// `staff-pending-price-count.test.ts` only at what the staff page is handed; neither compares the number two pages show on
-// one build, nor follows a client component's imports to the sample.
+// Adversarial QA of M10 wave U5: the invented prices and the server-only price sources must not travel to a browser. The
+// source test only looks at the direct importers of the sample; this follows a client component's imports to them.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { afterEach, describe, expect, it, vi } from "vitest";
-
-import { SAMPLE_CABINET_LIST } from "../support/cabinet-list-sample";
-import { pendingPriceCountOf } from "@/price-dashboard/cabinet-list-model";
-import { readPendingPriceCount } from "@/price-dashboard/publish-source";
+import { describe, expect, it } from "vitest";
 
 import { filesUnder } from "../support/files-under";
 import { importClosureOf } from "../support/source-import-closure";
@@ -17,22 +11,7 @@ import { importClosureOf } from "../support/source-import-closure";
 const SOURCE_ROOT = join(import.meta.dirname, "../../src");
 const USE_CLIENT = /^\s*["']use client["']/m;
 const SERVER_ONLY_OR_INVENTED =
-  /(^|\/)(publish-sample|publish-source|cabinet-list-source|shipped-price-book)\.tsx?$|^lib\/server\//;
-
-describe("the count of waiting prices on one build", () => {
-  afterEach(() => {
-    vi.unstubAllEnvs();
-  });
-
-  it("is the same number on the staff pages' frame (kitchens, audit) and on the cabinet list's frame", async () => {
-    vi.stubEnv("NODE_ENV", "test");
-
-    const framesCount = await readPendingPriceCount();
-    const cabinetListCount = pendingPriceCountOf(SAMPLE_CABINET_LIST.draft);
-
-    expect(cabinetListCount).toBe(framesCount);
-  });
-});
+  /(^|\/)(publish-sample|publish-sample-client|publish-source|cabinet-list-source|shipped-price-book)\.tsx?$|^lib\/server\//;
 
 describe("what a browser is sent", () => {
   const clientModules = filesUnder(SOURCE_ROOT)

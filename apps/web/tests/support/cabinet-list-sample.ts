@@ -8,7 +8,7 @@ import type {
   CabinetRuleFacts,
   CabinetWidthFacts,
 } from "@/price-dashboard/cabinet-list-model";
-import { SAMPLE_PUBLISH_PAGE } from "@/price-dashboard/publish-sample";
+import { SAMPLE_PUBLISH_PAGE } from "./publish-sample";
 
 // Invented facts for the list's tests. Every figure is made up, like `SAMPLE_PRICE_BOOK`'s, and every name is the
 // catalogue's Romanian one, read from the message file. No module of the application imports it.

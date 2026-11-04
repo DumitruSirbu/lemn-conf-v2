@@ -14,7 +14,7 @@ import {
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
-import { SAMPLE_PUBLISH_PAGE } from "@/price-dashboard/publish-sample";
+import { SAMPLE_PUBLISH_PAGE } from "../support/publish-sample";
 import {
   describeVersionDiff,
   planRestore,

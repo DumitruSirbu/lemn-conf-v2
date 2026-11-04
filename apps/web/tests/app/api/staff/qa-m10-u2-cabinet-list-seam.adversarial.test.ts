@@ -5,6 +5,8 @@
 // function that answers as the test says; the seam and the facts are real.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { DashboardStoreError } from "@lemnaria/persistence";
+
 import { deriveCabinetList } from "@/price-dashboard/cabinet-list-facts";
 import { readCabinetList } from "@/price-dashboard/cabinet-list-source";
 
@@ -43,10 +45,22 @@ describe("a read that gives no state", () => {
   it("is unavailable when the read throws or rejects", async () => {
     for (const read of [
       () => {
-        throw new Error("secret connection string postgres://user:pw@host");
+        throw new DashboardStoreError("read the price draft", "unavailable", {
+          cause: new Error("secret connection string postgres://user:pw@host"),
+        });
       },
-      () => Promise.reject(new Error("socket hang up")),
-      () => Promise.reject(new Error("")),
+      () =>
+        Promise.reject(
+          new DashboardStoreError("read the price draft", "unavailable", {
+            cause: new Error("socket hang up"),
+          }),
+        ),
+      () =>
+        Promise.reject(
+          new DashboardStoreError("read the price draft", "unavailable", {
+            cause: new Error(""),
+          }),
+        ),
     ]) {
       service.read = read;
 

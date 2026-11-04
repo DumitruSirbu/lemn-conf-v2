@@ -3,19 +3,22 @@
 import { useTranslations } from "next-intl";
 import { useRef, type RefObject } from "react";
 
+import { FormNotice } from "@/account/account-form-parts";
 import type { AppLocale } from "@/i18n/routing";
 import { isolated } from "@/staff/bidi-isolate";
 import { StaffShell, type StaffShellContext } from "@/staff/staff-shell";
 
+import { pendingPriceCountOf } from "./cabinet-list-model";
 import { CatalogUnavailableNotice } from "./catalog-states";
-import { DiscardNotice } from "./publish-discard-notice";
 import type { PublishClient } from "./publish-client";
 import {
   DiscardDraftDialog,
   ProvisionalOffDialog,
   PublishConfirmDialog,
 } from "./publish-dialogs";
+import { DiscardNotice } from "./publish-discard-notice";
 import type { PublishPageInput } from "./publish-model";
+import { NoticeBody } from "./publish-notices";
 import {
   ProvisionalSwitch,
   PublishButton,
@@ -23,9 +26,10 @@ import {
   VersionNameField,
 } from "./publish-panel";
 import { historyPathOf, publishPathOf } from "./publish-paths";
-import styles from "./publish.module.css";
-import { NoticeBody } from "./publish-notices";
 import { DiffSections } from "./publish-rows";
+import { StaleDraft } from "./publish-stale-draft";
+import { PublishDraftUnreadableScreen } from "./publish-unreadable";
+import styles from "./publish.module.css";
 import { UnsentAmountsContext } from "./unsent-amounts";
 import { useFocusAfterRevert } from "./use-focus-after-revert";
 import { useFocusWhenLost } from "./use-focus-when-lost";
@@ -47,7 +51,7 @@ export interface PublishScreenProps {
   readonly context: StaffShellContext;
   readonly input: PublishPageInput;
   readonly initialView: PublishView;
-  /** What writes. Left out, the build's own: an in-memory one outside production, one that fails inside it. */
+  /** What writes. Left out, the routes'. */
   readonly client?: PublishClient | undefined;
 }
 
@@ -66,9 +70,19 @@ export function PublishScreen({
   const { rememberRevertPosition, rememberEditPosition, emptyHeadingRef } =
     useFocusAfterRevert(pageRef, desk.state.draft);
   useFocusWhenLost(noticeRef, noticeThatReplacesTheQuestion(desk.notice));
+  if (desk.stateRefusal?.kind === "draft-unreadable") {
+    return (
+      <PublishDraftUnreadableScreen
+        locale={locale}
+        context={context}
+        draftRevision={desk.stateRefusal.draftRevision}
+        client={client}
+      />
+    );
+  }
   const shell = {
     ...context,
-    pendingPriceCount: desk.state.draft.changes.length,
+    pendingPriceCount: pendingPriceCountOf(desk.state.draft),
   };
   return (
     <StaffShell locale={locale} page="publish" context={shell}>
@@ -89,7 +103,7 @@ export function PublishScreen({
           <VersionHistory
             locale={locale}
             versions={desk.history.list.versions}
-            pendingCount={desk.state.draft.changes.length}
+            pendingCount={pendingPriceCountOf(desk.state.draft)}
             paging={{
               list: desk.history.list,
               status: desk.history.status,
@@ -152,7 +166,7 @@ function PublishHeading({
   readonly desk: PublishDesk;
 }) {
   const translate = useTranslations();
-  const pendingCount = desk.state.draft.changes.length;
+  const pendingCount = pendingPriceCountOf(desk.state.draft);
   return (
     <div className={styles.heading}>
       <h1 className={styles.title}>
@@ -213,7 +227,10 @@ function PendingPrices({
   const { reading } = desk;
   if (reading.kind === "candidate-refused") {
     return (
-      <StaleDraftNotice
+      <StaleDraft
+        stale={desk.stale}
+        isBusy={desk.isLocked}
+        onRevert={desk.revert}
         buttonRef={discardButtonRef}
         onDiscard={desk.discard.ask}
       />
@@ -271,30 +288,12 @@ function PendingPrices({
           changeCount={view.changeCount}
           canPublish={view.canPublish}
           hasUnsentAmount={desk.hasUnsentAmount}
+          cannotJudgeDeletions={desk.deletion.kind === "cannot-judge"}
           isBusy={desk.isBusy}
           onPress={desk.requestPublish}
         />
       </div>
     </div>
-  );
-}
-
-/** The pending changes do not make a book against the active one: they cannot be listed, only given up. */
-function StaleDraftNotice({
-  buttonRef,
-  onDiscard,
-}: {
-  readonly buttonRef: RefObject<HTMLButtonElement | null>;
-  readonly onDiscard: () => void;
-}) {
-  const translate = useTranslations();
-  return (
-    <DiscardNotice
-      title={translate("priceDashboard.publish.staleDraftTitle")}
-      body={translate("priceDashboard.publish.staleDraftBody")}
-      buttonRef={buttonRef}
-      onDiscard={onDiscard}
-    />
   );
 }
 
@@ -376,7 +375,17 @@ function PublishNoticeBanner({
   readonly cabinetNames: Readonly<Record<string, string>>;
   readonly noticeRef: RefObject<HTMLDivElement | null>;
 }) {
+  const translate = useTranslations();
   const { notice } = desk;
+  if (desk.stateRefusal?.kind === "no-active-version") {
+    return (
+      <div ref={noticeRef} tabIndex={-1} data-testid="publish-notice">
+        <FormNotice tone="error">
+          {translate("priceDashboard.publish.noActiveVersion")}
+        </FormNotice>
+      </div>
+    );
+  }
   if (notice === undefined) return null;
   return (
     <div ref={noticeRef} tabIndex={-1} data-testid="publish-notice">

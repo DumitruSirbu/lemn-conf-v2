@@ -4,6 +4,8 @@
 // figure is claimed.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { DashboardStoreError } from "@lemnaria/persistence";
+
 import { SAMPLE_PRICE_BOOK } from "@lemnaria/configurator-domain";
 
 import { SAMPLE_ACCESSORY_USAGE } from "@/price-dashboard/accessory-sample";
@@ -108,7 +110,10 @@ describe("anything else is unavailable, and nothing is thrown", () => {
   });
 
   it("for a read that throws, as a store that cannot be reached does", async () => {
-    world.answer = () => Promise.reject(new Error("the store is down"));
+    world.answer = () =>
+      Promise.reject(
+        new DashboardStoreError("read the price draft", "unavailable"),
+      );
 
     expect(await readAccessories()).toEqual({ kind: "unavailable" });
   });

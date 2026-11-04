@@ -6,6 +6,7 @@ import type { NextResponse } from "next/server";
 
 import {
   applyChanges,
+  countPendingPrices,
   isSameAddress,
   readEditableFields,
   revertChange,
@@ -159,8 +160,10 @@ function removalOfGroup(
   groupId: string,
 ): Removal {
   const remaining = changes.filter((stored) => stored.groupId !== groupId);
-  const revertedCount = changes.length - remaining.length;
-  if (revertedCount === 0) return nothingToRemove("groupId");
+  if (remaining.length === changes.length) return nothingToRemove("groupId");
+  const revertedCount = countPendingPrices(
+    changes.filter((stored) => stored.groupId === groupId),
+  );
   return {
     kind: "removes",
     remaining,

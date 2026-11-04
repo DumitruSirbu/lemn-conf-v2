@@ -1,13 +1,15 @@
 import type { Role } from "@lemnaria/configurator-domain";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { DashboardStoreError } from "@lemnaria/persistence";
 
 import type { CurrentSession } from "@/lib/server/account/current-session";
 import { SESSION_COOKIE_NAME } from "@/lib/server/account/session-cookie";
 
 /**
- * The invented prices are built by computation, and every staff page reads the frame's count through the same module. A
- * sample that cannot be built (a domain change that its books no longer satisfy) must take down the publish page in a build
- * that shows samples, and nothing in a build that does not: no staff page may fail to load, or be refused, for it.
+ * Every staff page reads the frame's count through the same module. A price store that cannot be read must leave the pages
+ * open without a count, and take down nothing but the publish page's own read: no staff page may fail to load, or be refused,
+ * for it.
  */
 
 const reading = vi.hoisted(() => ({
@@ -32,9 +34,12 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/lib/server/account/current-session", () => ({
   readCurrentSessionOrThrow: () => Promise.resolve(reading.session),
 }));
-vi.mock("@/price-dashboard/publish-sample", () => {
-  throw new Error("the sample books do not make books");
-});
+vi.mock("@/lib/server/price-stores", () => ({
+  getPriceStores: () =>
+    Promise.reject(
+      new DashboardStoreError("read the price draft", "unavailable"),
+    ),
+}));
 
 const { readStaffPage } = await import("@/lib/server/staff/staff-page");
 const { readPendingPriceCount, readPublishPage, readVersionDetail } =
@@ -55,18 +60,10 @@ beforeEach(() => {
   reading.session = signedInAdministrator();
 });
 
-afterEach(() => {
-  vi.unstubAllEnvs();
-});
-
-describe("a production build whose sample cannot be built", () => {
-  beforeEach(() => {
-    vi.stubEnv("NODE_ENV", "production");
-  });
-
-  it("still answers every read as unavailable, because it never loads the sample", async () => {
-    expect(await readPublishPage("ro")).toEqual({ kind: "unavailable" });
-    expect(await readVersionDetail("any", "ro")).toEqual({
+describe("a price store that cannot be read", () => {
+  it("answers every read as unavailable, with no count", async () => {
+    expect(await readPublishPage()).toEqual({ kind: "unavailable" });
+    expect(await readVersionDetail("A".repeat(21))).toEqual({
       kind: "unavailable",
     });
     expect(await readPendingPriceCount()).toBeUndefined();
@@ -83,18 +80,4 @@ describe("a production build whose sample cannot be built", () => {
       expect(read.shell.navigation).toContain("publish");
     },
   );
-});
-
-describe("a build that shows samples, whose sample cannot be built", () => {
-  it("fails the publish page's own read, where the sample is wanted", async () => {
-    await expect(readPublishPage("ro")).rejects.toThrow();
-  });
-
-  it("does not refuse a staff page for the count: the page opens without one", async () => {
-    const read = await readStaffPage({ locale: "ro", page: "kitchens" });
-
-    expect(read.kind).toBe("signed-in");
-    if (read.kind !== "signed-in") return;
-    expect(read.shell.pendingPriceCount).toBeUndefined();
-  });
 });

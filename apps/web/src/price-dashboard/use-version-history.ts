@@ -2,6 +2,8 @@
 
 import { useCallback, useState } from "react";
 
+import { raiseStaffSessionExpired } from "@/staff/staff-session-expiry";
+
 import { orFailed } from "./async-seams";
 import type {
   PriceVersionListWire,
@@ -45,6 +47,8 @@ export function useVersionHistory(input: {
         (outcome) => {
           if (hasMoved()) return;
           if (outcome.kind === "listed") setList(outcome.list);
+          if (outcome.kind === "session-ended")
+            raiseStaffSessionExpired({ keepsTypedText: true });
           setStatus(outcome.kind === "listed" ? "idle" : "failed");
         },
       );

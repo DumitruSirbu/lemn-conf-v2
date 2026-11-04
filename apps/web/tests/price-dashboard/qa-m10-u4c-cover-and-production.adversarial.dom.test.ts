@@ -543,7 +543,7 @@ describe("the pending count while an accessory is created and taken back out", (
     typeInField(container, PRICE, "90");
     await press(buttonNamed(container, SAVE));
     expect(mounted.draftServer.state().draft.changes).toHaveLength(3);
-    expect(pendingChipText(container)).toMatch(/3/u);
+    expect(pendingChipText(container)).toMatch(/1/u);
 
     await press(buttonNamed(container, DELETE_ON_PAGE));
     const dialog = openDialog();

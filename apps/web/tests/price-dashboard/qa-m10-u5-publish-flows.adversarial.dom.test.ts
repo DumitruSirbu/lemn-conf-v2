@@ -20,7 +20,7 @@ import type { PublishClient } from "@/price-dashboard/publish-client";
 import {
   makeSamplePublishClient,
   sampleVersionIdOf,
-} from "@/price-dashboard/publish-sample-client";
+} from "../support/publish-sample-client";
 import type {
   PublishPageInput,
   VersionDetailInput,
@@ -29,7 +29,7 @@ import { PublishScreen } from "@/price-dashboard/publish-page";
 import {
   SAMPLE_PUBLISH_PAGE,
   sampleVersionDetail,
-} from "@/price-dashboard/publish-sample";
+} from "../support/publish-sample";
 import { VersionDetailScreen } from "@/price-dashboard/version-detail";
 
 import roMessages from "../../src/messages/ro.json";

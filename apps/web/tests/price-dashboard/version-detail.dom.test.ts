@@ -14,9 +14,9 @@ import type { PublishClient } from "@/price-dashboard/publish-client";
 import {
   makeSamplePublishClient,
   sampleVersionIdOf,
-} from "@/price-dashboard/publish-sample-client";
+} from "../support/publish-sample-client";
 import type { VersionDetailInput } from "@/price-dashboard/publish-model";
-import { sampleVersionDetail } from "@/price-dashboard/publish-sample";
+import { sampleVersionDetail } from "../support/publish-sample";
 import { VersionDetailScreen } from "@/price-dashboard/version-detail";
 
 import roMessages from "../../src/messages/ro.json";

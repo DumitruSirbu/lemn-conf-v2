@@ -90,6 +90,11 @@ export {
 } from "./link-target.js";
 export { createdItemsOf, deletedItemsOf } from "./draft-structure.js";
 export {
+  changedRowOf,
+  changedRowsOf,
+  countPendingPrices,
+} from "./pending-price-count.js";
+export {
   judgeDeletionsAtPublish,
   type PublishDeletionRefusal,
   type PublishDeletionRefusalCode,

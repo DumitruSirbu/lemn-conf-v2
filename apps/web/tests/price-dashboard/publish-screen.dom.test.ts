@@ -14,13 +14,13 @@ import {
 } from "@lemnaria/configurator-domain";
 
 import type { PublishClient } from "@/price-dashboard/publish-client";
-import { makeSamplePublishClient } from "@/price-dashboard/publish-sample-client";
+import { makeSamplePublishClient } from "../support/publish-sample-client";
 import type { PublishPageInput } from "@/price-dashboard/publish-model";
 import {
   PublishScreen,
   PublishUnavailableScreen,
 } from "@/price-dashboard/publish-page";
-import { SAMPLE_PUBLISH_PAGE } from "@/price-dashboard/publish-sample";
+import { SAMPLE_PUBLISH_PAGE } from "../support/publish-sample";
 import type { PublishView } from "@/price-dashboard/use-publish-desk";
 
 import roMessages from "../../src/messages/ro.json";

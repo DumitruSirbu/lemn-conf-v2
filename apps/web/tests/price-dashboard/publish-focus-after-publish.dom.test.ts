@@ -4,7 +4,7 @@
 // notice that says what happened, not fall to the body. A refused publish leaves the button where it was.
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { SAMPLE_PUBLISH_PAGE } from "@/price-dashboard/publish-sample";
+import { SAMPLE_PUBLISH_PAGE } from "../support/publish-sample";
 
 import {
   byWords,

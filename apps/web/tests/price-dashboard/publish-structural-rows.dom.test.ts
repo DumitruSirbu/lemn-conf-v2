@@ -10,7 +10,7 @@ import type { PriceBook } from "@lemnaria/configurator-domain";
 import { describeVersionDiff } from "@/price-dashboard/publish-model";
 import { DiffSections } from "@/price-dashboard/publish-rows";
 import { isolated } from "@/staff/bidi-isolate";
-import { SAMPLE_PUBLISH_PAGE } from "@/price-dashboard/publish-sample";
+import { SAMPLE_PUBLISH_PAGE } from "../support/publish-sample";
 import type { PublishPageInput } from "@/price-dashboard/publish-model";
 
 import {

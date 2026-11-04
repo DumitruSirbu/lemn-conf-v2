@@ -1,5 +1,6 @@
 import {
   applyChanges,
+  countPendingPrices,
   isSameAddress,
   readEditableFields,
   type AppliedAddress,
@@ -16,8 +17,11 @@ import { sampleVersionIdOf } from "./publish-sample-client";
 import type {
   PriceVersionSummaryWire,
   PriceVersionWire,
-} from "./price-dashboard-wire-contract";
-import type { PublishPageInput, VersionDetailInput } from "./publish-model";
+} from "@/price-dashboard/price-dashboard-wire-contract";
+import type {
+  PublishPageInput,
+  VersionDetailInput,
+} from "@/price-dashboard/publish-model";
 
 // Invented data for builds that show samples; every book goes through `applyChanges`. Reached only through the sources.
 
@@ -244,7 +248,7 @@ function versionOf(
       label: published.label,
       state: published.isActive ? "active" : "archived",
       publishedAt: published.publishedAt,
-      changeCount: content.changes.length,
+      changeCount: countPendingPrices(content.changes),
     },
     note: "",
     book: content.book,

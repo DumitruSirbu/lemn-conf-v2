@@ -187,13 +187,20 @@ export function DiscardDraftDialog({
   );
 }
 
+export type RestoreFailure =
+  | "save-failed"
+  | "conflict"
+  | "not-found"
+  | "candidate-refused"
+  | "no-active-version";
+
 export interface RestoreDialogProps extends FocusFallback {
   readonly versionNumber: number;
   readonly differingCount: number;
   /** How many pending changes the restore replaces; none, and the sentence is left out. */
   readonly replacedCount: number;
   readonly isBusy: boolean;
-  readonly failure: "save-failed" | "conflict" | "not-found" | undefined;
+  readonly failure: RestoreFailure | undefined;
   readonly onConfirm: () => void;
   readonly onCancel: () => void;
 }
@@ -252,13 +259,17 @@ export function RestoreDialog({
 
 function restoreFailureWords(
   translate: ContentTranslator,
-  failure: "save-failed" | "conflict" | "not-found",
+  failure: RestoreFailure,
 ): string {
   switch (failure) {
     case "conflict":
       return translate("priceDashboard.errors.changedMeanwhile");
     case "not-found":
       return translate("priceDashboard.history.versionNotFound");
+    case "candidate-refused":
+      return translate("priceDashboard.history.restoreCandidateRefused");
+    case "no-active-version":
+      return translate("priceDashboard.publish.noActiveVersion");
     case "save-failed":
       return translate("priceDashboard.errors.saveFailed");
   }

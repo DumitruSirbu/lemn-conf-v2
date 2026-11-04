@@ -3,9 +3,14 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import type { Metadata } from "next";
 
-import { routing } from "@/i18n/routing";
+import { routing, type AppLocale } from "@/i18n/routing";
 import { PublishUnavailableScreen } from "@/price-dashboard/publish-page";
-import { readVersionDetail } from "@/price-dashboard/publish-source";
+import {
+  readVersionDetail,
+  type VersionDetailRead,
+} from "@/price-dashboard/publish-source";
+import { PublishDraftUnreadableScreen } from "@/price-dashboard/publish-unreadable";
+import type { StaffShellContext } from "@/staff/staff-shell";
 import { VersionDetailScreen } from "@/price-dashboard/version-detail";
 
 import {
@@ -38,18 +43,47 @@ export default async function VersionPage({ params }: VersionPageProps) {
     locale,
     page: "publish",
     signedIn: async (shell) => {
-      const read = await readVersionDetail(versionId, locale);
+      const read = await readVersionDetail(versionId);
       if (read.kind === "not-found") notFound();
-      return read.kind === "ready" ? (
+      return versionScreenOf({ read, locale, shell, versionId });
+    },
+  });
+}
+
+/**
+ * A version the draft cannot be restored into is shown as the unreadable draft: giving it up is the one write that
+ * works.
+ */
+function versionScreenOf({
+  read,
+  locale,
+  shell,
+  versionId,
+}: {
+  readonly read: Exclude<VersionDetailRead, { readonly kind: "not-found" }>;
+  readonly locale: AppLocale;
+  readonly shell: StaffShellContext;
+  readonly versionId: string;
+}) {
+  switch (read.kind) {
+    case "ready":
+      return (
         <VersionDetailScreen
           key={versionId}
           locale={locale}
           context={shell}
           input={read.input}
         />
-      ) : (
-        <PublishUnavailableScreen locale={locale} context={shell} />
       );
-    },
-  });
+    case "draft-unreadable":
+      return (
+        <PublishDraftUnreadableScreen
+          locale={locale}
+          context={shell}
+          draftRevision={read.draftRevision}
+        />
+      );
+    case "unavailable":
+      return <PublishUnavailableScreen locale={locale} context={shell} />;
+  }
 }

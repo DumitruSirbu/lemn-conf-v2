@@ -9,24 +9,33 @@ import { FormNotice } from "@/account/account-form-parts";
 import type { AppLocale } from "@/i18n/routing";
 import { isolated } from "@/staff/bidi-isolate";
 import { dayOf } from "@/staff/staff-kitchen-dates";
+import { raiseStaffSessionExpired } from "@/staff/staff-session-expiry";
 import { StaffShell, type StaffShellContext } from "@/staff/staff-shell";
 
+import { orFailed } from "./async-seams";
+import { pendingPriceCountOf } from "./cabinet-list-model";
+import { FETCHING_PUBLISH_CLIENT } from "./fetching-publish-client";
 import type {
   DashboardDraftWire,
   DashboardStateWire,
 } from "./price-dashboard-wire-contract";
-import { type PublishClient, type RestoreOutcome } from "./publish-client";
-import { orFailed } from "./async-seams";
-import { defaultPublishClient } from "./default-publish-client";
-import { RestoreDialog } from "./publish-dialogs";
+import {
+  isStateRefusal,
+  readStateOrRefusal,
+  type DraftStateRefusal,
+  type PublishClient,
+  type RestoreOutcome,
+} from "./publish-client";
+import { RestoreDialog, type RestoreFailure } from "./publish-dialogs";
 import {
   describeVersionDiff,
   planRestore,
   type VersionDetailInput,
 } from "./publish-model";
 import { historyPathOf, publishPathOf } from "./publish-paths";
-import styles from "./publish.module.css";
 import { DiffSections } from "./publish-rows";
+import { PublishDraftUnreadableScreen } from "./publish-unreadable";
+import styles from "./publish.module.css";
 
 // A restore adds to the pending list and publishes nothing. Customers never see a version (ADR 0072 Amendment).
 
@@ -34,11 +43,9 @@ export interface VersionDetailScreenProps {
   readonly locale: AppLocale;
   readonly context: StaffShellContext;
   readonly input: VersionDetailInput;
-  /** What writes. Left out, the build's own: an in-memory one outside production, one that fails inside it. */
+  /** What writes. Left out, the routes'. */
   readonly client?: PublishClient | undefined;
 }
-
-type RestoreFailure = "save-failed" | "conflict" | "not-found";
 
 interface RestoreState {
   readonly draft: DashboardDraftWire;
@@ -47,6 +54,8 @@ interface RestoreState {
   readonly isDialogOpen: boolean;
   readonly isBusy: boolean;
   readonly failure: RestoreFailure | undefined;
+  /** The restore found the stored draft unreadable: the page gives way to the one that gives it up. */
+  readonly unreadableRevision: string | undefined;
   /** A restore has been done: the notice says so, and where the prices went. */
   readonly isRestored: boolean;
 }
@@ -57,10 +66,7 @@ export function VersionDetailScreen({
   input,
   client: suppliedClient,
 }: VersionDetailScreenProps) {
-  const client = useMemo(
-    () => suppliedClient ?? defaultPublishClient({ kind: "version", input }),
-    [suppliedClient, input],
-  );
+  const client = suppliedClient ?? FETCHING_PUBLISH_CLIENT;
   const restoreButtonRef = useRef<HTMLButtonElement>(null);
   const [restore, setRestore] = useState<RestoreState>({
     draft: input.draft,
@@ -68,6 +74,7 @@ export function VersionDetailScreen({
     isDialogOpen: false,
     isBusy: false,
     failure: undefined,
+    unreadableRevision: undefined,
     isRestored: false,
   });
   const plan = useMemo(
@@ -87,12 +94,24 @@ export function VersionDetailScreen({
       versionId: input.version.versionId,
       draftRevision: restore.draft.draftRevision,
     }).then((answer) => {
+      if (answer.outcome.kind === "session-ended")
+        raiseStaffSessionExpired({ keepsTypedText: true });
       setRestore((held) => settled(held, answer));
     });
   }, [client, input.version.versionId, restore.draft.draftRevision]);
+  if (restore.unreadableRevision !== undefined) {
+    return (
+      <PublishDraftUnreadableScreen
+        locale={locale}
+        context={context}
+        draftRevision={restore.unreadableRevision}
+        client={client}
+      />
+    );
+  }
   const shell = {
     ...context,
-    pendingPriceCount: restore.draft.changes.length,
+    pendingPriceCount: pendingPriceCountOf(restore.draft),
   };
   return (
     <StaffShell locale={locale} page="publish" context={shell}>
@@ -134,7 +153,7 @@ export function VersionDetailScreen({
 interface RestoreAnswer {
   readonly outcome: RestoreOutcome;
   /** The state read again after a refusal as `changed-meanwhile`, so the next press carries the revision that is current. */
-  readonly fresh: DashboardStateWire | undefined;
+  readonly fresh: DashboardStateWire | DraftStateRefusal | undefined;
 }
 
 /** Asks the client to restore; a client that rejects has failed, and a refusal as changed-meanwhile reads the state again. */
@@ -149,7 +168,7 @@ async function askToRestore(request: {
     { kind: "failed" },
   );
   if (outcome.kind !== "conflict") return { outcome, fresh: undefined };
-  const fresh = await orFailed(() => client.readState(), undefined);
+  const fresh = await orFailed(() => readStateOrRefusal(client), undefined);
   return { outcome, fresh };
 }
 
@@ -167,17 +186,43 @@ function settled(held: RestoreState, answer: RestoreAnswer): RestoreState {
     case "nothing-differs":
       return { ...idle, isDialogOpen: false };
     case "conflict":
-      return {
-        ...idle,
-        failure: "conflict",
-        draft: fresh?.draft ?? held.draft,
-        activeBook: fresh?.active.book ?? held.activeBook,
-      };
+      return settledConflict({ held, idle, fresh });
+    case "draft-unreadable":
+    case "no-active-version":
+      return settledByRefusal(idle, outcome);
     case "version-not-found":
       return { ...idle, failure: "not-found" };
+    case "candidate-refused":
+      return { ...idle, failure: "candidate-refused" };
+    case "session-ended":
     case "failed":
       return { ...idle, failure: "save-failed" };
   }
+}
+
+/** The draft moved: the dialog says so, over the state read again, or hands over if that read found it unreadable. */
+function settledConflict(read: {
+  readonly held: RestoreState;
+  readonly idle: RestoreState;
+  readonly fresh: RestoreAnswer["fresh"];
+}): RestoreState {
+  const { held, idle, fresh } = read;
+  if (isStateRefusal(fresh)) return settledByRefusal(idle, fresh);
+  return {
+    ...idle,
+    failure: "conflict",
+    draft: fresh?.draft ?? held.draft,
+    activeBook: fresh?.active.book ?? held.activeBook,
+  };
+}
+
+function settledByRefusal(
+  idle: RestoreState,
+  refusal: DraftStateRefusal,
+): RestoreState {
+  return refusal.kind === "draft-unreadable"
+    ? { ...idle, unreadableRevision: refusal.draftRevision }
+    : { ...idle, failure: "no-active-version" };
 }
 
 function VersionHeading({

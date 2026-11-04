@@ -569,6 +569,32 @@
   overflow-wrap: anywhere;
 }
 
+.staleList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0;
+  margin: 8px 0 0;
+  list-style: none;
+}
+
+.staleLine {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.staleLineText {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.staleLine .revert {
+  flex: none;
+}
+
 .noticeActions {
   display: flex;
   flex-wrap: wrap;

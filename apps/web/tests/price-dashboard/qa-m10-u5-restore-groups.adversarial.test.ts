@@ -16,7 +16,7 @@ import {
 import { describe, expect, it } from "vitest";
 
 import { planRestore } from "@/price-dashboard/publish-model";
-import { SAMPLE_PUBLISH_PAGE } from "@/price-dashboard/publish-sample";
+import { SAMPLE_PUBLISH_PAGE } from "../support/publish-sample";
 
 import { withRetiredLinearRules } from "../support/retired-form-books";
 

@@ -1,17 +1,12 @@
 import "server-only";
 
-import { createTranslator } from "next-intl";
-
-import type { ContentTranslator } from "@/i18n/content";
-import roMessages from "@/messages/ro.json";
-
 import { readStateOrNothing } from "./admitted-state-read";
-import { cabinetNamesOf } from "./cabinet-names";
 import {
   deriveCabinetList,
   type CabinetListPageInput,
 } from "./cabinet-list-facts";
 import { readDashboardStateWire } from "./price-dashboard-wire-reading";
+import { romanianCabinetNamesOf } from "./romanian-cabinet-names";
 
 // The one place the cabinet list's facts come from: the dashboard's state, read for a page whose staff gate
 // (`price.edit`) has already admitted the reader. A render reads and never writes, so this touches no session, spends
@@ -28,11 +23,6 @@ export type CabinetDetailRead =
   | { readonly kind: "ready"; readonly page: CabinetListPageInput }
   | { readonly kind: "not-found" }
   | { readonly kind: "unavailable" };
-
-const romanian = createTranslator({
-  locale: "ro",
-  messages: roMessages,
-}) as ContentTranslator;
 
 export async function readCabinetList(): Promise<CabinetListRead> {
   const page = await readPage();
@@ -56,7 +46,7 @@ async function readPage(): Promise<CabinetListPageInput | undefined> {
   if (state === undefined) return undefined;
   const page = {
     state,
-    cabinetNames: cabinetNamesOf(state.active.book, romanian),
+    cabinetNames: romanianCabinetNamesOf(state.active.book),
   };
   // The seam's own check: a list that cannot be worked out here would not be worked out in the browser either.
   return deriveCabinetList(page).kind === "ready" ? page : undefined;

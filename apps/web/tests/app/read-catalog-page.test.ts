@@ -2,8 +2,10 @@ import type { Role } from "@lemnaria/configurator-domain";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { CurrentSession } from "@/lib/server/account/current-session";
-import { SAMPLE_PUBLISH_PAGE } from "@/price-dashboard/publish-sample";
 import { SESSION_COOKIE_NAME } from "@/lib/server/account/session-cookie";
+
+/** The seeded fake world every page test reads holds no draft. */
+const SEEDED_WORLD_PENDING_PRICES = 0;
 
 /**
  * The gate of the price dashboard's pages must never be a looser door than the signed-in gate asked for `price.edit`: a
@@ -268,7 +270,7 @@ describe("what each kind of account is shown", () => {
           "defaults",
           "publish",
         ],
-        pendingPriceCount: SAMPLE_PUBLISH_PAGE.state.draft.changes.length,
+        pendingPriceCount: SEEDED_WORLD_PENDING_PRICES,
       },
     });
   });

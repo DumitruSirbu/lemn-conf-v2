@@ -1,13 +1,13 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useMemo, useRef, useState, type RefObject } from "react";
+import { useRef, useState, type RefObject } from "react";
 
 import { FormNotice } from "@/account/account-form-parts";
 import type { AppLocale } from "@/i18n/routing";
 import { StaffShell, type StaffShellContext } from "@/staff/staff-shell";
 
-import { defaultPublishClient } from "./default-publish-client";
+import { FETCHING_PUBLISH_CLIENT } from "./fetching-publish-client";
 import { DiscardDraftDialog } from "./publish-dialogs";
 import { DiscardNotice } from "./publish-discard-notice";
 import type { PublishClient } from "./publish-client";
@@ -26,7 +26,7 @@ export interface PublishDraftUnreadableScreenProps {
   readonly context: StaffShellContext;
   /** The revision the read named: what the discard is made at. */
   readonly draftRevision: string;
-  /** What writes. Left out, the build's own. */
+  /** What writes. Left out, the routes'. */
   readonly client?: PublishClient | undefined;
 }
 
@@ -37,10 +37,7 @@ export function PublishDraftUnreadableScreen({
   client: suppliedClient,
 }: PublishDraftUnreadableScreenProps) {
   const translate = useTranslations();
-  const client = useMemo(
-    () => suppliedClient ?? defaultPublishClient({ kind: "unreadable" }),
-    [suppliedClient],
-  );
+  const client = suppliedClient ?? FETCHING_PUBLISH_CLIENT;
   const buttonRef = useRef<HTMLButtonElement>(null);
   const resolvedRef = useRef<HTMLDivElement>(null);
   const [resolution, setResolution] = useState<Resolution | undefined>(

@@ -130,7 +130,7 @@ function cabinetSubjectOf(
   return { kind: "name", name: context.cabinetNames[buildId] ?? buildId };
 }
 
-function subjectOfAddress(
+export function subjectOfAddress(
   address: BookFieldAddress,
   context: RefusalContext,
 ): RowSubject {

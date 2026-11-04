@@ -1,4 +1,8 @@
-import type { ItemRef } from "@lemnaria/configurator-domain";
+import {
+  countPendingPrices,
+  type DraftChange,
+  type ItemRef,
+} from "@lemnaria/configurator-domain";
 import { nanoid } from "nanoid";
 
 import type { FakeCatalogueAvailabilityStore } from "./fake-catalogue-availability-store.js";
@@ -47,6 +51,8 @@ interface HeldVersion {
   readonly publishedAt: Date;
   readonly book: unknown;
   readonly changeSummary: readonly unknown[];
+  /** Counted once, when the version is published, and never derived again. */
+  readonly changeCount: number;
 }
 
 export interface FakePriceBookStoreOptions {
@@ -136,7 +142,7 @@ export class FakePriceBookStore implements PriceBookStore {
           label: held.label,
           state: this.stateOf(held),
           publishedAt: new Date(held.publishedAt),
-          changeCount: held.changeSummary.length,
+          changeCount: held.changeCount,
         })),
       };
     });
@@ -171,13 +177,16 @@ export class FakePriceBookStore implements PriceBookStore {
     request: PublishPriceBookRequest,
   ): Promise<PublishPriceBookResult> {
     requirePublishable(request);
+    const changeCount = changeCountOf(
+      request.changeSummary as readonly unknown[],
+    );
     const staged = await this.ledger.stage({
       operation: "publish the price book",
       record: request.audit,
       accepts: ["price-published"],
       provisional: {
         sequenceNumber: request.expectedActiveSequence + 1,
-        changeCount: (request.changeSummary as readonly unknown[]).length,
+        changeCount,
       },
     });
     const newestSequence = this.versions.at(-1)?.sequenceNumber ?? 0;
@@ -203,13 +212,14 @@ export class FakePriceBookStore implements PriceBookStore {
       changeSummary: structuredClone(
         request.changeSummary as readonly unknown[],
       ),
+      changeCount,
     };
     this.versions.push(held);
     this.draftChanges = [];
     this.draftRevision.advance();
     staged.commit({
       sequenceNumber: held.sequenceNumber,
-      changeCount: held.changeSummary.length,
+      changeCount,
     });
     return {
       kind: "ok",
@@ -262,4 +272,9 @@ function requirePublishable(request: PublishPriceBookRequest): void {
   if (!isWellFormed) {
     throw new DashboardStoreError("publish the price book", "invalid-request");
   }
+}
+
+/** The prices a change summary holds, as the screens count them: a created class and its rates are one. */
+function changeCountOf(changeSummary: readonly unknown[]): number {
+  return countPendingPrices(changeSummary as readonly DraftChange[]);
 }

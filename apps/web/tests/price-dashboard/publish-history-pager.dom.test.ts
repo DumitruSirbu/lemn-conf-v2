@@ -13,7 +13,7 @@ import type {
   VersionPageOutcome,
 } from "@/price-dashboard/publish-client";
 import type { PublishPageInput } from "@/price-dashboard/publish-model";
-import { SAMPLE_PUBLISH_PAGE } from "@/price-dashboard/publish-sample";
+import { SAMPLE_PUBLISH_PAGE } from "../support/publish-sample";
 
 import {
   allIn,

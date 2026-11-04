@@ -1,4 +1,5 @@
 import {
+  countPendingPrices,
   PRICE_GROUP_CODES,
   type AddressOfKind,
   type DraftChange,
@@ -115,11 +116,12 @@ function namesRule(change: DraftChange, ruleId: string): boolean {
 }
 
 /**
- * The number the header and the menu show: every change the draft holds, whatever it changes (the depth rule and a
- * bulk action's every field count with the cabinet prices).
+ * The prices the draft waits to publish, counted as the person counts them: the number the header and the menu show.
  */
-export function pendingPriceCountOf(draft: DashboardDraftWire): number {
-  return draft.changes.length;
+export function pendingPriceCountOf(
+  draft: DashboardDraftWire | { readonly changes: readonly DraftChange[] },
+): number {
+  return countPendingPrices(draft.changes);
 }
 
 export function rowsOf(input: CabinetListInput): readonly CabinetRow[] {

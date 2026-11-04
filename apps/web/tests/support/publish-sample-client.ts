@@ -1,5 +1,6 @@
 import {
   applyChanges,
+  countPendingPrices,
   type ApplyChangesResult,
   judgeVersionLabel,
   revertChange,
@@ -7,14 +8,14 @@ import {
   type PriceBook,
 } from "@lemnaria/configurator-domain";
 
-import { judgeDraft } from "./draft-judgement";
+import { judgeDraft } from "@/price-dashboard/draft-judgement";
 import {
   MAX_VERSION_PAGE,
   type CandidateRefusalWire,
   type DashboardStateWire,
   type PriceVersionSummaryWire,
   type PublishRequestWire,
-} from "./price-dashboard-wire-contract";
+} from "@/price-dashboard/price-dashboard-wire-contract";
 import type {
   DiscardOutcome,
   DraftWriteOutcome,
@@ -22,11 +23,14 @@ import type {
   PublishOutcome,
   RestoreOutcome,
   VersionPageOutcome,
-} from "./publish-client";
-import { planRestore, type VersionDetailInput } from "./publish-model";
-import { publishTextRefusalCodeOf } from "./publish-text-refusal";
+} from "@/price-dashboard/publish-client";
+import {
+  planRestore,
+  type VersionDetailInput,
+} from "@/price-dashboard/publish-model";
+import { publishTextRefusalCodeOf } from "@/price-dashboard/publish-text-refusal";
 
-// A client over memory for builds that show samples. Loaded only outside production, next to `publish-sample.ts`.
+// A client over memory, for tests: it holds the sample the publish screens are drawn from in them.
 
 /** What a sample desk starts from: the dashboard's state, and the archived books a restore may name by version id. */
 export interface SampleDeskStart {
@@ -163,7 +167,7 @@ export function makeSamplePublishClient(start: SampleDeskStart): PublishClient {
         label,
         state: "active",
         publishedAt,
-        changeCount: desk.state.draft.changes.length,
+        changeCount: countPendingPrices(desk.state.draft.changes),
       },
       ...desk.versions.map((version) => ({
         ...version,

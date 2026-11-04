@@ -8,8 +8,8 @@ import type { DraftChange } from "@lemnaria/configurator-domain";
 import type { PublishClient } from "@/price-dashboard/publish-client";
 import type { PublishPageInput } from "@/price-dashboard/publish-model";
 import { PublishScreen } from "@/price-dashboard/publish-page";
-import { makeSamplePublishClient } from "@/price-dashboard/publish-sample-client";
-import { SAMPLE_PUBLISH_PAGE } from "@/price-dashboard/publish-sample";
+import { makeSamplePublishClient } from "../support/publish-sample-client";
+import { SAMPLE_PUBLISH_PAGE } from "../support/publish-sample";
 import type { PublishView } from "@/price-dashboard/use-publish-desk";
 
 import { flushPromises } from "../support/render-hook";

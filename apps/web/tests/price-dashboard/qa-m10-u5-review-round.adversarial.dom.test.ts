@@ -25,12 +25,12 @@ import { PublishScreen } from "@/price-dashboard/publish-page";
 import {
   SAMPLE_PUBLISH_PAGE,
   sampleVersionDetail,
-} from "@/price-dashboard/publish-sample";
+} from "../support/publish-sample";
 import {
   makeSamplePublishClient,
   makeSampleVersionClient,
   sampleVersionIdOf,
-} from "@/price-dashboard/publish-sample-client";
+} from "../support/publish-sample-client";
 import { VersionDetailScreen } from "@/price-dashboard/version-detail";
 
 import roMessages from "../../src/messages/ro.json";

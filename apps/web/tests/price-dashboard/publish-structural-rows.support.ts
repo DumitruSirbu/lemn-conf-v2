@@ -7,7 +7,7 @@ import {
   type PriceBook,
 } from "@lemnaria/configurator-domain";
 
-import { SAMPLE_PUBLISH_PAGE } from "@/price-dashboard/publish-sample";
+import { SAMPLE_PUBLISH_PAGE } from "../support/publish-sample";
 
 export const ACTIVE: PriceBook = SAMPLE_PUBLISH_PAGE.state.active.book;
 export const CABINET_NAMES = SAMPLE_PUBLISH_PAGE.cabinetNames;
