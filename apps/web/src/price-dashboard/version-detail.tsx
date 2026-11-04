@@ -26,6 +26,7 @@ import {
   planRestore,
   type VersionDetailInput,
 } from "./publish-model";
+import { PublishDraftUnreadableScreen } from "./publish-unreadable";
 import { historyPathOf, publishPathOf } from "./publish-paths";
 import styles from "./publish.module.css";
 import { DiffSections } from "./publish-rows";
@@ -47,6 +48,8 @@ interface RestoreState {
   readonly isDialogOpen: boolean;
   readonly isBusy: boolean;
   readonly failure: RestoreFailure | undefined;
+  /** The restore found the stored draft unreadable: the page gives way to the one that gives it up. */
+  readonly unreadableRevision: string | undefined;
   /** A restore has been done: the notice says so, and where the prices went. */
   readonly isRestored: boolean;
 }
@@ -65,6 +68,7 @@ export function VersionDetailScreen({
     isDialogOpen: false,
     isBusy: false,
     failure: undefined,
+    unreadableRevision: undefined,
     isRestored: false,
   });
   const plan = useMemo(
@@ -88,6 +92,16 @@ export function VersionDetailScreen({
       setRestore((held) => settled(held, answer));
     });
   }, [client, input.version.versionId, restore.draft.draftRevision]);
+  if (restore.unreadableRevision !== undefined) {
+    return (
+      <PublishDraftUnreadableScreen
+        locale={locale}
+        context={context}
+        draftRevision={restore.unreadableRevision}
+        client={client}
+      />
+    );
+  }
   const shell = {
     ...context,
     pendingPriceCount: pendingPriceCountOf(restore.draft),
@@ -175,6 +189,10 @@ function settled(held: RestoreState, answer: RestoreAnswer): RestoreState {
       return { ...idle, failure: "not-found" };
     case "candidate-refused":
       return { ...idle, failure: "candidate-refused" };
+    case "draft-unreadable":
+      return { ...idle, unreadableRevision: outcome.draftRevision };
+    case "no-active-version":
+      return { ...idle, failure: "no-active-version" };
     case "session-ended":
     case "failed":
       return { ...idle, failure: "save-failed" };

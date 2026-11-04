@@ -10,7 +10,7 @@ import {
   type Answer,
 } from "./dashboard-fetch";
 import {
-  FETCHING_PRICE_DRAFT_CLIENT,
+  draftOutcomeOfAnswer,
   type DraftChangeOutcome,
 } from "./price-draft-client";
 import {
@@ -24,6 +24,7 @@ import {
 } from "./price-dashboard-wire-reading";
 import type {
   DiscardOutcome,
+  DraftStateRefusal,
   DraftWriteOutcome,
   PublishClient,
   PublishOutcome,
@@ -55,19 +56,40 @@ const SESSION_ENDED = { kind: "session-ended" } as const;
 export const FETCHING_PUBLISH_CLIENT: PublishClient = {
   readState,
   publish,
-  change: async (request) =>
-    draftOutcomeOf(await FETCHING_PRICE_DRAFT_CLIENT.change(request)),
-  revert: async (request) =>
-    draftOutcomeOf(await FETCHING_PRICE_DRAFT_CLIENT.revert(request)),
+  change: (request) => writeDraft("PUT", request),
+  revert: (request) => writeDraft("DELETE", request),
   discardDraft,
   readVersionPage,
   restore,
 };
 
+async function writeDraft(
+  method: "PUT" | "DELETE",
+  request: object,
+): Promise<DraftWriteOutcome> {
+  const answer = await sendJson(method, DRAFT_ADDRESS, request);
+  if (answer === undefined) return FAILED;
+  return stateRefusalOf(answer) ?? draftOutcomeOf(draftOutcomeOfAnswer(answer));
+}
+
 function draftOutcomeOf(outcome: DraftChangeOutcome): DraftWriteOutcome {
   return outcome.kind === "changed"
     ? { kind: "changed", draft: outcome.written }
     : outcome;
+}
+
+/** The `409`s of a write that reads the draft and the active version first: a draft that cannot be read, no version. */
+function stateRefusalOf({
+  status,
+  body,
+}: Answer): DraftStateRefusal | undefined {
+  if (status !== CONFLICT_STATUS) return undefined;
+  const word = ownValueOf(body, "status");
+  if (word === "no-active-version") return { kind: "no-active-version" };
+  const draftRevision = ownValueOf(body, "draftRevision");
+  return word === "draft-unreadable" && typeof draftRevision === "string"
+    ? { kind: "draft-unreadable", draftRevision }
+    : undefined;
 }
 
 async function readState(): Promise<DashboardStateWire | undefined> {
@@ -95,6 +117,8 @@ async function discardDraft(
 async function publish(request: PublishRequestWire): Promise<PublishOutcome> {
   const answer = await sendJson("POST", PUBLISH_ADDRESS, request);
   if (answer === undefined) return FAILED;
+  const refusal = stateRefusalOf(answer);
+  if (refusal !== undefined) return refusal;
   switch (answer.status) {
     case OK_STATUS:
       return publishedOutcomeOf(answer.body);
@@ -126,8 +150,7 @@ function invalidOutcomeOf(body: unknown): PublishOutcome {
 /**
  * The facts moved (`changed-meanwhile`, `availability-changed-meanwhile`) or the draft was emptied meanwhile
  * (`nothing-to-publish`): the page reads again. A catalogue that refuses the book names its reasons; a deletion the
- * server judged used or default names its items. No version, or a draft that cannot be read, is nothing this page's
- * person can correct.
+ * server judged used or default names its items.
  */
 function publishConflictOf(body: unknown): PublishOutcome {
   switch (ownValueOf(body, "status")) {
@@ -187,6 +210,8 @@ async function restore(
   const address = `${VERSIONS_ADDRESS}/${encodeURIComponent(versionId)}/restore`;
   const answer = await sendJson("POST", address, request);
   if (answer === undefined) return FAILED;
+  const refusal = stateRefusalOf(answer);
+  if (refusal !== undefined) return refusal;
   switch (answer.status) {
     case OK_STATUS:
       return restoredOutcomeOf(answer.body);
@@ -226,7 +251,7 @@ function conflictOrFailed(body: unknown): DiscardOutcome {
 }
 
 function sendJson(
-  method: "DELETE" | "POST",
+  method: "PUT" | "DELETE" | "POST",
   address: string,
   request: object,
 ): Promise<Answer | undefined> {

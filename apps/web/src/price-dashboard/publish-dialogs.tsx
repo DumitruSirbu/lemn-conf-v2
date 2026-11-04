@@ -191,7 +191,8 @@ export type RestoreFailure =
   | "save-failed"
   | "conflict"
   | "not-found"
-  | "candidate-refused";
+  | "candidate-refused"
+  | "no-active-version";
 
 export interface RestoreDialogProps extends FocusFallback {
   readonly versionNumber: number;
@@ -267,6 +268,8 @@ function restoreFailureWords(
       return translate("priceDashboard.history.versionNotFound");
     case "candidate-refused":
       return translate("priceDashboard.history.restoreCandidateRefused");
+    case "no-active-version":
+      return translate("priceDashboard.publish.noActiveVersion");
     case "save-failed":
       return translate("priceDashboard.errors.saveFailed");
   }

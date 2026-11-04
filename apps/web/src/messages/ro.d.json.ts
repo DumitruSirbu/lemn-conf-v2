@@ -1749,6 +1749,7 @@ declare const messages: {
       "staleDraftBody": "Ce ai pregătit nu se mai potrivește cu prețurile active, așa că nu poate fi publicat. Prețurile active nu s-au schimbat. Poți renunța la modificările de mai jos una câte una sau la toată ciorna.",
       "staleChangeKept": "{name}: modificare pregătită.",
       "staleChangeWholeDraftOnly": "{name}: nu se poate anula singură, doar împreună cu toată ciorna.",
+      "noActiveVersion": "Nu există încă nicio versiune publicată, așa că nu se poate publica nimic și nu se poate restaura nimic. Prețurile pregătite sunt păstrate.",
       "unchangedDraftTitle": "Ce ai pregătit nu diferă de prețurile active",
       "unchangedDraftBody": "Modificările pregătite se anulează între ele, așa că lista nu are ce arăta și nu e nimic de publicat. Prețurile active nu s-au schimbat. Poți renunța la ciornă și o iei de la capăt.",
       "discardAction": "Renunță la ciornă",

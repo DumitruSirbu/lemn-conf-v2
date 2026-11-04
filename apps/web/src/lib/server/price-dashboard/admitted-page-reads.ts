@@ -1,5 +1,7 @@
 import "server-only";
 
+import { DashboardStoreError } from "@lemnaria/persistence";
+
 import { isVersionId } from "@/lib/server/price-dashboard/identifier-shape";
 import {
   versionListWireOf,
@@ -54,4 +56,11 @@ export async function readPredecessorOf(
 async function readVersionPage(page: number): Promise<PriceVersionListWire> {
   const { priceBook } = await getPriceStores();
   return versionListWireOf(await priceBook.listVersions({ page }));
+}
+
+/** A store that says it is unavailable is production's state while it has no price stores, not a failure to report. */
+export function isStoreSayingUnavailable(failure: unknown): boolean {
+  return (
+    failure instanceof DashboardStoreError && failure.failure === "unavailable"
+  );
 }

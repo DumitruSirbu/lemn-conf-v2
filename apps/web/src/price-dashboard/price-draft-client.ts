@@ -116,6 +116,11 @@ async function write<Code extends string, Written>(
   return outcomeOf(answer, answers);
 }
 
+/** An answer of the draft route to a change or a revert, sorted as the dashboard's screens sort it. */
+export function draftOutcomeOfAnswer(answer: Answer): DraftChangeOutcome {
+  return outcomeOf(answer, DRAFT_ANSWERS);
+}
+
 function outcomeOf<Code extends string, Written>(
   { status, body }: Answer,
   { readWritten, refusalCodes }: RouteAnswers<Code, Written>,

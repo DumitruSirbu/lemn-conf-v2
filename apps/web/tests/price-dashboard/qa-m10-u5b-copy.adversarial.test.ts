@@ -19,6 +19,7 @@ const FOLLOW_UP_LEAVES = [
   "priceDashboard.publish.staleDraftBody",
   "priceDashboard.publish.staleChangeKept",
   "priceDashboard.publish.staleChangeWholeDraftOnly",
+  "priceDashboard.publish.noActiveVersion",
   "priceDashboard.publish.discardAction",
   "priceDashboard.publish.discardTitle",
   "priceDashboard.publish.discardBody",

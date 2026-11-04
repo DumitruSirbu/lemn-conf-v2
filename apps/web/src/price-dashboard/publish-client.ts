@@ -19,6 +19,14 @@ import type {
 // answer is `failed`, and `session-ended` is a `401` that the screen raises to the staff frame.
 
 /**
+ * A `409` that says the page cannot go on as drawn: the stored draft cannot be read (the revision is what giving it up is
+ * made at), or no version was ever published.
+ */
+export type DraftStateRefusal =
+  | { readonly kind: "draft-unreadable"; readonly draftRevision: string }
+  | { readonly kind: "no-active-version" };
+
+/**
  * The draft after a write, or why it was not written. `conflict` is `changed-meanwhile`: nothing was written. `refused`
  * is a `400` naming the code the person can correct, and `candidate-refused` the `409` of a draft that no longer makes a book.
  */
@@ -27,6 +35,7 @@ export type DraftWriteOutcome =
   | { readonly kind: "refused"; readonly code: DraftChangeRefusalCode }
   | { readonly kind: "candidate-refused" }
   | { readonly kind: "conflict" }
+  | DraftStateRefusal
   | { readonly kind: "session-ended" }
   | { readonly kind: "failed" };
 
@@ -56,6 +65,7 @@ export type PublishOutcome =
       readonly kind: "candidate-refused";
       readonly refusals: readonly CandidateRefusalWire[];
     }
+  | DraftStateRefusal
   | { readonly kind: "session-ended" }
   | { readonly kind: "failed" };
 
@@ -70,6 +80,7 @@ export type RestoreOutcome =
   /** The draft with the restored prices no longer makes a book: retrying cannot succeed until the draft changes. */
   | { readonly kind: "candidate-refused" }
   | { readonly kind: "version-not-found" }
+  | DraftStateRefusal
   | { readonly kind: "session-ended" }
   | { readonly kind: "failed" };
 

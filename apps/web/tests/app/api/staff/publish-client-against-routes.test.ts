@@ -217,6 +217,41 @@ describe("reading and writing the draft", () => {
   });
 });
 
+describe("a write that finds the draft unreadable, or no version", () => {
+  it("is told so for a change and a revert, with the revision to give the draft up at", async () => {
+    holdUnreadableDraft("9");
+
+    const change = await FETCHING_PUBLISH_CLIENT.change({
+      expectedDraftRevision: "9",
+      change: { address: ANCHOR_ADDRESS, value: OTHER_ANCHOR_MINOR },
+    });
+    const revert = await FETCHING_PUBLISH_CLIENT.revert({
+      expectedDraftRevision: "9",
+      target: { kind: "change", address: ANCHOR_ADDRESS },
+    });
+
+    expect(change).toEqual({ kind: "draft-unreadable", draftRevision: "9" });
+    expect(revert).toEqual({ kind: "draft-unreadable", draftRevision: "9" });
+  });
+
+  it("is told so for a restore, and a dashboard with no version for a change", async () => {
+    const versionId = prices.versionId ?? "";
+    holdUnreadableDraft("9");
+    const restore = await FETCHING_PUBLISH_CLIENT.restore(versionId, {
+      expectedDraftRevision: "9",
+    });
+    vi.restoreAllMocks();
+    prices = await freshPriceDashboardWorld({ isPublished: false });
+    const change = await FETCHING_PUBLISH_CLIENT.change({
+      expectedDraftRevision: "0",
+      change: { address: ANCHOR_ADDRESS, value: OTHER_ANCHOR_MINOR },
+    });
+
+    expect(restore).toEqual({ kind: "draft-unreadable", draftRevision: "9" });
+    expect(change).toEqual({ kind: "no-active-version" });
+  });
+});
+
 describe("giving the draft up", () => {
   it("empties it, and a draft that cannot be read is given up at the revision the route named", async () => {
     await putChange(cookie ?? "", ANCHOR_ADDRESS, OTHER_ANCHOR_MINOR);
@@ -361,9 +396,9 @@ describe("publishing", () => {
     });
   });
 
-  it("is a failure, not something to correct, for a draft that cannot be read and for a dashboard with no version", async () => {
+  it("says the draft cannot be read, at the revision the route named, and that no version has been published", async () => {
     const state = await stateRead();
-    holdUnreadableDraft(state.draft.draftRevision);
+    holdUnreadableDraft("9");
     const unreadable = await FETCHING_PUBLISH_CLIENT.publish(
       publishRequestOf(state),
     );
@@ -373,8 +408,11 @@ describe("publishing", () => {
       publishRequestOf(state),
     );
 
-    expect(unreadable).toEqual({ kind: "failed" });
-    expect(unpublished).toEqual({ kind: "failed" });
+    expect(unreadable).toEqual({
+      kind: "draft-unreadable",
+      draftRevision: "9",
+    });
+    expect(unpublished).toEqual({ kind: "no-active-version" });
   });
 
   it("is session-ended for a signed-out request and a failure for an account without the capability", async () => {

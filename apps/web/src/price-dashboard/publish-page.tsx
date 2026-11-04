@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { useRef, type RefObject } from "react";
 
 import type { AppLocale } from "@/i18n/routing";
+import { FormNotice } from "@/account/account-form-parts";
 import { isolated } from "@/staff/bidi-isolate";
 import { StaffShell, type StaffShellContext } from "@/staff/staff-shell";
 
@@ -26,6 +27,7 @@ import {
 import { historyPathOf, publishPathOf } from "./publish-paths";
 import styles from "./publish.module.css";
 import { NoticeBody } from "./publish-notices";
+import { PublishDraftUnreadableScreen } from "./publish-unreadable";
 import { StaleDraft } from "./publish-stale-draft";
 import { DiffSections } from "./publish-rows";
 import { UnsentAmountsContext } from "./unsent-amounts";
@@ -68,6 +70,16 @@ export function PublishScreen({
   const { rememberRevertPosition, rememberEditPosition, emptyHeadingRef } =
     useFocusAfterRevert(pageRef, desk.state.draft);
   useFocusWhenLost(noticeRef, noticeThatReplacesTheQuestion(desk.notice));
+  if (desk.stateRefusal?.kind === "draft-unreadable") {
+    return (
+      <PublishDraftUnreadableScreen
+        locale={locale}
+        context={context}
+        draftRevision={desk.stateRefusal.draftRevision}
+        client={client}
+      />
+    );
+  }
   const shell = {
     ...context,
     pendingPriceCount: pendingPriceCountOf(desk.state.draft),
@@ -363,7 +375,17 @@ function PublishNoticeBanner({
   readonly cabinetNames: Readonly<Record<string, string>>;
   readonly noticeRef: RefObject<HTMLDivElement | null>;
 }) {
+  const translate = useTranslations();
   const { notice } = desk;
+  if (desk.stateRefusal?.kind === "no-active-version") {
+    return (
+      <div ref={noticeRef} tabIndex={-1} data-testid="publish-notice">
+        <FormNotice tone="error">
+          {translate("priceDashboard.publish.noActiveVersion")}
+        </FormNotice>
+      </div>
+    );
+  }
   if (notice === undefined) return null;
   return (
     <div ref={noticeRef} tabIndex={-1} data-testid="publish-notice">
