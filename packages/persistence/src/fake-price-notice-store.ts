@@ -1,3 +1,4 @@
+import { isMintedId } from "./dashboard-store-shapes.js";
 import type { FakeCatalogueAvailabilityStore } from "./fake-catalogue-availability-store.js";
 import {
   isRevisionAhead,
@@ -102,9 +103,7 @@ function requireWritable(
 ): void {
   requireDesignId(designId, operation);
   const isWellFormed =
-    typeof pair.versionId === "string" &&
-    pair.versionId !== "" &&
-    isRevisionShape(pair.availabilityRevision);
+    isMintedId(pair.versionId) && isRevisionShape(pair.availabilityRevision);
   if (!isWellFormed)
     throw new DashboardStoreError(operation, "invalid-request");
 }

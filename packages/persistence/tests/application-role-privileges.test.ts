@@ -29,6 +29,11 @@ import {
   readVersionStatement,
   writeDraftStatement,
 } from "../src/price-book-statements.js";
+import {
+  readAcknowledgedStatement,
+  recordAcknowledgedStatement,
+  recordIfAbsentStatement,
+} from "../src/price-notice-statements.js";
 import { prepareStaffAuditRecord } from "../src/staff-audit-store.js";
 import {
   insertUnlessHeldStatement,
@@ -588,6 +593,32 @@ const STAFF_TABLE_GRANTS: readonly StaffTableGrant[] = [
     notUpdatable: "revision",
     updateTail: null,
     insertTail: `(day_key, design_id, revision) values ('2000-01-01', '${A_PROBE_ID}', 1) on conflict (day_key, design_id) do nothing`,
+  },
+  {
+    table: "public.design_price_notices",
+    columns: [
+      "design_id",
+      "acknowledged_version_id",
+      "acknowledged_availability_revision",
+      "acknowledged_at",
+    ],
+    insertable: [
+      "design_id",
+      "acknowledged_version_id",
+      "acknowledged_availability_revision",
+    ],
+    updatable: [
+      "acknowledged_version_id",
+      "acknowledged_availability_revision",
+      "acknowledged_at",
+    ],
+    refusedInsertTail: "(acknowledged_at) values (now())",
+    notUpdatable: "design_id",
+    updateTail: null,
+    insertTail:
+      `(design_id, acknowledged_version_id, acknowledged_availability_revision) values ('${A_PROBE_ID}', '${A_PROBE_ID}', 0) ` +
+      "on conflict (design_id) do update set acknowledged_version_id = excluded.acknowledged_version_id, " +
+      "acknowledged_availability_revision = excluded.acknowledged_availability_revision, acknowledged_at = now()",
   },
 ];
 
@@ -1452,6 +1483,37 @@ describe.skipIf(!hasLiveDatabase)("the application's database role", () => {
           designIds: ["0".repeat(21)],
           revisions: ["1"],
         }),
+      ]) {
+        await expect(
+          explainOfThePresetStatement(statement),
+        ).resolves.toBeDefined();
+      }
+    },
+  );
+
+  // The price-notice store's three statements, the store's own text built by the same functions, planned and never run.
+  // The acknowledgement reads `price_book_versions` and `catalogue_availability_head` besides the marker's own table, so
+  // a column it names that the role was not granted is a 42501 here and not at the first acknowledgement.
+  guardedTest(
+    "can have the price notice store's read, first-open and acknowledgement statements planned, once the tables exist",
+    async (context) => {
+      for (const table of [
+        "public.design_price_notices",
+        "public.price_book_versions",
+        "public.catalogue_availability_head",
+      ]) {
+        await skipUnlessTheTableExists(context, table);
+      }
+      const pair = {
+        designId: A_PROBE_ID,
+        versionId: A_PROBE_ID,
+        availabilityRevision: "0",
+      };
+
+      for (const statement of [
+        readAcknowledgedStatement(recordedStatement, A_PROBE_ID),
+        recordIfAbsentStatement(recordedStatement, pair),
+        recordAcknowledgedStatement(recordedStatement, pair),
       ]) {
         await expect(
           explainOfThePresetStatement(statement),

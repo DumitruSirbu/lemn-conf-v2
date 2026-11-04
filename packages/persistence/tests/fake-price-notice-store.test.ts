@@ -6,7 +6,7 @@ import type { NoticeWorld } from "./support/price-notice-store-contract.js";
 
 /**
  * The fake with the fake price book and availability log behind it, as the contract's world. The same contract runs
- * against `NeonPriceNoticeStore` when lane S builds it.
+ * against `NeonPriceNoticeStore` in `neon-price-notice-store.live.test.ts`.
  */
 describePriceNoticeStoreContract("FakePriceNoticeStore", () => {
   const world = newFakeDashboardWorld();

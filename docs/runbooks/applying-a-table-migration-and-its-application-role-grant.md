@@ -1232,6 +1232,28 @@ A log revision or version with no matching audit row is the sign of a write that
 **Seeding.** Run `seed-price-book <environment> <owner-account-id>` **only after wave P3** has landed (the seed converts the
 sample book to its final form). It refuses when any version already exists. It never prints a secret.
 
+**Wave S5, `0028_create_design_price_notices` (added 2026-11-04; as written in the migration's header at branch
+`m10/s5`; re-check against the merged file). Unapplied anywhere.** Applying it, to any database, is asked of the owner
+first, every time: the owner's approval of `0023`–`0027` on 2026-11-04 does not cover it.
+
+```sql
+GRANT SELECT ON TABLE public.design_price_notices TO app_designs;
+GRANT INSERT (design_id, acknowledged_version_id, acknowledged_availability_revision) ON TABLE public.design_price_notices TO app_designs;
+GRANT UPDATE (acknowledged_version_id, acknowledged_availability_revision, acknowledged_at) ON TABLE public.design_price_notices TO app_designs;
+```
+
+Three lines. **None** of `DELETE`, `TRUNCATE`, `ALL`, `PUBLIC` or a grant option; no `INSERT` of `acknowledged_at` and no
+`UPDATE` of `design_id`. Nothing is granted on `price_book_versions` or `catalogue_availability_head`: the store's
+acknowledgement statement only reads them, under `0023`'s and `0025`'s `SELECT`. The ledger reads 1–27 before and 1–28
+after. **Deploy order:** nothing reads this table until the price-notice routes ship, so apply `0028` and issue the three
+grants **before those routes deploy**; until then they answer 503.
+
+**After applying, cross-check (owner, by hand).** The application credential can write any pair for any design, so a
+marker can hide a notice from a customer or show one to them; it changes no price. A marker whose `acknowledged_version_id`
+is not an `id` in `price_book_versions`, or whose `acknowledged_availability_revision` is greater than the head's
+`revision`, did not come from the application: an acknowledgement is refused for either, and a first open records the
+server's own current pair.
+
 ## Why step 5 names the application role
 
 The file is safe on any credential (criterion 13): it refuses to run past its guard as an owner. It is also only

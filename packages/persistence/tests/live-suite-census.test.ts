@@ -273,6 +273,12 @@ const EXPECTED_CLASSIFICATION: Readonly<
     reason:
       "the digest contract lists over the whole designs table and writes about eighty kitchens of its own, and the rounds it claims are append-only for the application role (it leaves them, at day keys in years 3000 to 8999), so no other run may read the digest tables or count designs meanwhile (M10 wave S4, plan S2 recorded choice a)",
   },
+  "neon-price-notice-store.live.test.ts": {
+    gate: "live test database",
+    lock: "exclusive",
+    reason:
+      "the notice contract publishes versions and switches an item off to move the availability head, and a version and a log row are append-only, so no other run may read the newest version or the head meanwhile",
+  },
   "table-privileges.test.ts": {
     gate: "live test database",
     lock: "none",
