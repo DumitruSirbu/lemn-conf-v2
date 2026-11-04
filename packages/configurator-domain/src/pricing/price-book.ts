@@ -209,6 +209,10 @@ export function isBuiltInAccessoryId(id: string): id is AccessoryId {
   return (ACCESSORY_IDS as readonly string[]).includes(id);
 }
 
+/** The accessory that is protection and never an option: it is always present and is never switched off (ADR 0070
+ *  decision 4). Named here, by its book field, so every judgement of it reads the one place. */
+export const ALWAYS_PRESENT_ACCESSORY_ID: AccessoryId = "sinkProtectiveCover";
+
 /** One whole-kitchen choice: the tiers on offer and the one a design that has chosen nothing is
  *  priced at. */
 export interface TierGroup<TTier extends TierIdentity> {

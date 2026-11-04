@@ -21,8 +21,10 @@ import { offReasonWords } from "@/price-dashboard/item-lifecycle-words";
 import {
   accessoryItem,
   bookWithLinked,
+  DRYING_RACK,
   PUBLISHED,
   PUBLISHED_RULE,
+  SINK_COVER,
   USAGE,
 } from "./accessory-harness";
 import { roCopy } from "./romanian-copy";
@@ -50,28 +52,40 @@ function contextOf(
 }
 
 describe("the switch of an accessory", () => {
-  it.each(ACCESSORY_IDS)(
-    "opens the dialog that switches %s off, with no option named as remaining",
-    (accessoryId) => {
-      expect(switchStandOf(accessoryItem(accessoryId), contextOf())).toEqual({
-        kind: "disable",
-        remaining: [],
-      });
-    },
-  );
+  it("opens the dialog that switches the drying rack off, with no option named as remaining", () => {
+    expect(switchStandOf(accessoryItem(DRYING_RACK), contextOf())).toEqual({
+      kind: "disable",
+      remaining: [],
+    });
+  });
+
+  it("is off for the sink cover, which is protection and not an option, whatever can be written and wherever the defaults are unknown", () => {
+    for (const overrides of [
+      {},
+      { canWrite: false },
+      { defaults: undefined },
+    ]) {
+      expect(
+        switchStandOf(accessoryItem(SINK_COVER), contextOf(overrides)),
+      ).toEqual({ kind: "off", reason: "item-always-present" });
+    }
+  });
+
+  it("says the cover is always added, in the words of its reason", () => {
+    expect(offReasonWords(translate, "item-always-present")).toBe(
+      roCopy("priceDashboard.lifecycle.alwaysPresentCannotChange"),
+    );
+  });
 
   it("is never the last active option, since an accessory is earned and no other is chosen in its place", () => {
     const everyOtherOff: CatalogueAvailability = {
       revision: "1",
-      disabled: [
-        accessoryItem(ACCESSORY_IDS[1] ?? ""),
-        accessoryItem(PUBLISHED),
-      ],
+      disabled: [accessoryItem(SINK_COVER), accessoryItem(PUBLISHED)],
     };
 
     expect(
       switchStandOf(
-        accessoryItem(ACCESSORY_IDS[0] ?? ""),
+        accessoryItem(DRYING_RACK),
         contextOf({ availability: everyOtherOff }),
       ),
     ).toMatchObject({ kind: "disable" });

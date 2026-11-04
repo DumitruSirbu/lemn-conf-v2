@@ -337,11 +337,14 @@ test.describe("the accessory screens at desktop 1440", () => {
   test.describe("a production build (CI): the lifecycle is drawn off, honestly", () => {
     test.skip(!SERVER_IS_PRODUCTION_BUILD, CI_ONLY_REASON);
 
-    test("each built-in: the switch is off with the reason that nothing can be checked, the deletion says it comes with the catalogue, no count is claimed, and pressing sends nothing", async ({
+    test("each built-in: the switch is off (the cover because it is always added, the rack because nothing can be checked), the deletion says it comes with the catalogue, no count is claimed, and pressing sends nothing", async ({
       page,
     }) => {
       const words = wordsOf("ro");
       const cannotJudge = romanian("priceDashboard.lifecycle.cannotJudge");
+      const alwaysPresent = romanian(
+        "priceDashboard.lifecycle.alwaysPresentCannotChange",
+      );
       await openAccessoryList(page);
       const requests = collectDashboardRequests(page);
 
@@ -357,7 +360,7 @@ test.describe("the accessory screens at desktop 1440", () => {
           await entry.click({ force: true });
         }
         await expect(row.getByTestId("menu-reason")).toHaveText([
-          cannotJudge,
+          accessoryId === SINK_COVER ? alwaysPresent : cannotJudge,
           romanian("priceDashboard.lifecycle.builtInAccessoryCannotBeDeleted"),
         ]);
         await menuButtonOf(row).click();

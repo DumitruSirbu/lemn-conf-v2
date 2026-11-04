@@ -29,6 +29,8 @@ export function offReasonWords(
       return translate("priceDashboard.lifecycle.fixedDefaultCannotChange");
     case "item-not-in-active-book":
       return translate("priceDashboard.lifecycle.activateNotPublished");
+    case "item-always-present":
+      return translate("priceDashboard.lifecycle.alwaysPresentCannotChange");
     case "built-in-accessory":
       return translate(
         "priceDashboard.lifecycle.builtInAccessoryCannotBeDeleted",

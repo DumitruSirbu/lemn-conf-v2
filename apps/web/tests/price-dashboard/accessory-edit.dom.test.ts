@@ -125,6 +125,27 @@ describe("a built-in accessory's page", () => {
   });
 });
 
+describe("the sink cover's switch", () => {
+  it("is off with the reason that the cover is always added, and the rack's stays on", async () => {
+    const cover = await mountEdit(SINK_COVER);
+    const coverSwitch = cover.querySelector('button[role="switch"]');
+    expect(coverSwitch?.getAttribute("aria-disabled")).toBe("true");
+    expect(coverSwitch?.getAttribute("aria-checked")).toBe("true");
+    expect(cover.textContent).toContain(
+      roCopy("priceDashboard.lifecycle.alwaysPresentCannotChange"),
+    );
+    mounted?.unmount();
+
+    const rack = await mountEdit(DRYING_RACK);
+
+    expect(
+      rack
+        .querySelector('button[role="switch"]')
+        ?.getAttribute("aria-disabled"),
+    ).toBeNull();
+  });
+});
+
 describe("the price", () => {
   it("holds the price the draft would leave and names what is active", async () => {
     const container = await mountEdit(SINK_COVER, {

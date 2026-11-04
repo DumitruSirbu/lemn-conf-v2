@@ -267,6 +267,35 @@ test.describe("the accessory screens on a phone, 390 x 844", () => {
       await shootForReview(page, "390-d6b-cover");
     });
 
+    test("the sink cover's switch is off with the reason that it is always added, under either server; a tap sends nothing and opens nothing", async ({
+      page,
+    }) => {
+      const words = wordsOf("ro");
+      await openAccessory(page, SINK_COVER);
+      const requests = collectDashboardRequests(page);
+
+      const toggle = activeSwitch(page, words);
+      await expect(toggle).toHaveAttribute("aria-disabled", "true");
+      await expect(toggle).toHaveAttribute("aria-checked", "true");
+      await expect(
+        editPageOf(page).getByText(
+          romanian("priceDashboard.lifecycle.alwaysPresentCannotChange"),
+        ),
+      ).toBeVisible();
+      await toggle.tap({ force: true });
+
+      await expect(itemDialogOf(page)).toHaveCount(0);
+      expect(requests, "an off control sends nothing").toEqual([]);
+
+      await openAccessoryList(page);
+      const row = rowOf(page, SINK_COVER);
+      await menuButtonOf(row).tap();
+      await expect(menuEntryOf(row, words, "switch-off")).toHaveAttribute(
+        "aria-disabled",
+        "true",
+      );
+    });
+
     test("the price is a field with its unit and the active amount beside it; a refused value says why in the field, switches Save off and sends nothing; RO and RU", async ({
       page,
     }) => {
@@ -452,11 +481,14 @@ test.describe("the accessory screens on a phone, 390 x 844", () => {
   test.describe("a production build (CI): the lifecycle is drawn off, honestly", () => {
     test.skip(!SERVER_IS_PRODUCTION_BUILD, CI_ONLY_REASON);
 
-    test("each built-in: the switch entry is off with the reason that nothing can be checked, the delete entry says it comes with the catalogue, no count is claimed anywhere, and pressing sends nothing", async ({
+    test("each built-in: the switch entry is off (the cover because it is always added, the rack because nothing can be checked), the delete entry says it comes with the catalogue, no count is claimed anywhere, and pressing sends nothing", async ({
       page,
     }) => {
       const words = wordsOf("ro");
       const cannotJudge = romanian("priceDashboard.lifecycle.cannotJudge");
+      const alwaysPresent = romanian(
+        "priceDashboard.lifecycle.alwaysPresentCannotChange",
+      );
       const builtIn = romanian(
         "priceDashboard.lifecycle.builtInAccessoryCannotBeDeleted",
       );
@@ -475,7 +507,7 @@ test.describe("the accessory screens on a phone, 390 x 844", () => {
           await entry.tap({ force: true });
         }
         await expect(row.getByTestId("menu-reason")).toHaveText([
-          cannotJudge,
+          accessoryId === SINK_COVER ? alwaysPresent : cannotJudge,
           builtIn,
         ]);
       }

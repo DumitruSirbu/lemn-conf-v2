@@ -39,6 +39,8 @@ export type OffReason =
   | "item-is-default"
   | "item-is-fixed-default"
   | "item-not-in-active-book"
+  /** The sink cover is protection, not an option: it is never switched off. */
+  | "item-always-present"
   /** A built-in accessory comes with the catalogue: it can be switched off, never deleted. */
   | "built-in-accessory"
   | "cannot-judge";

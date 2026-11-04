@@ -6,6 +6,7 @@ import * as fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
 import type { Design, Handle } from "../../src/design.js";
+import { ALWAYS_PRESENT_ACCESSORY_ID } from "../../src/pricing/price-book.js";
 import { KITCHEN_L_DESIGN } from "../../src/fixtures/kitchen-l-design.js";
 import type { NewKitchenSettings } from "../../src/generation/new-kitchen-settings.js";
 import {
@@ -109,6 +110,7 @@ describe("the refusal codes are the wire's own words", () => {
   it("names exactly the codes the availability and deletion routes answer", () => {
     expect([...AVAILABILITY_REFUSAL_CODES].sort()).toEqual(
       [
+        "item-always-present",
         "item-is-default",
         "item-is-fixed-default",
         "item-not-in-active-book",
@@ -118,6 +120,48 @@ describe("the refusal codes are the wire's own words", () => {
     expect([...DELETION_REFUSAL_CODES].sort()).toEqual(
       ["item-in-use", "item-is-default", "item-is-fixed-default"].sort(),
     );
+  });
+});
+
+describe("the sink cover is protection, not an option, so it is never switched off", () => {
+  const cover = {
+    kind: "accessory",
+    accessoryId: ALWAYS_PRESENT_ACCESSORY_ID,
+  } as const;
+  const rack = { kind: "accessory", accessoryId: "dishDryingRack" } as const;
+
+  it("is refused as always present, whatever the defaults and whatever is already off", () => {
+    for (const availability of [
+      { revision: "1", disabled: [] },
+      { revision: "1", disabled: [rack] },
+    ]) {
+      expect(disable(cover, { ...stateOf(), availability })).toEqual({
+        kind: "refused",
+        code: "item-always-present",
+      });
+    }
+  });
+
+  it("is switched on when it is somehow off, and the rack stays switchable", () => {
+    expect(
+      judgeAvailabilityChange(
+        { item: cover, active: true },
+        { ...stateOf(), availability: { revision: "1", disabled: [cover] } },
+      ),
+    ).toEqual(ALLOWED);
+    expect(disable(rack, stateOf())).toEqual(ALLOWED);
+  });
+
+  it("is refused for no other item of any kind", () => {
+    for (const item of UNIVERSE) {
+      const isCover =
+        item.kind === "accessory" && item.accessoryId === cover.accessoryId;
+      const verdict = disable(item, stateOf());
+      expect(
+        verdict.kind === "refused" && verdict.code === "item-always-present",
+        JSON.stringify(item),
+      ).toBe(isCover);
+    }
   });
 });
 
@@ -203,6 +247,7 @@ describe("a default item cannot be switched off, and a fixed one is told apart f
   it("allows an item that is not a default while others in its group are on", () => {
     const allowed = UNIVERSE.filter(
       (item) =>
+        !isSameItem(item, COVER) &&
         !defaultItemsOf({ book: BOOK, defaults: {} }).some((d) =>
           isSameItem(d, item),
         ),
@@ -385,7 +430,10 @@ describe("the last active option of a group cannot be switched off", () => {
     expect(
       disable(accessory("organiser"), stateOf(everythingElseOff, {}, book)),
     ).toEqual(ALLOWED);
-    expect(disable(COVER, stateOf())).toEqual(ALLOWED);
+    expect(disable(COVER, stateOf())).toEqual({
+      kind: "refused",
+      code: "item-always-present",
+    });
   });
 
   it("keeps every group with an option on, over any sequence of switch-offs from any state", () => {
@@ -487,7 +535,8 @@ describe("an item the kitchens use may be switched off (owner ruling: disable al
       defaults.some((d) => isSameItem(d, item)),
     );
     const usedNonDefaults = used.filter(
-      (item) => !defaults.some((d) => isSameItem(d, item)),
+      (item) =>
+        !isSameItem(item, COVER) && !defaults.some((d) => isSameItem(d, item)),
     );
 
     expect(usedDefaults.length).toBeGreaterThan(0);

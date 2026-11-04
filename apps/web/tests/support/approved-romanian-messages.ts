@@ -2250,6 +2250,8 @@ export const APPROVED_ROMANIAN_MESSAGES = {
         "Vine odată cu catalogul și nu se șterge. Îl poți dezactiva.",
       deleteCreatedAccessoryBody:
         "Accesoriul nu a fost încă publicat. Ștergerea îl scoate din „De publicat”.",
+      alwaysPresentCannotChange:
+        "Se adaugă întotdeauna, ca protecție, și nu se dezactivează.",
     },
     publish: {
       title: "Publicare prețuri",

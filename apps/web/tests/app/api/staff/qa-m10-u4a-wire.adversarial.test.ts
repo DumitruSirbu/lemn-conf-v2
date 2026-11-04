@@ -356,11 +356,11 @@ describe("what the draft client does with the 409s the real routes can answer", 
 });
 
 describe("the refusal words of the lifecycle client's port against the wire's conflicts (R4a gives the wire the fixed default)", () => {
-  it("states today which one is missing: the fixed default, which R4a gives the wire (this test must change with it)", () => {
+  it("states today which are missing: the fixed default and the always-present accessory, which R4a gives the wire (this test must change with it)", () => {
     const wireWords: readonly string[] = DASHBOARD_CONFLICTS;
 
     expect(
       AVAILABILITY_REFUSAL_CODES.filter((code) => !wireWords.includes(code)),
-    ).toEqual(["item-is-fixed-default"]);
+    ).toEqual(["item-is-fixed-default", "item-always-present"]);
   });
 });

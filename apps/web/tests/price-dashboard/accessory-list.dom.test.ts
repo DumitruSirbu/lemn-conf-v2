@@ -236,6 +236,21 @@ describe("the actions of an accessory", () => {
     );
   });
 
+  it("turns the sink cover's switch off with the reason that it is always added, and opens no dialog from it", async () => {
+    mounted = await mountAccessoryList(accessoryPageOf());
+
+    await openMenuOf(mounted.container, SINK_COVER, COVER_NAME);
+
+    const entry = menuEntry(mounted.container, SINK_COVER, DEACTIVATE);
+    expect(entry.getAttribute("aria-disabled")).toBe("true");
+    expect(reasonUnder(entry)).toBe(
+      roCopy("priceDashboard.lifecycle.alwaysPresentCannotChange"),
+    );
+    entry.click();
+    expect(document.querySelector('[role="alertdialog"]')).toBeNull();
+    expect(mounted.lifecycle.calls).toEqual([]);
+  });
+
   it.each([
     [SINK_COVER, COVER_NAME, "saved defaults none"],
     [DRYING_RACK, RACK_NAME, "saved defaults none"],
