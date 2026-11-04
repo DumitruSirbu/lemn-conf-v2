@@ -215,11 +215,16 @@ function ReadyKitchen({
     isChangedAfterSeen: wire.changedAfterSeen,
   });
   const { kitchen } = wire;
-  const versions = versionsOf(kitchen);
+  const { asSent, design } = kitchen;
+  const versions = useMemo(
+    () => versionsOf({ asSent, design }),
+    [asSent, design],
+  );
   const shown = shownDesignOf(kitchen, chosenVersion);
   const shownVersion: KitchenVersion =
     shown?.source === "current" ? "current" : "sent";
   const versionLabels = versionLabelsOf({
+    hasVersions: versions !== undefined,
     kitchen,
     changes,
     locale,
@@ -317,18 +322,20 @@ function ReadyKitchen({
 
 /** The words of the version switch, once both copies can be read and the kitchen has a sent day to name the first by. */
 function versionLabelsOf({
+  hasVersions,
   kitchen,
   changes,
   locale,
   readAtMs,
 }: {
+  readonly hasVersions: boolean;
   readonly kitchen: StaffKitchenOpenedWire["kitchen"];
   readonly changes: StaffChangesCopy;
   readonly locale: AppLocale;
   readonly readAtMs: number;
 }): Readonly<Record<KitchenVersion, string>> | undefined {
   const sentAt = sentAtOf(kitchen);
-  if (versionsOf(kitchen) === undefined || sentAt === null) return undefined;
+  if (!hasVersions || sentAt === null) return undefined;
   const modifiedAge = shopRelativeAgeOf(
     Date.parse(kitchen.updatedAt),
     readAtMs,

@@ -42,7 +42,7 @@ export function shownDesignOf(
 /** The two copies the version switch chooses between: the kitchen as the shop was sent it and as it stands now. Nothing
  *  when this build cannot read one of them, or when they are the same kitchen, where a switch would choose nothing. */
 export function versionsOf(
-  kitchen: StaffKitchenWire["kitchen"],
+  kitchen: Pick<StaffKitchenWire["kitchen"], "asSent" | "design">,
 ): KitchenVersions | undefined {
   if (kitchen.asSent === null || kitchen.design === null) return undefined;
   const versions = { sent: kitchen.asSent, current: kitchen.design };

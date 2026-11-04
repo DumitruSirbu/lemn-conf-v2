@@ -308,45 +308,12 @@ export function StaffKitchenSummary({
   readonly comparison?: SummaryComparison;
 }) {
   const copy = useStaffKitchenCopy();
-  const changes = useStaffChangesCopy().cabinets;
-  const content = useContent();
-  const priceBook = usePriceBookRoot();
-  const rows = useMemo(
-    () =>
-      describeStaffSummaryRows({
-        design,
-        priceBook,
-        copy,
-        content,
-        noValue,
-      }).filter((row) => !(omitsPrice && row.key === "price")),
-    [design, priceBook, copy, content, noValue, omitsPrice],
-  );
-  const otherDesign = comparison?.design;
-  const otherValues = useMemo(
-    () =>
-      otherDesign === undefined
-        ? undefined
-        : new Map(
-            describeStaffSummaryRows({
-              design: otherDesign,
-              priceBook,
-              copy,
-              content,
-              noValue,
-            }).map((row) => [row.key, row.value]),
-          ),
-    [otherDesign, priceBook, copy, content, noValue],
-  );
-  const otherValueOf = (row: StaffSummaryRow): string | undefined => {
-    const other = otherValues?.get(row.key);
-    const isComparable =
-      COMPARED_FACTS.includes(row.key) &&
-      row.value !== noValue &&
-      other !== undefined &&
-      other !== noValue;
-    return isComparable && other !== row.value ? other : undefined;
-  };
+  const rows = useSummaryRows({ design, noValue, omitsPrice });
+  const differing = useDifferingFacts({
+    rows,
+    otherDesign: comparison?.design,
+    noValue,
+  });
   return (
     <section
       className={styles.card}
@@ -357,39 +324,128 @@ export function StaffKitchenSummary({
         {title}
       </h2>
       <dl className={styles.facts}>
-        {rows.map((row) => {
-          const other = otherValueOf(row);
-          return (
-            <div
-              key={row.key}
-              className={styles.fact}
-              data-fact={row.key}
-              data-differs={other === undefined ? undefined : "true"}
-            >
-              <dt className={styles.factLabel}>{row.label}</dt>
-              <dd className={styles.factValue}>
-                {row.value}
-                {row.sub === undefined ? null : (
-                  <span className={styles.factSub}>{row.sub}</span>
-                )}
-                {other === undefined ? null : (
-                  <>
-                    <span className={styles.factMark}>{changes.differs}</span>
-                    {comparison?.isShownCurrent === true ? (
-                      <span className={styles.factSub}>
-                        {changes.wasInSent(other)}
-                      </span>
-                    ) : null}
-                  </>
-                )}
-              </dd>
-            </div>
-          );
-        })}
+        {rows.map((row) => (
+          <SummaryFact
+            key={row.key}
+            row={row}
+            sentValue={
+              comparison?.isShownCurrent === true
+                ? differing.get(row.key)
+                : undefined
+            }
+            isDiffering={differing.has(row.key)}
+          />
+        ))}
       </dl>
       {omitsPrice ? null : (
         <p className={styles.cardNote}>{copy.summary.priceNote}</p>
       )}
     </section>
+  );
+}
+
+function useSummaryRows({
+  design,
+  noValue,
+  omitsPrice,
+}: {
+  readonly design: Design;
+  readonly noValue: string;
+  readonly omitsPrice: boolean;
+}): readonly StaffSummaryRow[] {
+  const copy = useStaffKitchenCopy();
+  const content = useContent();
+  const priceBook = usePriceBookRoot();
+  return useMemo(
+    () =>
+      describeStaffSummaryRows({
+        design,
+        priceBook,
+        copy,
+        content,
+        noValue,
+      }).filter((row) => !(omitsPrice && row.key === "price")),
+    [design, priceBook, copy, content, noValue, omitsPrice],
+  );
+}
+
+/**
+ * The settings of the kitchen that read differently in the other copy, by fact, with what the other copy says. A fact
+ * either copy cannot tell (the dash) is not compared: a kitchen the price book cannot price would otherwise differ from
+ * every one it can.
+ */
+function useDifferingFacts({
+  rows,
+  otherDesign,
+  noValue,
+}: {
+  readonly rows: readonly StaffSummaryRow[];
+  readonly otherDesign: Design | undefined;
+  readonly noValue: string;
+}): ReadonlyMap<StaffSummaryRow["key"], string> {
+  const copy = useStaffKitchenCopy();
+  const content = useContent();
+  const priceBook = usePriceBookRoot();
+  const otherRows = useMemo(
+    () =>
+      otherDesign === undefined
+        ? []
+        : describeStaffSummaryRows({
+            design: otherDesign,
+            priceBook,
+            copy,
+            content,
+            noValue,
+          }),
+    [otherDesign, priceBook, copy, content, noValue],
+  );
+  return useMemo(() => {
+    const differing = new Map<StaffSummaryRow["key"], string>();
+    for (const row of rows) {
+      const other = otherRows.find(({ key }) => key === row.key)?.value;
+      const isDiffering =
+        COMPARED_FACTS.includes(row.key) &&
+        other !== undefined &&
+        row.value !== noValue &&
+        other !== noValue &&
+        other !== row.value;
+      if (isDiffering) differing.set(row.key, other);
+    }
+    return differing;
+  }, [rows, otherRows, noValue]);
+}
+
+/** One line of the summary. A fact that differs between the copies takes a mark, and beside the current copy it says what
+ *  the sent one had (`sentValue`). */
+function SummaryFact({
+  row,
+  isDiffering,
+  sentValue,
+}: {
+  readonly row: StaffSummaryRow;
+  readonly isDiffering: boolean;
+  readonly sentValue: string | undefined;
+}) {
+  const changes = useStaffChangesCopy().cabinets;
+  return (
+    <div
+      className={styles.fact}
+      data-fact={row.key}
+      data-differs={isDiffering ? "true" : undefined}
+    >
+      <dt className={styles.factLabel}>{row.label}</dt>
+      <dd className={styles.factValue}>
+        {row.value}
+        {row.sub === undefined ? null : (
+          <span className={styles.factSub}>{row.sub}</span>
+        )}
+        {isDiffering ? (
+          <span className={styles.factMark}>{changes.differs}</span>
+        ) : null}
+        {sentValue === undefined ? null : (
+          <span className={styles.factSub}>{changes.wasInSent(sentValue)}</span>
+        )}
+      </dd>
+    </div>
   );
 }

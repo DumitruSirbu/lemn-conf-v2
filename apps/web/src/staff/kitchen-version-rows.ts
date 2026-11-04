@@ -53,15 +53,8 @@ export function versionRowsOf({
     shown === "sent" ? [sent, current] : [current, sent];
   const otherById = new Map(other.map((entry) => [entry.placementId, entry]));
   const onScreenIds = new Set(onScreen.map((entry) => entry.placementId));
-  const rowOf = (
-    entry: DisplayEntry,
-    change: VersionRowChange,
-  ): VersionRow => ({
-    placementId: entry.placementId,
-    name: content.bodyLabel(entry.label),
-    size: [entry.widthMm, entry.heightMm].join(SIZE_JOINER),
-    change,
-  });
+  const rowOf = (entry: DisplayEntry, change: VersionRowChange): VersionRow =>
+    versionRowOf({ entry, change, content });
   const matched = onScreen.map((entry) => {
     const counterpart = otherById.get(entry.placementId);
     if (counterpart === undefined) {
@@ -73,6 +66,23 @@ export function versionRowsOf({
     .filter((entry) => !onScreenIds.has(entry.placementId))
     .map((entry) => rowOf(entry, shown === "sent" ? "added" : "removed"));
   return [...matched, ...onlyInOther];
+}
+
+function versionRowOf({
+  entry,
+  change,
+  content,
+}: {
+  readonly entry: DisplayEntry;
+  readonly change: VersionRowChange;
+  readonly content: Content;
+}): VersionRow {
+  return {
+    placementId: entry.placementId,
+    name: content.bodyLabel(entry.label),
+    size: [entry.widthMm, entry.heightMm].join(SIZE_JOINER),
+    change,
+  };
 }
 
 function entriesOf(design: Design): readonly DisplayEntry[] | undefined {

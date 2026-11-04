@@ -22,8 +22,9 @@ import styles from "./staff-kitchens.module.css";
 import type { StaffKitchens } from "./use-staff-kitchens";
 
 // The bar over the list (frames S2B, S2B3, S2D): the segment, the search by the client's e-mail or name, and the
-// request status, which only "Trimise" has, and the switch to the kitchens changed after they were seen (frame D10A). The search is a text the person types and a client's own data: it has no
-// `name`, so a browser keeps no history of it, and the form never submits to an address.
+// request status, which only "Trimise" has, and the switch to the kitchens changed after they were seen (frame D10A).
+// The search is a text the person types and a client's own data: it has no `name`, so a browser keeps no history of it,
+// and the form never submits to an address.
 
 /** The fields a press can take away the button that held focus beside: the screen sends focus back to them. */
 export interface FilterFocusTargets {
