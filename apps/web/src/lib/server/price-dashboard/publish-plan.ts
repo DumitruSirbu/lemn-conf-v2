@@ -4,10 +4,14 @@ import type { NextResponse } from "next/server";
 
 import {
   applyChanges,
+  buildIdsPricedAs,
+  deletedBookItemsOf,
   judgeBookAgainstCatalog,
   type DraftChange,
+  type ItemRef,
   type PriceBook,
 } from "@lemnaria/configurator-domain";
+import type { DeletedItem } from "@lemnaria/persistence";
 
 import {
   refusalOfBook,
@@ -32,6 +36,8 @@ export type PublishPlan =
       readonly book: PriceBook;
       /** The published changes, as the draft held them: stored beside the book as its change summary. */
       readonly changes: readonly DraftChange[];
+      /** The deletions of rows the active book holds, as the store's guard on a used item is asked about them. */
+      readonly deletedItems: readonly DeletedItem[];
     };
 
 export function planPublish(
@@ -50,7 +56,44 @@ export function planPublish(
       response: candidateRefusedResponse(candidate.refusals),
     };
   }
-  return { kind: "publish", book: candidate.book, changes: draft.changes };
+  return {
+    kind: "publish",
+    book: candidate.book,
+    changes: draft.changes,
+    deletedItems: deletedItemsOf(draft.changes, book),
+  };
+}
+
+/**
+ * Each deletion of a row the active book holds, a linked accessory with the build ids the catalogue prices as its row. A
+ * kind a deletion cannot be, or an accessory the book states no rule for, goes with none, and the store refuses the
+ * publish rather than leave it unguarded.
+ */
+function deletedItemsOf(
+  changes: readonly DraftChange[],
+  book: PriceBook,
+): readonly DeletedItem[] {
+  return deletedBookItemsOf(changes).flatMap((item) => {
+    const deleted = deletedItemFor(item, book);
+    return deleted === undefined ? [] : [deleted];
+  });
+}
+
+function deletedItemFor(
+  item: ItemRef,
+  book: PriceBook,
+): DeletedItem | undefined {
+  if (item.kind === "material" || item.kind === "hardware") return { item };
+  if (item.kind !== "accessory") return undefined;
+  const rule = book.linkedAccessories.find(
+    ({ accessoryId }) => accessoryId === item.accessoryId,
+  );
+  return rule === undefined
+    ? undefined
+    : {
+        item,
+        buildIds: buildIdsPricedAs(shippedCatalogue(), rule.linkedBuildId),
+      };
 }
 
 type Candidate =

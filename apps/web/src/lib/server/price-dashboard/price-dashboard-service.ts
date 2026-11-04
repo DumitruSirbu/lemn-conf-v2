@@ -542,7 +542,7 @@ async function performPublish(
     expectedActiveSequence: input.expectedActiveSequence,
     expectedAvailabilityRevision: input.expectedAvailabilityRevision,
     createdItems: createdItemsOf(plan.changes),
-    deletedItems: [],
+    deletedItems: plan.deletedItems,
     label: input.label,
     note: input.note,
     book: plan.book,
