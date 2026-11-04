@@ -13,10 +13,14 @@ export default defineConfig({
     // The `.dom.test.ts` files declare `happy-dom` per file in a docblock rather than moving the
     // whole project onto it; this is the one thing they all need and none of them should own.
     setupFiles: ["./tests/support/vitest.setup.ts"],
-    // A public origin as a developer's shell might export it, set before the setup file runs, so that the setup's
-    // clearing of it is exercised on every run (`tests/support/vitest-setup-environment.test.ts`). It has no scheme, so
-    // the origin reader refuses it should the clearing ever stop.
-    env: { LEMNARIA_PUBLIC_ORIGIN: "inherited-from-the-shell" },
+    // A public origin and a database as a developer's shell might export them, set before the setup file runs, so that the
+    // setup's clearing of them is exercised on every run (`tests/support/vitest-setup-environment.test.ts`). The origin
+    // has no scheme, so the origin reader refuses it should the clearing ever stop; the database's host is one no
+    // resolver answers.
+    env: {
+      LEMNARIA_PUBLIC_ORIGIN: "inherited-from-the-shell",
+      DATABASE_URL: "postgres://shell:shell@database.shell.invalid/shell",
+    },
     passWithNoTests: false,
     // Guards against a hang, not against a slow test, as in the domain package: the 2-core CI runner
     // ran a property file 4.5x its local time, and the 5 s default failed a 1.2 s test there (ci run

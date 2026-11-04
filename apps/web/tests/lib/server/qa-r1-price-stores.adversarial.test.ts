@@ -41,6 +41,9 @@ function forgetTheProcessStores(): void {
 
 beforeEach(() => {
   seeding.calls = 0;
+  // Production's stores are the database's, and with no connection to make they answer "unavailable"; naming none keeps
+  // this file off a database whatever the shell exports.
+  vi.stubEnv("DATABASE_URL", "");
   forgetTheProcessStores();
 });
 

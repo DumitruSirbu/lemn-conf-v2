@@ -43,6 +43,9 @@ beforeEach(() => {
   staffWorld = freshStaffWorld();
   console_ = captureConsole();
   forgetTheStores();
+  // Production's stores are the database's, and with no connection to make they answer "unavailable"; naming none keeps
+  // this file off a database whatever the shell exports.
+  vi.stubEnv("DATABASE_URL", "");
   for (const name of [
     "VERCEL_ENV",
     FAKE_PRICE_BOOK_FLAG,

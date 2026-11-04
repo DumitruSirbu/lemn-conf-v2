@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { NO_PRICE_BOOK, type PriceBookRoot } from "@/price/price-book-root";
 
+import { freshAccountWorld } from "../support/account-world";
+import { holdNoActivePriceVersion } from "../support/held-price-stores";
 import { priceBookRootOf } from "../support/price-book-wrapper";
 
 // Every surface that prices a kitchen reads the same book root, once per request (backlog 176, R1): the three owner
@@ -160,8 +162,9 @@ describe("every surface is handed the one book root of the active version", () =
 });
 
 describe("with no active version every surface refuses (A-10)", () => {
-  beforeEach(() => {
-    vi.stubEnv("NODE_ENV", "production");
+  beforeEach(async () => {
+    freshAccountWorld();
+    await holdNoActivePriceVersion();
   });
 
   it.each(SURFACES)("%s is handed no book", async (_, draw) => {

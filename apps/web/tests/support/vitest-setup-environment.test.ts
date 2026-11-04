@@ -11,4 +11,10 @@ describe("the environment every test file starts in", () => {
 
     expect(Object.hasOwn(process.env, PUBLIC_ORIGIN_VARIABLE)).toBe(false);
   });
+
+  it("holds no database connection, though the run was started with one", () => {
+    expect(config.test?.env?.DATABASE_URL).toMatch(/^postgres:\/\//);
+
+    expect(Object.hasOwn(process.env, "DATABASE_URL")).toBe(false);
+  });
 });

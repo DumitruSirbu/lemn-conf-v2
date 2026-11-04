@@ -14,8 +14,9 @@ import { UNAVAILABLE_PRICE_BOOK_STORE } from "@/lib/server/unavailable-price-sto
 
 // What a page read does with a failure of the stores. A store's own failure, and a stored value that is not what the store
 // declares, are nothing to show and one line to write down; anything else is a defect of ours and is thrown on, as the
-// price root throws it. A store that says it is unavailable while production holds the stub stores is production's state
-// until the database stores exist, and writes nothing.
+// price root throws it. A store that says it is unavailable while production holds the stub stores is production with no
+// database connection to make, which the price root writes down on every request; a page read adds no second line for it.
+// A database store that says it is unavailable is a real outage and is written down.
 
 export async function absorbStoreFailure(failure: unknown): Promise<void> {
   if (failure instanceof DashboardStoreError) {

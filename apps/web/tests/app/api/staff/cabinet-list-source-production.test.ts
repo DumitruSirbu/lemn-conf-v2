@@ -1,7 +1,7 @@
-// The cabinet list's source where the price stores are the unavailable ones (production, until the database-backed
-// stores exist): the store throws, the source says `unavailable`, and no price is claimed. This is how the list handles
-// the stub: a production build never shows a sample. The real `getPriceStores` is used here, and a deployment variable
-// is how production is chosen.
+// The cabinet list's source where the price stores are the unavailable ones (production with no database connection to
+// make): the store throws, the source says `unavailable`, and no price is claimed. This is how the list handles the
+// stub: a production build never shows a sample. The real `getPriceStores` is used here, and a deployment variable is
+// how production is chosen.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -36,6 +36,9 @@ beforeEach(() => {
   staffWorld = freshStaffWorld();
   console_ = captureConsole();
   vi.stubEnv(CLIENT_NETWORK_SOURCE_VARIABLE, "vercel");
+  // Production's stores are the database's, and with no connection to make they answer "unavailable"; naming none keeps
+  // this file off a database whatever the shell exports.
+  vi.stubEnv("DATABASE_URL", "");
   (globalThis as Record<symbol, unknown>)[PRICE_STORES_GLOBAL_KEY] = undefined;
 });
 

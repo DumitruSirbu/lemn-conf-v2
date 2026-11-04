@@ -77,6 +77,9 @@ let written: unknown[][];
 
 beforeEach(() => {
   written = [];
+  // Production's stores are the database's, and with no connection to make they answer "unavailable"; naming none keeps
+  // this file off a database whatever the shell exports.
+  vi.stubEnv("DATABASE_URL", "");
   vi.spyOn(console, "error").mockImplementation((...line: unknown[]) => {
     written.push(line);
   });

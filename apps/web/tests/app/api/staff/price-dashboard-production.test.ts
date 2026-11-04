@@ -36,9 +36,9 @@ vi.mock("@/lib/server/staff/staff-audit-store-instance", () =>
 );
 
 /**
- * The dashboard routes in production, where the price stores are the unavailable ones until the database-backed stores
- * exist (R1, A-10): nothing is read, nothing is written, and every route says so with the one `503` and no detail. These
- * tests use the real `getPriceStores`, not a world: a deployment variable is set, which is how production is chosen.
+ * The dashboard routes in production with no database connection to make, where the price stores are the unavailable ones
+ * (R1, A-10): nothing is read, nothing is written, and every route says so with the one `503` and no detail. These tests
+ * use the real `getPriceStores`, not a world: a deployment variable is set, which is how production is chosen.
  */
 
 let staffWorld: StaffWorld;
@@ -49,6 +49,9 @@ beforeEach(() => {
   staffWorld = freshStaffWorld();
   console_ = captureConsole();
   vi.stubEnv(CLIENT_NETWORK_SOURCE_VARIABLE, "vercel");
+  // Production's stores are the database's, and with no connection to make they answer "unavailable"; naming none keeps
+  // this file off a database whatever the shell exports.
+  vi.stubEnv("DATABASE_URL", "");
   (globalThis as Record<symbol, unknown>)[PRICE_STORES_GLOBAL_KEY] = undefined;
 });
 

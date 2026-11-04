@@ -1,8 +1,10 @@
 import "server-only";
 
-import type {
-  CatalogueAvailabilityStore,
-  PriceBookStore,
+import {
+  NeonCatalogueAvailabilityStore,
+  NeonPriceBookStore,
+  type CatalogueAvailabilityStore,
+  type PriceBookStore,
 } from "@lemnaria/persistence";
 
 import {
@@ -77,15 +79,23 @@ function isNamed(
 }
 
 /**
- * The stores production reads. Until the real stores exist it holds the stores that answer every call "unavailable", so
- * every price surface renders no figure and the contact route refuses (A-10). The real stores replace the two members here
- * and nowhere else, made on first use and never at import or build, as `repository.ts` makes its own.
+ * The stores production reads: the database's, made here on first use and never at import or build, as `repository.ts`
+ * makes its own. A connection that cannot be made (no `DATABASE_URL`, or one the driver refuses) is not a defect of a
+ * request: production then holds the stores that answer every call "unavailable", so every price surface renders no figure
+ * and the contact route refuses (A-10), and each read writes its own line of the cause.
  */
 function productionPriceStores(): PriceStores {
-  return {
-    priceBook: UNAVAILABLE_PRICE_BOOK_STORE,
-    availability: UNAVAILABLE_CATALOGUE_AVAILABILITY_STORE,
-  };
+  try {
+    return {
+      priceBook: new NeonPriceBookStore(),
+      availability: new NeonCatalogueAvailabilityStore(),
+    };
+  } catch {
+    return {
+      priceBook: UNAVAILABLE_PRICE_BOOK_STORE,
+      availability: UNAVAILABLE_CATALOGUE_AVAILABILITY_STORE,
+    };
+  }
 }
 
 /**

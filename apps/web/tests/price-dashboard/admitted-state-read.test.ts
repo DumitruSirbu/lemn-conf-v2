@@ -1,5 +1,6 @@
 // A page read of the dashboard writes a line when a store fails and none when production holds the stub stores, which say
-// "unavailable" to everything until the database stores exist: every staff page load would otherwise add a line. An error
+// "unavailable" to everything where no database connection can be made: the price root already writes that line on every
+// request, so a staff page load would otherwise add a second. An error
 // that is no store's is a defect and is thrown on.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
