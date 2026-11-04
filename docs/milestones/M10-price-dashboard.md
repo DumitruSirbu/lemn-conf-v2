@@ -1907,6 +1907,22 @@ if the routes do all of this:
 4. A malformed version id is the store's `invalid-request`; the route shape-checks it or answers 400, never 5xx.
 5. Refuse cross-site requests and non-JSON bodies (415), as the save route does. Never serialise an error's cause.
 
+**K2b decisions and gaps** (2026-11-04, K2b developer and QA):
+- **Poll bound, not an index.** The changed count is read at most once per 60 s per reader per server instance;
+  concurrent polls share one read and a failed read is never kept. The figure is provisional, in
+  `changed-count-poll-interval.ts`, for K4's hook. The counter can lag a seen mark by up to 60 s, on another instance
+  too; the list's `changedCount` is always fresh. No index migration.
+- **The poll does not keep a session alive** (`admitStaffWithoutKeepAlive`); idle expiry, revocation, a password change
+  and `contact.read` still apply. K4's hook handles the `401` once the session idles out.
+- **A price-store outage opens the kitchen** with the current estimate refused (`NO_PRICE_BOOK`), never a 503.
+- **Unowned gap, new wave W1: wire the production price stores.** `productionPriceStores()` (`price-stores.ts`) still
+  returns the stores that answer "unavailable", so production prices nothing although `NeonPriceBookStore` and
+  `NeonCatalogueAvailabilityStore` exist. W1 swaps them, keeps `admitted-failure.ts`'s identity check true, and takes
+  Full + security review. The kitchen-change store's instance is K2b's.
+- **Test-database residue** from the first live runs, committed before the suite's fix: digest rounds `3500-01-01` and
+  `3500-01-02` with their entries, and 26 `s4qa-%` accounts. The suite no longer touches those days. Removing them is a
+  manual delete, the owner's call.
+
 **S2 and S4 hand-off: the stored change count** (architect, 2026-11-04; ADR 0178's last Amendment). Source-verified at
 `m10/s2` @ `c44978ec`. `m10/s4` @ `678c4131` holds the same bytes in the statements, the store, the fake, `0023`, the
 helper and every named test except one. Measured with `git diff --stat m10/s2 m10/s4` over every file named here, S4
