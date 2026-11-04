@@ -277,6 +277,24 @@ describe("deleting a class only the draft holds", () => {
   });
 });
 
+describe("where the saved kitchens cannot be counted", () => {
+  it("claims nothing, leaves the confirmation off and sends nothing", async () => {
+    mounted = await mountHardwareList(hardwarePageOf());
+    mounted.lifecycle.answerNextUsageWith({ kind: "unavailable" });
+
+    const dialog = await openDeleteFor(BLUM, BLUM_NAME);
+    const confirm = dialogButton(dialog, DELETE);
+    await press(confirm);
+
+    expect(dialog.textContent).toContain(
+      roCopy("priceDashboard.lifecycle.usageUnavailable"),
+    );
+    expect(confirm.getAttribute("aria-disabled")).toBe("true");
+    expect(mounted.draftServer.calls).toEqual([]);
+    expect(allIn(dialog, '[role="alert"]').length).toBeGreaterThan(0);
+  });
+});
+
 describe("where nothing can be written", () => {
   it("offers no deletion: the entry is off for the reason that nothing can be checked, no dialog opens and nothing is sent", async () => {
     mounted = await mountHardwareList(hardwarePageOf(), {
