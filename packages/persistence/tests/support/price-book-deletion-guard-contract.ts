@@ -494,6 +494,28 @@ function describeTheBookThePlanWasBuiltFrom(
       expect(await stateOf(world, staff)).toEqual(before);
     });
 
+    it("judges a stale request against the version the publisher saw: an accessory that version links and a design places is in use, though the newest book no longer states it", async () => {
+      const world = await newWorld();
+      const staff = await world.aStaffMember();
+      const item = aNewItem("accessory");
+      const seen = await aSequenceThatHasSincePassed(
+        world,
+        staff,
+        aBookLinking([(item as { accessoryId: string }).accessoryId]),
+      );
+      await world.aDesignNaming(item, namedThrough(item));
+      const before = await stateOf(world, staff);
+
+      const result = await publishWith(
+        world,
+        staff,
+        deleting([item], { expectedActiveSequence: seen }),
+      );
+
+      expect(result).toEqual({ kind: "item-in-use", items: [item] });
+      expect(await stateOf(world, staff)).toEqual(before);
+    });
+
     it("still refuses as an invalid request an accessory the newest book does not state, when that is the version the publisher saw", async () => {
       const world = await newWorld();
       const staff = await world.aStaffMember();
