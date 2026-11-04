@@ -102,6 +102,13 @@ export interface HandleSetEffect {
   readonly handle: Handle;
 }
 
+/** This cabinet has stopped choosing a handle and follows the kitchen's. Like `FinishClearedEffect` it carries no
+ *  handle: a "cleared to X" effect would be a set under another name, leaving the key in the document. */
+export interface HandleClearedEffect {
+  readonly type: "handle_cleared";
+  readonly placementId: string;
+}
+
 /** The whole-kitchen pair, shaped on `FinishSetEffect` one scope up. Neither names a placement: a
  *  whole-kitchen setting points at no cabinet, which tells the store its selection was not moved. */
 export interface MaterialTierSetEffect {
@@ -142,6 +149,13 @@ export interface GlobalFinishSetEffect {
   readonly finish: Finish;
 }
 
+/** The kitchen's handle (ADR 0099). Like `GlobalFinishSetEffect` it names no placement: the command writes
+ *  `settings.handle` and no cabinet's own handle. */
+export interface KitchenHandleSetEffect {
+  readonly type: "kitchen_handle_set";
+  readonly handle: Handle;
+}
+
 export type CommandEffect =
   | PlacementRemovedEffect
   | BodyInsertedEffect
@@ -149,9 +163,11 @@ export type CommandEffect =
   | FinishSetEffect
   | FinishClearedEffect
   | HandleSetEffect
+  | HandleClearedEffect
   | MaterialTierSetEffect
   | HardwareTierSetEffect
   | GlobalFinishSetEffect
+  | KitchenHandleSetEffect
   | CabinetDepthSetEffect;
 
 export interface CommandSuccess<TEffect extends CommandEffect = CommandEffect> {

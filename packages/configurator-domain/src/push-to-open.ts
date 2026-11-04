@@ -1,11 +1,9 @@
 // Does this front open without a handle bar on it: the one predicate, called by everything that needs
 // the answer (ADR 0092 decision 3).
 //
-// A front carries a bar or a latch, never both: a latch is a manufacturer cost that must be priced, and
-// a front with a bar needs none. The scene and pricing once decided this separately (the scene
-// privately in `scene-sync.ts`, pricing from the recorded handle mode alone) and disagreed in both
-// directions, so the demo's top-row bars were hidden while their latches were billed at zero. Two
-// predicates that agree more often are still two.
+// A front carries a bar or a push mechanism, never both: a door leaf's latch and a drawer's push runner are
+// manufacturer costs that must be priced, and a front with a bar needs neither. Scene and pricing must decide
+// this by this one call, never separately. see ADR 0092 decision 3
 //
 // Its own module: not in `bands.ts` (band vocabulary in metres), and not in `hardware-mechanisms.ts`,
 // which the adapter must not import to decide whether to draw a bar.
@@ -88,9 +86,10 @@ export interface WornHandleQuery extends PushToOpenQuery {
 }
 
 /**
- * The handle this body is read as wearing: the resolved one, else push-to-open when the body is latched and has a front
- * to latch. A body with nothing that opens (an open shelf on the top row) is billed no latch and draws no bar, so it
- * wears nothing; a top-row body that takes no handle but has doors (`wall-corner-return-570-top`) wears push.
+ * The handle this body is read as wearing: the resolved one, else push-to-open when the body opens without a bar and
+ * has a front that opens (a door leaf takes a latch, a drawer a push runner). A body with nothing that opens (an open
+ * shelf on the top row) is billed neither and draws no bar, so it wears nothing; a top-row body that takes no handle but
+ * has doors (`wall-corner-return-570-top`) wears push.
  */
 export function wornHandleAt(front: WornHandleQuery): Handle | undefined {
   const resolved = resolvedHandleAt(front);

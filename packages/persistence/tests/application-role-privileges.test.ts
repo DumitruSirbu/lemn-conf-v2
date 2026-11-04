@@ -1,5 +1,7 @@
 import {
   CURRENT_SCHEMA_VERSION,
+  DIGEST_STOPPING_STATUSES,
+  DIGEST_WINDOW_MS,
   KITCHEN_L_DESIGN,
 } from "@lemnaria/configurator-domain";
 import { neon } from "@neondatabase/serverless";
@@ -8,6 +10,26 @@ import { describe, expect, it } from "vitest";
 import type { TestContext } from "vitest";
 
 import { exportedKitchenNotesStatement } from "../src/account-kitchen-notes-statement.js";
+import {
+  readAvailabilityAtStatement,
+  readCurrentAvailabilityStatement,
+  setItemActiveStatement,
+} from "../src/catalogue-availability-statements.js";
+import {
+  claimDigestDayStatement,
+  listDigestEligibleStatement,
+  markSeenStatement,
+  recordDigestedStatement,
+} from "../src/kitchen-change-statements.js";
+import {
+  listVersionsStatement,
+  publishStatement,
+  readActiveVersionStatement,
+  readDraftStatement,
+  readVersionStatement,
+  writeDraftStatement,
+} from "../src/price-book-statements.js";
+import { prepareStaffAuditRecord } from "../src/staff-audit-store.js";
 import {
   insertUnlessHeldStatement,
   selectPublishedNearStatement,
@@ -23,7 +45,8 @@ import {
 } from "../src/staff-kitchen-statements.js";
 import { columnsHolding, columnsOf } from "./support/column-privileges.js";
 import {
-  READABLE_COLUMNS,
+  PERSONAL_COLUMNS,
+  READABLE_COLUMNS_WITH_0026,
   UPDATABLE_COLUMNS,
 } from "./support/contact-submission-columns.js";
 import {
@@ -378,12 +401,18 @@ interface StaffTableGrant {
   readonly insertable: readonly string[];
   /** The columns of the `UPDATE` grant. */
   readonly updatable: readonly string[];
-  /** A column left out of the `INSERT` grant on purpose, so that a leaked credential cannot stamp it. */
-  readonly notInsertable: string;
+  /** The tail of an insert that names a column left out of the grant on purpose (a stamped column, or any column of a
+   *  seeded singleton), so that a leaked credential cannot write it: type-correct, so the refusal is for privilege.
+   *  `null` when every column of the table is in the `INSERT` grant, so no insert can be refused for a column. */
+  readonly refusedInsertTail: string | null;
   /** A column left out of the `UPDATE` grant. */
   readonly notUpdatable: string;
-  /** The tail of an insert of the shape the store will send, naming only granted columns. */
-  readonly insertTail: string;
+  /** The tail of an insert of the shape the store will send, naming only granted columns; `null` for a table the
+   *  application role never inserts into (a seeded singleton). */
+  readonly insertTail: string | null;
+  /** The tail of an update of the shape the store will send, naming only granted columns; `null` for a table the store
+   *  updates through the insert above, or never. */
+  readonly updateTail: string | null;
 }
 
 const A_PROBE_ID = "0".repeat(21);
@@ -409,8 +438,9 @@ const STAFF_TABLE_GRANTS: readonly StaffTableGrant[] = [
       "detail",
     ],
     updatable: [],
-    notInsertable: "occurred_at",
+    refusedInsertTail: "(occurred_at) values (now())",
     notUpdatable: "action",
+    updateTail: null,
     insertTail: `(id, actor_account_id, action) values ('${A_PROBE_ID}', '${A_PROBE_ID}', 'kitchen-opened')`,
   },
   {
@@ -418,8 +448,9 @@ const STAFF_TABLE_GRANTS: readonly StaffTableGrant[] = [
     columns: ["id", "design_id", "author_account_id", "body", "created_at"],
     insertable: ["id", "design_id", "author_account_id", "body"],
     updatable: [],
-    notInsertable: "created_at",
+    refusedInsertTail: "(created_at) values (now())",
     notUpdatable: "body",
+    updateTail: null,
     insertTail: `(id, design_id, author_account_id, body) values ('${A_PROBE_ID}', '${A_PROBE_ID}', '${A_PROBE_ID}', 'a probe')`,
   },
   {
@@ -427,12 +458,135 @@ const STAFF_TABLE_GRANTS: readonly StaffTableGrant[] = [
     columns: ["design_id", "status", "changed_by_account_id", "changed_at"],
     insertable: ["design_id", "status", "changed_by_account_id"],
     updatable: ["status", "changed_by_account_id", "changed_at"],
-    notInsertable: "changed_at",
+    refusedInsertTail: "(changed_at) values (now())",
     notUpdatable: "design_id",
+    updateTail: null,
     insertTail:
       `(design_id, status, changed_by_account_id) values ('${A_PROBE_ID}', 'new', '${A_PROBE_ID}') ` +
       "on conflict (design_id) do update set status = excluded.status, " +
       "changed_by_account_id = excluded.changed_by_account_id, changed_at = now()",
+  },
+  {
+    table: "public.price_book_versions",
+    columns: [
+      "id",
+      "sequence_number",
+      "label",
+      "note",
+      "book",
+      "change_summary",
+      "change_count",
+      "published_at",
+      "published_by_account_id",
+    ],
+    insertable: [
+      "id",
+      "sequence_number",
+      "label",
+      "note",
+      "book",
+      "change_summary",
+      "change_count",
+      "published_by_account_id",
+    ],
+    updatable: [],
+    refusedInsertTail: "(published_at) values (now())",
+    notUpdatable: "label",
+    updateTail: null,
+    insertTail: `(id, sequence_number, label, note, book, change_summary, change_count, published_by_account_id) values ('${A_PROBE_ID}', 1, 'a probe', '', '{}'::jsonb, '[]'::jsonb, 0, '${A_PROBE_ID}')`,
+  },
+  {
+    table: "public.price_book_draft",
+    columns: [
+      "singleton",
+      "revision",
+      "changes",
+      "base_version_id",
+      "updated_at",
+      "updated_by_account_id",
+    ],
+    insertable: [],
+    updatable: [
+      "revision",
+      "changes",
+      "base_version_id",
+      "updated_at",
+      "updated_by_account_id",
+    ],
+    refusedInsertTail: "(revision) values (1)",
+    notUpdatable: "singleton",
+    updateTail:
+      "set revision = revision + 1, changes = '[]'::jsonb, updated_at = now(), updated_by_account_id = null where revision = 0",
+    insertTail: null,
+  },
+  {
+    table: "public.catalogue_availability_head",
+    columns: ["singleton", "revision"],
+    insertable: [],
+    updatable: ["revision"],
+    refusedInsertTail: "(revision) values (1)",
+    notUpdatable: "singleton",
+    updateTail: "set revision = revision + 1 where revision = 0",
+    insertTail: null,
+  },
+  {
+    table: "public.catalogue_availability_changes",
+    columns: [
+      "revision",
+      "item_kind",
+      "item_id",
+      "active",
+      "changed_at",
+      "changed_by_account_id",
+    ],
+    insertable: [
+      "revision",
+      "item_kind",
+      "item_id",
+      "active",
+      "changed_by_account_id",
+    ],
+    updatable: [],
+    refusedInsertTail: "(changed_at) values (now())",
+    notUpdatable: "active",
+    updateTail: null,
+    insertTail: `(revision, item_kind, item_id, active, changed_by_account_id) values (1, 'material', 'a-probe', false, '${A_PROBE_ID}')`,
+  },
+  {
+    table: "public.design_staff_seen",
+    columns: ["design_id", "seen_revision", "seen_by_account_id", "seen_at"],
+    insertable: ["design_id", "seen_revision", "seen_by_account_id"],
+    updatable: ["seen_revision", "seen_by_account_id", "seen_at"],
+    refusedInsertTail: "(seen_at) values (now())",
+    notUpdatable: "design_id",
+    updateTail: null,
+    insertTail:
+      `(design_id, seen_revision, seen_by_account_id) values ('${A_PROBE_ID}', 1, '${A_PROBE_ID}') ` +
+      "on conflict (design_id) do update set seen_revision = greatest(design_staff_seen.seen_revision, excluded.seen_revision), " +
+      "seen_by_account_id = excluded.seen_by_account_id, seen_at = now()",
+  },
+  {
+    table: "public.staff_change_digest_rounds",
+    columns: ["day_key", "claimed_at", "sent_count"],
+    insertable: ["day_key"],
+    updatable: ["sent_count"],
+    refusedInsertTail: "(day_key, claimed_at) values ('2000-01-01', now())",
+    notUpdatable: "day_key",
+    updateTail: "set sent_count = 1 where day_key = '2000-01-01'",
+    insertTail:
+      "(day_key) values ('2000-01-01') on conflict (day_key) do nothing",
+  },
+  {
+    table: "public.staff_change_digest_entries",
+    columns: ["day_key", "design_id", "revision"],
+    insertable: ["day_key", "design_id", "revision"],
+    updatable: [],
+    // Every column is insertable and the table stamps none, so no insert names a column the grant leaves out; the
+    // entries are held only by the absence of UPDATE and DELETE, which the two refusals below prove.
+    refusedInsertTail: null,
+    notUpdatable: "revision",
+    updateTail: null,
+    insertTail: `(day_key, design_id, revision) values ('2000-01-01', '${A_PROBE_ID}', 1) on conflict (day_key, design_id) do nothing`,
   },
 ];
 
@@ -443,6 +597,7 @@ const STAFF_READER_TABLES = [
   "public.contact_submissions",
   "public.contact_submission_views",
   "public.design_request_states",
+  "public.design_staff_seen",
   "public.design_notes",
 ];
 
@@ -668,7 +823,7 @@ describe.skipIf(!hasLiveDatabase)("the application's database role", () => {
   // `where false`, a delete and an update of an id that does not exist. The expected sets are named and the columns come
   // from the catalog, so a column added later is unread until someone names it here.
   guardedTest(
-    "holds insert on public.contact_submissions, select on exactly its seven readable columns and update on notified_at alone, once it exists",
+    "holds insert on public.contact_submissions, select on exactly its seven readable columns and priced (the 0026 grant) and update on notified_at alone, once it exists",
     async (context) => {
       const sql = neon(readDatabaseUrl());
       const [tableProbe] = (await sql`
@@ -693,7 +848,7 @@ describe.skipIf(!hasLiveDatabase)("the application's database role", () => {
         CONTACT_SUBMISSIONS,
         "UPDATE",
       );
-      expect(readable).toEqual([...READABLE_COLUMNS].sort());
+      expect(readable).toEqual([...READABLE_COLUMNS_WITH_0026].sort());
       expect(updatable).toEqual([...UPDATABLE_COLUMNS].sort());
       expect(
         await columnsHolding(sql, CONTACT_SUBMISSIONS, "REFERENCES"),
@@ -1018,23 +1173,32 @@ describe.skipIf(!hasLiveDatabase)("the application's database role", () => {
     );
 
     guardedTest(
-      "can have the store's insert planned, and cannot have a delete, an insert naming the stamped column or an update of an ungranted column planned, once it exists",
+      "can have the store's write planned, and cannot have a delete, an insert or an update the grant leaves out planned, once it exists",
       async (context) => {
         await skipUnlessTheTableExists(context, grant.table);
         const sql = neon(readDatabaseUrl());
 
-        await expect(
-          sql.query(`explain insert into ${grant.table} ${grant.insertTail}`),
-        ).resolves.toBeDefined();
+        if (grant.insertTail !== null) {
+          await expect(
+            sql.query(`explain insert into ${grant.table} ${grant.insertTail}`),
+          ).resolves.toBeDefined();
+        }
+        if (grant.updateTail !== null) {
+          await expect(
+            sql.query(`explain update ${grant.table} ${grant.updateTail}`),
+          ).resolves.toBeDefined();
+        }
 
         expect(
           await failureOf(`explain delete from ${grant.table}`),
         ).toMatchObject({ code: INSUFFICIENT_PRIVILEGE });
-        expect(
-          await failureOf(
-            `explain insert into ${grant.table} (${grant.notInsertable}) values (now())`,
-          ),
-        ).toMatchObject({ code: INSUFFICIENT_PRIVILEGE });
+        if (grant.refusedInsertTail !== null) {
+          expect(
+            await failureOf(
+              `explain insert into ${grant.table} ${grant.refusedInsertTail}`,
+            ),
+          ).toMatchObject({ code: INSUFFICIENT_PRIVILEGE });
+        }
         expect(
           await failureOf(
             `explain update ${grant.table} set ${grant.notUpdatable} = ${grant.notUpdatable}`,
@@ -1043,6 +1207,97 @@ describe.skipIf(!hasLiveDatabase)("the application's database role", () => {
       },
     );
   });
+
+  // M10 wave S2: the price book and availability stores' statements, the stores' own text built by the same functions,
+  // planned and never run (`explain` runs no data-modifying branch). Each reads or writes several tables through column
+  // grants, so a column a statement names that the role was not granted is a 42501 here and not at the first publish. Red
+  // until the owner has issued the `0023` to `0025` grants and the `0020` to `0022` ones the audit row and the actor need.
+  guardedTest(
+    "can have the price book store's and the availability store's statements planned, once the tables exist",
+    async (context) => {
+      for (const table of [
+        "public.price_book_versions",
+        "public.price_book_draft",
+        "public.catalogue_availability_head",
+        "public.catalogue_availability_changes",
+        "public.staff_audit_events",
+        "public.account_sessions",
+        "public.accounts",
+      ]) {
+        await skipUnlessTheTableExists(context, table);
+      }
+      const session = {
+        sessionTokenHash: "a".repeat(64),
+        idleLifetimeSeconds: {
+          client: 2_592_000,
+          operator: 43_200,
+          administrator: 43_200,
+        },
+      };
+      const auditOf = (action: string, detail: Record<string, unknown>) =>
+        prepareStaffAuditRecord({
+          ...session,
+          entry: { action, detail } as never,
+          designId: null,
+          subjectAccountId: null,
+        });
+
+      for (const statement of [
+        readActiveVersionStatement(recordedStatement),
+        readVersionStatement(recordedStatement, A_PROBE_ID),
+        listVersionsStatement(recordedStatement, { offset: 0, limit: 20 }),
+        readDraftStatement(recordedStatement),
+        writeDraftStatement(recordedStatement, {
+          expectedRevision: "0",
+          changesJson: "[]",
+          detailJson: JSON.stringify({ changeKind: "depth-rule" }),
+          audit: auditOf("price-draft-changed", { changeKind: "depth-rule" }),
+        }),
+        publishStatement(recordedStatement, {
+          expectedDraftRevision: "0",
+          expectedActiveSequence: "0",
+          expectedAvailabilityRevision: "0",
+          versionId: A_PROBE_ID,
+          label: "a probe",
+          note: "",
+          bookJson: "{}",
+          changeSummaryJson: "[]",
+          changeCount: 0,
+          createdItemKinds: ["hardware"],
+          createdItemIds: ["a-probe"],
+          detailJson: JSON.stringify({ provisional: true }),
+          audit: auditOf("price-published", {
+            provisional: true,
+            sequenceNumber: 1,
+            changeCount: 0,
+          }),
+        }),
+        readCurrentAvailabilityStatement(recordedStatement),
+        readAvailabilityAtStatement(recordedStatement, "0"),
+        setItemActiveStatement(recordedStatement, {
+          expectedRevision: "0",
+          itemKind: "material",
+          itemId: "a-probe",
+          active: false,
+          detailJson: JSON.stringify({
+            itemKind: "material",
+            itemId: "a-probe",
+            active: false,
+          }),
+          audit: auditOf("catalogue-item-active-changed", {
+            itemKind: "material",
+            itemId: "a-probe",
+            active: false,
+            availabilityRevision: "0",
+          }),
+        }),
+      ]) {
+        await expect(
+          explainOfThePresetStatement(statement),
+        ).resolves.toBeDefined();
+      }
+    },
+  );
 
   // The client's data export reads the notes on its own kitchens in one statement, the store's own text built by the
   // same function, planned and never run. It reads `design_notes` and `designs` and selects no author column, so a
@@ -1089,6 +1344,13 @@ describe.skipIf(!hasLiveDatabase)("the application's database role", () => {
           search: null,
           page: 2,
         }),
+        staffKitchenListStatement(recordedStatement, {
+          segment: "sent",
+          status: null,
+          search: null,
+          page: 1,
+          onlyChanged: true,
+        }),
         staffKitchenStatement(recordedStatement, "0".repeat(21)),
         staffKitchenNotesStatement(recordedStatement, "0".repeat(21)),
       ]) {
@@ -1099,6 +1361,100 @@ describe.skipIf(!hasLiveDatabase)("the application's database role", () => {
       expect(
         await failureOf(`explain select name from ${CONTACT_SUBMISSIONS}`),
       ).toMatchObject({ code: INSUFFICIENT_PRIVILEGE });
+    },
+  );
+
+  // M10 wave S4 (migration `0026`, ADR 0178 F2): the one column the owner's grant adds to the seven. Green with
+  // `GRANT SELECT (priced) ON TABLE public.contact_submissions TO app_designs;` and red without it (the first plan below
+  // is refused with 42501). The controls show the grant is no wider: every personal column, and the snapshot of the
+  // document, are still refused, and a statement that names `priced` beside a personal column is refused whole.
+  guardedTest(
+    "can plan a read of contact_submissions.priced alone, and cannot plan a read of any personal column or of the document, once the grant is issued",
+    async (context) => {
+      await skipUnlessTheTableExists(context, CONTACT_SUBMISSIONS);
+
+      await expect(
+        neon(readDatabaseUrl()).query(
+          `explain select priced from ${CONTACT_SUBMISSIONS}`,
+        ),
+      ).resolves.toBeDefined();
+      await expect(
+        neon(readDatabaseUrl()).query(
+          `explain select priced -> 'totalMinor', design_revision from ${CONTACT_SUBMISSIONS}`,
+        ),
+      ).resolves.toBeDefined();
+      for (const column of [...PERSONAL_COLUMNS, "design_document"]) {
+        expect(
+          await failureOf(
+            `explain select ${quoted(column)} from ${CONTACT_SUBMISSIONS}`,
+          ),
+          column,
+        ).toMatchObject({ code: INSUFFICIENT_PRIVILEGE });
+        expect(
+          await failureOf(
+            `explain select priced, ${quoted(column)} from ${CONTACT_SUBMISSIONS}`,
+          ),
+          column,
+        ).toMatchObject({ code: INSUFFICIENT_PRIVILEGE });
+      }
+      expect(
+        await failureOf(`explain select * from ${CONTACT_SUBMISSIONS}`),
+      ).toMatchObject({ code: INSUFFICIENT_PRIVILEGE });
+    },
+  );
+
+  // M10 wave S4: the seen mark's and the digest's four statements, the stores' own text built by the same functions,
+  // planned and never run (`explain` runs no data-modifying branch). Each reads or writes several tables through column
+  // grants, so a column a statement names that the role was not granted is a 42501 here and not at the first mark.
+  guardedTest(
+    "can have the kitchen change store's mark, claim, list and record statements planned, once the tables exist",
+    async (context) => {
+      for (const table of [
+        "public.design_staff_seen",
+        "public.staff_change_digest_rounds",
+        "public.staff_change_digest_entries",
+        "public.staff_audit_events",
+        "public.account_sessions",
+        "public.accounts",
+        "public.designs",
+        "public.design_request_states",
+      ]) {
+        await skipUnlessTheTableExists(context, table);
+      }
+      const audit = prepareStaffAuditRecord({
+        sessionTokenHash: "a".repeat(64),
+        idleLifetimeSeconds: {
+          client: 2_592_000,
+          operator: 43_200,
+          administrator: 43_200,
+        },
+        entry: { action: "kitchen-seen", detail: {} } as never,
+        designId: "0".repeat(21),
+        subjectAccountId: null,
+      });
+
+      for (const statement of [
+        markSeenStatement(recordedStatement, {
+          designId: "0".repeat(21),
+          displayedRevision: "1",
+          audit,
+        }),
+        claimDigestDayStatement(recordedStatement, "2000-01-01"),
+        listDigestEligibleStatement(recordedStatement, {
+          nowIso: "2026-10-27T05:00:00.000Z",
+          windowMilliseconds: DIGEST_WINDOW_MS,
+          stoppingStatuses: DIGEST_STOPPING_STATUSES,
+        }),
+        recordDigestedStatement(recordedStatement, {
+          roundId: "2000-01-01",
+          designIds: ["0".repeat(21)],
+          revisions: ["1"],
+        }),
+      ]) {
+        await expect(
+          explainOfThePresetStatement(statement),
+        ).resolves.toBeDefined();
+      }
     },
   );
 });

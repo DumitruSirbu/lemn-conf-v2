@@ -55,6 +55,13 @@ function withKitchenHandle(handle: Handle): Design {
   };
 }
 
+function withTopRowHandle(topRowHandle: Handle): Design {
+  return {
+    ...KITCHEN_L_DESIGN,
+    settings: { ...KITCHEN_L_DESIGN.settings, topRowHandle },
+  };
+}
+
 beforeEach(() => {
   vi.stubGlobal("fetch", () => new Promise<Response>(() => undefined));
   container = document.createElement("div");
@@ -91,6 +98,33 @@ describe("the panel's selection follows the kitchen's handle", () => {
     expect(
       metaOf(TOP_ROW_BODY_ID, withKitchenHandle("black")).defaultHandle,
     ).toBe("push");
+  });
+
+  it.each(["steel", "black", "push"] as const)(
+    "marks the kitchen's top-row handle %s on a top-row body that chose none (H2)",
+    (topRowHandle) => {
+      const meta = metaOf(TOP_ROW_BODY_ID, withTopRowHandle(topRowHandle));
+
+      expect(meta.defaultHandle).toBe(topRowHandle);
+      expect(meta.handle).toBeUndefined();
+    },
+  );
+
+  it("leaves a cabinet below the top row on the kitchen's handle whatever the top-row handle chose (H2)", () => {
+    expect(
+      metaOf(FOLLOWING_BODY_ID, withTopRowHandle("black")).defaultHandle,
+    ).toBe("steel");
+  });
+
+  it("re-describes the same top-row selection when the kitchen's top-row handle changes under it (H2)", () => {
+    const before = metaOf(TOP_ROW_BODY_ID, withTopRowHandle("steel"));
+
+    const after = metaOf(TOP_ROW_BODY_ID, withTopRowHandle("black"));
+
+    expect([before.defaultHandle, after.defaultHandle]).toEqual([
+      "steel",
+      "black",
+    ]);
   });
 
   it("re-describes the same selection when the kitchen's handle changes under it", () => {

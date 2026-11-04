@@ -19,6 +19,10 @@ import {
   foldRomanianSearchText,
   likePatternContaining,
 } from "../src/staff-kitchen-reader.js";
+import {
+  COLUMNS_ADDED_BY_0026,
+  READABLE_COLUMNS_WITH_0026,
+} from "./support/contact-submission-columns.js";
 import { WELL_FORMED_UNREACHABLE_VALUE } from "./support/leaked-connection-markers.js";
 import {
   answerQueryWith,
@@ -49,7 +53,7 @@ vi.mock("@neondatabase/serverless", async (importOriginal) =>
  * grant dependence is checked against the headers' wording only.
  */
 const DESIGN_ID = "D".repeat(21);
-const NOTHING_FOUND = [{ total: 0, id: null }];
+const NOTHING_FOUND = [{ total: 0, changed_count: 0, id: null }];
 const LAST_COUNTABLE_PAGE = Math.floor(
   Number.MAX_SAFE_INTEGER / STAFF_KITCHEN_PAGE_SIZE,
 );
@@ -74,6 +78,8 @@ function aKitchenRow(overrides: Record<string, unknown> = {}) {
   return {
     id: DESIGN_ID,
     name: null,
+    revision: "1",
+    is_changed_since_seen: false,
     schema_version: 5,
     document: {},
     is_sent: true,
@@ -86,6 +92,8 @@ function aKitchenRow(overrides: Record<string, unknown> = {}) {
     client_phone: null,
     request_reference: null,
     request_ms: null,
+    priced_total_minor: null,
+    priced_currency: null,
     sent_schema_version: null,
     sent_document: null,
     stored_status: null,
@@ -100,10 +108,12 @@ function aKitchenRow(overrides: Record<string, unknown> = {}) {
 function aListedRow(overrides: Record<string, unknown> = {}) {
   return {
     total: 1,
+    changed_count: 0,
     id: DESIGN_ID,
     name: null,
     is_sent: true,
     is_hidden: false,
+    is_changed: false,
     sent_ms: "1790000000000",
     updated_ms: "1790000000000",
     client_id: null,
@@ -169,9 +179,10 @@ const TABLES_THE_READER_MAY_READ = new Set([
   "contact_submissions",
   "contact_submission_views",
   "design_notes",
+  "design_staff_seen",
 ]);
-/** A name the statements define themselves: the common table expression. */
-const OWN_RELATIONS = new Set(["matching"]);
+/** A name the statements define themselves: the common table expressions. */
+const OWN_RELATIONS = new Set(["matching", "changed", "latest_submission"]);
 const NOT_AN_ALIAS = new Set([
   "where",
   "on",
@@ -244,6 +255,7 @@ const INTENDED_COLUMNS: Readonly<Record<string, readonly string[]>> = {
     "hidden_by_client_at",
     "deleted_by_client_at",
     "account_id",
+    "revision",
   ],
   accounts: ["id", "email", "email_normal_form", "name", "phone"],
   design_request_states: [
@@ -256,8 +268,11 @@ const INTENDED_COLUMNS: Readonly<Record<string, readonly string[]>> = {
     "reference",
     "client_request_id",
     "design_id",
+    "design_revision",
     "created_at",
+    "priced",
   ],
+  design_staff_seen: ["design_id", "seen_revision"],
   contact_submission_views: [
     "client_request_id",
     "schema_version",
@@ -273,6 +288,20 @@ const INTENDED_COLUMNS: Readonly<Record<string, readonly string[]>> = {
 const ORDER_BY_THE_VIEW_TOKEN_HASH_TIE_BREAK =
   /order by csv\.created_at desc, csv\.token_hash desc/g;
 
+/**
+ * Columns M10 wave S4 lets some of the reader's statements name and the others not: the revision is read by the list (to
+ * judge changed-since-seen in SQL) and by the kitchen (which also displays it), `design_revision` by both for the same
+ * judgement, and `priced` by the kitchen alone (the one column `0026`'s grant adds, of which it takes the total and the
+ * currency). Each stays out of every statement not named here, and the notes statement names none of them.
+ */
+const COLUMNS_ONLY_SOME_STATEMENTS_NAME: Readonly<
+  Record<string, readonly string[]>
+> = {
+  revision: ["list", "kitchen"],
+  design_revision: ["list", "kitchen"],
+  priced: ["kitchen"],
+};
+
 /** Columns that must never be named by a statement of this reader, whatever alias they sit behind. */
 const COLUMNS_THE_READER_NEVER_NAMES = [
   "password_hash",
@@ -287,10 +316,7 @@ const COLUMNS_THE_READER_NEVER_NAMES = [
   "channel",
   "intent",
   "consent_text_version",
-  "priced",
-  "design_revision",
   "notified_at",
-  "revision",
   "email_verified_at",
   "password_changed_at",
   "privacy_notice_version",
@@ -352,6 +378,22 @@ describe("the tables and columns the three statements name", () => {
       }
     }
   });
+
+  it.each(Object.entries(COLUMNS_ONLY_SOME_STATEMENTS_NAME))(
+    "names %s in the statements %j only",
+    async (column, allowedIn) => {
+      const statements = await theThreeStatements();
+
+      for (const [which, text] of Object.entries(statements)) {
+        const tokens = new Set(
+          withoutStringLiterals(text).match(/[a-z_][a-z0-9_]*/g) ?? [],
+        );
+        expect(tokens.has(column), `${which}: ${column}`).toBe(
+          allowedIn.includes(which),
+        );
+      }
+    },
+  );
 
   it("names every column behind an alias, and every other word is a keyword, a function, a type or a name the statement gives", async () => {
     const statements = await theThreeStatements();
@@ -446,6 +488,24 @@ const SQL_WORDS_THE_STATEMENTS_USE = new Set([
   "stored_status",
   "request_reference",
   "request_ms",
+  "priced_total_minor",
+  "priced_currency",
+  "revision",
+  "is_changed",
+  "is_changed_since_seen",
+  "changed_count",
+  "changed",
+  "latest_submission",
+  "latest",
+  "seen",
+  "c",
+  "distinct",
+  "boolean",
+  "false",
+  "jsonb_typeof",
+  "number",
+  "string",
+  "design_staff_seen",
   "created_ms",
   "sent_schema_version",
   "sent_document",
@@ -538,7 +598,7 @@ describe("the grants the references need, as the headers and the ADR word them (
     );
   });
 
-  it("names, of contact_submissions, only columns among the seven the header of 0008 lets the application role select", async () => {
+  it("names, of contact_submissions, only columns among the seven the header of 0008 lets the application role select, and priced, the one the grant of 0026 adds", async () => {
     const header = foldedHeader(
       migrationText("0008_create_contact_submissions.sql"),
     );
@@ -557,16 +617,30 @@ describe("the grants the references need, as the headers and the ADR word them (
 
     expect(granted).toHaveLength(7);
     expect(
-      [...(named ?? [])].filter((column) => !granted.includes(column)),
+      [...(named ?? [])].filter(
+        (column) =>
+          !READABLE_COLUMNS_WITH_0026.includes(column) ||
+          (!granted.includes(column) &&
+            !COLUMNS_ADDED_BY_0026.includes(column)),
+      ),
     ).toEqual([]);
     expect(named?.size).toBeGreaterThan(0);
   });
 
-  it("reads contact_submissions in no statement but the kitchen's", async () => {
+  it("reads contact_submissions in no statement but the kitchen's and the list's, and the list takes the latest request's design and revision alone", async () => {
     const { list, notes } = await theThreeStatements();
 
-    expect(list).not.toContain("contact_submissions");
+    const namedByList = columnsByRelation(withoutStringLiterals(list)).get(
+      "contact_submissions",
+    );
+
     expect(notes).not.toContain("contact_submissions");
+    expect([...(namedByList ?? [])].sort()).toEqual([
+      "client_request_id",
+      "created_at",
+      "design_id",
+      "design_revision",
+    ]);
   });
 });
 
@@ -589,6 +663,7 @@ describe("a list statement that is the same text for every query", () => {
       fc.integer({ min: 1, max: 50 }),
       fc.constantFrom(LAST_COUNTABLE_PAGE),
     ),
+    onlyChanged: fc.boolean(),
     status: fc.option(
       fc.constantFrom("new", "contacted", "offer-sent", "closed"),
       {
@@ -617,8 +692,11 @@ describe("a list statement that is the same text for every query", () => {
         const [statement, ...others] = queryDriver.statements;
         expect(others).toEqual([]);
         expect(statement?.text).toBe(baseline);
-        expect(statement?.values).toHaveLength(12);
+        expect(statement?.values).toHaveLength(13);
         expect(statement?.values.at(-1)).toBe(staffKitchenOffsetOf(query.page));
+        expect(
+          statement?.values.filter((value) => typeof value === "boolean"),
+        ).toEqual([query.onlyChanged]);
         if (query.search !== null) {
           expect(statement?.values.slice(5, 7)).toEqual(
             Array<string>(2).fill(likePatternContaining(query.search)),
@@ -762,11 +840,13 @@ const KEYS_OF_A_READING = new Set([
   "asSent",
   "by",
   "change",
+  "changedCount",
   "client",
   "createdAt",
   "design",
   "email",
   "id",
+  "isChangedSinceSeen",
   "isHidden",
   "isSent",
   "kind",
@@ -781,7 +861,9 @@ const KEYS_OF_A_READING = new Set([
   "reference",
   "request",
   "requestStatus",
+  "revision",
   "sentAt",
+  "sentTotal",
   "status",
   "text",
   "total",

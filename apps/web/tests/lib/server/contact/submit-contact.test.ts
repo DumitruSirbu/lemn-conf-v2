@@ -264,6 +264,27 @@ describe("every way the owned load fails is one answer, and none counts a new re
     },
   );
 
+  it("answers a kitchen that names an item switched off since the book was read with CONTACT_DESIGN_NOT_CURRENT (A-17)", async () => {
+    const switchedOff = {
+      revision: "7",
+      disabled: [
+        { kind: "material", tierId: SAMPLE_PRICE_BOOK.material.defaultTierId },
+      ],
+    } as const;
+    const harness = aHarness({ availability: switchedOff });
+
+    const answer = await harness.submit(bodyOf());
+
+    expect(answer.status).toBe(409);
+    expect((await jsonOf(answer)).code).toBe("CONTACT_DESIGN_NOT_CURRENT");
+  });
+
+  it("sends the same kitchen when nothing is switched off", async () => {
+    const answer = await aHarness().submit(bodyOf());
+
+    expect(answer.status).toBe(200);
+  });
+
   it("is equal in body and headers for a stale revision, a design not the caller's and a refused row", async () => {
     const stale = aHarness({
       loadOwned: () =>
@@ -532,6 +553,55 @@ describe("a stored request: its tries, never a new request's buckets", () => {
     expect(retried.status).toBe(409);
     expect((await jsonOf(retried)).code).toBe("CONTACT_REQUEST_CONFLICT");
     expect(afterTheChange.sender.sent).toHaveLength(0);
+  });
+
+  it("digests the id of the version the book was read as: a publish between the two attempts is a conflict even when the book's own version text did not change", async () => {
+    const harness = aHarness({
+      outcomes: [{ ok: false, kind: "busy" }],
+      bookVersionId: "version-id-1",
+    });
+    await harness.submit(bodyOf());
+    const afterThePublish = aHarness({
+      bookVersionId: "version-id-2",
+      store: () => harness.store,
+    });
+
+    const retried = await afterThePublish.submit(bodyOf());
+
+    expect(retried.status).toBe(409);
+    expect((await jsonOf(retried)).code).toBe("CONTACT_REQUEST_CONFLICT");
+    expect(afterThePublish.sender.sent).toHaveLength(0);
+  });
+
+  it("stores the version a fresh send was priced under, which is the version id when the book's version is stamped with it", async () => {
+    const harness = aHarness({
+      book: { ...SAMPLE_PRICE_BOOK, version: "version-id-9" },
+      bookVersionId: "version-id-9",
+    });
+
+    await harness.submit(bodyOf());
+
+    const [stored] = harness.store.heldSubmissions();
+    expect(stored?.submission.snapshot?.priced.pricingVersion).toBe(
+      "version-id-9",
+    );
+  });
+
+  it("does not digest the book's authored version text: the same version id with other text in the book is the same request", async () => {
+    const harness = aHarness({
+      outcomes: [{ ok: false, kind: "busy" }],
+      bookVersionId: "version-id-1",
+    });
+    await harness.submit(bodyOf());
+    const sameVersionOtherText = aHarness({
+      book: { ...SAMPLE_PRICE_BOOK, version: "other-text" },
+      bookVersionId: "version-id-1",
+      store: () => harness.store,
+    });
+
+    const retried = await sameVersionOtherText.submit(bodyOf());
+
+    expect(retried.status).toBe(200);
   });
 });
 

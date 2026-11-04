@@ -69,6 +69,7 @@ import { useConfiguratorStore } from "@/store/configurator-store";
 
 import roMessages from "../../src/messages/ro.json";
 import ruMessages from "../../src/messages/ru.json";
+import { underSamplePriceBook } from "../support/sample-price-root";
 import { requireLeafAt, type Catalogue } from "../support/catalogues";
 
 const CATALOGUE_OF = {
@@ -111,12 +112,14 @@ function renderAt(locale: ShippedLocale, pathname: string): string {
   browser.pathname = pathname;
   act(() => {
     root.render(
-      createElement(NextIntlClientProvider, {
-        children: createElement(ConfigureScreen),
-        locale,
-        messages: CATALOGUE_OF[locale],
-        timeZone: "Europe/Chisinau",
-      }),
+      underSamplePriceBook(
+        createElement(NextIntlClientProvider, {
+          children: createElement(ConfigureScreen),
+          locale,
+          messages: CATALOGUE_OF[locale],
+          timeZone: "Europe/Chisinau",
+        }),
+      ),
     );
   });
   return container.innerHTML;

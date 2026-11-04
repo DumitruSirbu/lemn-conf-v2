@@ -148,7 +148,17 @@ export function rawBodyNameOf(
 
 const MINOR_UNITS_PER_THOUSAND_MDL = 100_000;
 
-/** Up to the next whole thousand MDL, in integer arithmetic, grouped by three with a plain space. */
+const MINOR_UNITS_PER_TEN_MDL = 1_000;
+
+/** A priced line as printed (owner ruling 2026-10-28): its amount to the ten lei, in integer arithmetic, grouped by
+ *  three with a plain space. Restated here, not imported, so a pin is not an agreement with the code it pins. */
+export function rawLineAmountOf(amountMinor: number): string {
+  const tensOfLei = Math.ceil(amountMinor / MINOR_UNITS_PER_TEN_MDL);
+  return String(tensOfLei * 10).replace(/(?<=\d)(?=(?:\d{3})+$)/g, " ");
+}
+
+/** A total as printed: up to the next whole thousand MDL, in integer arithmetic, grouped by three with a plain
+ *  space. */
 export function rawRoundedAmountOf(amountMinor: number): string {
   const thousands = Math.floor(
     (amountMinor + MINOR_UNITS_PER_THOUSAND_MDL - 1) /

@@ -25,6 +25,8 @@ import {
   VARIED_ARMS,
   variedKitchensOf,
 } from "../support/varied-kitchens";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
+import { NOTHING_DISABLED } from "../support/availability";
 
 const MARKER = "ZZQA8H";
 
@@ -37,6 +39,7 @@ const FAILURE_CODES: readonly PricingFailureCode[] = [
   "UNKNOWN_TIER",
   "UNDECLARED_HANDLE_COUNT",
   "UNDECLARED_FRONT_POPULATION",
+  "REPLACEMENT_REQUIRED",
 ];
 
 const CONTENTS: readonly Content[] = CATALOGUES.map(([locale, messages]) =>
@@ -44,12 +47,18 @@ const CONTENTS: readonly Content[] = CATALOGUES.map(([locale, messages]) =>
 );
 
 function markedFailure(code: PricingFailureCode): PricingFailure {
-  return {
-    code,
+  const named = {
     detail: `${MARKER}-detail`,
     placementId: `${MARKER}-placement`,
     id: `${MARKER}-id`,
   };
+  return code === "REPLACEMENT_REQUIRED"
+    ? {
+        ...named,
+        code,
+        items: [{ kind: "material", tierId: `${MARKER}-tier` }],
+      }
+    : { ...named, code };
 }
 
 function reviewOf(
@@ -203,13 +212,22 @@ describe("8H criterion 15: a failure priceDesign itself returned", () => {
         book,
         pricingVersion,
         selections: design.settings,
+        deepeningRows: MEASURED_DEEPENING_ROWS,
+        availability: NOTHING_DISABLED,
       });
       if (pricing.ok) throw new Error("expected pricing to refuse");
       const { failure } = pricing;
 
       it("reaches the snapshot's refusal whole, for the endpoint to log", () => {
         expect(
-          snapshotSubmission({ design, catalog, book, pricingVersion }),
+          snapshotSubmission({
+            design,
+            catalog,
+            book,
+            pricingVersion,
+            deepeningRows: MEASURED_DEEPENING_ROWS,
+            availability: NOTHING_DISABLED,
+          }),
         ).toEqual({ ok: false, refusal: { code: "PRICING_FAILED", failure } });
       });
 

@@ -57,7 +57,7 @@ export interface NoticeAppendixGroup {
 export interface NoticeAppendixView {
   readonly heading: string;
   readonly groups: readonly NoticeAppendixGroup[];
-  readonly wholeKitchenRows: readonly LabelledValue[];
+  readonly wholeKitchenRows: readonly NoticeAppendixRow[];
 }
 
 /** What a design request's notice adds to a callback's: the kitchen link, the summary and the appendix. */
@@ -544,7 +544,7 @@ function appendixRow(appendix: NoticeAppendixView): Markup {
     layoutTable({ width: "100%" }, [
       ...appendix.groups.flatMap(appendixGroupRows),
       ...appendix.wholeKitchenRows.map((row) =>
-        appendixLine(row.label, row.value, []),
+        appendixLine(row.label, row.value, row.facts),
       ),
     ]),
   ]);

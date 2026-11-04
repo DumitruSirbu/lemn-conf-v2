@@ -10,11 +10,12 @@ import { Link } from "@/i18n/navigation";
 import { useContent } from "@/i18n/use-content";
 import { OpenEditorLink } from "@/review/open-editor-link";
 import { editorHref } from "@/review/design-hrefs";
+import { listWholeKitchenRows } from "@/price/price-breakdown-model";
 import { ReviewGroups, ReviewWholeKitchenRows } from "@/review/review-groups";
-import type {
-  AvailableReview,
-  RefusedSubmit,
-  ReviewView,
+import {
+  type AvailableReview,
+  type RefusedSubmit,
+  type ReviewView,
 } from "@/review/review-model";
 import { ReviewScene } from "@/review/review-scene";
 import { useReview } from "@/review/use-review";
@@ -115,6 +116,7 @@ function AvailableBody({
   refusalSentenceId,
 }: BodyProps & { readonly review: AvailableReview }) {
   const content = useContent();
+  const wholeKitchenRows = listWholeKitchenRows(review);
   const markedPlacementIds = new Set(
     review.submit.kind === "refused"
       ? review.submit.bodies.map((body) => body.placementId)
@@ -168,7 +170,7 @@ function AvailableBody({
         />
       </div>
       <div data-section="wholeKitchenRows">
-        <ReviewWholeKitchenRows rows={review.wholeKitchenRows} />
+        <ReviewWholeKitchenRows rows={wholeKitchenRows} />
       </div>
       <NotIncluded lines={review.notIncluded.lines} />
       <div className={styles.disclaimer} data-section="disclaimer">

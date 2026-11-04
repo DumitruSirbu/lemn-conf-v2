@@ -33,6 +33,9 @@ import { ShareDesign } from "@/share/share-design";
 import { useConfiguratorStore } from "@/store/configurator-store";
 
 import roMessages from "../../src/messages/ro.json";
+import { underSamplePriceBook } from "../support/sample-price-root";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
+import { NOTHING_DISABLED } from "../support/availability";
 
 vi.mock("@/app/configurator/configure/configure-screen", () => ({
   ConfigureScreen: EveryConsumer,
@@ -92,6 +95,8 @@ function priceOf(design: Design): PricingResult {
     catalog: buildKitchenLBodyCatalog(cabinetDepthMmOf(design)),
     book: SAMPLE_PRICE_BOOK,
     pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
+    deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
     selections: design.settings,
   });
 }
@@ -141,16 +146,18 @@ function answer(url: string, init: RequestInit): Promise<Response> {
 }
 
 function editorOnTheKeptPage() {
-  return createElement(NextIntlClientProvider, {
-    locale: "ro",
-    messages: roMessages,
-    timeZone: "Europe/Chisinau",
-    children: createElement(HydrateAndConfigure, {
-      design: KEPT_PAGE,
-      designId: DESIGN_ID,
-      revision: KEPT_PAGE_REVISION,
+  return underSamplePriceBook(
+    createElement(NextIntlClientProvider, {
+      locale: "ro",
+      messages: roMessages,
+      timeZone: "Europe/Chisinau",
+      children: createElement(HydrateAndConfigure, {
+        design: KEPT_PAGE,
+        designId: DESIGN_ID,
+        revision: KEPT_PAGE_REVISION,
+      }),
     }),
-  });
+  );
 }
 
 async function wait(ms: number): Promise<void> {

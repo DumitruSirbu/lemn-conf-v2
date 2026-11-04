@@ -9,6 +9,7 @@ import {
 } from "@/lib/server/account/require-capability";
 import { readSignedInPage } from "@/lib/server/account/signed-in-page";
 import { BUILT_CATALOG_PAGES } from "@/price-dashboard/catalog-pages";
+import { readPendingPriceCount } from "@/price-dashboard/publish-source";
 import { CATALOG_PAGES } from "@/staff/staff-paths";
 import type {
   StaffAreaPage,
@@ -83,11 +84,27 @@ export async function readStaffPage({
   });
   if (gate.kind !== "signed-in") return gate;
 
-  const shell = staffShellOf(gate.session);
-  if (shell === undefined) return { kind: "forbidden" };
+  const staffShell = staffShellOf(gate.session);
+  if (staffShell === undefined) return { kind: "forbidden" };
+  const shell = await withPendingPriceCount(staffShell);
   return isCapabilityHeld(gate.session, CAPABILITY_OF_PAGE[page])
     ? { kind: "signed-in", shell }
     : { kind: "staff-forbidden", shell };
+}
+
+/**
+ * The count of waiting prices the frame draws on every staff page, read only for a person whose navigation offers the
+ * publish page (a holder of `price.edit`). A count that cannot be read is no count: the frame then draws nothing, and a page
+ * is never refused for it.
+ */
+async function withPendingPriceCount(
+  shell: StaffShellContext,
+): Promise<StaffShellContext> {
+  if (!shell.navigation.includes("publish")) return shell;
+  const pendingPriceCount = await readPendingPriceCount().catch(
+    () => undefined,
+  );
+  return { ...shell, pendingPriceCount };
 }
 
 /**

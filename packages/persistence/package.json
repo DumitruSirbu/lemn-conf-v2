@@ -20,6 +20,7 @@
     "migrate": "tsx src/migrate.ts",
     "migrate:status": "tsx src/migrate-status.ts",
     "migrate:unattended-check": "tsx src/migration-safety.ts",
+    "seed-price-book": "tsx src/seed-price-book.ts",
     "test": "pnpm run build:deps && vitest run --config vitest.config.ts",
     "typecheck": "pnpm run build:deps && tsc --project tsconfig.json --noEmit"
   },

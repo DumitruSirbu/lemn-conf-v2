@@ -35,6 +35,7 @@ import {
 import { ServerSnapshotStoreContext } from "@/store/server-snapshot-context";
 
 import roMessages from "../../src/messages/ro.json";
+import { underSamplePriceBook } from "../support/sample-price-root";
 import { createFakeProbeFactory } from "../support/fake-body-probe";
 
 const OCCURRED_AT = "2026-01-01T00:00:00.000Z";
@@ -91,12 +92,14 @@ function shareViewOf(design: Design): ReactElement {
 
 function serverRender(page: ReactElement): string {
   return renderToString(
-    createElement(NextIntlClientProvider, {
-      children: page,
-      locale: "ro",
-      messages: roMessages,
-      timeZone: "Europe/Chisinau",
-    }),
+    underSamplePriceBook(
+      createElement(NextIntlClientProvider, {
+        children: page,
+        locale: "ro",
+        messages: roMessages,
+        timeZone: "Europe/Chisinau",
+      }),
+    ),
   );
 }
 

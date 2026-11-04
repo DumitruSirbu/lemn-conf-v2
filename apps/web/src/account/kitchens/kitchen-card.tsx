@@ -12,7 +12,8 @@ import {
 import type { Content } from "@/i18n/content";
 import type { AppLocale } from "@/i18n/routing";
 import { useAccountKitchensCopy } from "@/i18n/use-content";
-import { priceFloorOf } from "@/price/price-book-root";
+import { usePriceBookRoot } from "@/price/price-book-provider";
+import { priceFloorOf, type PriceBookRoot } from "@/price/price-book-root";
 
 import { KitchenOverlays } from "./kitchen-overlays";
 import type { KitchenChoice } from "./kitchen-menu";
@@ -64,9 +65,10 @@ export function KitchenCard({
   }, [focusRequest]);
   const name = kitchen.name ?? copy.kitchenName(kitchen.summary);
   const age = relativeAgeOf(kitchen.updatedAtMs, readAtMs);
+  const priceBook = usePriceBookRoot();
   const price = useMemo(
-    () => priceOfKitchen(kitchen, copy.price),
-    [kitchen, copy.price],
+    () => priceOfKitchen(priceBook, kitchen, copy.price),
+    [priceBook, kitchen, copy.price],
   );
   return (
     <li className={styles.item}>
@@ -216,12 +218,16 @@ function useFocusTriggerWhenRenameEnds(
 }
 
 function priceOfKitchen(
+  priceBook: PriceBookRoot,
   kitchen: ListedKitchen,
   priceCopy: Content["price"],
 ): KitchenPrice | undefined {
   return kitchen.document === undefined
     ? undefined
-    : describeKitchenPrice(priceFloorOf(kitchen.document), priceCopy);
+    : describeKitchenPrice(
+        priceFloorOf(priceBook, kitchen.document),
+        priceCopy,
+      );
 }
 
 /** "De la 28 000 MDL", and under it the configurator's own line when the total is flagged. */

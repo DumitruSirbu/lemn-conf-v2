@@ -18,6 +18,7 @@ import type { StaffPageRead } from "@/lib/server/staff/staff-page";
 
 import roMessages from "../../src/messages/ro.json";
 import ruMessages from "../../src/messages/ru.json";
+import { withoutPriceBook } from "../support/price-book-wrapper";
 
 const world = vi.hoisted(() => ({
   answer: undefined as StaffPageRead | "redirect" | undefined,
@@ -159,7 +160,7 @@ describe("the address a signed-in person may open", () => {
   ])("opens %s, which is the shape of an id", async (_, id) => {
     world.answer = SIGNED_IN;
 
-    const page = await StaffKitchenPage(paramsOf("ru", id));
+    const page = withoutPriceBook(await StaffKitchenPage(paramsOf("ru", id)));
 
     expect(page.type).toBe(StaffKitchenScreen);
     expect(page.props).toMatchObject({ locale: "ru", designId: id });
@@ -201,8 +202,12 @@ describe("the address a signed-in person may open", () => {
 
   it("keys the screen by the id, so two kitchens are two screens, and hands it the id it was given", async () => {
     world.answer = SIGNED_IN;
-    const first = await StaffKitchenPage(paramsOf("ro", "a".repeat(21)));
-    const second = await StaffKitchenPage(paramsOf("ro", "b".repeat(21)));
+    const first = withoutPriceBook(
+      await StaffKitchenPage(paramsOf("ro", "a".repeat(21))),
+    );
+    const second = withoutPriceBook(
+      await StaffKitchenPage(paramsOf("ro", "b".repeat(21))),
+    );
 
     expect(first.key).toBe("a".repeat(21));
     expect(second.key).toBe("b".repeat(21));

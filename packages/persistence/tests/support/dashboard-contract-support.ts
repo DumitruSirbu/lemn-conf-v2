@@ -39,6 +39,12 @@ export interface StoredDashboardAuditEvent {
 export interface DashboardStaffWorld {
   aStaffMember(): Promise<DashboardStaffMember>;
   aStaffMemberWhoseSessionIsRevoked(): Promise<DashboardStaffMember>;
+  /** An operator with a live session: staff, but not an administrator, so no price write is theirs to make. */
+  aStaffMemberWhoIsNotAnAdministrator(): Promise<DashboardStaffMember>;
+  /** An administrator who signed in with a live session and was then made an operator: the session outlives the role. */
+  aStaffMemberDemotedAfterSigningIn(): Promise<DashboardStaffMember>;
+  /** A client of the shop with a live session: signed in, but not staff, so no staff write is theirs to make. */
+  aClientWithALiveSession(): Promise<DashboardStaffMember>;
   /** Every audit row whose actor is the account, oldest first. */
   auditEventsOf(
     accountId: string,

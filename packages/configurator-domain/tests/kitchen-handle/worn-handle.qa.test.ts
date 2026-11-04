@@ -25,6 +25,8 @@ import {
   type DisplayEntry,
   type Handle,
 } from "../../src/index.js";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows.js";
+import { NOTHING_DISABLED } from "../support/availability.js";
 
 const MODULE_LINE_MM = 2_200;
 const FLOORS_MM = [0, MODULE_LINE_MM - 1, MODULE_LINE_MM, MODULE_LINE_MM + 1];
@@ -106,6 +108,8 @@ describe("the projection stays total over a body whose fronts cannot be read", (
                   catalog,
                   book: SAMPLE_PRICE_BOOK,
                   pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
+                  deepeningRows: MEASURED_DEEPENING_ROWS,
+                  availability: NOTHING_DISABLED,
                 });
                 if (
                   !result.ok &&
@@ -146,6 +150,8 @@ describe("the projection stays total over a body whose fronts cannot be read", (
         catalog,
         book: SAMPLE_PRICE_BOOK,
         pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
+        deepeningRows: MEASURED_DEEPENING_ROWS,
+        availability: NOTHING_DISABLED,
       });
       return result.ok ? "ok" : result.failure.code;
     };
@@ -156,7 +162,7 @@ describe("the projection stays total over a body whose fronts cannot be read", (
 });
 
 describe("the worn handle is the oracle's with the front count taken independently", () => {
-  it("names push exactly where the price bills a latch, every row, floor, handle choice and depth", () => {
+  it("names push exactly where the price bills a latch or a push runner, every row, floor, handle choice and depth", () => {
     const wrong: string[] = [];
 
     for (const depthMm of DEPTHS_MM) {
@@ -197,10 +203,11 @@ describe("the worn handle is the oracle's with the front count taken independent
                 : isTopRow && fronts > 0
                   ? "push"
                   : undefined;
-              const latches = countHardwareMechanisms(
+              const { pushToOpen, pushRunners } = countHardwareMechanisms(
                 [entry],
                 catalog,
-              ).pushToOpen;
+              );
+              const latches = pushToOpen + pushRunners;
               if (
                 entry.wornHandle !== expected ||
                 (entry.wornHandle === "push") !== latches > 0
@@ -300,6 +307,8 @@ describe("a top-row body that takes no handle and whose fronts cannot be read", 
           catalog,
           book: SAMPLE_PRICE_BOOK,
           pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
+          deepeningRows: MEASURED_DEEPENING_ROWS,
+          availability: NOTHING_DISABLED,
         });
         return result.ok ? "ok" : result.failure.code;
       };

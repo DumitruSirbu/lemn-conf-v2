@@ -1,0 +1,306 @@
+/* The hardware screens: the list of classes and one class's page. One markup, two layouts: a card until 1440 px, and
+ * the table from there. Beside the staff frame's 264 px navigation the state column holds its widest Russian chip only
+ * from a layout width of 1434 px, so it has a minimum of its own, and the table holds at 1420 px, which is what a
+ * classic scrollbar leaves of a 1440 px window. A price is changed on the class's own page, never in the card. Every
+ * interactive box is at least `--touch-target` tall and wide, and every cell may shrink (`min-width: 0`) so no width
+ * makes a page scroll sideways. */
+.heading {
+  composes: heading from "./item-screen.module.css";
+}
+
+.title {
+  composes: title from "./item-screen.module.css";
+}
+
+.subtitle {
+  composes: subtitle from "./item-screen.module.css";
+}
+
+.back {
+  composes: back from "./item-screen.module.css";
+}
+
+.columns {
+  composes: columns from "./item-screen.module.css";
+}
+
+.rows {
+  composes: rows from "./item-screen.module.css";
+}
+
+.row {
+  composes: row from "./item-screen.module.css";
+}
+
+.rowName {
+  composes: rowName from "./item-screen.module.css";
+}
+
+.name {
+  composes: name from "./item-screen.module.css";
+}
+
+.rowActions {
+  composes: rowActions from "./item-screen.module.css";
+}
+
+.editLink {
+  composes: editLink from "./item-screen.module.css";
+}
+
+.more {
+  composes: more from "./item-screen.module.css";
+}
+
+.menu {
+  composes: menu from "./item-screen.module.css";
+}
+
+.description {
+  composes: description from "./item-screen.module.css";
+}
+
+.chips {
+  composes: chips from "./item-screen.module.css";
+}
+
+.menuEntry {
+  composes: menuEntry from "./item-screen.module.css";
+}
+
+.rowMenu {
+  composes: rowMenu from "./item-screen.module.css";
+}
+
+.menuItem {
+  composes: menuItem from "./item-screen.module.css";
+}
+
+.menuReason {
+  composes: menuReason from "./item-screen.module.css";
+}
+
+.notice {
+  composes: notice from "./item-screen.module.css";
+}
+
+.editColumns {
+  composes: editColumns from "./item-screen.module.css";
+}
+
+.editColumn {
+  composes: editColumn from "./item-screen.module.css";
+}
+
+.cardTitle {
+  composes: cardTitle from "./item-screen.module.css";
+}
+
+.intro {
+  composes: intro from "./item-screen.module.css";
+}
+
+.words {
+  composes: words from "./item-screen.module.css";
+}
+
+.wordsLabel {
+  composes: wordsLabel from "./item-screen.module.css";
+}
+
+.wordsValue {
+  composes: wordsValue from "./item-screen.module.css";
+}
+
+.switch {
+  composes: switch from "./item-screen.module.css";
+}
+
+.switchState {
+  composes: switchState from "./item-screen.module.css";
+}
+
+.hint {
+  composes: hint from "./item-screen.module.css";
+}
+
+.fields {
+  composes: fields from "./item-screen.module.css";
+}
+
+.actions {
+  composes: actions from "./item-screen.module.css";
+}
+
+.saved {
+  composes: saved from "./item-screen.module.css";
+}
+
+.savedLink {
+  composes: savedLink from "./item-screen.module.css";
+}
+
+.fixToSave {
+  composes: fixToSave from "./item-screen.module.css";
+}
+
+.danger {
+  composes: danger from "./item-screen.module.css";
+}
+
+.addLink {
+  composes: addLink from "./item-screen.module.css";
+}
+
+.linkAction {
+  composes: linkAction from "./item-screen.module.css";
+}
+
+.page {
+  composes: page from "./item-screen.module.css";
+  --rate-count: 5;
+  /* The widest title word of a rate column at 11 px uppercase ("Направляющие", 113 px) plus a few pixels. */
+  --rate-column-min: 118px;
+  /* The widest chip of the state column ("По умолчанию", 88 px) plus a few pixels. */
+  --state-column-min: 96px;
+
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  padding-bottom: 28px;
+}
+
+.chip {
+  composes: chip from "./item-screen.module.css";
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 10px;
+  font: 700 11.5px/1 var(--font-ui);
+  color: var(--ink-muted);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+
+.rates {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 12px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.rate {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font: 400 13px/1.4 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+}
+
+.rateLabel {
+  font: 400 12px/1.3 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.rateValue {
+  font: 700 14px/1.3 var(--font-ui);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.rateActive {
+  font: 400 12px/1.3 var(--font-ui);
+  color: var(--ink-muted);
+  overflow-wrap: anywhere;
+}
+
+.sentence {
+  margin: 0;
+  font: 400 13px/1.5 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+/* Beside each other as soon as a card is wide enough for them; two by two on a phone. */
+@media (min-width: 600px) {
+  .rates {
+    grid-template-columns: repeat(var(--rate-count), minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1440px) {
+  .page {
+    --table-columns: minmax(0, 1.7fr)
+      repeat(var(--rate-count), minmax(var(--rate-column-min), 1fr))
+      minmax(var(--state-column-min), 1.2fr) minmax(0, 1.6fr);
+  }
+
+  .columns {
+    display: grid;
+    grid-template-columns: var(--table-columns);
+    gap: 16px;
+    padding: 0 14px;
+    font: 700 11px/1.4 var(--font-ui);
+    color: var(--ink-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    border-bottom: 1px solid var(--line-soft);
+  }
+
+  .rows {
+    gap: 0;
+  }
+
+  .row {
+    grid-template-columns: var(--table-columns);
+    gap: 16px;
+    align-items: center;
+    padding: 10px 14px;
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid var(--line-soft);
+    border-radius: 0;
+  }
+
+  .row[data-modified="true"] {
+    background: var(--warm-row);
+  }
+
+  /* The cells of a row say what they are in their own words for a reader, and the column titles say it to the eye. */
+  .rates {
+    display: contents;
+  }
+
+  .rateLabel {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    white-space: nowrap;
+    border: 0;
+    clip-path: inset(50%);
+  }
+
+  .menu {
+    right: calc(100% + 8px);
+    left: auto;
+  }
+}
+
+@media (min-width: 1200px) {
+  .editColumns {
+    flex-direction: row;
+    gap: 40px;
+  }
+
+  .editColumn {
+    flex: 1;
+  }
+}

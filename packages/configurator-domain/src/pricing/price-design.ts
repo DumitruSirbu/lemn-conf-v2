@@ -5,11 +5,10 @@
 // - It re-derives no order and no label: line order is `projectDesignForDisplay`'s (ADR 0063).
 // - It fails whole: every refusal returns before a single line is published.
 import { widthDerivedDoorLeafCount } from "../cabinet-handles.js";
-import { resolveCatalogEquivalent } from "../catalog.js";
+import { pricedAsBuildId } from "../catalog.js";
 import type { Design } from "../design.js";
 import { boundedFailureReason } from "../failure-text.js";
 import {
-  ContradictoryFrontDeclarationError,
   doorLeafCount,
   frontPopulationQueryFor,
   UnbuildableDoorBandError,
@@ -24,13 +23,24 @@ import {
   type DisplayEntry,
 } from "../queries/design-projection.js";
 import { findOverflowingPlacementIds } from "../queries/overflowing-placements.js";
-import { findSinkAccessories } from "../queries/sink-accessories.js";
 import type { BodyCatalog, BodyDefinition } from "../void-engine.js";
 
 import {
-  MissingAnchorLeafCountError,
+  MalformedPriceDimensionError,
   NoPriceForSizeError,
 } from "./anchored-price-formula.js";
+import {
+  type CatalogueAvailability,
+  type ItemRef,
+} from "./catalogue-availability.js";
+import { earnedAccessoryQuantities } from "./earned-accessories.js";
+import {
+  HARDWARE_RATE_FIELDS,
+  mechanismsChargedAt,
+  type HardwareRateField,
+} from "./hardware-rate-fields.js";
+import { earnedLinkedAccessories } from "./linked-accessories.js";
+import { disabledItemsNamedBy } from "./named-items.js";
 import { parsePriceBook } from "./parse-price-book.js";
 import {
   DEEP_CABINET_DEPTH_MM,
@@ -48,9 +58,9 @@ import {
   DEPTH_RULE_ID,
   exactAmountOfTerms,
   InexactPriceArithmeticError,
+  isAccessorySwitchedOff,
+  MalformedPriceCoefficientError,
   usableCoefficientOf,
-  type AccessoryId,
-  type AccessoryRule,
   type CabinetPriceRule,
   type HardwareTier,
   type MaterialTier,
@@ -65,22 +75,17 @@ import type {
   AccessoryPriceLine,
   CabinetPriceLine,
   DepthPriceLine,
+  OrdinaryPricingFailure,
+  OrdinaryPricingFailureCode,
   PriceLine,
   PricingFailure,
-  PricingFailureCode,
   PricingResult,
+  ReplacementRequiredFailure,
   WholeKitchenPriceLine,
 } from "./price-lines.js";
+import type { WholeKitchenSelections } from "./whole-kitchen-selections.js";
 
-/** The whole-kitchen choices a design was configured with, passed in by the caller holding the book.
- *  An absent choice is priced at the book's own default tier.
- *
- *  Each key is `string | undefined`, not merely optional: `DesignSettings` is inferred from a Zod
- *  `.optional()`, which `exactOptionalPropertyTypes` would refuse to assign to a plain `?: string`. */
-export interface WholeKitchenSelections {
-  readonly hardwareTierId?: string | undefined;
-  readonly materialTierId?: string | undefined;
-}
+export type { WholeKitchenSelections };
 
 /** Everything the query needs, named rather than positional. */
 export interface PriceDesignRequest {
@@ -92,8 +97,14 @@ export interface PriceDesignRequest {
   readonly pricingVersion: string;
   readonly selections?: WholeKitchenSelections | undefined;
   /** The priced-as build ids that get deeper at `DEEP_CABINET_DEPTH_MM` (`measureDeepeningRows`), supplied by the
-   *  caller because pricing binds to no catalogue. A book in percentage form is refused without it. */
-  readonly deepeningRows?: ReadonlySet<string> | undefined;
+   *  caller because pricing binds to no catalogue. Required: a caller that has not measured it cannot say which
+   *  cabinets take the depth percentage (ADR 0177 A-6). */
+  readonly deepeningRows: ReadonlySet<string>;
+  /** What is switched off, beside the book and never inside it (A-17): a design naming a switched-off tier, colour or
+   *  handle is refused `REPLACEMENT_REQUIRED`, and a switched-off accessory is not billed. Required, so a caller that
+   *  has not read it cannot price. Only the items the design names can change the result, and its `revision` never
+   *  does: the answer carries no trace of it. */
+  readonly availability: CatalogueAvailability;
 }
 
 /**
@@ -109,35 +120,14 @@ export function priceDesign(request: PriceDesignRequest): PricingResult {
   if (isRefused(cabinetLines))
     return { ok: false, failure: cabinetLines.failure };
 
-  const form: PricingForm = {
+  const lines = priceKitchenLines({
     entries,
     request,
     cabinetLines: cabinetLines.value,
-  };
-  const lines = isPercentageBook(request.book)
-    ? pricePercentageForm(form)
-    : priceFlatForm(form);
+  });
   if (isRefused(lines)) return { ok: false, failure: lines.failure };
 
   return finishPricing(request, lines.value);
-}
-
-/** The flat form: cabinets, hardware, material, accessories, none rounded. */
-function priceFlatForm(form: PricingForm): Attempt<readonly PriceLine[]> {
-  const { entries, request, cabinetLines } = form;
-  const wholeKitchenLines = priceWholeKitchen(entries, request);
-  if (isRefused(wholeKitchenLines)) return wholeKitchenLines;
-
-  const accessoryLines = priceAccessories(entries, request);
-  if (isRefused(accessoryLines)) return accessoryLines;
-
-  return {
-    value: [
-      ...cabinetLines,
-      ...wholeKitchenLines.value,
-      ...accessoryLines.value,
-    ],
-  };
 }
 
 /** The total and the result envelope, once every line is known. */
@@ -175,14 +165,17 @@ function finishPricing(
 }
 
 /** Every refusal that can be decided before a line exists: the book, then the version, then the
- *  design against the catalogue. */
+ *  design against the catalogue, then the design against availability (before any tier is selected, so a switched-off
+ *  tier the book holds is never read as an unknown one; a design that chose a tier the book lacks is passed on to
+ *  `UNKNOWN_TIER`, whatever is switched off). */
 function refuseUnusableRequest(
   request: PriceDesignRequest,
 ): PricingFailure | undefined {
   return (
     refuseUnusableBook(request.book) ??
     refuseVersionMismatch(request) ??
-    refuseUncatalogedBody(request)
+    refuseUncatalogedBody(request) ??
+    refuseSwitchedOffSelections(request)
   );
 }
 
@@ -219,6 +212,24 @@ function refuseUncatalogedBody(
     );
   }
   return undefined;
+}
+
+/** Every item the design names that availability switches off, in one refusal: the customer replaces them all, so
+ *  naming the first would show the sheet one row at a time. */
+function refuseSwitchedOffSelections(
+  request: PriceDesignRequest,
+): PricingFailure | undefined {
+  const items = disabledItemsNamedBy(
+    {
+      design: request.design,
+      catalog: request.catalog,
+      book: request.book,
+      chosen: request.selections,
+    },
+    request.availability,
+  );
+  if (items.length === 0) return undefined;
+  return failWithReplacements(items);
 }
 
 /** The design's bodies in the one display order (ADR 0063), flattened out of the projection's groups. */
@@ -264,7 +275,7 @@ function priceOnePlacement(
   const body = describePricedBody(entry, pricedAs, catalog);
   if (isRefused(body)) return body;
 
-  const evaluated = evaluateFormula(rule, body.value, entry.placementId);
+  const evaluated = evaluateFormula(rule, body.value, entry);
   if (isRefused(evaluated)) return evaluated;
 
   const amountMinor = evaluated.value;
@@ -306,35 +317,48 @@ function priceOnePlacement(
 /** `amountForBody` **throws** for a coefficient that is not an exact count of minor units (ADR 0062
  *  seam 1); this query refuses with a code instead. `undefined` passes through untouched: an
  *  unimplemented formula shape is the caller's other refusal. A width above every listed size, unreadable
- *  fronts and an unbuildable door band have codes of their own; a defect leaves as itself, as in
- *  `refuseUnreadFrontsCause`; every other cause is `INVALID_AMOUNT`. */
+ *  fronts and an unbuildable door band have codes of their own, the last two naming the body's build id as the hardware
+ *  path does; a book's other faults are `INVALID_AMOUNT`. Any throw that is not one of those causes is a defect and
+ *  leaves as itself, as in `refuseUnreadFrontsCause`: an anchored door shape reads the fronts, so a `TypeError` from
+ *  a catalogue must not be relabelled as a fact about a book. */
 function evaluateFormula(
   rule: CabinetPriceRule,
   body: PricedBody,
-  placementId: string,
+  placement: { readonly placementId: string; readonly buildId: string },
 ): Attempt<number | undefined> {
   try {
     return { value: amountForBody(rule.formula, body) };
   } catch (error) {
-    if (isADefectNotARefusal(error)) throw error;
+    if (!isARefusalCause(error)) throw error;
     return refusal(failureCodeOf(error), describeError(error), {
-      placementId,
-      id: rule.ruleId,
+      placementId: placement.placementId,
+      id: isAboutTheFronts(error) ? placement.buildId : rule.ruleId,
     });
   }
 }
 
-/** A throw no book or design can cause: the query's own caller left out the anchor's leaf count, or the catalogue
- *  declares fronts that contradict each other. Never a refusal a surface could render. */
-function isADefectNotARefusal(error: unknown): boolean {
+/** The throws a book or a design can cause, each of which this query answers with a code. Anything else, including
+ *  the query's own caller leaving out the anchor's leaf count and a catalogue whose fronts contradict each other,
+ *  is never a refusal a surface could render. */
+function isARefusalCause(error: unknown): boolean {
   return (
-    error instanceof MissingAnchorLeafCountError ||
-    error instanceof ContradictoryFrontDeclarationError
+    error instanceof MalformedPriceCoefficientError ||
+    error instanceof MalformedPriceDimensionError ||
+    error instanceof InexactPriceArithmeticError ||
+    error instanceof NoPriceForSizeError ||
+    isAboutTheFronts(error)
+  );
+}
+
+function isAboutTheFronts(error: unknown): boolean {
+  return (
+    error instanceof UndeclaredFrontPopulationError ||
+    error instanceof UnbuildableDoorBandError
   );
 }
 
 /** The refusal a formula's throw becomes: the three causes with a code of their own, else an unusable amount. */
-function failureCodeOf(error: unknown): PricingFailureCode {
+function failureCodeOf(error: unknown): OrdinaryPricingFailureCode {
   if (error instanceof NoPriceForSizeError) return "NO_PRICE_FOR_SIZE";
   if (error instanceof UndeclaredFrontPopulationError) {
     return "UNDECLARED_FRONT_POPULATION";
@@ -352,12 +376,14 @@ function failureCodeOf(error: unknown): PricingFailureCode {
  * (ADR 0021) and are priced under their own ids.
  */
 function resolvePricingRow(catalog: BodyCatalog, buildId: string): PricingRow {
-  const equivalent = resolveCatalogEquivalent(catalog, buildId);
-  if (equivalent) return equivalent;
-  const definition = catalog.get(buildId);
+  const pricedAsId = pricedAsBuildId(catalog, buildId);
+  const definition = catalog.get(pricedAsId);
+  if (definition?.insertable === true) {
+    return { buildId: pricedAsId, definition };
+  }
   const declaredEquivalentId = definition?.catalogEquivalentId;
   return {
-    buildId,
+    buildId: pricedAsId,
     definition,
     ...(declaredEquivalentId === undefined
       ? {}
@@ -366,7 +392,8 @@ function resolvePricingRow(catalog: BodyCatalog, buildId: string): PricingRow {
 }
 
 /** The row a body is priced as, with its definition: looking the row up twice lets id and row diverge. */
-interface PricingRow {
+/** Exported for `price-dashboard/priced-row.ts` (M2), which describes a priced body the way this query does. */
+export interface PricingRow {
   readonly buildId: string;
   readonly definition: BodyDefinition | undefined;
   /** Set only when the entry **declares** an equivalent that did not resolve (a broken pointer, as
@@ -394,14 +421,15 @@ function describeUnresolvedRule(pricedAs: PricingRow): string {
  * What a formula may know about a body: the placement's width and height (a body built to its
  * opening stands at a height its catalogue row does not state), and its door leaves.
  *
- * Two leaf counts, for two questions. `doorLeafCount`, which the linear shapes' door step reads, comes from the
- * **priced-as** row's width rule: seeded rows freeze `carriesHandles(n)` at their built size, so reading the
- * placement's own entry would give a resized seeded `wall-2door-600` no door step at 800 mm while an inserted
- * `wall-cabinet` beside it got one (ADR 0092 decision 1). An anchored door shape instead reads the leaves the body
- * itself carries (`builtDoorLeafCount`, what `countHardwareMechanisms` bills hinges over) against the priced-as
- * row's at the anchor width (`doorLeafCountAt`), so its panel step and its hinges count leaves alike (ADR 0177 A-3).
+ * Three leaf counts, for two questions. An anchored door shape sets the leaves the body itself carries
+ * (`builtDoorLeafCount`, what `countHardwareMechanisms` bills hinges over) against the priced-as row's at the anchor
+ * width (`doorLeafCountAt`), so its panel step and its hinges count leaves alike (ADR 0177 A-3). `doorLeafCount`, from
+ * the **priced-as** row's width rule, is what stands in for the first when no front population is read: seeded rows
+ * freeze `carriesHandles(n)` at their built size, so reading the placement's own entry would give a resized seeded
+ * `wall-2door-600` a different count from an inserted `wall-cabinet` beside it (ADR 0092 decision 1).
  */
-function describePricedBody(
+/** Exported for `price-dashboard/priced-row.ts` (M2), so the preview and the price read a body alike. */
+export function describePricedBody(
   entry: DisplayEntry,
   pricedAs: PricingRow,
   catalog: BodyCatalog,
@@ -447,63 +475,13 @@ function hardwareDoorLeaves(
   );
 }
 
-/** The leaves the priced-as row's width rule derives at one width: what the linear shapes' door step reads. */
+/** The leaves the priced-as row's width rule derives at one width. */
 function doorLeavesAt(pricedAs: PricingRow, widthMm: number): number {
   return widthDerivedDoorLeafCount({
     buildId: pricedAs.buildId,
     rule: pricedAs.definition?.cabinetHandles,
     widthMm,
   });
-}
-
-/** Hardware, then material, after **all** placement lines, both always emitted. A free tier is a
- *  zero-amount line (rendered *inclus*); a missing rule or amount is a refusal, never a zero, because
- *  omission must never be read as "included". */
-function priceWholeKitchen(
-  entries: readonly DisplayEntry[],
-  request: PriceDesignRequest,
-): Attempt<readonly WholeKitchenPriceLine[]> {
-  const hardware = selectTier(
-    request.book.hardware,
-    request.selections?.hardwareTierId,
-    "hardware",
-  );
-  if (isRefused(hardware)) return hardware;
-
-  const material = selectTier(
-    request.book.material,
-    request.selections?.materialTierId,
-    "material",
-  );
-  if (isRefused(material)) return material;
-
-  const hardwareAmount = hardwareUnitAmount(hardware.value, {
-    entries,
-    catalog: request.catalog,
-  });
-  if (isRefused(hardwareAmount)) return hardwareAmount;
-
-  const hardwareLine = wholeKitchenLine({
-    kind: "hardware",
-    tier: hardware.value,
-    unitAmountMinor: hardwareAmount.value,
-  });
-  if (isRefused(hardwareLine)) return hardwareLine;
-
-  const materialAmount = checkedBookAmount(
-    wholeKitchenAmount(material.value),
-    material.value.ruleId,
-  );
-  if (isRefused(materialAmount)) return materialAmount;
-
-  const materialLine = wholeKitchenLine({
-    kind: "material",
-    tier: material.value,
-    unitAmountMinor: materialAmount.value,
-  });
-  if (isRefused(materialLine)) return materialLine;
-
-  return { value: [hardwareLine.value, materialLine.value] };
 }
 
 /** `find` is safe only because the book was parsed: `refuseRepeatedTierId` makes a tier id shared
@@ -536,10 +514,10 @@ interface DeclaredBookAmount {
 }
 
 /**
- * The hardware line's unit amount and whole amount, because its quantity is 1: three rates cannot
+ * The hardware line's unit amount and whole amount, because its quantity is 1: the rates cannot
  * share one unit price (ADR 0092 decision 4).
  *
- * All three rates are checked whatever the design counts: a book declaring `null` for its
+ * Every rate is checked whatever the design counts: a book declaring `null` for its
  * push-to-open rate is malformed even when this kitchen has no push body.
  */
 function hardwareUnitAmount(
@@ -561,26 +539,13 @@ function hardwareUnitAmount(
   );
 }
 
-/** A hardware tier's three rates, in the order they are charged: one list drives both the check and
- *  the terms built from it. */
-const HARDWARE_RATE_FIELDS: readonly HardwareRateField[] = [
-  "perHingeMinor",
-  "perDrawerMinor",
-  "perPushToOpenMinor",
-];
-
-type HardwareRateField =
-  | "perHingeMinor"
-  | "perDrawerMinor"
-  | "perPushToOpenMinor";
-
 /** One rate a tier declares, known to be an exact count of minor units; the field picks the count. */
 interface CheckedHardwareRate {
   readonly field: HardwareRateField;
   readonly minor: number;
 }
 
-/** Checks all three rates before the design is read at all (see `hardwareUnitAmount`). */
+/** Checks every rate before the design is read at all (see `hardwareUnitAmount`). */
 function checkedHardwareRates(
   tier: HardwareTier,
 ): Attempt<readonly CheckedHardwareRate[]> {
@@ -605,22 +570,7 @@ function chargedOverMechanisms(
   }));
 }
 
-/** Which of the three counts a rate is charged over (ADR 0092 decision 2). */
-function mechanismsChargedAt(
-  counts: HardwareMechanismCounts,
-  field: HardwareRateField,
-): number {
-  switch (field) {
-    case "perHingeMinor":
-      return counts.hinges;
-    case "perDrawerMinor":
-      return counts.drawers;
-    case "perPushToOpenMinor":
-      return counts.pushToOpen;
-  }
-}
-
-/** One of a tier's three rates, carrying its own field name so a refusal names the rate, not the tier. */
+/** One of a tier's rates, carrying its own field name so a refusal names the rate, not the tier. */
 function hardwareRate(
   tier: HardwareTier,
   field: HardwareRateField,
@@ -674,11 +624,6 @@ function refuseUnreadableFrontsCause(
   throw error;
 }
 
-/** What a material tier charges once for the whole kitchen. */
-function wholeKitchenAmount(tier: MaterialTier): DeclaredBookAmount {
-  return { declared: tier.wholeKitchenMinor, field: "wholeKitchenMinor" };
-}
-
 /** Both whole-kitchen lines carry `quantity: 1` (ADR 0092 decision 4), so
  *  `amountMinor === quantity × unitAmountMinor` holds by construction. Takes an **already-checked**
  *  amount: the two kinds reach one by different routes, and folding both in gives two reasons to change. */
@@ -710,42 +655,29 @@ function wholeKitchenLine(line: {
 
 const WHOLE_KITCHEN_QUANTITY = 1;
 
-/** The depth rule is what tells a book in percentage form from a flat one: the parser holds the two together. */
-function isPercentageBook(book: PriceBook): boolean {
-  return book.depthRule !== undefined;
-}
-
-/** What a form is priced from: the design's bodies in display order, the request, and the cabinet lines at their
- *  exact amounts. */
-interface PricingForm {
+/** What the kitchen's lines are priced from: the design's bodies in display order, the request, and the cabinet lines
+ *  at their exact amounts. */
+interface PricingInputs {
   readonly entries: readonly DisplayEntry[];
   readonly request: PriceDesignRequest;
   readonly cabinetLines: readonly CabinetPriceLine[];
 }
 
 /**
- * The percentage form (ADR 0177 A-1): each cabinet carried through three rounded stages, hardware and each accessory
- * rounded to 10 lei, so every line is a whole number of ten lei and the lines add to the total exactly. Lines run
- * cabinets, hardware, material, depth, accessories. Refused without `deepeningRows`: which cabinets deepen is a
- * measured catalogue fact that pricing does not decide (A-6).
+ * Every line of the kitchen (ADR 0177 A-1): each cabinet carried through three rounded stages, hardware and each
+ * accessory rounded to 10 lei, so every line is a whole number of ten lei and the lines add to the total exactly. Lines
+ * run cabinets, hardware, material, depth, accessories.
  */
-function pricePercentageForm(form: PricingForm): Attempt<readonly PriceLine[]> {
-  const { entries, request, cabinetLines } = form;
-  const { deepeningRows } = request;
-  if (deepeningRows === undefined) {
-    return refusal(
-      "INVALID_PRICE_BOOK",
-      "A book stating its materials as percentages cannot be priced without `deepeningRows`, " +
-        "the priced-as rows that get deeper (ADR 0177 A-6)",
-      { id: request.book.version },
-    );
-  }
+function priceKitchenLines(
+  inputs: PricingInputs,
+): Attempt<readonly PriceLine[]> {
+  const { entries, request, cabinetLines } = inputs;
   const chosen = chooseTiersAndPercentages(request);
   if (isRefused(chosen)) return chosen;
 
   const cabinets = priceCabinetsInPercentages(
     { cabinetLines, ...chosen.value },
-    { design: request.design, deepeningRows },
+    { design: request.design, deepeningRows: request.deepeningRows },
   );
   if (isRefused(cabinets)) return cabinets;
 
@@ -817,7 +749,7 @@ function checkedPercentages(
   if (isRefused(materialPercent)) return materialPercent;
   const deepCabinetPercent = checkedBookAmount(
     {
-      declared: book.depthRule?.deepCabinetPercent,
+      declared: book.depthRule.deepCabinetPercent,
       field: "deepCabinetPercent",
     },
     DEPTH_RULE_ID,
@@ -884,7 +816,10 @@ function priceCabinetsInPercentages(
       materialLine: materialLine.value,
       depthLines: depthLineOf(
         split.value.cabinets.some(({ cabinet }) => cabinet.deepens),
-        split.value.depthLineMinor,
+        {
+          amountMinor: split.value.depthLineMinor,
+          deepCabinetPercent: priced.rates.deepCabinetPercent,
+        },
       ),
     },
   };
@@ -926,7 +861,7 @@ function takesTheDepthUplift(
 /** A depth line exists if and only if some cabinet deepens: then at 0 % it is present and its amount is 0. */
 function depthLineOf(
   isAnyCabinetDeepening: boolean,
-  depthLineMinor: number,
+  depth: { readonly amountMinor: number; readonly deepCabinetPercent: number },
 ): readonly DepthPriceLine[] {
   if (!isAnyCabinetDeepening) return [];
   const kind = "depth";
@@ -936,9 +871,10 @@ function depthLineOf(
       kind,
       ruleId: DEPTH_RULE_ID,
       depthMm: DEEP_CABINET_DEPTH_MM,
+      deepCabinetPercent: depth.deepCabinetPercent,
       quantity: WHOLE_KITCHEN_QUANTITY,
-      unitAmountMinor: depthLineMinor,
-      amountMinor: WHOLE_KITCHEN_QUANTITY * depthLineMinor,
+      unitAmountMinor: depth.amountMinor,
+      amountMinor: WHOLE_KITCHEN_QUANTITY * depth.amountMinor,
     },
   ];
 }
@@ -1006,45 +942,79 @@ function attemptExactly<TValue>(
 }
 
 /**
- * The sink extras, after every other line (ADR 0092 decision 11). Two lines at most, often none.
+ * The accessories, after every other line (ADR 0092 decision 11): the two sink extras, then each linked accessory in
+ * book order (ADR 0177 A-19). Two built-in lines at most, often none, and none for an accessory availability has
+ * switched off.
  *
- * Per sink, never per kitchen: the cover's quantity is the number of sink bodies, the rack's the
- * number of sinks that resolved a host, with no de-duplication when two racks share a wall cabinet.
- * A quantity of zero is no line at all: a zero would render *inclus* and tell the customer a rack
- * they are not getting is included.
+ * The built-ins are per sink, never per kitchen: the cover's quantity is the number of sink bodies, the rack's the
+ * number of sinks that resolved a host, with no de-duplication when two racks share a wall cabinet. A linked accessory
+ * is one per placement priced as its row. A quantity of zero is no line at all: a zero would render *inclus* and tell
+ * the customer a rack they are not getting is included.
  */
 function priceAccessories(
   entries: readonly DisplayEntry[],
   request: PriceDesignRequest,
 ): Attempt<readonly AccessoryPriceLine[]> {
-  const sinks = findSinkAccessories(entries, request.catalog);
-  const quantities: Readonly<Record<AccessoryId, number>> = {
-    sinkProtectiveCover: sinks.length,
-    dishDryingRack: sinks.filter(
-      (sink) => sink.rackHostPlacementId !== undefined,
-    ).length,
-  };
+  const quantities = earnedAccessoryQuantities(entries, request.catalog);
+  const billed: BilledAccessory[] = [
+    ...ACCESSORY_IDS.map((accessoryId) => ({
+      accessoryId,
+      rule: accessoryRuleOf(request.book, accessoryId),
+      quantity: quantities[accessoryId],
+    })),
+    ...earnedLinkedAccessories({
+      entries,
+      catalog: request.catalog,
+      rules: request.book.linkedAccessories,
+    }).map(({ rule, quantity }) => ({
+      accessoryId: rule.accessoryId,
+      rule,
+      quantity,
+    })),
+  ];
 
   const lines: AccessoryPriceLine[] = [];
-  for (const accessoryId of ACCESSORY_IDS) {
-    const line = accessoryLine({
-      rule: accessoryRuleOf(request.book, accessoryId),
-      accessoryId,
-      quantity: quantities[accessoryId],
-    });
+  for (const accessory of billed) {
+    if (isSwitchedOff(request.availability, accessory.accessoryId)) continue;
+    const line = accessoryLine(accessory);
     if (isRefused(line)) return line;
     if (line.value) lines.push(line.value);
   }
   return { value: lines };
 }
 
+/** A switched-off accessory is removed from the kitchen, not refused: no line, and no question of whether the book
+ *  states its rule (ADR 0062 Amendment 3). Switching it on again restores the line exactly. */
+function isSwitchedOff(
+  availability: CatalogueAvailability,
+  accessoryId: string,
+): boolean {
+  return isAccessorySwitchedOff(availability, accessoryId);
+}
+
+/** What a rule must state to be billed: a built-in's rule (keyed words, a required description) and a linked one's
+ *  (authored words, an optional description) both satisfy it. */
+interface BillableAccessoryRule {
+  readonly ruleId: string;
+  readonly name: string;
+  readonly description?: string | undefined;
+  readonly nameKey?: string | undefined;
+  readonly descriptionKey?: string | undefined;
+  readonly perUnitMinor: number;
+}
+
+/** One accessory and how many the design earns of it, before any amount is formed. */
+interface BilledAccessory {
+  readonly rule: BillableAccessoryRule | undefined;
+  readonly accessoryId: string;
+  readonly quantity: number;
+}
+
 /** One accessory the design earns, priced, or `undefined` where it earns none: an omission, which
  *  must never turn into an amount of zero. */
-function accessoryLine(billed: {
-  readonly rule: AccessoryRule | undefined;
-  readonly accessoryId: AccessoryId;
-  readonly quantity: number;
-}): Attempt<AccessoryPriceLine | undefined> {
+function accessoryLine(
+  billed: BilledAccessory,
+): Attempt<AccessoryPriceLine | undefined> {
   if (billed.quantity < ONE_ACCESSORY) return { value: undefined };
 
   // A missing rule for an accessory the design earns is refused, not skipped: a skipped line would
@@ -1076,7 +1046,7 @@ function accessoryLine(billed: {
       ruleId: rule.ruleId,
       accessoryId: billed.accessoryId,
       name: rule.name,
-      description: rule.description,
+      description: rule.description ?? NO_DESCRIPTION,
       ...textKeysOf(rule),
       quantity: billed.quantity,
       unitAmountMinor: unitAmountMinor.value,
@@ -1084,6 +1054,9 @@ function accessoryLine(billed: {
     },
   };
 }
+
+/** What a line says of a created accessory authored without a description: nothing, not a sentence. */
+const NO_DESCRIPTION = "";
 
 const ONE_ACCESSORY = 1;
 
@@ -1122,7 +1095,7 @@ function checkedBookAmount(
 
 /**
  * `exactAmountOfTerms` **throws** where a product or running sum leaves the exact-integer range; this
- * query refuses with a code instead. Separate from `checkedHardwareRates`: three exact rates do not
+ * query refuses with a code instead. Separate from `checkedHardwareRates`: exact rates do not
  * make an exact total, since two out-of-range products and a sum landing back inside the range would
  * publish a wrong amount that every later guard accepts.
  */
@@ -1147,7 +1120,7 @@ function indexRulesByBuildId(
   return new Map(rules.map((rule) => [rule.buildId, rule]));
 }
 
-/** An amount is a whole count of minor units; rounding belongs to presentation. */
+/** An amount is a whole count of minor units. */
 function isExactAmount(amountMinor: number): boolean {
   return Number.isSafeInteger(amountMinor);
 }
@@ -1205,7 +1178,7 @@ function isRefused<TValue>(attempt: Attempt<TValue>): attempt is Refused {
 }
 
 function refusal(
-  code: PricingFailureCode,
+  code: OrdinaryPricingFailureCode,
   detail: string,
   named?: { readonly placementId?: string; readonly id?: string },
 ): Refused {
@@ -1218,9 +1191,22 @@ function refusal(
  * both reach these strings, and an unbounded, un-scrubbed one amplifies and can forge a log line.
  */
 function failWith(
-  code: PricingFailureCode,
+  code: OrdinaryPricingFailureCode,
   detail: string,
   named?: { readonly placementId?: string; readonly id?: string },
-): PricingFailure {
+): OrdinaryPricingFailure {
   return { code, detail: boundedFailureReason(detail), ...named };
+}
+
+/** The one refusal that names items, not an id: the full list rides in `items`, and `detail` only counts them. */
+function failWithReplacements(
+  items: readonly ItemRef[],
+): ReplacementRequiredFailure {
+  return {
+    code: "REPLACEMENT_REQUIRED",
+    detail: boundedFailureReason(
+      `The design names ${String(items.length)} item(s) the catalogue has switched off`,
+    ),
+    items,
+  };
 }

@@ -72,10 +72,10 @@ test("the administrator's 'Meniu' sheet holds both pages", async ({
   await page.getByTestId("staff-menu-button").click();
 
   const sheet = page.getByTestId("staff-menu-sheet");
-  await expect(sheet.getByRole("navigation").getByRole("link")).toHaveText([
-    romanian("staffShell.navKitchens"),
-    romanian("staffShell.navAudit"),
-  ]);
+  // The catalogue groups sit between the two (U1, U5), so the pages this spec is about are the menu's first and last.
+  const links = sheet.getByRole("navigation").getByRole("link");
+  await expect(links.first()).toHaveText(romanian("staffShell.navKitchens"));
+  await expect(links.last()).toHaveText(romanian("staffShell.navAudit"));
   await expect(sheet).toContainText(romanian("staffShell.roleAdministrator"));
   await shootForReview(page, "mobile-audit-menu");
 });

@@ -126,12 +126,12 @@ const FUNCTION_FAMILIES = [
   "panel.noOffersTooNarrow",
   "panel.offerSize",
   "panel.savePausedNotice",
-  "panel.handleDefaultNote",
   "panel.widthValue",
   "price.amountWithCurrency",
   "priceBreakdown.placementLabel",
   "priceBreakdown.groupHeading",
   "priceBreakdown.wholeKitchenLabel",
+  "priceBreakdown.depthLine",
   "globalSettings.appliesTo",
   "globalSettings.tierDelta",
   "globalSettings.applyRefused",
@@ -141,6 +141,7 @@ const FUNCTION_FAMILIES = [
   "globalSettings.pillDepth",
   "globalSettings.pillNameAllSettings",
   "globalSettings.depthOption",
+  "globalSettings.depthNotePriced",
   "globalSettings.materialResetConfirm.body",
   "submissionResult.channelLine",
   "submissionResult.whatsappMessageToShop",
@@ -165,12 +166,12 @@ describe("the localized content resolver", () => {
   });
 
   it.each(CATALOGUES)(
-    "maps all 260 resolved strings through the %s catalogue",
+    "maps all 263 resolved strings through the %s catalogue",
     (locale, messages) => {
       const { content, translate } = contentAndOracleFor(locale, messages);
       const leaves = stringLeaves(content);
 
-      expect(leaves).toHaveLength(260);
+      expect(leaves).toHaveLength(263);
       for (const { path, value } of leaves) {
         // The step is stated twice — as a sentence and as the top bar's pill — from one pair of
         // numbers, so neither spelling can drift from the other.
@@ -185,7 +186,7 @@ describe("the localized content resolver", () => {
   );
 
   it.each(CATALOGUES)(
-    "backs exactly 43 public functions with %s ICU messages",
+    "backs exactly 45 public functions with %s ICU messages",
     (locale, messages) => {
       const { content, translate } = contentAndOracleFor(locale, messages);
 
@@ -235,9 +236,6 @@ describe("the localized content resolver", () => {
       expect(content.panel.savePausedNotice("14:05")).toBe(
         translate("panel.savePausedNotice", { time: "14:05" }),
       );
-      expect(content.panel.handleDefaultNote("label-token")).toBe(
-        translate("panel.handleDefaultNote", { label: "label-token" }),
-      );
       expect(content.panel.widthValue(600)).toBe(
         translate("panel.widthValue", { widthMm: 600 }),
       );
@@ -275,6 +273,18 @@ describe("the localized content resolver", () => {
       );
       expect(content.globalSettings.depthOption(600)).toBe(
         translate("globalSettings.depthOption", { cabinetDepthMm: 600 }),
+      );
+      expect(content.priceBreakdown.depthLine(700, 15)).toBe(
+        translate("priceBreakdown.depthLine", {
+          cabinetDepthMm: 700,
+          percent: 15,
+        }),
+      );
+      expect(content.globalSettings.depthNotePriced(700, 15)).toBe(
+        translate("globalSettings.depthNotePriced", {
+          cabinetDepthMm: 700,
+          percent: 15,
+        }),
       );
       expect(content.globalSettings.materialResetConfirm.body(2)).toBe(
         translate("globalSettings.materialResetConfirm.body", {

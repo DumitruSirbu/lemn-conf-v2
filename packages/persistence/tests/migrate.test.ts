@@ -80,6 +80,11 @@ const ALL_MIGRATION_FILE_NAMES = [
   "0020_create_staff_audit_events.sql",
   "0021_create_design_notes.sql",
   "0022_create_design_request_states.sql",
+  "0023_create_price_book_versions.sql",
+  "0024_create_price_book_draft.sql",
+  "0025_create_catalogue_availability.sql",
+  "0026_create_design_staff_seen.sql",
+  "0027_create_staff_change_digest.sql",
 ];
 
 /** Every version after the first, read from disk. Forgetting a *suffix* of the ledger is the only

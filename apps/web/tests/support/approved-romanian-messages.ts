@@ -346,7 +346,8 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       black: "Bară neagră",
       push: "Push-to-open",
     },
-    handleDefaultNote: "Implicit pentru acest dulap: {label}.",
+    // Drafted, not approved: the cabinet follows the kitchen's handle again.
+    handleFollowsKitchen: "Ca restul bucătăriei",
     widthTitle: "Lățime",
     widthValue: "{widthMm, number, ::group-off} mm",
     widthStepLabels: {
@@ -461,16 +462,13 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     depthOption: "{cabinetDepthMm, number, ::group-off} mm",
     depthWarning:
       "Schimbarea adâncimii blatului reconstruiește toate dulapurile și schimbă prețul acestora.",
-    depthNote:
-      "Adâncimea blatului nu schimbă prețul bucătăriei — doar dimensiunile dulapurilor.",
     // Drafted, not approved: the Romanian is the agent's draft of the M10 copy (plan M10, wave T1), pending the owner's
     // approval of the M10 Romanian copy as drafted (OQ-11). The Russian is an agent draft, unapproved under ADR 0095
     // decision 2, and is never pinned here.
-    // `depthNotePriced` is the sentence the depth control shows once depth is priced (frame C3S); nothing renders it until
-    // wave Q1 switches to it, and `depthNote` above stays until wave T2 retires it. `kitchenHandle*` is the whole-kitchen handle
-    // row (frame C2); its options are `panel.handleLabels`.
+    // `depthNotePriced` is the sentence the depth control shows (frame C3S); it replaced `depthNote`, retired by wave T2.
+    // `kitchenHandle*` is the whole-kitchen handle row (frame C2); its options are `panel.handleLabels`.
     depthNotePriced:
-      "{percent, plural, =0 {Adâncimea de {cabinetDepthMm, number, ::group-off} mm nu schimbă prețul.} other {Adâncimea de {cabinetDepthMm, number, ::group-off} mm scumpește dulapurile care se adâncesc cu {percent} %.}}",
+      "{percent, plural, =0 {Adâncimea de {cabinetDepthMm, number, ::group-off} mm nu schimbă prețul.} other {Adâncimea de {cabinetDepthMm, number, ::group-off} mm scumpește dulapurile care se adâncesc cu # %.}}",
     kitchenHandleHeading: "Mânere",
     kitchenHandleHint:
       "Se pune pe toate dulapurile care au mâner. Mânerul unui singur dulap îl poți schimba apoi din editorul lui.",
@@ -1677,6 +1675,49 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     noResultsTitle: "Nicio acțiune pentru filtrele alese.",
     noResultsBody: "Schimbă persoana, acțiunea sau intervalul.",
   },
+  // Drafted, not approved: the Romanian is the agent's draft of wave U5's new copy, pending the owner's approval as
+  // drafted (OQ-11). The Russian is an agent draft, unapproved under ADR 0095 decision 2, and is never pinned here.
+  staffAuditDetail: {
+    changeKinds: {
+      cabinet: "preț de dulap",
+      cabinetSize: "preț pe mărime de dulap",
+      hardware: "preț de feronerie",
+      material: "adaos de material",
+      depthRule: "regula de adâncime",
+      accessory: "preț de accesoriu",
+      provisional: "sume provizorii",
+      hardwareTierCreated: "clasă de feronerie nouă",
+      accessoryCreated: "accesoriu nou",
+      createdRowText: "text al unui rând creat",
+      itemDeleted: "ștergerea unui articol",
+      bulkGroup: "modificare în bloc",
+      discardAll: "renunțare la ciornă",
+    },
+    itemKinds: {
+      cabinet: "dulap",
+      material: "material",
+      hardware: "clasă de feronerie",
+      finish: "culoare",
+      handle: "mâner",
+      accessory: "accesoriu",
+    },
+    defaultsFields: {
+      material: "material",
+      hardware: "feronerie",
+      depth: "adâncime",
+      finish: "culoare",
+      handle: "mâner",
+      topRowHandle: "mânerul rândului de sus",
+    },
+    sectionVersion: "o versiune din istoric",
+    detailVersion: "versiunea {sequenceNumber, number, ::group-off}",
+    detailFromVersion: "din versiunea {sequenceNumber, number, ::group-off}",
+    detailChanges:
+      "{count, plural, one {# modificare} few {# modificări} other {# de modificări}}",
+    detailProvisionalOn: "cu sume provizorii",
+    detailProvisionalOff: "fără sume provizorii",
+    detailWidth: "{widthMm, number, ::group-off} mm",
+  },
   // Drafted, not approved: the Romanian is the agent's draft of the M10 copy (plan M10, wave T1), pending the owner's
   // approval of the M10 Romanian copy as drafted (OQ-11). The Russian is an agent draft, unapproved under ADR 0095
   // decision 2, and is never pinned here.
@@ -1750,7 +1791,11 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       notNumber:
         "Scrie doar cifre și o virgulă pentru bani, de exemplu {example}.",
       negative: "Suma nu poate fi negativă.",
+      // Drafted, not approved: a rate that is never free, refused at zero and when empty.
+      aboveZero: "Completează un preț mai mare decât zero.",
       tooManyDecimals: "Cel mult două zecimale, de exemplu {example}.",
+      notMultipleOfTen:
+        "Prețul se scrie în multipli de {step} lei, de exemplu {example}.",
       tooBig: "Suma este prea mare.",
       empty: "Completează suma. Scrie zero dacă nu se adaugă nimic.",
       percentEmpty:
@@ -1762,11 +1807,23 @@ export const APPROVED_ROMANIAN_MESSAGES = {
         "La {widthMm, number, ::group-off} mm prețul ar ieși zero sau negativ. Micșorează pasul „în minus”.",
       priceNotPositiveAtHeight:
         "La {heightMm, number, ::group-off} mm prețul ar ieși zero sau negativ. Micșorează pasul de înălțime.",
+      // Drafted, not frame wording: the frames draw only the narrow-step and height-step causes of a zero price.
+      priceNotPositive: "Cu valorile acestea un preț ar ieși zero sau negativ.",
       fixToSave:
         "Corectează câmpul ca să poți salva. O valoare greșită nu se salvează niciodată.",
       saveFailed: "Nu am putut salva. Nu am schimbat nimic. Încearcă din nou.",
+      // Drafted, not approved: a Save of several prices that landed some and then failed. It does not say nothing changed,
+      // because the draft already holds what the earlier writes did.
+      savePartlyFailed:
+        "Nu am putut salva toate prețurile. Cele dinainte s-au salvat; încearcă din nou pentru celelalte.",
       changedMeanwhile:
         "Altcineva a schimbat între timp datele. Le-am citit din nou; încearcă din nou.",
+      textEmpty: "Completează textul.",
+      textTooLong: "Textul este prea lung. Scurtează-l.",
+      textForbiddenCharacter:
+        "Textul conține un caracter care nu se poate folosi. Folosește litere, cifre și semne obișnuite.",
+      textStatesAnAmount:
+        "Textul nu poate spune un preț sau un procent. Prețurile se scriu în câmpurile lor.",
     },
     diff: {
       amountPercent: "{signedAmount} · {signedPercent} %",
@@ -1808,6 +1865,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       structuralNote: "pus automat în bucătăriile în L și U",
       widthDefault: "implicit {widthMm, number, ::group-off}",
       widthFollowsBase: "implicit: după dulapul de jos",
+      nameWithWidth: "{name} {widthMm, number, ::group-off}",
       proposed: "propus",
       priceBasis: "{widthMm, number, ::group-off} mm · PAL",
       priceBasisHeight:
@@ -1845,6 +1903,25 @@ export const APPROVED_ROMANIAN_MESSAGES = {
         "{cabinetCount, plural, one {{cabinetCount, number, ::group-off} dulap} few {{cabinetCount, number, ::group-off} dulapuri} other {{cabinetCount, number, ::group-off} dulapuri}}, {priceCount, plural, one {{priceCount, number, ::group-off} preț} few {{priceCount, number, ::group-off} prețuri} other {{priceCount, number, ::group-off} de prețuri}}. Exemplu: {example}.",
       explainer:
         "Se schimbă proporțional prețul la mărimea implicită, pașii de lățime, ușa în plus, pasul de înălțime și prețurile pe mărime. Rezultatele se rotunjesc la {roundTo}. Merg la „De publicat”, nu direct la clienți.",
+      adding: "Se adaugă…",
+      previewExample:
+        "{name} {widthMm, number, ::group-off} mm: {before} → {after}",
+      errors: {
+        empty: "Scrie procentul, de exemplu +{example}.",
+        zero: "Zero la sută nu schimbă niciun preț. Scrie alt procent.",
+        outOfRange: "Procentul trebuie să fie între {lowest} și {highest}.",
+        nothingChanges:
+          "Cu acest procent, după rotunjire, niciun preț nu s-ar schimba. Alege un procent mai mare.",
+        noCabinets: "Bifează cel puțin un dulap.",
+        priceNotPositive:
+          "Prețul dulapului „{name}” ar ieși zero sau negativ. Alege un procent mai mic sau scoate dulapul din alegere.",
+        priceAlreadyNotPositive:
+          "Prețul dulapului „{name}” este deja zero sau negativ. Corectează mai întâi prețul, apoi aplică procentul.",
+        priceTooLarge:
+          "Un preț ar depăși cât poate costa un dulap. Alege un procent mai mic.",
+        cannotApply:
+          "Procentul nu poate fi aplicat acestor prețuri. Nu am schimbat nimic.",
+      },
     },
     cabinet: {
       dimensionsHeading: "Dimensiuni",
@@ -1854,17 +1931,14 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       maxWidth: "Lățime maximă",
       widthStep: "Pas",
       availableWidths: "Lățimi disponibile",
-      bodyHeight: "Înălțime corp",
+      bodyHeight: "Înălțime finită",
       maxHeight: "Înălțime maximă",
       depthInKitchen:
         "Adâncime · bucătărie {kitchenDepthMm, number, ::group-off}",
       sourceGenerator: "din generatorul de bucătării",
       sourceSameAsWidth: "aceeași cu lățimea disponibilă",
       sourceToConfirm: "de confirmat de tine",
-      followsBase: "după dulapul de jos",
-      wallRows: "rândul de perete / rândul de sus",
       followsOpening: "după golul din perete",
-      noMaxHeight: "nu există încă; ia înălțimea golului",
       doors: "Uși",
       doorsRange:
         "{low, number, ::group-off} · {high, number, ::group-off} de la {atMm, number, ::group-off} mm",
@@ -1897,11 +1971,20 @@ export const APPROVED_ROMANIAN_MESSAGES = {
         "Fiecare {stepMm, number, ::group-off} mm de înălțime sub {referenceMm, number, ::group-off} scade {amount}.",
       summaryRounding: "Lățimile intermediare se rotunjesc în sus.",
       summaryFixedSize: "{widthMm, number, ::group-off} mm: {amount}",
+      // Drafted, not frame wording: the frames join a fixed-size row's sizes with a comma and end the sentence.
+      summaryFixedJoined: "{head}, {tail}",
+      summaryFixedEnd: "{sizes}.",
       hardwareHeading: "Feronerie (automată, doar citire)",
       hardwareLine:
         "La {widthMm, number, ::group-off} mm: {quantities} → +{amount} cu {className}.",
+      hardwareLineActive:
+        "Activ · la {widthMm, number, ::group-off} mm: {quantities} → +{amount} cu {className}.",
+      hardwareLinePending:
+        "De publicat · la {widthMm, number, ::group-off} mm: {quantities} → +{amount} cu {className}.",
       hardwareNone: "Acest dulap nu are mecanisme de feronerie.",
       hardwareLink: "Feronerie →",
+      // Drafted, not frame wording: the frame joins the mechanisms with a plus.
+      hardwareJoined: "{head} + {tail}",
       hingeCount:
         "{count, plural, one {{count, number, ::group-off} balama} few {{count, number, ::group-off} balamale} other {{count, number, ::group-off} de balamale}}",
       slidePairCount:
@@ -1911,6 +1994,9 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       previewHeading: "Prețul dulapului",
       previewIntro:
         "Activ acum și după salvare. Toate prețurile se rotunjesc la {roundTo}.",
+      // Drafted, not frame wording: a width row of the table and the label a phone card gives each price.
+      previewWidth: "{widthMm, number, ::group-off} mm",
+      previewCellLabel: "{column} · {kind}",
       columnWidth: "Lățime",
       columnDoors: "Uși",
       columnActive: "Activ",
@@ -1921,9 +2007,14 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       depthToggle:
         "Adâncime {shallowMm, number, ::group-off} / {deepMm, number, ::group-off}",
       depthToggleOn: "{deepMm, number, ::group-off} mm · +{percent} %",
+      depthToggleOnPending:
+        "{deepMm, number, ::group-off} mm · Activ +{activePercent} % · De publicat +{pendingPercent} %",
       depthToggleOff: "{shallowMm, number, ::group-off} mm",
-      depthToggleDisabled: "Nu se schimbă la {deepMm, number, ::group-off} mm",
+      depthToggleDisabled:
+        "Prețul nu se schimbă la {deepMm, number, ::group-off} mm",
       columnMaterialPercent: "{name} +{percent} %",
+      columnMaterialPercentPending:
+        "{name} +{percent} % · De publicat +{pendingPercent} %",
       columnWallRow:
         "{heightMm, number, ::group-off} mm · rândul de perete · PAL",
       columnTopRow: "{heightMm, number, ::group-off} mm · rândul de sus · PAL",
@@ -1934,7 +2025,6 @@ export const APPROVED_ROMANIAN_MESSAGES = {
         "{doorCount, plural, one {{doorCount, number, ::group-off} ușă} few {{doorCount, number, ::group-off} uși} other {{doorCount, number, ::group-off} uși}}",
       doorsFromHere:
         "de aici {doorCount, plural, one {o ușă} few {{doorCount, number, ::group-off} uși} other {{doorCount, number, ::group-off} uși}}",
-      activeCell: "activ {amount}",
       pendingNotice:
         "Prețul nou este în „De publicat” și intră în vigoare când publici.",
       customerSupplied: "Clientul oferă acest obiect; nu influențează prețul.",
@@ -1956,6 +2046,8 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       columnSlide: "Glisieră (pereche)",
       columnPush: "Push-to-open",
       columnLift: "Mecanism rabatabil",
+      // Drafted, not approved: the push-runner column, price and hint wording await the owner.
+      columnPushRunner: "Glisieră push-to-open",
       columnState: "Stare",
       newTitle: "Clasă nouă de feronerie",
       nameLabel: "Nume",
@@ -1979,11 +2071,22 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       pricePush: "Preț pe mecanism push-to-open",
       priceLift: "Preț pe mecanism rabatabil",
       priceLiftHint: "Pentru dulapul suspendat rabatabil",
+      pricePushRunner: "Preț pe glisieră push-to-open",
+      pricePushRunnerHint:
+        "Un sertar al unui corp push-to-open primește acest preț în locul prețului pe glisieră.",
+      // Drafted, not approved: the approved sentence, with the push-runner exception added.
       newPricesNote:
-        "Completează prețurile; un mecanism pe care clasa nu-l are se lasă la zero.",
+        "Completează prețurile; un mecanism pe care clasa nu-l are se lasă la zero, în afară de prețul pe glisieră push-to-open.",
       createAction: "Creează clasa",
+      // Drafted, not approved: the button that saves a created class's new name.
+      renameAction: "Redenumește",
       createdNotice:
         "Clasa a fost creată în „De publicat”. O activezi după ce publici.",
+      createdRemoved: "Clasa a fost scoasă din „De publicat”.",
+      // Drafted, not approved: the server refused a new class that the form had let through. Nothing was written, and no
+      // retry would change the answer, so it sends the person back to what they typed.
+      createRefused:
+        "Clasa nu poate fi adăugată așa. Nu am schimbat nimic; verifică numele și prețurile.",
     },
     materials: {
       title: "Materiale",
@@ -2020,6 +2123,21 @@ export const APPROVED_ROMANIAN_MESSAGES = {
         "La adâncime {deepMm, number, ::group-off}: {before} → {after}",
       exampleNote:
         "Prețurile finale se rotunjesc la {roundTo}. Într-o bucătărie mai mare, adaosul crește odată cu prețul dulapurilor. Clientul vede o singură linie: „{customerLine}”.",
+      // Drafted, not approved: the leaves of the material page and list that the frames draw without words of their own. MDF
+      // is painted, so it offers a picker and no list to count.
+      colourPicker: "Selector de culori",
+      colourPickerManaged: "Selector de culori · se gestionează separat",
+      surchargeEmpty:
+        "Completează procentul. Scrie zero dacă materialul nu se scumpește.",
+      nameLabel: "Nume",
+      descriptionLabel: "Descriere",
+      inactiveBannerPlain:
+        "Clienții nu îl mai pot alege. Când un client deschide o bucătărie care îl folosește, alege altă opțiune.",
+      deleteHeading: "Șterge materialul",
+      deleteHint:
+        "Poți șterge doar un material nefolosit în bucătării salvate și care nu e implicit. Altfel, dezactivează-l.",
+      deleteAction: "Șterge materialul",
+      deleteNotice: "Ștergerea intră în vigoare când publici.",
     },
     accessories: {
       title: "Accesorii",
@@ -2055,6 +2173,21 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       createAction: "Creează accesoriul",
       createdNotice:
         "Accesoriul a fost creat în „De publicat”. Îl activezi după ce publici.",
+      // Drafted, not approved: the accessory screens' own words for a creation, a rename, a deletion and a refused link.
+      activeHintNew:
+        "Un accesoriu nou se creează inactiv. Îl activezi după ce îi publici prețul.",
+      linkPlaceholder: "Alege tipul de dulap",
+      linkRefused:
+        "Accesoriul nu poate fi legat de acest tip de dulap. Alege altul din listă.",
+      createRefused:
+        "Accesoriul nu poate fi adăugat așa. Nu am schimbat nimic; verifică numele, tipul de dulap și prețul.",
+      renameAction: "Redenumește",
+      deleteHeading: "Șterge accesoriul",
+      deleteHint:
+        "Poți șterge doar un accesoriu creat aici și nefolosit în bucătării salvate. Altfel, dezactivează-l.",
+      deleteAction: "Șterge accesoriul",
+      deleteNotice: "Ștergerea intră în vigoare când publici.",
+      createdRemoved: "Accesoriul a fost scos din „De publicat”.",
     },
     lifecycle: {
       deactivateTitle: "Dezactivezi „{name}”?",
@@ -2084,6 +2217,44 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       deleteBlockedBody:
         "Nu poți șterge „{name}”: {count, plural, one {o bucătărie salvată folosește} few {{count, number, ::group-off} bucătării salvate folosesc} other {{count, number, ::group-off} de bucătării salvate folosesc}} această opțiune. O poți dezactiva; clientului i se va cere atunci să aleagă altă opțiune.",
       deactivateInstead: "Dezactivează în schimb",
+      fixedDefaultCannotChange:
+        "Este opțiunea implicită a catalogului și rămâne mereu disponibilă.",
+      cannotJudge:
+        "Nu putem verifica acum dacă se poate. Încearcă din nou mai târziu.",
+      usageUnavailable:
+        "Nu am putut număra bucătăriile salvate care folosesc această opțiune, așa că nu schimbăm nimic acum. Încearcă din nou.",
+      deleteBlockedInactiveBody:
+        "Nu poți șterge „{name}”: bucătăriile salvate încă folosesc această opțiune. Este deja dezactivată; clienții aleg altă opțiune când își deschid bucătăria.",
+      deleteBlockedAccessoryBody:
+        "Nu poți șterge „{name}”: {count, plural, one {o bucătărie salvată folosește} few {{count, number, ::group-off} bucătării salvate folosesc} other {{count, number, ::group-off} de bucătării salvate folosesc}} acest accesoriu. Îl poți dezactiva; accesoriul nu se mai adaugă, iar clientul este anunțat când își deschide bucătăria.",
+      deleteBlockedAccessoryInactiveBody:
+        "Nu poți șterge „{name}”: bucătăriile salvate încă folosesc acest accesoriu. Este deja dezactivat; accesoriul nu se mai adaugă, iar clientul este anunțat când își deschide bucătăria.",
+      deleteBlockedUncountedBody:
+        "Nu poți șterge „{name}”: bucătării salvate folosesc această opțiune. O poți dezactiva; clientului i se va cere atunci să aleagă altă opțiune.",
+      deleteBlockedAccessoryUncountedBody:
+        "Nu poți șterge „{name}”: bucătării salvate folosesc acest accesoriu. Îl poți dezactiva; accesoriul nu se mai adaugă, iar clientul este anunțat când își deschide bucătăria.",
+      working: "Se aplică…",
+      // Drafted, not approved: said while the saved kitchens that use an option are counted, before a dialog can open.
+      counting: "Numărăm bucătăriile salvate care folosesc această opțiune…",
+      deleteCreatedBody:
+        "Opțiunea nu a fost încă publicată. Ștergerea o scoate din „De publicat”.",
+      // Drafted, not approved: the dialogs' words for an accessory, which is earned and never chosen, so none says "option".
+      usedByAccessory:
+        "{count, plural, one {O bucătărie salvată îl folosește} few {{count, number, ::group-off} bucătării salvate îl folosesc} other {{count, number, ::group-off} de bucătării salvate îl folosesc}}.",
+      clientsNoLongerGetAccessory: "Clienții nu îl mai primesc în bucătărie.",
+      activateAccessoryBody: "Accesoriul se adaugă din nou în bucătării.",
+      usageUnavailableAccessory:
+        "Nu am putut număra bucătăriile salvate care folosesc acest accesoriu, așa că nu schimbăm nimic acum. Încearcă din nou.",
+      countingAccessory:
+        "Numărăm bucătăriile salvate care folosesc acest accesoriu…",
+      builtInAccessoryCannotBeDeleted:
+        "Vine odată cu catalogul și nu se șterge. Îl poți dezactiva.",
+      deleteCreatedAccessoryBody:
+        "Accesoriul nu a fost încă publicat. Ștergerea îl scoate din „De publicat”.",
+      alwaysPresentCannotChange:
+        "Se adaugă întotdeauna, ca protecție, și nu se dezactivează.",
+      alwaysPresentCannotBeDeleted:
+        "Se adaugă întotdeauna, ca protecție, și nu se șterge.",
     },
     publish: {
       title: "Publicare prețuri",
@@ -2132,6 +2303,8 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       publishAction:
         "Publică {count, plural, one {un preț} few {{count, number, ::group-off} prețuri} other {{count, number, ::group-off} de prețuri}}",
       publishing: "Se publică…",
+      unsentAmountHint:
+        "Ai o valoare scrisă în „Nou” care nu a fost trimisă. Trimite-o cu Enter sau închide câmpul cu Esc, apoi publică.",
       confirmTitle: "Publici „{versionName}”?",
       confirmBody:
         "{count, plural, one {Prețul nou devine activ} few {Cele {count, number, ::group-off} prețuri noi devin active} other {Cele {count, number, ::group-off} de prețuri noi devin active}} imediat în toate bucătăriile, și în cele deja salvate de clienți. Clienții vor vedea o notificare că prețurile s-au actualizat.",
@@ -2157,6 +2330,64 @@ export const APPROVED_ROMANIAN_MESSAGES = {
         "Nimic nu a fost publicat. „{name}” a început să fie folosit în bucătării salvate și nu mai poate fi șters. Renunță la ștergere și publică din nou.",
       blockedIsDefault:
         "Nimic nu a fost publicat. „{name}” este acum implicit în Setări implicite și nu poate fi șters. Renunță la ștergere sau alege alt implicit, apoi publică din nou.",
+      // Drafted, not approved: the Romanian is the agent's draft of wave U5's new copy, pending the owner's approval as
+      // drafted (OQ-11). The Russian is an agent draft, unapproved under ADR 0095 decision 2, and is never pinned here.
+      versionNameEmpty: "Scrie un nume pentru versiune.",
+      versionNameTooLong: "Numele este prea lung. Scrie unul mai scurt.",
+      versionNameForbidden:
+        "Numele are un caracter care nu e permis. Scrie doar litere, cifre și semne obișnuite.",
+      // Drafted, not approved: the Romanian is the agent's draft of wave U5's review-round copy, pending the owner's
+      // approval as drafted (OQ-11). The Russian is an agent draft, unapproved under ADR 0095 decision 2, never pinned.
+      bulkScopeAll: "toate dulapurile",
+      candidateRefusedTitle: "Prețurile pregătite nu pot fi publicate",
+      candidateRefusedBody:
+        "Lista de prețuri care ar rezulta nu trece verificarea catalogului, de exemplu pentru că un preț ar ieși zero sau negativ. Nimic nu s-a publicat. Corectează sau anulează (↺) o modificare din listă și încearcă din nou.",
+      // Drafted, not approved: the Romanian is the agent's draft of wave U5's visual-round copy, pending the owner's
+      // approval as drafted (OQ-11). The Russian is an agent draft, unapproved under ADR 0095 decision 2, never pinned.
+      noDifference: "fără diferență",
+      // Drafted, not approved: the Romanian is an agent draft awaiting the owner's approval as drafted. The Russian is
+      // an agent draft, unapproved under ADR 0095 decision 2, never pinned.
+      unreadableTitle: "Ciorna nu poate fi citită",
+      unreadableBody:
+        "Ce ai pregătit nu mai poate fi afișat sau publicat. Prețurile active nu s-au schimbat. Poți renunța la ciornă și o iei de la capăt.",
+      staleDraftTitle: "Unele prețuri pregătite nu mai pot fi aplicate",
+      staleDraftBody:
+        "Ce ai pregătit nu se mai potrivește cu prețurile active, așa că nu poate fi publicat. Prețurile active nu s-au schimbat. Poți renunța la modificările de mai jos una câte una sau la toată ciorna.",
+      staleDraftWholeBook:
+        "Ce ai pregătit nu se mai potrivește cu prețurile active, așa că nu poate fi publicat, și nu se vede care modificare strică lista. Prețurile active nu s-au schimbat. Poți renunța doar la toată ciorna.",
+      staleChangeKept: "{name}: modificare pregătită.",
+      staleChangeWholeDraftOnly:
+        "{name}: nu se poate anula singură, doar împreună cu toată ciorna.",
+      noActiveVersion:
+        "Nu există încă nicio versiune publicată, așa că nu se poate publica nimic și nu se poate restaura nimic. Prețurile pregătite sunt păstrate.",
+      writeCandidateRefused:
+        "Lista care ar rezulta nu ar trece verificarea catalogului, așa că nu s-a schimbat nimic. Prețurile pregătite sunt păstrate.",
+      answerUnreadableTitle: "Nu am putut citi răspunsul serverului",
+      answerUnreadableBody:
+        "Este posibil ca versiunea să fi fost publicată. Reîncarcă pagina ca să vezi ce s-a publicat; prețurile pregătite se văd acolo dacă nu s-au publicat.",
+      unchangedDraftTitle: "Ce ai pregătit nu diferă de prețurile active",
+      unchangedDraftBody:
+        "Modificările pregătite se anulează între ele, așa că lista nu are ce arăta și nu e nimic de publicat. Prețurile active nu s-au schimbat. Poți renunța la ciornă și o iei de la capăt.",
+      discardAction: "Renunță la ciornă",
+      discardTitle: "Renunți la toate prețurile pregătite?",
+      discardBody:
+        "Toate prețurile din „De publicat” se șterg și nu mai pot fi aduse înapoi. Prețurile active nu se schimbă.",
+      discarding: "Se șterge…",
+      discardedBody:
+        "Ciorna a fost ștearsă. Prețurile active nu s-au schimbat.",
+      discardChangedMeanwhile:
+        "Ciorna s-a schimbat între timp, așa că nu am șters nimic. Reîncarcă pagina înainte să încerci din nou.",
+      refusalChange: "{name}: modificarea nu mai poate fi aplicată.",
+      refusalPriceNotPositive:
+        "{name}: la {widthMm, number, ::group-off} × {heightMm, number, ::group-off} mm prețul ar ieși zero sau negativ.",
+      refusalPriceTooLarge:
+        "{name}: la {widthMm, number, ::group-off} × {heightMm, number, ::group-off} mm prețul ar fi prea mare.",
+      refusalPercent: "{name}: procentul iese din limitele permise.",
+      refusalLink: "{name}: dulapul la care se adaugă nu poate fi prețuit.",
+      refusalCabinet: "{name}: lista nu poate calcula prețul acestui dulap.",
+      refusalUnnamed: "Lista nu poate calcula prețurile catalogului.",
+      refusalsMore: "Alte probleme: {count, number, ::group-off}.",
+      rowDeleted: "Șters",
     },
     history: {
       subtitle:
@@ -2176,11 +2407,34 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       columnInVersion: "În {versionId}",
       restoreHeading: "Revii la aceste prețuri?",
       restoreBody:
-        "„Restaurează” compară prețurile din {versionId} cu cele active și adaugă diferențele la „De publicat”, lângă ce ai pregătit deja. Nimic nu se schimbă pentru clienți până nu publici.",
+        "„Restaurează” pune în „De publicat” prețurile din {versionId}. Ele înlocuiesc ce ai pregătit pentru aceleași prețuri; restul modificărilor tale rămân. Nimic nu se schimbă pentru clienți până nu publici.",
       restoreAction: "Restaurează prețurile din {versionId}",
       restoreTitle: "Restaurezi prețurile din {versionId}?",
       restoreDialogBody:
-        "{count, plural, one {Un preț diferă} few {{count, number, ::group-off} prețuri diferă} other {{count, number, ::group-off} de prețuri diferă}} de cele active. Diferențele se adaugă la „De publicat”. Le verifici și le publici ca de obicei.",
+        "{count, plural, one {Un preț diferă} few {{count, number, ::group-off} prețuri diferă} other {{count, number, ::group-off} de prețuri diferă}} de cele active și de cele pregătite. Ele se pun la „De publicat” și înlocuiesc ce ai pregătit pentru aceleași prețuri; restul modificărilor tale rămân. Nimic nu se publică până nu publici.",
+      // Drafted, not approved: the Romanian is the agent's draft of wave U5's new copy, pending the owner's approval as
+      // drafted (OQ-11). The Russian is an agent draft, unapproved under ADR 0095 decision 2, and is never pinned here.
+      restoring: "Se adaugă…",
+      restoredNotice:
+        "Prețurile au fost adăugate la „De publicat”. Nimic nu s-a publicat.",
+      nothingToRestore:
+        "Prețurile din {versionId} nu diferă de cele active și de cele pregătite.",
+      firstVersion:
+        "Aceasta este prima versiune: nu are o versiune anterioară cu care să fie comparată.",
+      // Drafted, not approved: the Romanian is the agent's draft of wave U5's review-round copy, pending the owner's
+      // approval as drafted (OQ-11). The Russian is an agent draft, unapproved under ADR 0095 decision 2, never pinned.
+      versionNotFound:
+        "Versiunea nu mai există sau nu poate fi citită. Nimic nu s-a adăugat la „De publicat”.",
+      restoreCandidateRefused:
+        "Prețurile din această versiune nu pot fi adăugate: lista care ar rezulta nu trece verificarea catalogului. Nimic nu s-a adăugat la „De publicat”.",
+      // Drafted, not approved: the Romanian is the agent's draft of wave U5's visual-round copy, pending the owner's
+      // approval as drafted (OQ-11). The Russian is an agent draft, unapproved under ADR 0095 decision 2, never pinned.
+      restoreReplaces:
+        "Prețuri pregătite de tine care se înlocuiesc: {count, number, ::group-off}.",
+      // Drafted, not approved: the Romanian is an agent draft awaiting the owner's approval as drafted. The Russian is
+      // an agent draft, unapproved under ADR 0095 decision 2, never pinned.
+      pageFailed:
+        "Nu am putut citi pagina cerută. Rămâne afișată cea de dinainte.",
     },
     defaults: {
       title: "Setări implicite",

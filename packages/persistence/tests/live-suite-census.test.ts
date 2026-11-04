@@ -213,6 +213,12 @@ const EXPECTED_CLASSIFICATION: Readonly<
     reason:
       "adversarial QA of L3-S4: runs the staff kitchen reader's statements inside a repeatable-read transaction it rolls back, writes nothing that survives, asserts only the difference between a total read before planting and one read after (one snapshot) and needs the schema intact (M8B Lot 3 L3-S4 QA)",
   },
+  "qa-m10-s4-seen-and-digest-on-postgres.adversarial.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "adversarial QA of M10 wave S4: runs the seen mark, the digest list and record and the staff kitchen reader's additions inside a repeatable-read transaction it rolls back, writes nothing that survives (the rounds and entries it claims included), asserts no whole-table figure (a membership test looks at the kitchens it planted, a count is compared with one read in the same snapshot before planting) and needs the schema intact (M10 wave S4 QA)",
+  },
   "neon-staff-audit-store.live.test.ts": {
     gate: "live test database",
     lock: "shared",
@@ -223,7 +229,7 @@ const EXPECTED_CLASSIFICATION: Readonly<
     gate: "live test database",
     lock: "shared",
     reason:
-      "writes accounts, kitchens, requests, sent copies, statuses and notes under random ids it mints, deletes them by those ids when it finishes, asserts no whole-table figure and needs the schema intact (M8B Lot 3 L3-S4)",
+      "writes accounts, kitchens, requests, sent copies, statuses, notes, seen marks and their audit rows under random ids it mints, deletes them by those ids when it finishes, asserts no whole-table figure (the changed count is compared with the total of the same statement) and needs the schema intact (M8B Lot 3 L3-S4; M10 wave S4)",
   },
   "neon-account-kitchen-store.notes.live.test.ts": {
     gate: "live test database",
@@ -248,6 +254,24 @@ const EXPECTED_CLASSIFICATION: Readonly<
     lock: "exclusive",
     reason:
       "adversarial QA of L3-S5: adds a NOT VALID check constraint, a deferred constraint trigger and a function named qa_l3_s5_* to the staff tables for the length of one test each and drops them in a finally, so no other run may write those tables meanwhile (M8B Lot 3 L3-S5 QA)",
+  },
+  "neon-price-book-store.live.test.ts": {
+    gate: "live test database",
+    lock: "exclusive",
+    reason:
+      "the price book contract asserts over global singletons (the draft, the newest version and the availability head, which every publish moves), and each publish leaves a version no test can remove: versions are append-only, so no other run may read the newest one meanwhile (M10 wave S2, plan S2 recorded choice a)",
+  },
+  "neon-catalogue-availability-store.live.test.ts": {
+    gate: "live test database",
+    lock: "exclusive",
+    reason:
+      "the availability contract asserts over a global singleton (the availability head, which every write moves by exactly one) and its log is append-only, so no other run may write the head meanwhile (M10 wave S2, ex-S2b)",
+  },
+  "neon-kitchen-change-store.live.test.ts": {
+    gate: "live test database",
+    lock: "exclusive",
+    reason:
+      "the digest contract lists over the whole designs table and writes about eighty kitchens of its own, and the rounds it claims are append-only for the application role (it leaves them, at day keys in years 3000 to 8999), so no other run may read the digest tables or count designs meanwhile (M10 wave S4, plan S2 recorded choice a)",
   },
   "table-privileges.test.ts": {
     gate: "live test database",
@@ -300,6 +324,12 @@ const EXPECTED_CLASSIFICATION: Readonly<
     lock: "none",
     reason:
       "unit test of the two readers: sets and deletes its own variables, connects nowhere",
+  },
+  "seed-price-book.test.ts": {
+    gate: "none",
+    lock: "none",
+    reason:
+      "unit test of the owner-run seed: the driver is replaced, and the spawned command is given an unresolvable probe URL and is refused before it connects (M10 wave S2)",
   },
   "delete-rate-limit-counters-for-tests.live.test.ts": {
     gate: "live test database",

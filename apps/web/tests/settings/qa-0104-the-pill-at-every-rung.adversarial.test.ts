@@ -47,6 +47,7 @@ import {
 import pillStyles from "@/settings/global-settings.module.css";
 
 import { createFakeProbeFactory } from "../support/fake-body-probe";
+import { underSamplePriceBook } from "../support/sample-price-root";
 
 /** `global-settings-shell.test.ts`'s pattern, for its reason: the component runs against a real
  *  store's real fields rather than a hand-written state shape. */
@@ -91,7 +92,9 @@ function designCarrying(selections: WholeKitchenSelections): Design {
 
 function pillMarkup(design: Design, visibleCount: number): string {
   storeState.current = stateFor(design);
-  return renderToStaticMarkup(createElement(GlobalSettings, { visibleCount }));
+  return renderToStaticMarkup(
+    underSamplePriceBook(createElement(GlobalSettings, { visibleCount })),
+  );
 }
 
 /** The seeded kitchen on PAL with a named palette colour: four settings, four labels, no empty one.

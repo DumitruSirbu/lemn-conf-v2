@@ -27,6 +27,7 @@ import { useReview } from "@/review/use-review";
 import { useConfiguratorStore } from "@/store/configurator-store";
 
 import roMessages from "../../src/messages/ro.json";
+import { underSamplePriceBook } from "../support/sample-price-root";
 import { createFakeProbeFactory } from "../support/fake-body-probe";
 import { filesUnder } from "../support/files-under";
 
@@ -127,12 +128,14 @@ function mountProbe(): void {
   root = createRoot(container);
   act(() => {
     root.render(
-      createElement(NextIntlClientProvider, {
-        locale: "ro",
-        messages: roMessages,
-        timeZone: "Europe/Chisinau",
-        children: createElement(Probe),
-      }),
+      underSamplePriceBook(
+        createElement(NextIntlClientProvider, {
+          locale: "ro",
+          messages: roMessages,
+          timeZone: "Europe/Chisinau",
+          children: createElement(Probe),
+        }),
+      ),
     );
   });
 }

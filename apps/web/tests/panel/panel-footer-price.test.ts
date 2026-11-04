@@ -20,8 +20,12 @@ import { describeStartingPrice } from "@/price/starting-price";
 import { occupiedMeta, REFUSAL } from "../support/selection-meta";
 import { noWidthIsFree } from "../support/width-options";
 import { PAL_KITCHEN } from "../support/panel-material";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
+import { NOTHING_DISABLED } from "../support/availability";
 
 const SEEDED_PRICE: PricingResult = priceDesign({
+  deepeningRows: MEASURED_DEEPENING_ROWS,
+  availability: NOTHING_DISABLED,
   design: KITCHEN_L_DESIGN,
   catalog: KITCHEN_L_BODY_CATALOG,
   book: SAMPLE_PRICE_BOOK,
@@ -29,6 +33,8 @@ const SEEDED_PRICE: PricingResult = priceDesign({
 });
 
 const FAILED_PRICE: PricingResult = priceDesign({
+  deepeningRows: MEASURED_DEEPENING_ROWS,
+  availability: NOTHING_DISABLED,
   design: KITCHEN_L_DESIGN,
   catalog: KITCHEN_L_BODY_CATALOG,
   book: SAMPLE_PRICE_BOOK,

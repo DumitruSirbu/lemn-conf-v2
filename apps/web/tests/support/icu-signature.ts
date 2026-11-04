@@ -165,5 +165,8 @@ export function isExactValueSwitch(branches: readonly string[]): boolean {
  *  the first of them; it was not raised for the other three, and the walk itself counts 11 in both catalogues. The staff
  *  list added three: `staffKitchens.countSent`, `countDrafts` and `countAll`; the staff notes added two:
  *  `staffNotes.count` and `staffNotes.truncated`; the audit page added one: `staffAudit.detailRows`. The M10 copy (wave T1)
- *  added twenty-seven: twenty-three in `priceDashboard`, three in `staffChanges` and one in `replacementSheet`. */
-export const PLURAL_NODES_PER_CATALOGUE = 44;
+ *  added twenty-seven: twenty-three in `priceDashboard`, three in `staffChanges` and one in `replacementSheet`. The
+ *  audit log's dashboard details (wave U5) added one: `staffAuditDetail.detailChanges`. The block on deleting a used accessory
+ *  added one: `priceDashboard.lifecycle.deleteBlockedAccessoryBody`. The dialogs' words for a switched-off accessory added
+ *  one: `priceDashboard.lifecycle.usedByAccessory`. */
+export const PLURAL_NODES_PER_CATALOGUE = 47;

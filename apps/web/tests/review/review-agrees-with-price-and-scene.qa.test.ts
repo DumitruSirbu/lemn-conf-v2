@@ -3,7 +3,7 @@
 // `review-resolved-handle.test.ts` pins the seeded kitchen. This file attacks the seam with random designs: every kitchen
 // handle, own handles dealt over the placements, floors at 2199 / 2200 / 2201, bodies that take no handle, and cabinet
 // depths 600 and 700 (the model builds its own catalogue from the design's depth, so a depth the catalogue is not
-// built at would show here). Each body's row is held to an oracle written out from the rule's words, the latches the
+// built at would show here), and, since H2, the kitchen's top-row handle beside its handle. Each body's row is held to an oracle written out from the rule's words, the latches the
 // rows imply are held to the price's count, and the scene is asked by meshes: a body drawn from the design must look
 // as it does when the handle the row names is written onto it as its own, which a split between the row and the scene
 // would break.
@@ -94,6 +94,7 @@ interface Variation {
   readonly own: readonly (Handle | undefined)[];
   readonly floors: readonly (number | undefined)[];
   readonly kitchen: Handle | undefined;
+  readonly topRow: Handle | undefined;
 }
 
 const variation = fc.record({
@@ -101,9 +102,10 @@ const variation = fc.record({
   own: fc.array(choice, { minLength: 1, maxLength: 9 }),
   floors: fc.array(floorChoice, { minLength: 1, maxLength: 7 }),
   kitchen: choice,
+  topRow: choice,
 });
 
-function designOf({ base, own, floors, kitchen }: Variation): Design {
+function designOf({ base, own, floors, kitchen, topRow }: Variation): Design {
   const root = bases[base % bases.length];
   if (!root) throw new Error("no base design");
   const placements = root.placements.map((placement, index) => {
@@ -119,9 +121,15 @@ function designOf({ base, own, floors, kitchen }: Variation): Design {
   return {
     ...root,
     placements,
-    ...(kitchen === undefined
+    ...(kitchen === undefined && topRow === undefined
       ? {}
-      : { settings: { ...root.settings, handle: kitchen } }),
+      : {
+          settings: {
+            ...root.settings,
+            ...(kitchen === undefined ? {} : { handle: kitchen }),
+            ...(topRow === undefined ? {} : { topRowHandle: topRow }),
+          },
+        }),
   };
 }
 
@@ -136,19 +144,22 @@ function reviewOf(design: Design): AvailableReview | undefined {
 /**
  * What the row's second line must say of this body, from the rule's words: a body taking a handle wears its own, else
  * push on the top row, else the kitchen's, else steel; a body taking none wears push-to-open only when it is on the top
- * row and has a front that opens (the price bills a latch per such front), and nothing otherwise.
+ * row and has a front that opens (the price bills a latch per door leaf and a push runner per drawer), and nothing
+ * otherwise.
  */
 function expectedWord(args: {
   readonly placement: DesignPlacement;
   readonly canHandle: boolean;
   readonly fronts: number;
   readonly kitchen: Handle | undefined;
+  readonly topRow: Handle | undefined;
 }): string | undefined {
-  const { placement, canHandle, fronts, kitchen } = args;
+  const { placement, canHandle, fronts, kitchen, topRow } = args;
   const isTopRow = placement.y0Mm >= MODULE_LINE_MM;
   if (!canHandle) return isTopRow && fronts > 0 ? WORDS.push : undefined;
   const wears =
-    placement.body.handle ?? (isTopRow ? "push" : (kitchen ?? "steel"));
+    placement.body.handle ??
+    (isTopRow ? (topRow ?? "push") : (kitchen ?? "steel"));
   return WORDS[wears];
 }
 
@@ -164,6 +175,16 @@ function frontsOf(entry: DisplayEntry, catalog: BodyCatalog): number {
     definition: catalog.get(entry.buildId) ?? {},
   });
   return doorLeafHeightsMm(query).length + drawerCount(query);
+}
+
+/** A latch takes a door leaf and no drawer. */
+function doorLeavesOf(entry: DisplayEntry, catalog: BodyCatalog): number {
+  return doorLeafHeightsMm(
+    frontPopulationQueryFor({
+      body: entry,
+      definition: catalog.get(entry.buildId) ?? {},
+    }),
+  ).length;
 }
 
 function handleMeshes(root: THREE.Object3D): {
@@ -201,7 +222,7 @@ function drawnHandlesOf(
   return handleMeshes(body);
 }
 
-/** The design with `handle` written onto one placement as its own, and no kitchen handle to follow. */
+/** The design with `handle` written onto one placement as its own, and no kitchen or top-row handle to follow. */
 function withOwnHandleOnly(
   design: Design,
   placementId: string,
@@ -209,6 +230,7 @@ function withOwnHandleOnly(
 ): Design {
   const settings = { ...design.settings };
   delete settings.handle;
+  delete settings.topRowHandle;
   return {
     ...design,
     settings,
@@ -249,6 +271,7 @@ describe("the review's rows, the price and the scene never split on a body's han
           canHandle: catalog.get(placement.body.buildId)?.canHandle === true,
           fronts: frontsOf(entry, catalog),
           kitchen: vary.kitchen,
+          topRow: vary.topRow,
         });
         const said = handleWordsOf(view, placement.id);
         return JSON.stringify(said) ===
@@ -278,7 +301,7 @@ describe("the review's rows, the price and the scene never split on a body's han
         .filter((entry) =>
           handleWordsOf(view, entry.placementId).includes(WORDS.push),
         )
-        .reduce((total, entry) => total + frontsOf(entry, catalog), 0);
+        .reduce((total, entry) => total + doorLeavesOf(entry, catalog), 0);
 
       expect(implied).toBe(
         countHardwareMechanisms(entries, catalog).pushToOpen,
@@ -319,7 +342,7 @@ describe("the review's rows, the price and the scene never split on a body's han
     },
   );
 
-  it("is not vacuous: the bases include a 700 mm design, and the handle words vary across kitchen handles", () => {
+  it("is not vacuous: the bases include a 700 mm design, and the handle words vary across kitchen handles and top-row handles", () => {
     expect(bases.map(cabinetDepthMmOf)).toContain(700);
     expect(declaredCabinetDepthsMm()).toContain(700);
     const words = new Set(
@@ -330,12 +353,28 @@ describe("the review's rows, the price and the scene never split on a body's han
             own: [undefined],
             floors: [undefined],
             kitchen: kitchen as Handle,
+            topRow: undefined,
           }),
         );
         return view ? handleWordsOf(view, "p0").join() : "";
       }),
     );
     expect(words.size).toBe(3);
+    const topRowWords = new Set(
+      ["steel", "black", "push"].map((topRow) => {
+        const view = reviewOf(
+          designOf({
+            base: 0,
+            own: [undefined],
+            floors: [MODULE_LINE_MM],
+            kitchen: "black",
+            topRow: topRow as Handle,
+          }),
+        );
+        return view ? handleWordsOf(view, "p0").join() : "";
+      }),
+    );
+    expect(topRowWords.size).toBe(3);
   });
 });
 

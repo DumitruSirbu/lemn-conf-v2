@@ -1300,9 +1300,10 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
 
     it("a first upsert inserts, a second changes the one row's status, staff account and time and nothing else", async () => {
       await client.query(UPSERT, [ID, "new", ID]);
-      await client.query("update design_request_states set changed_at = $1", [
-        LONG_AGO,
-      ]);
+      await client.query(
+        "update design_request_states set changed_at = $1 where design_id = $2",
+        [LONG_AGO, ID],
+      );
 
       const [second] = await rowsOf<{ changed_at: Date }>(UPSERT, [
         ID,
@@ -1311,7 +1312,8 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
       ]);
 
       const rows = await rowsOf(
-        "select design_id, status, changed_by_account_id, changed_at from design_request_states",
+        "select design_id, status, changed_by_account_id, changed_at from design_request_states where design_id = $1",
+        [ID],
       );
       expect(rows).toHaveLength(1);
       expect(second).toMatchObject({
@@ -1335,7 +1337,8 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
 
       expect(refused).toBe(refusedBy("design_request_states", "status_shape"));
       const row = await rowsOf(
-        "select status, changed_by_account_id from design_request_states",
+        "select status, changed_by_account_id from design_request_states where design_id = $1",
+        [ID],
       );
       expect(row).toEqual([{ status: "contacted", changed_by_account_id: ID }]);
     });
@@ -1345,7 +1348,8 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
       await client.query(UPSERT, [OTHER_ID, "closed", ID]);
 
       const rows = await rowsOf(
-        "select design_id, status from design_request_states order by status",
+        "select design_id, status from design_request_states where design_id = any($1) order by status",
+        [[ID, OTHER_ID]],
       );
 
       expect(rows).toEqual([
@@ -1364,7 +1368,8 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
       }
 
       const rows = await rowsOf<{ id: string; occurred_at: string }>(
-        "select id, occurred_at::text as occurred_at from staff_audit_events order by staff_audit_events.occurred_at desc, id desc",
+        "select id, occurred_at::text as occurred_at from staff_audit_events where id = any($1) order by staff_audit_events.occurred_at desc, id desc",
+        [ids],
       );
 
       expect(new Set(rows.map((row) => row.occurred_at)).size).toBe(1);
