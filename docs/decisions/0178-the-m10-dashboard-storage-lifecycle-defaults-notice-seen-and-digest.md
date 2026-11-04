@@ -179,7 +179,7 @@ Creating a hardware class or a linked accessory, editing a created row's Romania
 non-default item are **draft changes** and take effect at publish, because they change what the book contains. OQ-2 concerns
 switching an item off, not changing the book's rows. At publish the domain re-judges every deletion against the usage
 reader **and the stored D9 defaults**, under the head CAS; a deletion of the current default refuses the whole publish
-`item-is-default {item}`. An item that gained a user between draft and publish refuses the **whole** publish, naming the item (frame D7G).
+`item-is-default {item}`. An item that gained a user between draft and publish refuses the **whole** publish, naming the item (frame D7G). **(Amended 2026-11-04: the head CAS does not cover usage, and a kitchen can still come to name a deleted item. See the Amendment on a deletion that gains a user.)**
 A created row is inactive until published and then activated (A-17). Owner-visible: editing a created row's text
 immediately (the mockup comment "Textele … se aplică imediat" [mock L887]) was not ruled and is not taken.
 
@@ -418,3 +418,128 @@ version's `change_count` equals its `price-published` audit row's `changeCount`.
 **Consequences.**
 - S2 implements the change on `m10/s2`, and S4 takes it by merge. The plan's Lane S gives the hand-off line by line.
 - The owner's queue holds one row on the past-versions behaviour (plan §6.4, OQ-30a).
+
+## Amendment — 2026-11-04: a deletion that gains a user, and a kitchen that names an item the book no longer holds (architect's ruling)
+
+**Evidence tier.** Source-verified by the architect, reading `m10-price-dashboard` @ `cf89af5b` and `m10/s3` @
+`69823f43` (`git show`); the architect ran no test. The finding is S3's logic review of 2026-11-04, as relayed by the
+coordinator. Owner rulings are doc-quoted. What PostgreSQL's isolation levels guarantee is **[inf]**: it comes from the
+vendor's documentation, which was not re-read in this session. Reasoning marked **[inf]** is the architect's own.
+
+**This supersedes**, and the body above is kept as written:
+- *A-18*: "re-judges every deletion against the usage reader … **under the head CAS**". The head CAS does not cover
+  usage. "An item that gained a user between draft and publish refuses the whole publish" holds only for a save the
+  publish statement can see. The plan's §5 A-18 bullet has the same wording.
+- The plan's P4a ruling "`UNKNOWN_TIER` precedes `REPLACEMENT_REQUIRED`", for a tier the active book does not hold
+  (decision 1).
+- The code comments that rest on it: `named-items.ts:10-11` and `:50-55` ("that design is `UNKNOWN_TIER`'s");
+  `price-design.ts:167-169` ("passed on to `UNKNOWN_TIER`, whatever is switched off"); `earned-accessories.ts:65-67`
+  ("for an earned one the case does not arise").
+- The plan's RK-2 mitigation, which covers a disabled tier only.
+
+**Context.**
+- **The CAS does not see a save.** `moved_head` moves the head only `where revision = $expected`, beside the draft and
+  sequence checks (`price-book-statements.ts:194-203`). The head is moved by availability writes, defaults saves and
+  publishes (A-17). A design save touches none of them.
+- **Nothing checks a saved tier against the book.** The settings schema keeps a tier id "validated for shape only: the
+  domain imports no price book" (`design.ts:163-168`). `rtk proxy grep` for `materialTierId|hardwareTierId` over
+  `apps/web/src/lib/server`, `apps/web/src/app/api` and `packages/persistence/src` on the dashboard branch returned
+  nothing.
+- **So a kitchen can come to name a deleted item on two paths:**
+  - **(i) the race.** A save commits between the usage read and the publish.
+  - **(ii) the stale page.** The browser receives `{versionId, book, availability}` at page load (A-17, R1) and is not
+    told about a later publish. A customer who loaded the page before the publish can choose the item after it. **No
+    publish-side mechanism can see a save made after the publish commits.**
+- **What the customer sees today.** `selectTier` refuses `UNKNOWN_TIER` (`price-design.ts:488-503`).
+  `disabledItemsNamedBy` returns nothing for a design naming a tier the book does not hold (`named-items.ts:56-63`),
+  so `replacementsRequired` (`queries/replacements-required.ts:65`) builds no sheet. **Q3 as planned therefore does
+  not cover this case.** The kitchen shows the generic failure. The recovery is ADR 0072's tier list, which never
+  depends on pricing (wave 6G).
+- **The deletable kinds** are a hardware class, a material and a linked accessory (`book-field-address.ts:79-87`).
+  S3's statements count all three from the stored document in SQL: `countDesignsChoosingTierStatement` and
+  `countDesignsPlacingBodiesStatement` in `kitchen-usage-statements.ts`, on `m10/s3`.
+- **The case is unreachable today.** The draft route refuses `item-deleted` (plan, the U5b note and the U5c security
+  hand-off to R4a). R4a is the wave that turns deletion on.
+- **The owner's rulings.** ADR 0062's third Amendment of 2026-10-25 (doc-quoted, `0062-…md:247-265`):
+  - item 2, in the record's words: "Deleting an item that any saved kitchen uses is forbidden; allowed only when no
+    kitchen uses it". The owner's words, as relayed: "Deleting no, disabling yes.";
+  - item 3: a kitchen using an item that is no longer offered gets a notice and must choose a replacement from the
+    remaining options;
+  - item 4: the price is hidden until the choice. A switched-off accessory is removed with a notice; the owner, as
+    relayed: "it's just removed from the kitchen with the notice".
+
+**Decisions.**
+
+1. **The guarantee is on the customer's side, because path (ii) cannot be closed at publish.**
+   - A kitchen whose material or hardware tier the active book does not hold is treated as naming an item that is no
+     longer offered. It is refused `REPLACEMENT_REQUIRED`, and the C4 sheet offers that group's active tiers. The price
+     is hidden until the customer chooses, and nothing is preselected. It never shows the generic `UNKNOWN_TIER`
+     failure.
+   - This is ADR 0062 Amendment 3's behaviour for a switched-off item, read as covering a deleted one **[inf]**: a
+     deleted item is "not available anymore" too. It is owner-visible, and the plan queues it as OQ-33.
+   - `UNKNOWN_TIER` stays as `selectTier`'s defensive refusal. A stored design can no longer reach it, because the
+     replacement check runs first.
+   - **A linked accessory** the kitchen earned under the seen book, and which the active book no longer states, is
+     reported by `removedAccessoriesSince`, named from the seen book. That is the owner's "removed … with the notice".
+     The accessory's line is already gone from the price, because an accessory is earned and never named.
+   - A kitchen in this state is refused at send by the existing path (P4a's `409 CONTACT_DESIGN_NOT_CURRENT`), and no
+     snapshot is stored.
+2. **The publish side is defence in depth.** It keeps A-18's whole-publish refusal true for every save the publish
+   statement can see.
+   - **(a) Count inside the request (R4a).** The publish route reads the stored draft. It takes the deleted items of
+     the active book, which excludes a row the same draft created. It counts them with the usage reader in that request
+     and judges them with `judgeDeletionsAtPublish`, which names the item (D7G). Counts never come from a page load or
+     from the request body.
+   - **(b) The guard in the statement (S2c).** The publish CTE gains a branch listing each deleted item that at least
+     one design not deleted by its client still names.
+     - The predicates are S3's count statements' text, taken from one shared fragment, not a second implementation.
+       The change-count Amendment above rejected a second implementation (its alternative d1) for the same reason.
+     - `moved_head` requires that branch to be empty.
+     - The final select returns the items, and the store answers `item-in-use {items}`. That is distinct from
+       `availability-changed-meanwhile`, which a guard placed only in `moved_head`'s `where` would wrongly report.
+     - A linked accessory's build ids come from the domain (`buildIdsPricedAs`), as S3's reader receives them. The
+       store checks the deleted refs against the stored summary. For build ids it checks only that the set is
+       non-empty and holds the accessory's own `linkedBuildId`. Any seeded equivalents are the domain's to get right.
+     - The route already maps `409 item-in-use {items}` (`price-dashboard-wire-contract.ts:240-245`,
+       `fetching-publish-client.ts:177`).
+   - **No DDL.** The statement is code. No index is added: a sequential scan of `designs` is accepted for a rare
+     administrator write **[inf]**. The store's role, `app_designs` (`0023` header, lines 44-45), is the role that
+     already reads `designs` **[inf; falsified if the price-book store connects with another role]**.
+   - **Accepted residual.** Under READ COMMITTED, a save that commits after the publish statement's snapshot and before
+     its commit is not seen. Its consequence, and path (ii)'s, is decision 1.
+3. **Order.**
+   - R4a merges its other items with `item-deleted` still refused, so R4a and R4b are not held up.
+   - A gated step, R4c, turns `item-deleted` on in the draft route only once S2c and Q3, including decision 1, are
+     both merged.
+   - S2c starts after S3 merges, because the shared predicate is S3's. S3 brings `0029`, which needs the owner's fresh
+     approval.
+
+**Alternatives considered.**
+- **(a) alone.** Rejected as the only layer. It leaves a window of two network round trips. It is also a promise the
+  route must keep, with nothing at the store.
+- **A serializable publish.** Rejected. PostgreSQL's serializable guarantee holds only between transactions that are
+  both serializable **[inf; vendor documentation not re-read]**. Design saves run at the default level, so this closes
+  nothing unless every autosave becomes serializable and retries.
+- **The save refusing, or replacing, a tier the active book no longer holds.** Rejected:
+  - saving is autosave only (M8B O1; `STATUS.md:68`), so a refusal loses the customer's work;
+  - a silent replacement contradicts ADR 0062 Amendment 3 item 3 and A-16: the customer chooses;
+  - it would put the active book on the save path, against `design.ts:163-168` and seam 1, so a price-store outage
+    would block saves;
+  - without a lock, it would still race the publish.
+- **A lock that every save takes** (a shared advisory lock, or `LOCK TABLE … SHARE` in the publish). Rejected. It
+  touches every autosave to close a window of milliseconds, while path (ii) stays open. `LOCK TABLE` in that mode needs
+  a table-level privilege the application role probably lacks **[inf]**, which would mean a grant and an owner ask.
+- **Recording the residual and keeping `UNKNOWN_TIER`.** Rejected. It leaves the customer on the generic failure that
+  RK-2 names as the risk. Through ADR 0072's tier list the customer can recover, but gets no notice, and ADR 0062
+  Amendment 3 requires one.
+
+**Consequences.**
+- The plan gains waves S2c and R4c. The block *Publish and a deletion that gains a user*, in Lane S, gives the S2c,
+  R4a, R4c and Q3 work with criteria S-j, R-i, R-j and Q3-g.
+- R3 is merged (`ce9f685b`) and is not re-dispatched. R4a holds R3's publish route and service for decision 2(a).
+- Q3 holds four P-lane files for decision 1, in a stated window.
+- **The owner's ruling holds as narrowly as the database allows.** The dashboard never deletes an item that a kitchen it
+  can see uses. A kitchen that names the item afterwards (path (ii), or the residual) is asked to choose a replacement.
+  The plan queues this as OQ-33, with this default built.
+- A disable is unaffected. Its count of kitchens is a warning (ADR 0062 Amendment 3 item 3), and a racing save only
+  makes that count stale; no rule is broken.
