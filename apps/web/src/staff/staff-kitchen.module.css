@@ -433,6 +433,12 @@
   border-radius: 12px;
 }
 
+.announcement[data-tone="warning"] {
+  color: var(--warm-ink);
+  background: var(--warm-surface);
+  border-color: var(--warm-edge);
+}
+
 .statusControl,
 .statusField {
   display: flex;

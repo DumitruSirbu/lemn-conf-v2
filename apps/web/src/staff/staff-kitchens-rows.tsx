@@ -9,11 +9,12 @@ import {
 import { formatRelativeAge } from "@/account/kitchens/relative-age";
 import type { StaffKitchensCopy } from "@/i18n/content";
 import type { AppLocale } from "@/i18n/routing";
-import { useStaffKitchensCopy } from "@/i18n/use-content";
+import { useStaffChangesCopy, useStaffKitchensCopy } from "@/i18n/use-content";
 
 import { dayOf, shopRelativeAgeOf } from "./staff-kitchen-dates";
 import styles from "./staff-kitchens.module.css";
 import type {
+  StaffListedKitchenMarkedWire,
   StaffListedKitchenWire,
   StaffRequestStatusWire,
   StaffThumbnailDesign,
@@ -25,7 +26,7 @@ import type { StaffKitchensListing } from "./use-staff-kitchens";
 
 /** What a row says, worked out once for the table and the cards. */
 interface RowFacts {
-  readonly row: StaffListedKitchenWire;
+  readonly row: StaffListedKitchenMarkedWire;
   /** The full name: the stylesheet clips it to two lines, the text and the link's name never are. */
   readonly name: string;
   readonly href: string;
@@ -40,7 +41,7 @@ function factsOf({
   copy,
   readAtMs,
 }: {
-  readonly row: StaffListedKitchenWire;
+  readonly row: StaffListedKitchenMarkedWire;
   readonly locale: AppLocale;
   readonly copy: StaffKitchensCopy;
   readonly readAtMs: number;
@@ -57,7 +58,10 @@ function factsOf({
 }
 
 /** The name the client gave, else the one the room's facts generate, else a plain word. */
-function nameOf(row: StaffListedKitchenWire, copy: StaffKitchensCopy): string {
+function nameOf(
+  row: StaffListedKitchenMarkedWire,
+  copy: StaffKitchensCopy,
+): string {
   if (row.name !== null && row.name.trim() !== "") return row.name;
   if (row.design === null) return copy.unnamedKitchen;
   return copy.kitchenName(
@@ -126,7 +130,7 @@ function TableRow({ facts }: { readonly facts: RowFacts }) {
   const copy = useStaffKitchensCopy();
   const { row } = facts;
   return (
-    <tr data-testid="staff-kitchen-row">
+    <tr data-testid="staff-kitchen-row" data-changed={row.changedAfterSeen}>
       <td aria-hidden="true">
         <span className={styles.thumb} />
       </td>
@@ -183,7 +187,11 @@ function KitchenCard({ facts }: { readonly facts: RowFacts }) {
   const { row } = facts;
   const phone = row.client?.phone ?? null;
   return (
-    <li className={styles.card} data-testid="staff-kitchen-row">
+    <li
+      className={styles.card}
+      data-testid="staff-kitchen-row"
+      data-changed={row.changedAfterSeen}
+    >
       <div className={styles.cardMain}>
         <span className={styles.thumb} aria-hidden="true" />
         <div className={styles.cardInfo}>
@@ -265,10 +273,24 @@ function PhoneCell({ phone }: { readonly phone: string | null }) {
 }
 
 /** Sent or draft, and whether the client hid it. Each is a word; the colour and the mark only agree with it. */
-function KitchenBadges({ row }: { readonly row: StaffListedKitchenWire }) {
+function KitchenBadges({
+  row,
+}: {
+  readonly row: StaffListedKitchenMarkedWire;
+}) {
   const copy = useStaffKitchensCopy();
+  const changes = useStaffChangesCopy();
   return (
     <span className={styles.badges}>
+      {row.changedAfterSeen ? (
+        <span
+          className={styles.badge}
+          data-kind="changed"
+          data-testid="staff-kitchen-changed-badge"
+        >
+          {changes.badge}
+        </span>
+      ) : null}
       <span className={styles.badge} data-kind={row.isSent ? "sent" : "draft"}>
         {row.isSent ? copy.badges.sent : copy.badges.draft}
       </span>
@@ -281,7 +303,7 @@ function KitchenBadges({ row }: { readonly row: StaffListedKitchenWire }) {
   );
 }
 
-function StatusCell({ row }: { readonly row: StaffListedKitchenWire }) {
+function StatusCell({ row }: { readonly row: StaffListedKitchenMarkedWire }) {
   const copy = useStaffKitchensCopy();
   if (!row.isSent || row.requestStatus === null) return <>{copy.noValue}</>;
   return <StatusBadges status={row.requestStatus} />;

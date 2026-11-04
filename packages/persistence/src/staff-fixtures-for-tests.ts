@@ -3,11 +3,13 @@ import { randomBytes } from "node:crypto";
 import {
   CURRENT_SCHEMA_VERSION,
   KITCHEN_L_DESIGN,
+  PRICE_BOOK_CURRENCY,
   auditActionAcceptsDesignId,
   isRequestStatus,
   isStaffAuditAction,
 } from "@lemnaria/configurator-domain";
 import type {
+  Design,
   RequestStatus,
   StaffAuditAction,
 } from "@lemnaria/configurator-domain";
@@ -15,6 +17,7 @@ import { customAlphabet, nanoid } from "nanoid";
 
 import { requireAccountIdShape } from "./account-id-shape.js";
 import { deleteRateLimitCountersForTests } from "./delete-rate-limit-counters-for-tests.js";
+import { isDesignRevision } from "./design-revision.js";
 import { requirePasswordHashShape } from "./password-hash-shape.js";
 import { requireTestRunner } from "./require-test-runner.js";
 import { requireSha256Digest } from "./sha256-digest.js";
@@ -46,6 +49,7 @@ const FIXTURE_PHONE = "+37360000000";
 const FIXTURE_LOCALITY = "Chisinau";
 const FIXTURE_REQUEST_EMAIL = "fixture-request@example.invalid";
 const EMPTY_JSON_OBJECT = "{}";
+const FIRST_REVISION = "1";
 /** Not a password anyone holds: a spec signs in by the session it plants, or supplies a hash of its own. */
 const FIXTURE_PASSWORD_HASH = `$argon2id$v=19$m=19456,t=2,p=1$${"A".repeat(22)}$${"B".repeat(43)}`;
 
@@ -191,10 +195,22 @@ export interface PlantedStaffFixtureRequest {
   readonly reference: string;
 }
 
+export interface StaffFixtureRequestSpec {
+  readonly designId: string;
+  /** The design's revision the request was sent at, as digits; 1 when left out. */
+  readonly designRevision?: string;
+  /** The total the request was priced at, in minor units: stored as the snapshot the staff page shows as the sent estimate.
+   *  Left out, the snapshot is empty and the page reads no sent estimate. */
+  readonly pricedTotalMinor?: number;
+  /** The kitchen as it was sent: stored as the request's view-only copy, which the staff page shows as the copy as sent.
+   *  Left out, the request has no copy. */
+  readonly sentDocument?: Design;
+}
+
 /** Plants the contact request a sent kitchen was sent with: the staff detail page shows the newest one for a design. */
 export async function plantStaffRequestForTests(
   marker: string,
-  spec: { readonly designId: string },
+  spec: StaffFixtureRequestSpec,
 ): Promise<PlantedStaffFixtureRequest> {
   requireTestRunner({
     functionName: "plantStaffRequestForTests",
@@ -202,18 +218,75 @@ export async function plantStaffRequestForTests(
   });
   requireMarker(marker, "plant a staff request");
   requireStoredId(spec.designId, "design id", "plant a staff request");
+  const designRevision = spec.designRevision ?? FIRST_REVISION;
+  requireRevision(designRevision, "plant a staff request");
+  requirePricedTotal(spec.pricedTotalMinor, "plant a staff request");
 
   const clientRequestId = newMarkedId(marker);
   const reference = `FX-${newReferenceSuffix()}`;
-  await openTestDatabase()`
-    insert into contact_submissions (client_request_id, reference, design_id, design_revision, payload_digest,
-      name, phone, phone_normal_form, locality, channel, email, consent_text_version, locale, design_document,
-      priced)
-    values (${clientRequestId}, ${reference}, ${spec.designId}, 1, ${randomDigest()},
-      'Fixture Client', ${FIXTURE_PHONE}, ${FIXTURE_PHONE}, ${FIXTURE_LOCALITY}, 'email', ${FIXTURE_REQUEST_EMAIL},
-      '1', ${FIXTURE_LOCALE}, ${EMPTY_JSON_OBJECT}::jsonb, ${EMPTY_JSON_OBJECT}::jsonb)
-  `;
+  const priced =
+    spec.pricedTotalMinor === undefined
+      ? EMPTY_JSON_OBJECT
+      : JSON.stringify({
+          totalMinor: spec.pricedTotalMinor,
+          currency: PRICE_BOOK_CURRENCY,
+        });
+  const sql = openTestDatabase();
+  await sql.transaction((transaction) => [
+    transaction`
+      insert into contact_submissions (client_request_id, reference, design_id, design_revision, payload_digest,
+        name, phone, phone_normal_form, locality, channel, email, consent_text_version, locale, design_document,
+        priced)
+      values (${clientRequestId}, ${reference}, ${spec.designId}, ${designRevision}::bigint, ${randomDigest()},
+        'Fixture Client', ${FIXTURE_PHONE}, ${FIXTURE_PHONE}, ${FIXTURE_LOCALITY}, 'email', ${FIXTURE_REQUEST_EMAIL},
+        '1', ${FIXTURE_LOCALE}, ${EMPTY_JSON_OBJECT}::jsonb, ${priced}::jsonb)
+    `,
+    ...(spec.sentDocument === undefined
+      ? []
+      : [
+          transaction`
+            insert into contact_submission_views (token_hash, client_request_id, schema_version, design_document)
+            values (${randomDigest()}, ${clientRequestId}, ${CURRENT_SCHEMA_VERSION},
+              ${JSON.stringify(spec.sentDocument)}::jsonb)
+          `,
+        ]),
+  ]);
   return { clientRequestId, reference };
+}
+
+export interface StaffFixtureDesignChange {
+  readonly designId: string;
+  /** The document the kitchen holds after the change; left out, the document stays and only the revision moves. */
+  readonly document?: Design;
+}
+
+/**
+ * Saves a planted kitchen again, as its client's editor would: the revision rises by one and the update time moves, and the
+ * document is replaced when one is given. Only a kitchen whose id carries the marker can be changed.
+ */
+export async function changeStaffDesignForTests(
+  marker: string,
+  spec: StaffFixtureDesignChange,
+): Promise<void> {
+  requireTestRunner({
+    functionName: "changeStaffDesignForTests",
+    effect: "updates a design row's revision and document",
+  });
+  requireMarker(marker, "change a staff design");
+  requireStoredId(spec.designId, "design id", "change a staff design");
+  const document =
+    spec.document === undefined ? null : JSON.stringify(spec.document);
+  const changed = (await openTestDatabase()`
+    update designs
+    set revision = revision + 1, updated_at = now(), document = coalesce(${document}::jsonb, document)
+    where id = ${spec.designId} and starts_with(id, ${marker})
+    returning 1 as changed
+  `) as readonly unknown[];
+  if (changed.length !== 1) {
+    throw new Error(
+      "Refusing to change a staff design: no kitchen of this marker has that id.",
+    );
+  }
 }
 
 export interface StaffFixtureRequestStateSpec {
@@ -305,6 +378,7 @@ export interface StaffFixtureCounts {
   readonly staffAuditEvents: number;
   readonly contactSubmissions: number;
   readonly designShareLinks: number;
+  readonly designStaffSeen: number;
   readonly designs: number;
   readonly accountSessions: number;
   readonly accountEmailTokens: number;
@@ -362,6 +436,11 @@ const MARKED_ROWS: readonly {
     predicate: `starts_with(design_id, $1) or design_id in ${MARKED_DESIGNS}`,
   },
   {
+    table: "designStaffSeen",
+    predicate: `starts_with(design_id, $1) or starts_with(seen_by_account_id, $1)
+      or design_id in ${MARKED_DESIGNS}`,
+  },
+  {
     table: "designs",
     predicate: "starts_with(id, $1) or starts_with(account_id, $1)",
   },
@@ -376,6 +455,7 @@ const SQL_TABLE_OF: Readonly<Record<MarkedTable, string>> = {
   staffAuditEvents: "staff_audit_events",
   contactSubmissions: "contact_submissions",
   designShareLinks: "design_share_links",
+  designStaffSeen: "design_staff_seen",
   designs: "designs",
   accountSessions: "account_sessions",
   accountEmailTokens: "account_email_tokens",
@@ -490,6 +570,7 @@ function withRateLimitCounters(
     staffAuditEvents: byTable.staffAuditEvents ?? 0,
     contactSubmissions: byTable.contactSubmissions ?? 0,
     designShareLinks: byTable.designShareLinks ?? 0,
+    designStaffSeen: byTable.designStaffSeen ?? 0,
     designs: byTable.designs ?? 0,
     accountSessions: byTable.accountSessions ?? 0,
     accountEmailTokens: byTable.accountEmailTokens ?? 0,
@@ -560,6 +641,24 @@ function requireDesignSpec(spec: StaffFixtureDesignSpec): void {
     );
   }
   requireAccountIdShape(spec.ownerAccountId, operation);
+}
+
+function requireRevision(value: string, operation: string): void {
+  if (isDesignRevision(value)) return;
+  throw new Error(
+    `Refusing to ${operation}: a design revision is digits with no leading zero, and at least one.`,
+  );
+}
+
+function requirePricedTotal(
+  value: number | undefined,
+  operation: string,
+): void {
+  if (value === undefined || (Number.isSafeInteger(value) && value >= 0))
+    return;
+  throw new Error(
+    `Refusing to ${operation}: a priced total is a whole, non-negative count of minor units.`,
+  );
 }
 
 function requireListedStatus(status: unknown): void {

@@ -271,23 +271,33 @@ function finishNameOf(
     : content.globalSettings.pillColourValue(finish.value);
 }
 
-/** The card under the picture. `title` says which copy of the kitchen it describes. */
+/** The card under the picture. `title` says which copy of the kitchen it describes. A page that states the kitchen's two
+ *  estimates itself leaves the card's own starting price out (`omitsPrice`): it prices the copy on screen with today's
+ *  book, which the sent copy was not priced with, so beside the estimates it would be a third figure to contradict them. */
 export function StaffKitchenSummary({
   design,
   title,
   noValue,
+  omitsPrice = false,
 }: {
   readonly design: Design;
   readonly title: string;
   readonly noValue: string;
+  readonly omitsPrice?: boolean;
 }) {
   const copy = useStaffKitchenCopy();
   const content = useContent();
   const priceBook = usePriceBookRoot();
   const rows = useMemo(
     () =>
-      describeStaffSummaryRows({ design, priceBook, copy, content, noValue }),
-    [design, priceBook, copy, content, noValue],
+      describeStaffSummaryRows({
+        design,
+        priceBook,
+        copy,
+        content,
+        noValue,
+      }).filter((row) => !(omitsPrice && row.key === "price")),
+    [design, priceBook, copy, content, noValue, omitsPrice],
   );
   return (
     <section
@@ -311,7 +321,9 @@ export function StaffKitchenSummary({
           </div>
         ))}
       </dl>
-      <p className={styles.cardNote}>{copy.summary.priceNote}</p>
+      {omitsPrice ? null : (
+        <p className={styles.cardNote}>{copy.summary.priceNote}</p>
+      )}
     </section>
   );
 }

@@ -21,6 +21,7 @@ import type {
   PaletteEntryId,
   PasswordRefusalCode,
   PresetNameFacts,
+  PricingFailureCode,
   RejectionDetail,
   RequestStatusRefusalCode,
   StaffAuditAction,
@@ -1653,6 +1654,81 @@ export function resolveStaffKitchenCopy(translate: ContentTranslator) {
 }
 
 export type StaffKitchenCopy = ReturnType<typeof resolveStaffKitchenCopy>;
+
+/** What staff are told when the kitchen as it stands cannot be priced: the pricing's own code, never a zero. Every code
+ *  has its sentence, so a code the domain adds does not compile until it is worded. */
+function resolveEstimateRefusals(
+  translate: ContentTranslator,
+): Readonly<Record<PricingFailureCode, string>> {
+  const unavailable = translate("staffChanges.estimateRefusedUnavailable");
+  const notPriceable = translate("staffChanges.estimateRefusedNotPriceable");
+  return {
+    INVALID_PRICE_BOOK: unavailable,
+    PRICING_VERSION_MISMATCH: unavailable,
+    INVALID_AMOUNT: unavailable,
+    UNKNOWN_BODY: notPriceable,
+    NO_RULE_FOR_BODY: notPriceable,
+    UNKNOWN_FORMULA_SHAPE: notPriceable,
+    NO_PRICE_FOR_SIZE: notPriceable,
+    UNKNOWN_TIER: notPriceable,
+    UNDECLARED_HANDLE_COUNT: notPriceable,
+    UNDECLARED_FRONT_POPULATION: notPriceable,
+    UNBUILDABLE_DOOR_BAND: notPriceable,
+    REPLACEMENT_REQUIRED: translate("staffChanges.estimateRefusedReplacement"),
+  };
+}
+
+/** The staff view of a kitchen the client changed after it was seen (frames D10A to D10C): the mark on the list, the
+ *  filter, the kitchen page's version switch and its two estimates. The digest's words are the e-mail's own. */
+export function resolveStaffChangesCopy(translate: ContentTranslator) {
+  return {
+    badge: translate("staffChanges.badge"),
+    filter: translate("staffChanges.filter"),
+    toolbarCount: (count: number) =>
+      translate("staffChanges.toolbarCount", { count }),
+    noChanged: {
+      title: translate("staffChanges.noChangedTitle"),
+      body: translate("staffChanges.noChangedBody"),
+      showAll: translate("staffChanges.showAllKitchens"),
+    },
+    sub: {
+      sentModified: (details: { email: string; date: string; when: string }) =>
+        translate("staffChanges.subSentModified", details),
+      sentNoAccountModified: (details: { date: string; when: string }) =>
+        translate("staffChanges.subSentNoAccountModified", details),
+    },
+    markedSeen: translate("staffChanges.markedSeen"),
+    changedWhileOpen: translate("staffChanges.changedWhileOpen"),
+    markSeenFailed: translate("staffChanges.markSeenFailed"),
+    version: {
+      label: translate("staffChanges.versionLabel"),
+      sent: (date: string) => translate("staffChanges.versionSent", { date }),
+      current: (when: string) =>
+        translate("staffChanges.versionCurrent", { when }),
+    },
+    cabinets: {
+      tableLabel: translate("staffChanges.tableLabel"),
+      columnBody: translate("staffChanges.columnBody"),
+      columnSize: translate("staffChanges.columnSize"),
+      size: (size: string) => translate("staffChanges.sizeValue", { size }),
+      differs: translate("staffChanges.rowDiffers"),
+      added: translate("staffChanges.rowAdded"),
+      removed: translate("staffChanges.rowRemoved"),
+      wasInSent: (value: string) =>
+        translate("staffChanges.rowWasInSent", { value }),
+      unavailable: translate("staffChanges.cabinetsUnavailable"),
+      highlightNote: translate("staffChanges.highlightNote"),
+    },
+    estimate: {
+      sent: translate("staffChanges.estimateSent"),
+      current: translate("staffChanges.estimateCurrent"),
+      sentMissing: translate("staffChanges.estimateSentMissing"),
+      refusals: resolveEstimateRefusals(translate),
+    },
+  };
+}
+
+export type StaffChangesCopy = ReturnType<typeof resolveStaffChangesCopy>;
 
 /** The notes of one client's kitchen: the list, the field that adds one and the words of its answers. The sentences of a
  *  refused text are the shared field errors', found by the code. */

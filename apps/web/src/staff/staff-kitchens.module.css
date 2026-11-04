@@ -209,6 +209,44 @@
   background: var(--surface);
 }
 
+/* "Doar modificate": a switch as tall as every other control of the bar, and the count of changed kitchens beside it. */
+.changedField {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  align-items: center;
+}
+
+.changedToggle {
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+  min-height: var(--touch-target);
+  font: 700 14px/1.2 var(--font-ui);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.changedInput {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.changedInput:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+}
+
+.changedCount {
+  margin: 0;
+  font: 400 12.5px/1.4 var(--font-ui);
+  color: var(--ink-muted);
+}
+
 .fieldHint {
   font: 400 11.5px/1.4 var(--font-ui);
   color: var(--ink-muted);
@@ -327,6 +365,17 @@
   content: "\2298\00a0" / "";
 }
 
+/* A kitchen the client changed after staff saw it: the amber of a new request, and a mark that is not a status. */
+.badge[data-kind="changed"] {
+  color: var(--warm-ink);
+  background: var(--warm-surface);
+  border-color: var(--warm-edge);
+}
+
+.badge[data-kind="changed"]::before {
+  content: "\25cf\00a0" / "";
+}
+
 .badge[data-status="new"] {
   color: var(--warm-ink);
   background: var(--warm-surface);
@@ -395,6 +444,11 @@
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 14px;
+}
+
+.card[data-changed="true"] {
+  background: var(--warm-surface);
+  border-color: var(--warm-edge);
 }
 
 .cardMain {
@@ -507,6 +561,10 @@
 
 .table thead th:last-child {
   background: var(--surface);
+}
+
+.table tbody tr[data-changed="true"] > * {
+  background: var(--warm-surface);
 }
 
 .table .nameCell {

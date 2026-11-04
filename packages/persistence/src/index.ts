@@ -373,6 +373,7 @@ export { deleteCspReportsForTests } from "./delete-csp-reports-for-tests.js";
 export { deleteRateLimitCountersForTests } from "./delete-rate-limit-counters-for-tests.js";
 export type { RemovedRateLimitCounters } from "./delete-rate-limit-counters-for-tests.js";
 export {
+  changeStaffDesignForTests,
   countStaffFixturesForTests,
   newStaffFixtureMarker,
   plantStaffAccountForTests,
@@ -389,9 +390,11 @@ export type {
   StaffFixtureAccountSpec,
   StaffFixtureAuditEventSpec,
   StaffFixtureCounts,
+  StaffFixtureDesignChange,
   StaffFixtureDesignKind,
   StaffFixtureDesignSpec,
   StaffFixtureNoteSpec,
+  StaffFixtureRequestSpec,
   StaffFixtureRequestStateSpec,
   StaffFixtureRole,
   StaffFixtureScope,

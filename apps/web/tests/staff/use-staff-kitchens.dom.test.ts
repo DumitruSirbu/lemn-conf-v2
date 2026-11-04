@@ -314,6 +314,7 @@ describe("the segment and the status", () => {
       segment: "drafts",
       status: null,
       searchText: "",
+      onlyChanged: false,
     });
   });
 

@@ -24,6 +24,7 @@ export interface WireRowOverrides {
   readonly sentAt?: unknown;
   readonly updatedAt?: unknown;
   readonly requestStatus?: unknown;
+  readonly changedAfterSeen?: unknown;
 }
 
 const THUMBNAIL_DESIGN = (() => {
@@ -52,6 +53,7 @@ export function wireRow(
     sentAt: new Date(FIRST_SENT_AT_MS - serial * 60_000).toISOString(),
     updatedAt: new Date(FIRST_UPDATED_AT_MS - serial * 1000).toISOString(),
     requestStatus: "new",
+    changedAfterSeen: false,
     ...overrides,
   };
   return withoutUndefinedMembers(row);
@@ -74,6 +76,7 @@ export interface WireListOverrides {
   readonly total?: unknown;
   readonly page?: unknown;
   readonly pageSize?: unknown;
+  readonly changedCount?: unknown;
 }
 
 export function wireList(
@@ -84,6 +87,7 @@ export function wireList(
     total: kitchens.length,
     page: 1,
     pageSize: STAFF_KITCHENS_PAGE_SIZE,
+    changedCount: 0,
     kitchens,
     ...overrides,
   });

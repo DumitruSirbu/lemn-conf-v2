@@ -16,19 +16,20 @@ import {
   isStaffKitchenSegment,
 } from "@lemnaria/configurator-domain";
 
-import { useStaffKitchensCopy } from "@/i18n/use-content";
+import { useStaffChangesCopy, useStaffKitchensCopy } from "@/i18n/use-content";
 
 import styles from "./staff-kitchens.module.css";
 import type { StaffKitchens } from "./use-staff-kitchens";
 
 // The bar over the list (frames S2B, S2B3, S2D): the segment, the search by the client's e-mail or name, and the
-// request status, which only "Trimise" has. The search is a text the person types and a client's own data: it has no
+// request status, which only "Trimise" has, and the switch to the kitchens changed after they were seen (frame D10A). The search is a text the person types and a client's own data: it has no
 // `name`, so a browser keeps no history of it, and the form never submits to an address.
 
-/** The two fields a press can take away the button that held focus beside: the screen sends focus back to them. */
+/** The fields a press can take away the button that held focus beside: the screen sends focus back to them. */
 export interface FilterFocusTargets {
   readonly searchRef: RefObject<HTMLInputElement | null>;
   readonly statusRef: RefObject<HTMLSelectElement | null>;
+  readonly changedRef: RefObject<HTMLInputElement | null>;
 }
 
 export type StaffKitchenFiltersProps = FilterFocusTargets &
@@ -36,8 +37,10 @@ export type StaffKitchenFiltersProps = FilterFocusTargets &
     StaffKitchens,
     | "filters"
     | "searchProblem"
+    | "changedCount"
     | "chooseSegment"
     | "chooseStatus"
+    | "chooseOnlyChanged"
     | "typeSearch"
     | "submitSearch"
     | "clearSearch"
@@ -57,6 +60,53 @@ export function StaffKitchenFilters(props: StaffKitchenFiltersProps) {
         status={props.filters.status}
         onChoose={props.chooseStatus}
       />
+      <ChangedChoice
+        inputRef={props.changedRef}
+        isOn={props.filters.onlyChanged}
+        changedCount={props.changedCount}
+        onChoose={props.chooseOnlyChanged}
+      />
+    </div>
+  );
+}
+
+/** "Doar modificate" and, beside it, how many kitchens the client changed after they were seen: the server's count over
+ *  every sent kitchen, whatever the other filters say. */
+function ChangedChoice({
+  inputRef,
+  isOn,
+  changedCount,
+  onChoose,
+}: {
+  readonly inputRef: FilterFocusTargets["changedRef"];
+  readonly isOn: boolean;
+  readonly changedCount: number;
+  readonly onChoose: StaffKitchens["chooseOnlyChanged"];
+}) {
+  const copy = useStaffChangesCopy();
+  return (
+    <div className={styles.changedField}>
+      <label className={styles.changedToggle}>
+        <input
+          ref={inputRef}
+          type="checkbox"
+          role="switch"
+          className={styles.changedInput}
+          checked={isOn}
+          onChange={(event) => {
+            onChoose(event.target.checked);
+          }}
+        />
+        <span>{copy.filter}</span>
+      </label>
+      {changedCount > 0 ? (
+        <p
+          className={styles.changedCount}
+          data-testid="staff-kitchens-changed-count"
+        >
+          {copy.toolbarCount(changedCount)}
+        </p>
+      ) : null}
     </div>
   );
 }

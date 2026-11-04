@@ -2491,6 +2491,23 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     estimateCurrent: "Estimare · actuală",
     highlightNote:
       "Rândurile evidențiate diferă între versiuni; nu arătăm o comparație detaliată.",
+    sizeValue: "{size} mm",
+    cabinetsUnavailable:
+      "Lista corpurilor nu poate fi afișată pentru această versiune.",
+    changedWhileOpen:
+      "Clientul a modificat din nou bucătăria cât timp era deschisă. Reîncarcă pagina ca să vezi versiunea nouă.",
+    markSeenFailed:
+      "Nu am putut marca bucătăria ca văzută. Marcajul rămâne până o deschizi din nou.",
+    noChangedTitle: "Nicio bucătărie modificată după ce ai văzut-o.",
+    noChangedBody: "Când un client modifică o bucătărie trimisă, o vezi aici.",
+    showAllKitchens: "Arată toate bucătăriile",
+    estimateSentMissing: "Nu avem estimarea trimisă",
+    estimateRefusedUnavailable:
+      "Prețurile nu pot fi folosite acum, deci estimarea lipsește. Încearcă din nou mai târziu.",
+    estimateRefusedNotPriceable:
+      "Bucătăria actuală are o componentă fără preț în lista de prețuri, deci nu are estimare.",
+    estimateRefusedReplacement:
+      "Bucătăria actuală folosește o opțiune care nu mai este disponibilă, deci nu are estimare până o schimbă clientul.",
     digest: {
       title:
         "{count, plural, one {O bucătărie modificată după ce ai văzut-o} few {{count, number, ::group-off} bucătării modificate după ce le-ai văzut} other {{count, number, ::group-off} de bucătării modificate după ce le-ai văzut}}",

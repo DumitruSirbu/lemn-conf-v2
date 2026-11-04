@@ -149,7 +149,13 @@ export type SignedInRequest =
       /** The status the page last saw: the save is made against it, and a kitchen that has moved on refuses it. */
       readonly from: RequestStatus;
     }
-  | { readonly flow: "staff-unhide"; readonly id: string };
+  | { readonly flow: "staff-unhide"; readonly id: string }
+  | {
+      readonly flow: "staff-seen";
+      readonly id: string;
+      /** The revision the page displayed, as the server gave it: sent back as text and never read. */
+      readonly displayedRevision: string;
+    };
 
 /** One request as the browser sends it. Every method but `GET` sends a JSON body, `{}` when the request has none of
  *  its own: the account routes refuse a `POST`, `PATCH` or `DELETE` that is not JSON (plan lot 2, section 2.2). */
@@ -328,12 +334,18 @@ function signedInRequestPlan(request: SignedInRequest): PlannedRequest {
         method: "POST",
         path: staffKitchenPathOf(request.id, "unhide"),
       };
+    case "staff-seen":
+      return {
+        method: "POST",
+        path: staffKitchenPathOf(request.id, "seen"),
+        body: { displayedRevision: request.displayedRevision },
+      };
   }
 }
 
 function staffKitchenPathOf(
   id: string,
-  member: "notes" | "status" | "unhide",
+  member: "notes" | "status" | "unhide" | "seen",
 ): string {
   return `${STAFF_KITCHENS_ENDPOINT}/${encodeURIComponent(id)}/${member}`;
 }

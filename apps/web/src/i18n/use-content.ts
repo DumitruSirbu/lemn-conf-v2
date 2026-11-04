@@ -27,6 +27,7 @@ import {
   resolveSessionExpiredSheetCopy,
   resolveStaffActionsCopy,
   resolveStaffAuditCopy,
+  resolveStaffChangesCopy,
   resolveStaffKitchenCopy,
   resolveStaffKitchensCopy,
   resolveStaffNotesCopy,
@@ -93,6 +94,10 @@ export function useStaffAuditCopy() {
 
 export function useStaffKitchenCopy() {
   return useResolved(resolveStaffKitchenCopy);
+}
+
+export function useStaffChangesCopy() {
+  return useResolved(resolveStaffChangesCopy);
 }
 
 export function useStaffNotesCopy() {

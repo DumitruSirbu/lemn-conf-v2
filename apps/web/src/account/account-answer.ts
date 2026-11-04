@@ -14,6 +14,7 @@ import {
   noteAddedFrom,
   statusSavedFrom,
 } from "@/staff/staff-kitchens-wire-reading";
+import { seenMarkFrom } from "@/staff/staff-kitchens-marks-reading";
 
 // What an account route answered, as the one state the screen draws. The class is read from the HTTP status and the
 // body's `status` word together, because one status carries several words (`400` is `invalid-input`,
@@ -319,6 +320,7 @@ export type SignedInFlow =
   | "staff-note"
   | "staff-status"
   | "staff-unhide"
+  | "staff-seen"
   | "kitchen-action"
   | "profile"
   | "password"
@@ -368,6 +370,8 @@ export type SignedInOutcome =
   | { readonly kind: "note-added"; readonly note: StaffKitchenNoteWire }
   /** `200`: the status the kitchen shows after the save, with who set it and when. */
   | { readonly kind: "status-saved"; readonly saved: StaffStatusSavedWire }
+  /** `200`: the kitchen was marked seen; whether it still reads as changed after the mark, as the server judged it. */
+  | { readonly kind: "seen-marked"; readonly changedAfterSeen: boolean }
   /** `409`: the account holds more than one export carries. Final: repeating the request cannot succeed. */
   | { readonly kind: "export-too-large" };
 
@@ -441,6 +445,12 @@ const SIGNED_IN_FLOW_RULES: Readonly<Record<SignedInFlow, SignedInFlowRule>> = {
     ],
     isAboutOneKitchen: true,
     placeableFields: ["status"],
+  },
+  "staff-seen": {
+    successes: [{ status: OK_STATUS, outcomeOf: seenMarkedOutcomeFrom }],
+    refusals: [],
+    isAboutOneKitchen: true,
+    placeableFields: [],
   },
   "staff-unhide": {
     successes: [{ status: NO_CONTENT_STATUS, outcomeOf: succeeded }],
@@ -618,6 +628,14 @@ function statusSavedOutcomeFrom(body: unknown): SignedInOutcome {
   return saved === undefined
     ? REQUEST_FAILED_OUTCOME
     : { kind: "status-saved", saved };
+}
+
+/** A mark answered without the kitchen's mark afterwards is not one the page can report. */
+function seenMarkedOutcomeFrom(body: unknown): SignedInOutcome {
+  const marked = seenMarkFrom(body);
+  return marked === undefined
+    ? REQUEST_FAILED_OUTCOME
+    : { kind: "seen-marked", changedAfterSeen: marked.changedAfterSeen };
 }
 
 /** A copy answered without a design id is not one the list can open. */

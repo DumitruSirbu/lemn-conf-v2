@@ -60,6 +60,9 @@ const UPDATED_AT = "2026-10-19T09:00:00.000Z";
 const SMALL_BODY_COUNT = 3;
 const WHOLE_BODY_COUNT = 26;
 const NOTES_AT_THE_LIMIT = 100;
+
+/** The two radios of the version switch, which a kitchen holding two different copies draws and no other does. */
+const VERSION_CHOICES = 2;
 const UNREADABLE_DOCUMENT = { room: "?" };
 
 const WHOLE_DESIGN = WIRE_DESIGN;
@@ -295,7 +298,9 @@ describe.each(LOCALES)(
         expect(
           allIn(container, "a[href^='mailto:' i], a[href^='tel:' i]"),
         ).toHaveLength(0);
-        expect(allIn(page, "input")).toHaveLength(0);
+        expect(allIn(page, "input")).toHaveLength(
+          combination.documents === "both" ? VERSION_CHOICES : 0,
+        );
         expect(allIn(page, "textarea")).toHaveLength(1);
         expect(allIn(page, "select")).toHaveLength(combination.isSent ? 1 : 0);
         expect(requireIn(page, "h1").textContent).toBe("Casa din Orhei");
@@ -339,7 +344,7 @@ describe.each(LOCALES)(
           isSent: true,
           isHidden: false,
           client: "full",
-          hasRequest: true,
+          hasRequest: false,
           documents: "as-sent-only",
           status: "none",
           notes: "none",
@@ -353,7 +358,7 @@ describe.each(LOCALES)(
           isSent: true,
           isHidden: false,
           client: "full",
-          hasRequest: true,
+          hasRequest: false,
           documents: "current-only",
           status: "none",
           notes: "none",
@@ -373,9 +378,14 @@ describe.each(LOCALES)(
         expect(
           requireIn(container, '[data-fact="bodies"] dd').textContent,
         ).toBe(String(bodyCount));
-        expect(summaryPrice(container)).toBe(
-          shown === "as-sent" ? priceOfSmall[0] : priceOfWhole[0],
-        );
+        // A request's kitchen states its two estimates in a card of their own, the page's one price surface.
+        if (combination.hasRequest) {
+          expect(allIn(container, '[data-fact="price"]')).toHaveLength(0);
+        } else {
+          expect(summaryPrice(container)).toBe(
+            shown === "as-sent" ? priceOfSmall[0] : priceOfWhole[0],
+          );
+        }
         expect(useConfiguratorStore.getState().design.placements).toHaveLength(
           bodyCount ?? -1,
         );
@@ -500,7 +510,7 @@ describe.each(LOCALES)(
           const page = requireIn(harness.container(), PAGE);
           const notes = requireIn(page, '[data-testid="staff-notes"]');
 
-          expect(allIn(page, "input")).toHaveLength(0);
+          expect(allIn(page, "input")).toHaveLength(VERSION_CHOICES);
           expect(allIn(notes, "textarea")).toHaveLength(1);
           expect(allIn(notes, "li")).toHaveLength(NOTES_AT_THE_LIMIT);
           expect(notes.textContent).toContain("Nota 0");

@@ -1,11 +1,16 @@
 import { kitchenSummaryOf, type Design } from "@lemnaria/configurator-domain";
 
 import { formatRelativeAge } from "@/account/kitchens/relative-age";
-import type { StaffKitchenCopy, StaffKitchensCopy } from "@/i18n/content";
+import type {
+  StaffChangesCopy,
+  StaffKitchenCopy,
+  StaffKitchensCopy,
+} from "@/i18n/content";
 import type { AppLocale } from "@/i18n/routing";
 
 import { isolated } from "./bidi-isolate";
 import { dayOf, shopRelativeAgeOf } from "./staff-kitchen-dates";
+import type { KitchenVersion, KitchenVersions } from "./kitchen-version-rows";
 import type { StaffKitchenWire } from "./staff-kitchens-wire-contract";
 
 // What the kitchen page says about the kitchen in a line: which copy of it is on screen, what it is called, and the sentence
@@ -17,15 +22,48 @@ export interface ShownDesign {
   readonly source: "as-sent" | "current";
 }
 
+/** `version` is the copy the person chose on the version switch: "Actuală" shows the document as it stands when it can be
+ *  read, and anything else is the rule above. */
 export function shownDesignOf(
   kitchen: StaffKitchenWire["kitchen"],
+  version: KitchenVersion = "sent",
 ): ShownDesign | undefined {
+  if (version === "current" && kitchen.design !== null) {
+    return { design: kitchen.design, source: "current" };
+  }
   if (kitchen.asSent !== null) {
     return { design: kitchen.asSent, source: "as-sent" };
   }
   return kitchen.design === null
     ? undefined
     : { design: kitchen.design, source: "current" };
+}
+
+/** The two copies the version switch chooses between: the kitchen as the shop was sent it and as it stands now. Nothing
+ *  when this build cannot read one of them, or when they are the same kitchen, where a switch would choose nothing. */
+export function versionsOf(
+  kitchen: StaffKitchenWire["kitchen"],
+): KitchenVersions | undefined {
+  if (kitchen.asSent === null || kitchen.design === null) return undefined;
+  const versions = { sent: kitchen.asSent, current: kitchen.design };
+  return isSameKitchen(versions) ? undefined : versions;
+}
+
+/** What a kitchen is made of, by the facts a thumbnail draws: the stored timestamps and preset move without the kitchen
+ *  changing, so they are not compared. Both copies are parsed by the one schema, so equal facts stringify alike. */
+function isSameKitchen({ sent, current }: KitchenVersions): boolean {
+  return madeOf(sent) === madeOf(current);
+}
+
+function madeOf(design: Design): string {
+  const { room, placements, emptyColumns, columnExtents, settings } = design;
+  return JSON.stringify({
+    room,
+    placements,
+    emptyColumns,
+    columnExtents,
+    settings,
+  });
 }
 
 /** The day it was sent, or nothing for a kitchen that was not. */
@@ -68,11 +106,48 @@ export function subLineOf({
       ? copy.sub.sentNoAccount(date)
       : copy.sub.sent({ email: isolated(client.email), date });
   }
-  const when = formatRelativeAge(
-    locale,
-    shopRelativeAgeOf(Date.parse(kitchen.updatedAt), readAtMs),
-  );
+  const when = whenModifiedOf({ kitchen, locale, readAtMs });
   return client === null
     ? copy.sub.draftNoAccount(when)
     : copy.sub.draft({ email: isolated(client.email), when });
+}
+
+export interface ModifiedSubLineInput {
+  readonly changes: StaffChangesCopy;
+  readonly wire: StaffKitchenWire;
+  readonly locale: AppLocale;
+  readonly readAtMs: number;
+}
+
+/** The line under the name of a sent kitchen the client changed after staff saw it: the same facts as `subLineOf`'s,
+ *  and when it was modified. Only a sent kitchen has one: a draft is never marked as changed. */
+export function modifiedSubLineOf({
+  changes,
+  wire,
+  locale,
+  readAtMs,
+}: ModifiedSubLineInput): string | undefined {
+  const { kitchen, client } = wire;
+  const sentAt = sentAtOf(kitchen);
+  if (sentAt === null) return undefined;
+  const date = dayOf(sentAt, locale);
+  const when = whenModifiedOf({ kitchen, locale, readAtMs });
+  return client === null
+    ? changes.sub.sentNoAccountModified({ date, when })
+    : changes.sub.sentModified({ email: isolated(client.email), date, when });
+}
+
+function whenModifiedOf({
+  kitchen,
+  locale,
+  readAtMs,
+}: {
+  readonly kitchen: StaffKitchenWire["kitchen"];
+  readonly locale: AppLocale;
+  readonly readAtMs: number;
+}): string {
+  return formatRelativeAge(
+    locale,
+    shopRelativeAgeOf(Date.parse(kitchen.updatedAt), readAtMs),
+  );
 }
