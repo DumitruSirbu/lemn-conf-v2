@@ -1,21 +1,26 @@
 // The handle a cabinet wears: its own, else the kitchen's, else the slot's default. It resolves and never
 // writes: a resolved value stored on a body would stop it following the kitchen (see `built-body.ts`).
-// The top row never follows the kitchen. Lane H rulings: docs/milestones/M10-price-dashboard.md.
+// The top row never follows the kitchen's `handle`; it follows the kitchen's `topRowHandle`, else `TOP_ROW_HANDLE`.
+// Lane H rulings: docs/milestones/M10-price-dashboard.md.
 import type { DesignSettings, Handle } from "../design.js";
+import { pickDefined } from "../pick-defined.js";
 
 export const DEFAULT_HANDLE: Handle = "steel";
 
 export const TOP_ROW_HANDLE: Handle = "push";
 
 /** The whole-kitchen settings the handle readers take, as one object rather than a lone value. */
-export type KitchenHandleSettings = Pick<DesignSettings, "handle">;
+export type KitchenHandleSettings = Pick<
+  DesignSettings,
+  "handle" | "topRowHandle"
+>;
 
 /** The kitchen's handle settings as the readers take them, built here so the price, the scene and the panel read one
  *  object and never a hand-copied pair. */
 export function kitchenHandleSettingsOf(
   settings: DesignSettings | undefined,
 ): KitchenHandleSettings {
-  return settings?.handle === undefined ? {} : { handle: settings.handle };
+  return pickDefined(settings, ["handle", "topRowHandle"]);
 }
 
 /** A legacy `null` own handle is no choice: absent. Applied where a document becomes a record or a display entry, so
@@ -56,7 +61,8 @@ export function defaultHandleOf(
 function followedHandleOf(
   query: Pick<HandleResolutionQuery, "kitchenSettings" | "isTopRow">,
 ): Handle {
-  if (query.isTopRow) return TOP_ROW_HANDLE;
+  if (query.isTopRow)
+    return query.kitchenSettings.topRowHandle ?? TOP_ROW_HANDLE;
   return query.kitchenSettings.handle ?? DEFAULT_HANDLE;
 }
 

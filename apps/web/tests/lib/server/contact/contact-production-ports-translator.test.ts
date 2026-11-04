@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { NOTICE_LOCALE } from "@/lib/server/mail/lead-notification";
 
+import { SAMPLE_PRICE_ROOT } from "../../../support/sample-price-root";
+
 /**
  * The notice's translator, over a catalogue with a leaf missing. The catalogue is the real one with the leaf taken out,
  * so what the translator does about a leaf that fails is what is under test, and nothing it says is a value of ours.
@@ -16,6 +18,9 @@ vi.mock("@/lib/server/contact/contact-submission-store-instance", () => ({
   getContactSubmissionStore: () => ({}),
 }));
 vi.mock("@/lib/server/load-owned-design", () => ({ loadOwnedDesign: vi.fn() }));
+vi.mock("@/lib/server/active-price-book", () => ({
+  readActivePriceBook: () => Promise.resolve(SAMPLE_PRICE_ROOT),
+}));
 
 const { default: catalogue } = await import("@/messages/ro.json");
 const { makeContactProductionPorts } = await import(
@@ -63,26 +68,26 @@ describe("what a translator does about a leaf that fails", () => {
 });
 
 describe("the notice's translator in the contact's production ports", () => {
-  it("fails a leaf that cannot be read when the ports are made, and writes nothing of its own", () => {
+  it("fails a leaf that cannot be read when the ports are made, and writes nothing of its own", async () => {
     const error = vi
       .spyOn(console, "error")
       .mockImplementation(() => undefined);
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     Reflect.deleteProperty(catalogue, "brand");
 
-    expect(() => makeContactProductionPorts(new Headers())).toThrow();
+    await expect(makeContactProductionPorts(new Headers())).rejects.toThrow();
 
     expect(error).not.toHaveBeenCalled();
     expect(warn).not.toHaveBeenCalled();
   });
 
-  it("fails a leaf that cannot be read when the notice asks for it, and writes nothing of its own", () => {
+  it("fails a leaf that cannot be read when the notice asks for it, and writes nothing of its own", async () => {
     const error = vi
       .spyOn(console, "error")
       .mockImplementation(() => undefined);
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     takeOut("band", "base");
-    const { noticeContent } = makeContactProductionPorts(new Headers());
+    const { noticeContent } = await makeContactProductionPorts(new Headers());
 
     expect(() => noticeContent.bandLabel("base")).toThrow();
 
@@ -90,11 +95,11 @@ describe("the notice's translator in the contact's production ports", () => {
     expect(warn).not.toHaveBeenCalled();
   });
 
-  it("reads every leaf it is given as it always did, with the catalogue whole", () => {
+  it("reads every leaf it is given as it always did, with the catalogue whole", async () => {
     const error = vi
       .spyOn(console, "error")
       .mockImplementation(() => undefined);
-    const { noticeContent } = makeContactProductionPorts(new Headers());
+    const { noticeContent } = await makeContactProductionPorts(new Headers());
 
     expect(noticeContent.bandLabel("base")).toBe(
       (pristine.band as Record<string, string>).base,

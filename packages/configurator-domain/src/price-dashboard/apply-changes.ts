@@ -8,7 +8,6 @@ import {
   PRICE_GROUP_CODES,
 } from "../staff/dashboard-audit-action.js";
 
-import { isSameAddress } from "./address-key.js";
 import {
   BOOK_FIELD_ADDRESS_KINDS,
   type BookFieldAddress,
@@ -16,12 +15,22 @@ import {
   type DraftChange,
 } from "./book-field-address.js";
 import {
+  incompleteCreationIndexes,
+  reusesRemovedId,
+  withoutRow,
+  type DraftSoFar,
+} from "./draft-structure.js";
+import {
   isCabinetAddress,
   prepareWrite,
   type BookUpdater,
   type ChangeRefusalCode,
   type Judged,
 } from "./editable-fields.js";
+import {
+  isStructuralAddress,
+  prepareStructuralWrite,
+} from "./structural-changes.js";
 
 // The candidate book a draft would publish: `apply(activeBook, changes)`, pure, never mutating its input. Changes apply
 // in order, so a later change of an equal address wins, and each is judged against the running candidate (the book with
@@ -48,38 +57,58 @@ export type ApplyChangesResult =
       readonly failure: PricingFailure;
     };
 
-/** The changes `applyChanges` applies: prices, sizes, the depth rule and the provisional switch. Bulk actions are
- *  cabinet price changes sharing a `groupId` and one `bulk`. */
+/** The changes `applyChanges` applies: prices, sizes, the depth rule and the provisional switch, and the creation of a
+ *  hardware class or a linked accessory, the words of a created row and the deletion of an item. Bulk actions are
+ *  cabinet price changes sharing a `groupId` and one `bulk`. A created class owes a `hardware` change for each of its
+ *  rates after its creation, and is refused `CREATED_TIER_RATES_MISSING` at its own index without them. */
 export function applyChanges(
   book: PriceBook,
   changes: readonly DraftChange[],
 ): ApplyChangesResult {
   const groupCodes = judgeGroups(changes);
   const refusals: ChangeRefusal[] = [];
+  const acceptedIndexes = new Set<number>();
   let candidate = book;
   // An index loop, not `forEach`: a hole in a sparse list is a change that is not there, and is refused.
   for (let index = 0; index < changes.length; index += 1) {
     const judged =
       index in changes
-        ? judgeChange(candidate, changes[index])
+        ? judgeChange(
+            { base: book, running: candidate, changes, index },
+            changes[index],
+          )
         : ({ ok: false, code: "MISSING_VALUE" } as const);
     const code = judged.ok ? groupCodes.get(index) : judged.code;
     if (code !== undefined) refusals.push({ index, code });
-    else if (judged.ok) candidate = judged.value(candidate);
+    else if (judged.ok) {
+      candidate = judged.value(candidate);
+      acceptedIndexes.add(index);
+    }
   }
+  refusals.push(...refuseIncompleteCreations(changes, acceptedIndexes, book));
+  refusals.sort((left, right) => left.index - right.index);
   if (refusals.length > 0)
     return { ok: false, reason: "changes-refused", refusals };
   return parseCandidate(candidate);
 }
 
-/** The draft without the change that names `address`. A draft holds one change per address, so this removes one. */
+function refuseIncompleteCreations(
+  changes: readonly DraftChange[],
+  accepted: ReadonlySet<number>,
+  book: PriceBook,
+): readonly ChangeRefusal[] {
+  return incompleteCreationIndexes(changes, accepted, book).map((index) => ({
+    index,
+    code: "CREATED_TIER_RATES_MISSING",
+  }));
+}
+
+/** The draft without the row `address` names, and the changes that cannot stand without it (`withoutRow`). */
 export function revertChange(
   changes: readonly DraftChange[],
   address: BookFieldAddress,
 ): readonly DraftChange[] {
-  return changes.filter(
-    (change) => !isSameAddress(addressOfStored(change), address),
-  );
+  return withoutRow(changes, address);
 }
 
 /** A bulk action as stored on a change, or `undefined` when what is stored is not the shape of one. */
@@ -89,11 +118,6 @@ export function readBulk(declared: unknown): DraftBulk | undefined {
     : undefined;
 }
 
-/** The address a stored change names, or `undefined` for a stored value that is not a change. */
-function addressOfStored(stored: unknown): unknown {
-  return isRecord(stored) ? stored["address"] : undefined;
-}
-
 function parseCandidate(candidate: PriceBook): ApplyChangesResult {
   const parsed = parsePriceBook(candidate);
   return parsed.ok
@@ -101,13 +125,19 @@ function parseCandidate(candidate: PriceBook): ApplyChangesResult {
     : { ok: false, reason: "candidate-refused", failure: parsed.failure };
 }
 
-/** The updater that makes one change on `book`, or the code it is refused for. Takes `unknown`: a draft is stored and
- *  requested JSON. */
-function judgeChange(book: PriceBook, change: unknown): Judged<BookUpdater> {
+/** The updater that makes one change on the running book, or the code it is refused for. Takes `unknown`: a draft is
+ *  stored and requested JSON. */
+function judgeChange(draft: DraftSoFar, change: unknown): Judged<BookUpdater> {
   if (!isRecord(change)) return { ok: false, code: "UNKNOWN_ADDRESS" };
   const address = snapshotAddress(change["address"]);
   if (address === undefined) return { ok: false, code: "UNKNOWN_ADDRESS" };
-  return prepareWrite(book, address, change["value"]);
+  const value = change["value"];
+  if (!isStructuralAddress(address)) {
+    return prepareWrite(draft.running, address, value);
+  }
+  return reusesRemovedId(draft, address)
+    ? { ok: false, code: "NOT_EDITABLE" }
+    : prepareStructuralWrite(draft.running, address, value);
 }
 
 /** A copy of the address, each member read once, so a value that changes between reads cannot move the write

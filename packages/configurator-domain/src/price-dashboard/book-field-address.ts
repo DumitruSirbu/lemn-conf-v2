@@ -1,4 +1,10 @@
 import type { ItemKind, ItemRef } from "../pricing/catalogue-availability.js";
+import {
+  HARDWARE_RATE_FIELDS,
+  isRateNeverZero,
+  NEVER_ZERO_HARDWARE_RATES,
+  type HardwareRateField,
+} from "../pricing/hardware-rate-fields.js";
 import type {
   BulkChangeScope,
   PriceGroupCode,
@@ -29,14 +35,12 @@ export const CABINET_RULE_FIELDS = Object.freeze([
 ] as const);
 export type CabinetRuleField = (typeof CABINET_RULE_FIELDS)[number];
 
-/** The four per-mechanism rates of a hardware class (D4). The lift rate is the fourth (A-20). All in bani. */
-export const HARDWARE_RATE_FIELDS = Object.freeze([
-  "perHingeMinor",
-  "perDrawerMinor",
-  "perPushToOpenMinor",
-  "perLiftMinor",
-] as const);
-export type HardwareRateField = (typeof HARDWARE_RATE_FIELDS)[number];
+export {
+  HARDWARE_RATE_FIELDS,
+  isRateNeverZero,
+  NEVER_ZERO_HARDWARE_RATES,
+  type HardwareRateField,
+};
 
 /** The one field a material tier has: its whole percentage over PAL (D5). */
 export const MATERIAL_FIELDS = Object.freeze(["percentOfCabinets"] as const);

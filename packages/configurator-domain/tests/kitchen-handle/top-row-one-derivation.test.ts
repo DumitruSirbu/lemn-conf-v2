@@ -103,8 +103,11 @@ describe("every reader agrees with the line, on every catalogue row, within 1 mm
           kitchenSettings: { handle: "steel" },
         });
         const panelSaysTopRow = meta?.defaultHandle === "push";
-        const latched =
-          countHardwareMechanisms([entry], CATALOG).pushToOpen > 0;
+        const { pushToOpen, pushRunners } = countHardwareMechanisms(
+          [entry],
+          CATALOG,
+        );
+        const latched = pushToOpen + pushRunners > 0;
         const query = {
           y0Mm,
           recordedHandle: undefined,

@@ -173,7 +173,8 @@ test("selecting a body opens a 420 px rail, the scene re-lays out, and the camer
 
   await page.getByTestId("panel-close").click();
   await expect(page.getByTestId("editor-panel")).toHaveCount(0);
-  expect(await canvasWidth(page)).toBe(VIEWPORT_WIDTH_PX);
+  // The canvas takes the freed width on the scene's next resize, not in the same frame as the rail leaves.
+  await expect.poll(() => canvasWidth(page)).toBe(VIEWPORT_WIDTH_PX);
 
   await expect(async () => {
     const afterDeselection = await page.locator("canvas").screenshot();

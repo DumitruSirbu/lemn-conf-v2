@@ -4,6 +4,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CurrentSession } from "@/lib/server/account/current-session";
 import { SESSION_COOKIE_NAME } from "@/lib/server/account/session-cookie";
 
+/** The seeded fake world every page test reads holds no draft. */
+const SEEDED_WORLD_PENDING_PRICES = 0;
+
 /**
  * The gate of the price dashboard's pages must never be a looser door than the signed-in gate asked for `price.edit`: a
  * page of it opens for exactly the sessions that gate opens for, and only for staff among them. The session read and the
@@ -257,7 +260,17 @@ describe("what each kind of account is shown", () => {
       shell: {
         role: "administrator",
         email: STAFF_ADDRESS,
-        navigation: ["kitchens", "audit", "cabinets"],
+        navigation: [
+          "kitchens",
+          "audit",
+          "cabinets",
+          "hardware",
+          "materials",
+          "accessories",
+          "defaults",
+          "publish",
+        ],
+        pendingPriceCount: SEEDED_WORLD_PENDING_PRICES,
       },
     });
   });

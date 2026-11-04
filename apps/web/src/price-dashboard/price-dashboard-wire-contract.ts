@@ -3,8 +3,10 @@ import type {
   AccessoryCreation,
   AddressOfKind,
   BookFieldAddress,
+  BookRefusal,
   BulkChangeScope,
   CatalogueAvailability,
+  ChangeRefusalCode,
   DraftChange,
   Finish,
   Handle,
@@ -14,11 +16,12 @@ import type {
   KitchenDefaultsField,
   PriceBook,
   PriceGroupCode,
+  PricingFailureCode,
 } from "@lemnaria/configurator-domain";
 
 // What the manufacturer price dashboard's routes answer and its screens expect, once (M10 plan §8.4 d; ADR 0178).
-// It lives outside `lib/server` because the client bundle may not import a server-only module, and holds types and
-// closed code lists only.
+// It lives outside `lib/server` because the client bundle may not import a server-only module, and holds the wire's
+// types, closed code lists and limits.
 //
 // Three rules hold throughout.
 // - **A body carries codes, never sentences** (ADR 0095 decision 3). The words are the message files'.
@@ -65,8 +68,10 @@ export const NUMBER_REFUSAL_CODES = Object.freeze([
   "MISSING_VALUE",
   "NOT_A_WHOLE_NUMBER",
   "NEGATIVE",
+  "ZERO",
   "TOO_LARGE",
 ] as const);
+export type NumberRefusalCode = (typeof NUMBER_REFUSAL_CODES)[number];
 
 /** What a version's label or note can be refused for. */
 export const PUBLISH_TEXT_REFUSAL_CODES = Object.freeze([
@@ -83,15 +88,12 @@ export const TEXT_REFUSAL_CODES = Object.freeze([
   "TEXT_STATES_AN_AMOUNT",
 ] as const);
 
-/** What a draft change can be refused for: the domain's own refusals, then its text and the refusals judged elsewhere. */
+/** What a draft change can be refused for: the domain's own refusals (its numbers, text, links and defaults), then the
+ *  refusals judged elsewhere. */
 export const DRAFT_CHANGE_REFUSAL_CODES = Object.freeze([
   ...CHANGE_REFUSAL_CODES,
-  ...TEXT_REFUSAL_CODES,
   "PRICE_WOULD_BE_NEGATIVE",
-  "LINK_TARGET_UNKNOWN",
-  "LINK_TARGET_CUSTOMER_SUPPLIED",
   "ITEM_IN_USE",
-  "ITEM_IS_DEFAULT",
 ] as const);
 export type DraftChangeRefusalCode =
   (typeof DRAFT_CHANGE_REFUSAL_CODES)[number];
@@ -160,17 +162,20 @@ export interface DashboardInvalidInputWire<Code extends string> {
  *   written, and the page reads again.
  * - `no-active-version`: no version was ever published, so there is no book to edit or price (A-10).
  * - `nothing-to-publish`: the draft is empty.
- * - `nothing-differs`: a restore found no difference from the active prices.
+ * - `nothing-differs`: a restore found no difference from the candidate (the active prices with the draft applied).
  * - `item-not-in-active-book`: availability of a row only the draft knows (A-17).
  * - `item-is-default`: the D9 default cannot be switched off, nor deleted by a publish; the body names the item
  *   (`DashboardItemIsDefaultWire`, M5).
  * - `last-active-option`: the last active option of a group cannot be switched off (D5G).
- * - `candidate-refused`: the book the draft would produce did not pass the domain's judgement, a defect of ours.
+ * - `candidate-refused`: the book the draft would produce did not pass the domain's judgement. A publish names the
+ *   reasons (`DashboardCandidateRefusedWire`); the draft writes and a restore answer the word alone.
  * - `displayed-revision-ahead`: a kitchen was marked seen at a revision greater than its current one (F9).
  * - `item-unavailable`: a defaults value names an item that is disabled or absent from the active book (A-17); the
  *   body names the item (`DashboardItemUnavailableWire`).
  * - `availability-changed-meanwhile`: the availability head moved since a defaults save or a publish read it (A-17,
  *   F1, M1).
+ * - `draft-unreadable`: the stored draft is not what a draft holds, so it can be neither shown nor judged; the body
+ *   names its revision (`DashboardDraftUnreadableWire`) and the one write that works is a discard-all (R2 ruling Q2).
  */
 export const DASHBOARD_CONFLICTS = Object.freeze([
   "changed-meanwhile",
@@ -184,11 +189,46 @@ export const DASHBOARD_CONFLICTS = Object.freeze([
   "displayed-revision-ahead",
   "item-unavailable",
   "availability-changed-meanwhile",
+  "draft-unreadable",
 ] as const);
 export type DashboardConflict = (typeof DASHBOARD_CONFLICTS)[number];
 
 export interface DashboardConflictWire {
   readonly status: DashboardConflict;
+}
+
+/** One book refusal as it is sent: `expectedWidthMm` is left out when the catalogue declares no default width. */
+export type BookRefusalWire =
+  | Exclude<BookRefusal, { readonly code: "ANCHOR_WIDTH_MISMATCH" }>
+  | (Omit<
+      Extract<BookRefusal, { readonly code: "ANCHOR_WIDTH_MISMATCH" }>,
+      "expectedWidthMm"
+    > & { readonly expectedWidthMm?: number });
+
+/**
+ * Why a candidate book was refused: closed codes and the ids, widths and field they concern, never an amount or a
+ * sentence. `changes` names a pending change by its index in the draft, `pricing` a book that does not parse, and
+ * `catalogue` a book that parses but cannot price the catalogue.
+ */
+export type CandidateRefusalWire =
+  | {
+      readonly source: "changes";
+      readonly index: number;
+      readonly code: ChangeRefusalCode;
+    }
+  | { readonly source: "pricing"; readonly code: PricingFailureCode }
+  | (BookRefusalWire & { readonly source: "catalogue" });
+
+/** `409` of a publish whose candidate was refused: every reason, so the person can name the change to fix. */
+export interface DashboardCandidateRefusedWire {
+  readonly status: "candidate-refused";
+  readonly refusals: readonly CandidateRefusalWire[];
+}
+
+/** `409` of a read or a write that met a stored draft it cannot read: the revision to discard it at. */
+export interface DashboardDraftUnreadableWire {
+  readonly status: "draft-unreadable";
+  readonly draftRevision: string;
 }
 
 /** `409` of a publish whose draft deletes the current D9 default, or of a switch-off of it (M5). */
@@ -237,12 +277,12 @@ export interface DraftChangeRequestWire {
 /** `200` of a change, a revert, a bulk action or a restore: the draft as it is now. */
 export type DraftChangedWire = DashboardDraftWire;
 
-/** The four rates of a hardware class, in bani. A mechanism the class does not have is 0 (D4C). */
+/** Every rate of a hardware class, in bani. A mechanism the class does not have is 0 (D4C). */
 export type HardwareRatesWire = Readonly<Record<HardwareRateField, number>>;
 
 /**
- * Creates a hardware class. The request carries its text and **all four rates**, and the server writes the creation and
- * the four `hardware` rate changes, keyed by the id it minted, in one draft write: the draft never holds a created class
+ * Creates a hardware class. The request carries its text and **every rate**, and the server writes the creation and
+ * a `hardware` rate change for each, keyed by the id it minted, in one draft write: the draft never holds a created class
  * without its rates (X0-4).
  */
 export interface CreateHardwareClassRequestWire {
@@ -277,6 +317,16 @@ export type DraftRevertTargetWire =
 export interface DraftRevertRequestWire {
   readonly expectedDraftRevision: string;
   readonly target: DraftRevertTargetWire;
+}
+
+/**
+ * Resets the draft to empty, whatever it holds and without reading it, so it works on a draft that cannot be read. `200`
+ * answers the draft as it is now (`DraftChangedWire`, no changes). It is the `DELETE` of the draft's own path, told from a
+ * revert by `scope` where a revert has `target`.
+ */
+export interface DraftDiscardRequestWire {
+  readonly expectedDraftRevision: string;
+  readonly scope: "all";
 }
 
 /** Which cabinets a bulk percentage applies to. */
@@ -343,6 +393,9 @@ export interface PriceVersionSummaryWire {
   readonly publishedAt: string;
   readonly changeCount: number;
 }
+
+/** Far past any history this dashboard will hold: it keeps the page a small integer a store can turn into an offset. */
+export const MAX_VERSION_PAGE = 10_000;
 
 export interface PriceVersionListWire {
   readonly total: number;

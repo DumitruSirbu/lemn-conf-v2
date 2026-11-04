@@ -23,11 +23,20 @@ import {
   must,
   slotsOf,
   valueAt,
+  withinRange,
   written,
 } from "./qa-m1-books.js";
 
-const BOOK = fixedBook(true);
-const FLAT = fixedBook(false);
+const BOOK = fixedBook();
+
+/** A book stored before the cut-over states no depth rule (and its tiers state no percentage): the parser refuses it
+ *  whole, so it can be read and listed but never edited, and nothing restores a form onto or off it. */
+const LEGACY: PriceBook = (() => {
+  const copy: { -readonly [K in keyof PriceBook]?: PriceBook[K] } =
+    structuredClone(BOOK);
+  delete copy.depthRule;
+  return copy as PriceBook;
+})();
 const COVER: BookFieldAddress = {
   kind: "accessory",
   accessoryId: "sinkProtectiveCover",
@@ -390,7 +399,7 @@ describe("the list of changes itself", () => {
 
     const result = applyChanges(BOOK, changes);
 
-    expect(result.ok && result.book.depthRule?.deepCabinetPercent).toBe(33);
+    expect(result.ok && result.book.depthRule.deepCabinetPercent).toBe(33);
     expect(Date.now() - startedAt).toBeLessThan(10_000);
   });
 
@@ -418,7 +427,7 @@ describe("the list of changes itself", () => {
     const slots = slotsOf(BOOK);
     const edits = slots.map((slot, index) => ({
       slot,
-      value: slot.unit === "flag" ? index % 2 === 0 : index % (slot.max + 1),
+      value: slot.unit === "flag" ? index % 2 === 0 : withinRange(slot, index),
     }));
     const changes = edits.map(
       ({ slot, value }) => ({ address: slot.address, value }) as DraftChange,
@@ -901,18 +910,23 @@ describe("addresses of the M4 kinds in the lists M1 reads", () => {
     expect(() => diffBooks(BOOK, BOOK, { changes })).not.toThrow();
   });
 
-  it("refuses the M4 kinds as NOT_EDITABLE with a group id too, and reports one refusal for each", () => {
+  it("refuses a structural kind that carries a group id NOT_EDITABLE, and reports one refusal for each", () => {
+    const bulk = { percent: 5, scope: "all" };
     const changes = [
       {
         address: {
           kind: "item-deleted",
-          item: { kind: "hardware", tierId: "hardware.standard" },
+          item: { kind: "hardware", tierId: "hardware.soft-close" },
         },
         value: true,
+        groupId: "g",
+        bulk,
       },
       {
         address: { kind: "hardware-tier-created", tierId: "t" },
         value: { name: "a", description: "b" },
+        groupId: "g",
+        bulk,
       },
     ] as unknown as DraftChange[];
 
@@ -946,17 +960,23 @@ describe("restore between books that differ in the rows they state", () => {
     }
   });
 
-  it("does not turn a flat book into a percentage book, nor the reverse (the form is not restorable)", () => {
-    const changesToFlat = restoreChanges(FLAT, BOOK);
-    const changesToPercentage = restoreChanges(BOOK, FLAT);
+  it("never carries the depth rule onto or off a book that states none: the form is not restorable", () => {
+    const changesToLegacy = restoreChanges(LEGACY, BOOK);
+    const changesFromLegacy = restoreChanges(BOOK, LEGACY);
 
-    const toFlat = applyChanges(BOOK, changesToFlat);
-    const toPercentage = applyChanges(FLAT, changesToPercentage);
+    const toLegacy = applyChanges(BOOK, changesToLegacy);
+    const fromLegacy = applyChanges(LEGACY, changesFromLegacy);
 
-    expect(toFlat.ok && toFlat.book.depthRule).toEqual(BOOK.depthRule);
-    expect(toPercentage.ok && toPercentage.book.depthRule).toBeUndefined();
+    // Restoring towards a book without the rule leaves the rule where it is...
+    expect(toLegacy.ok && toLegacy.book.depthRule).toEqual(BOOK.depthRule);
+    // ...and a book without one is refused whole as a candidate, so nothing is ever written onto it.
+    expect(fromLegacy).toMatchObject({
+      ok: false,
+      reason: "candidate-refused",
+      failure: { code: "INVALID_PRICE_BOOK" },
+    });
     expect(
-      changesToFlat.every(
+      [...changesToLegacy, ...changesFromLegacy].every(
         (c) => c.address.kind !== "depth-rule" && c.address.kind !== "material",
       ),
     ).toBe(true);

@@ -560,62 +560,70 @@ describe("nothing a request carries but the reduction reaches a store or a line 
   });
 });
 
+/** Every run imports a fresh route: 12 s alone, past the default limit in a full parallel suite, and a timed-out sweep
+ *  keeps running into the next test. */
+const REFUSAL_SWEEP_TIMEOUT_MS = 120_000;
+
 describe("a refusal stores nothing and writes no unstored line (criterion 8)", () => {
-  it("holds for every media type, body and header combination the route refuses, sampled widely", async () => {
-    await fc.assert(
-      fc.asyncProperty(
-        fc.constantFrom(
-          "text/plain",
-          "application/json",
-          "application/csp-reportx",
-          "application/reports+json",
-          "",
-          "application/csp-report;",
-          "  APPLICATION/CSP-REPORT ; charset=utf-8",
-        ),
-        fc.oneof(
-          fc.string({ maxLength: 40 }),
+  it(
+    "holds for every media type, body and header combination the route refuses, sampled widely",
+    async () => {
+      await fc.assert(
+        fc.asyncProperty(
           fc.constantFrom(
-            "{}",
-            "null",
-            "[]",
-            '{"csp-report":[]}',
-            '{"csp-report":null}',
-            "x".repeat(8193),
+            "text/plain",
+            "application/json",
+            "application/csp-reportx",
+            "application/reports+json",
+            "",
+            "application/csp-report;",
+            "  APPLICATION/CSP-REPORT ; charset=utf-8",
           ),
+          fc.oneof(
+            fc.string({ maxLength: 40 }),
+            fc.constantFrom(
+              "{}",
+              "null",
+              "[]",
+              '{"csp-report":[]}',
+              '{"csp-report":null}',
+              "x".repeat(8193),
+            ),
+          ),
+          async (contentType, body) => {
+            const calls = recordConsole();
+            const store = theStoreDoes(() => Promise.resolve());
+
+            const response = await (
+              await freshRoute()
+            )(
+              new Request(`https://shop.test${CSP_REPORT_PATH}`, {
+                method: "POST",
+                headers: {
+                  "content-type": contentType,
+                  "x-forwarded-for": A_NETWORK,
+                },
+                body,
+              }),
+            );
+
+            if (response.status === 204) {
+              expect(store).toHaveBeenCalledTimes(1);
+            } else {
+              expect(store).not.toHaveBeenCalled();
+              expect(unstoredLinesIn(calls)).toEqual([]);
+              expect(
+                calls.filter((call) => call.text.includes("csp-violation")),
+              ).toEqual([]);
+            }
+            vi.restoreAllMocks();
+          },
         ),
-        async (contentType, body) => {
-          const calls = recordConsole();
-          const store = theStoreDoes(() => Promise.resolve());
-
-          const response = await (
-            await freshRoute()
-          )(
-            new Request(`https://shop.test${CSP_REPORT_PATH}`, {
-              method: "POST",
-              headers: {
-                "content-type": contentType,
-                "x-forwarded-for": A_NETWORK,
-              },
-              body,
-            }),
-          );
-
-          if (response.status === 204) {
-            expect(store).toHaveBeenCalledTimes(1);
-          } else {
-            expect(store).not.toHaveBeenCalled();
-            expect(unstoredLinesIn(calls)).toEqual([]);
-            expect(
-              calls.filter((call) => call.text.includes("csp-violation")),
-            ).toEqual([]);
-          }
-          vi.restoreAllMocks();
-        },
-      ),
-      { numRuns: 120 },
-    );
-  });
+        { numRuns: 120 },
+      );
+    },
+    REFUSAL_SWEEP_TIMEOUT_MS,
+  );
 });
 
 describe("a secret that cannot make the mark (criterion 13)", () => {

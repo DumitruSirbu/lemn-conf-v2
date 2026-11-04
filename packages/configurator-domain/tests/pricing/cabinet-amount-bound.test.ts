@@ -25,6 +25,7 @@ import {
 } from "../../src/pricing/price-bounds.js";
 import { priceDesign } from "../../src/pricing/price-design.js";
 import { SAMPLE_PRICE_BOOK } from "../../src/pricing/sample-price-book.js";
+import { NOTHING_DISABLED } from "../support/availability.js";
 import {
   anchoredRules,
   percentageBookOf,
@@ -59,9 +60,12 @@ describe("MAX_CABINET_AMOUNT_MINOR is derived from named constants and is the la
       doorLeafCount: 4,
       doorLeafCountAt: () => 2,
     };
+    // A fixed-size row has no price at 1 200 mm (it is refused, never priced), so its dearest listed size stands in.
     const dearestSampleRow = Math.max(
-      ...SAMPLE_PRICE_BOOK.cabinetRules.map(
-        (rule) => amountForBody(rule.formula, body) ?? 0,
+      ...SAMPLE_PRICE_BOOK.cabinetRules.map((rule) =>
+        rule.formula.shape === "price-per-size"
+          ? Math.max(...rule.formula.sizes.map((size) => size.amountMinor))
+          : (amountForBody(rule.formula, body) ?? 0),
       ),
     );
 
@@ -150,6 +154,7 @@ describe("a cabinet above the bound is refused, one at it is priced", () => {
       pricingVersion: book.version,
       selections: { materialTierId: UPGRADE_TIER_ID },
       deepeningRows: new Set(["base-3drawer"]),
+      availability: NOTHING_DISABLED,
     });
   };
 

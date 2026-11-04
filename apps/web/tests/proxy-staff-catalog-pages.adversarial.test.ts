@@ -33,6 +33,19 @@ function isStrictCatalogAddress(pathname: string): boolean {
   );
 }
 
+/** A staff kitchen's own page, `/{locale}/staff/kitchens/{id}`: marked for its own family, so an id spelled `catalog`
+ *  says nothing about the catalog's. */
+function isStaffKitchenAddress(pathname: string): boolean {
+  const segments = pathname.split("/").filter((segment) => segment !== "");
+  const [locale, family, page, ...rest] = segments;
+  return (
+    routing.locales.some((served) => served === locale) &&
+    family === "staff" &&
+    page === "kitchens" &&
+    rest.length === 1
+  );
+}
+
 const SEGMENT_POOL = [
   ...routing.locales,
   "RO",
@@ -78,7 +91,7 @@ describe("the interceptor's catalog family is exactly its strict spelling", () =
     (path) => {
       const { pathname } = new URL(`${ORIGIN}${path}`);
       const looksLikeCatalog = pathname.includes("catalog");
-      fc.pre(looksLikeCatalog);
+      fc.pre(looksLikeCatalog && !isStaffKitchenAddress(pathname));
 
       expect(isMarkedAsStaffPage(path), `${path} -> ${pathname}`).toBe(
         isStrictCatalogAddress(pathname),

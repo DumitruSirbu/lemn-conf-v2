@@ -33,6 +33,9 @@ import {
   describeStartingPrice,
   roundUpToThousandMdl,
 } from "@/price/starting-price";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
+import { NOTHING_DISABLED } from "../support/availability";
+import { roundedToTenLei } from "../support/ten-lei-amounts";
 
 // The sum-claim pattern and the two owner-ruled sentences it excludes live in `tests/support/ruled-price-copy.ts`:
 // one list and one pattern, read by every guard that asserts this rule.
@@ -51,6 +54,8 @@ const SEEDED = priceDesign({
   catalog: KITCHEN_L_BODY_CATALOG,
   book: SAMPLE_PRICE_BOOK,
   pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
+  deepeningRows: MEASURED_DEEPENING_ROWS,
+  availability: NOTHING_DISABLED,
 });
 
 /** The seeded kitchen's top row: nine placements, sixteen door leaves, every bar hidden by the slot (ADR 0092
@@ -114,11 +119,26 @@ describe("the catalogue's own totals, priced and shown", () => {
     // The push-to-open term is read from the book because its rates are drafted placeholders (ADR 0092 Amendment C);
     // the sink extras are a literal, the owner's flat column (ADR 0070 decision 4). Appliance rows are drawn and not
     // sold, so they add no amount (ADR 0107).
+    // Every line is rounded to ten lei at its own seam (ADR 0177 A-1): the hardware line and each sink extra whole, and
+    // each cabinet to within half a grain of its exact amount, so the cabinets' sum is the exact 7 937 500 to within
+    // that grain over the seeded kitchen's cabinets and no closer. The material at 0 % is nothing.
+    const { lines } = SEEDED.priced;
+    const sumOf = (kind: string) =>
+      lines
+        .filter((line) => line.kind === kind)
+        .reduce((sum, line) => sum + line.amountMinor, 0);
+    const cabinetCount = lines.filter((line) => line.kind === "cabinet").length;
+
+    expect(Math.abs(sumOf("cabinet") - 7_937_500)).toBeLessThanOrEqual(
+      cabinetCount * 500,
+    );
+    expect(sumOf("hardware")).toBe(
+      roundedToTenLei(450_240 + SEEDED_PUSH_TO_OPEN * DEFAULT_PUSH_RATE_MINOR),
+    );
+    expect(sumOf("accessory")).toBe(roundedToTenLei(SINK_EXTRAS_MINOR));
+    expect(sumOf("material")).toBe(0);
     expect(SEEDED.priced.totalMinor).toBe(
-      7_937_500 +
-        450_240 +
-        SINK_EXTRAS_MINOR +
-        SEEDED_PUSH_TO_OPEN * DEFAULT_PUSH_RATE_MINOR,
+      sumOf("cabinet") + sumOf("hardware") + sumOf("accessory"),
     );
   });
 
@@ -425,9 +445,19 @@ describe("only these modules may go near a price, and only one of them may round
       "contact/use-contact-submission.ts",
       // The shop's notice prints a stored review's figure and rows and derives nothing; it rounds nothing.
       "lib/server/mail/lead-notification.ts",
+      // The server's projection of a stored book onto its declared members, before a page is handed it: it copies the
+      // book's amounts and derives, rounds and prices nothing.
+      "lib/server/project-price-book.ts",
       "panel/editor-panel.tsx",
       "panel/panel-model.ts",
       "panel/use-panel-view.ts",
+      // The staff cabinet page states book amounts and the per-cabinet preview: exact lei a manufacturer sets, not the
+      // customer's rounded figure. They format what the domain computed and round nothing themselves.
+      "price-dashboard/cabinet-detail-facts.ts",
+      "price-dashboard/cabinet-detail-fields.ts",
+      "price-dashboard/cabinet-hardware-readout.tsx",
+      "price-dashboard/cabinet-preview-table.tsx",
+      "price-dashboard/cabinet-price-sentence.ts",
       // ADR 0104 decision 8b: the flagged total's sentence is on the scene, a fourth surface; listed, not exempted.
       "price/flagged-total-warning.tsx",
       "price/price-bar-model.ts",

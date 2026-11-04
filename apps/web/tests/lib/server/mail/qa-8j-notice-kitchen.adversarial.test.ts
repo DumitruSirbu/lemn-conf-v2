@@ -47,6 +47,8 @@ import {
   thrownBy,
   type SnapshotBook,
 } from "./qa-8j-notice-support";
+import { MEASURED_DEEPENING_ROWS } from "../../../support/deepening-rows";
+import { NOTHING_DISABLED } from "../../../support/availability";
 
 const notice = ro.leadNotice;
 const ARMS = VARIED_ARMS.map((arm) => [arm.name, arm] as const);
@@ -128,6 +130,8 @@ function livePriceOf(design: Design): PricedDesign {
     catalog: buildKitchenLBodyCatalog(cabinetDepthMmOf(design)),
     book: SAMPLE_PRICE_BOOK,
     pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
+    deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
     selections: design.settings,
   });
   if (!pricing.ok) throw new Error("the fixture kitchen did not price");

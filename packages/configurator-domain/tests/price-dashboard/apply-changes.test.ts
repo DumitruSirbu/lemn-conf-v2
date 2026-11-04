@@ -17,7 +17,7 @@ import {
 } from "../../src/price-dashboard/editable-fields.js";
 import { MAX_PRICE_COEFFICIENT_MINOR } from "../../src/pricing/book-reading.js";
 import { parsePriceBook } from "../../src/pricing/parse-price-book.js";
-import type { PriceBook } from "../../src/pricing/price-book.js";
+import type { HardwareTier, PriceBook } from "../../src/pricing/price-book.js";
 
 import {
   anchoredRuleReading,
@@ -26,7 +26,7 @@ import {
   deepFreeze,
   editSlotsOf,
   FIXTURE_BOOKS,
-  FLAT_BOOK,
+  PRE_CUTOVER_BOOK,
   PER_SIZE_WIDTHS_MM,
   perSizeRuleOf,
   PERCENTAGE_BOOK,
@@ -69,8 +69,12 @@ function onlyRefusal(
 }
 
 describe("the fixtures are books the parser accepts (a control for every refusal below)", () => {
-  it.each(FIXTURE_BOOKS)("parses the $form form", ({ book }) => {
-    expect(parsePriceBook(book).ok).toBe(true);
+  it("parses the percentage form", () => {
+    expect(parsePriceBook(PERCENTAGE_BOOK).ok).toBe(true);
+  });
+
+  it("refuses the pre-cut-over form, which the change functions meet only from outside TypeScript", () => {
+    expect(parsePriceBook(PRE_CUTOVER_BOOK).ok).toBe(false);
   });
 });
 
@@ -79,12 +83,8 @@ describe("every editable field of both forms takes a change", () => {
     editSlotsOf(book).map((slot) => ({ form, book, slot })),
   );
 
-  it("has a floor of cases for each arm of each form", () => {
-    const armsOfPercentage = new Set(
-      cases
-        .filter(({ form }) => form === "percentage")
-        .map(({ slot }) => slot.arm),
-    );
+  it("has a floor of cases for each arm", () => {
+    const armsOfPercentage = new Set(cases.map(({ slot }) => slot.arm));
     expect([...armsOfPercentage].sort()).toEqual(
       [
         "accessory",
@@ -98,12 +98,6 @@ describe("every editable field of both forms takes a change", () => {
         "material",
         "provisional",
       ].sort(),
-    );
-    const armsOfFlat = new Set(
-      cases.filter(({ form }) => form === "flat").map(({ slot }) => slot.arm),
-    );
-    expect([...armsOfFlat].sort()).toEqual(
-      ["accessory", "hardware", "provisional"].sort(),
     );
   });
 
@@ -238,15 +232,6 @@ describe("a change is refused with a closed code", () => {
         "UNKNOWN_ADDRESS",
       ],
       [
-        "a hardware rate the book does not state yet (the lift rate)",
-        {
-          kind: "hardware",
-          tierId: "hardware.standard",
-          field: "perLiftMinor",
-        },
-        "FIELD_NOT_ON_RULE",
-      ],
-      [
         "a material tier the book does not have",
         {
           kind: "material",
@@ -348,19 +333,61 @@ describe("a change is refused with a closed code", () => {
     expect(onlyRefusal(PERCENTAGE_BOOK, address, 5)).toBe(`0:${code}`);
   });
 
-  it("refuses a material change and the depth rule on a book in the flat form", () => {
-    const flatMaterial = FLAT_BOOK.material.tiers[1]?.tierId ?? "";
+  it("refuses a lift-rate change on a tier that states no lift rate, and accepts one on a tier that does", () => {
+    const address: BookFieldAddress = {
+      kind: "hardware",
+      tierId: "hardware.standard",
+      field: "perLiftMinor",
+    };
+    const withoutLiftRate: PriceBook = {
+      ...PERCENTAGE_BOOK,
+      hardware: {
+        ...PERCENTAGE_BOOK.hardware,
+        tiers: PERCENTAGE_BOOK.hardware.tiers.map(
+          (tier) =>
+            Object.fromEntries(
+              Object.entries(tier).filter(([key]) => key !== "perLiftMinor"),
+            ) as unknown as HardwareTier,
+        ),
+      },
+    };
+
+    expect(onlyRefusal(withoutLiftRate, address, 5)).toBe(
+      "0:FIELD_NOT_ON_RULE",
+    );
+    expect(
+      appliedBook(applyChanges(PERCENTAGE_BOOK, [changeAt(address, 5)]))
+        .hardware.tiers[0]?.perLiftMinor,
+    ).toBe(5);
+  });
+
+  it("refuses a material change and the depth rule on a book stored before the cut-over, which has neither", () => {
+    const flatMaterial = PRE_CUTOVER_BOOK.material.tiers[1]?.tierId ?? "";
 
     expect(
       onlyRefusal(
-        FLAT_BOOK,
+        PRE_CUTOVER_BOOK,
         { kind: "material", tierId: flatMaterial, field: "percentOfCabinets" },
         5,
       ),
     ).toBe("0:FIELD_NOT_ON_RULE");
-    expect(onlyRefusal(FLAT_BOOK, { kind: "depth-rule" }, 5)).toBe(
+    expect(onlyRefusal(PRE_CUTOVER_BOOK, { kind: "depth-rule" }, 5)).toBe(
       "0:FIELD_NOT_ON_RULE",
     );
+  });
+
+  it("refuses to edit a book stored before the cut-over at all: the candidate would not parse", () => {
+    const hardwareSlot = editSlotsOf(PRE_CUTOVER_BOOK).find(
+      ({ address }) => address.kind === "hardware",
+    );
+    if (hardwareSlot === undefined) throw new Error("no hardware slot");
+
+    const result = applyChanges(PRE_CUTOVER_BOOK, [
+      changeOf({ slot: hardwareSlot, value: 1 }),
+    ]);
+
+    expect(result.ok).toBe(false);
+    expect(result.ok ? undefined : result.reason).toBe("candidate-refused");
   });
 
   it("refuses a change with no address or that is not an object", () => {
@@ -380,8 +407,8 @@ describe("a change is refused with a closed code", () => {
     );
   });
 
-  it("refuses the four kinds M4 adds as not editable, whatever their value", () => {
-    const m4Addresses: readonly BookFieldAddress[] = [
+  it("refuses the four kinds M4 adds when they carry no value, naming what is missing", () => {
+    const addresses: readonly BookFieldAddress[] = [
       { kind: "hardware-tier-created", tierId: "hardware.new" },
       { kind: "accessory-created", accessoryId: "accessory.new" },
       {
@@ -395,11 +422,16 @@ describe("a change is refused with a closed code", () => {
       },
     ];
 
-    const codes = m4Addresses.map((address) =>
-      onlyRefusal(PERCENTAGE_BOOK, address, true),
+    const codes = addresses.map((address) =>
+      onlyRefusal(PERCENTAGE_BOOK, address, undefined),
     );
 
-    expect(codes).toEqual(m4Addresses.map(() => "0:NOT_EDITABLE"));
+    expect(codes).toEqual([
+      "0:MISSING_VALUE",
+      "0:MISSING_VALUE",
+      "0:UNKNOWN_ITEM",
+      "0:MISSING_VALUE",
+    ]);
   });
 
   describe("by its value", () => {
@@ -779,7 +811,7 @@ describe("a change is refused with a closed code", () => {
     });
   });
 
-  it("keeps the applied address kinds as this literal, the list the creation, text and deletion kinds extend", () => {
+  it("keeps the applied address kinds as this literal, the list the creation, text and deletion kinds do not extend", () => {
     expect([...APPLIED_ADDRESS_KINDS]).toEqual([
       "cabinet",
       "cabinet-size",
@@ -796,12 +828,21 @@ describe("a change is refused with a closed code", () => {
       "MISSING_VALUE",
       "NOT_A_WHOLE_NUMBER",
       "NEGATIVE",
+      "ZERO",
       "TOO_LARGE",
       "UNKNOWN_ADDRESS",
       "UNKNOWN_RULE",
       "UNKNOWN_ITEM",
       "NOT_EDITABLE",
       "FIELD_NOT_ON_RULE",
+      "TEXT_EMPTY",
+      "TEXT_TOO_LONG",
+      "TEXT_FORBIDDEN_CHARACTER",
+      "TEXT_STATES_AN_AMOUNT",
+      "LINK_TARGET_UNKNOWN",
+      "LINK_TARGET_CUSTOMER_SUPPLIED",
+      "ITEM_IS_DEFAULT",
+      "CREATED_TIER_RATES_MISSING",
     ]);
   });
 });

@@ -8,10 +8,12 @@ import { describe, expect, it } from "vitest";
 import { describeKitchenPrice } from "@/account/kitchens/kitchen-summary";
 import { priceFloorOf } from "@/price/price-book-root";
 
+import { SAMPLE_PRICE_ROOT } from "../support/sample-price-root";
+
 import { CATALOGUES, contentFor } from "../support/catalogues";
 
 describe("describeKitchenPrice: the three states of the card's price line", () => {
-  const pricedFloor = priceFloorOf(KITCHEN_L_DESIGN);
+  const pricedFloor = priceFloorOf(SAMPLE_PRICE_ROOT, KITCHEN_L_DESIGN);
 
   function requirePriced(): PricedDesign {
     if (pricedFloor === undefined)

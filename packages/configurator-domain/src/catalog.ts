@@ -658,11 +658,13 @@ export function buildInsertableBodyDefinitions(
       wallCabinet(cabinetDepthMm, {
         cabinetHandles: carriesHandles(1),
         // One full-face leaf with a `"bottom"` handle edge, which is why drawer-ness is declared and not read off that
-        // field; lift mechanisms are out of ADR 0070's scope (decision 6).
+        // field. `liftUp` is declared here, never inferred from the id: it prices a lift and sets the hinges by width
+        // (ADR 0177 A-20).
         fronts: carriesFronts({
           doorBands: oneBandInsetFromFrameMm(WALL_DOOR_BAND_INSET_MM),
           leavesPerBand: 1,
           drawers: NO_DRAWERS,
+          liftUp: true,
         }),
       }),
     ],
@@ -1030,6 +1032,12 @@ export function resolveCatalogEquivalent(
   const equivalent = catalog.get(equivalentId);
   if (equivalent?.insertable !== true) return undefined;
   return { buildId: equivalentId, definition: equivalent };
+}
+
+/** The id of the row a body is priced as (ADR 0022): its equivalent where it declares one that resolves, its own id where
+ *  it does not. The six corner bodies have no equivalent by design and stand under their own ids. */
+export function pricedAsBuildId(catalog: BodyCatalog, buildId: string): string {
+  return resolveCatalogEquivalent(catalog, buildId)?.buildId ?? buildId;
 }
 
 /** The widths a body can be built at: its equivalent's set narrowed by that entry's floor, both from one row. An

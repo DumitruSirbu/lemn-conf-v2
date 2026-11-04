@@ -502,21 +502,20 @@ describe("finish and handle chips", () => {
         expect(
           section.chips.filter((chip) => chip.isActive).map((c) => c.value),
         ).toEqual([handle]);
-        expect(section.note).toBeUndefined();
+        expect(section.follow.isActive).toBe(false);
       }
     }
   });
 
-  it("falls back to §6.5's default and says so, for every default", () => {
+  it("presses the follow row and names the kitchen's handle on it, for every default", () => {
     for (const defaultHandle of HandleSchema.options) {
       const section = openPanel(occupiedMeta({ defaultHandle })).sections.find(
         (s) => s.kind === "handle",
       );
       if (section?.kind !== "handle") throw new Error("no handle section");
-      expect(
-        section.chips.filter((chip) => chip.isActive).map((c) => c.value),
-      ).toEqual([defaultHandle]);
-      expect(section.note).toContain(ro.panel.handleLabels[defaultHandle]);
+      expect(section.chips.filter((chip) => chip.isActive)).toEqual([]);
+      expect(section.follow.isActive).toBe(true);
+      expect(section.follow.detail).toBe(ro.panel.handleLabels[defaultHandle]);
     }
   });
 

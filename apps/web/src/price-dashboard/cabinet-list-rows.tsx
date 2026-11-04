@@ -3,37 +3,40 @@
 import { useTranslations } from "next-intl";
 import { useId } from "react";
 
+import type { AppLocale } from "@/i18n/routing";
+
 import styles from "./cabinet-list.module.css";
+import { cabinetPathOf } from "./cabinet-paths";
 import { findCabinetListImage } from "./cabinet-list-image";
 import {
+  GROUP_HEADING_KEYS,
   priceOfRow,
   type CabinetGroup,
   type CabinetRow,
   type CabinetWidthFacts,
 } from "./cabinet-list-model";
+import { EditablePrice, type PriceEditing } from "./cabinet-list-inline-edit";
 import { formatLei, formatLeiAmount } from "./format-lei";
 
 // One group of the list and its rows. The same markup is the table on a desktop and the cards on a phone: the stylesheet
 // lays the row out, so no script chooses between two trees and nothing flips after hydration.
 
-const GROUP_HEADING_KEYS = {
-  base: "priceDashboard.cabinets.groupBase",
-  wall: "priceDashboard.cabinets.groupWall",
-  tall: "priceDashboard.cabinets.groupTall",
-  corner: "priceDashboard.cabinets.groupCorner",
-} as const;
-
 export interface CabinetGroupSectionProps {
+  readonly locale: AppLocale;
   readonly group: CabinetGroup;
   readonly isOpen: boolean;
   /** Absent while a search or the "Doar modificate" filter is on: the groups with a match are then all open. */
   readonly onToggle: (() => void) | undefined;
+  /** Present where the list can change a price in place; absent, the price is read and nothing more. */
+  readonly editing?: PriceEditing | undefined;
 }
 
 export function CabinetGroupSection({
+  locale,
   group,
   isOpen,
   onToggle,
+  editing,
 }: CabinetGroupSectionProps) {
   const translate = useTranslations();
   const listId = useId();
@@ -79,14 +82,27 @@ export function CabinetGroupSection({
       </h2>
       <ul id={listId} className={styles.rows} hidden={!isOpen}>
         {group.rows.map((row) => (
-          <CabinetRowItem key={row.facts.ruleId} row={row} />
+          <CabinetRowItem
+            key={row.facts.ruleId}
+            locale={locale}
+            row={row}
+            editing={editing}
+          />
         ))}
       </ul>
     </section>
   );
 }
 
-function CabinetRowItem({ row }: { readonly row: CabinetRow }) {
+function CabinetRowItem({
+  locale,
+  row,
+  editing,
+}: {
+  readonly locale: AppLocale;
+  readonly row: CabinetRow;
+  readonly editing: PriceEditing | undefined;
+}) {
   const translate = useTranslations();
   const { facts } = row;
   return (
@@ -100,7 +116,13 @@ function CabinetRowItem({ row }: { readonly row: CabinetRow }) {
         url={findCabinetListImage(facts.buildId, facts.widths.defaultMm)}
       />
       <div className={styles.rowName}>
-        <span className={styles.name}>{facts.name}</span>
+        <a
+          className={styles.name}
+          href={cabinetPathOf(locale, facts.ruleId)}
+          data-testid="cabinet-link"
+        >
+          {facts.name}
+        </a>
         <span className={styles.chips}>
           {row.isModified ? (
             <span className={styles.chip} data-tone="warm">
@@ -121,7 +143,8 @@ function CabinetRowItem({ row }: { readonly row: CabinetRow }) {
         <RowNote row={row} />
       </div>
       <CabinetWidths widths={facts.widths} />
-      <CabinetPrice row={row} />
+      <CabinetPrice row={row} editing={editing} />
+      <span className={styles.chevron} aria-hidden="true" />
     </li>
   );
 }
@@ -172,25 +195,35 @@ function CabinetWidths({ widths }: { readonly widths: CabinetWidthFacts }) {
               maxMm: range.maxMm,
             })}
       </span>
-      {range.kind === "fixed" ? null : (
-        <span className={styles.muted}>
-          {widths.isDefaultFollowingBase
-            ? translate("priceDashboard.cabinets.widthFollowsBase")
-            : translate("priceDashboard.cabinets.widthDefault", {
-                widthMm: widths.defaultMm,
-              })}
+      {range.kind === "fixed" && !widths.isDefaultProposed ? null : (
+        <span className={styles.defaultLine}>
+          {range.kind === "fixed" ? null : (
+            <span className={styles.muted}>
+              {widths.isDefaultFollowingBase
+                ? translate("priceDashboard.cabinets.widthFollowsBase")
+                : translate("priceDashboard.cabinets.widthDefault", {
+                    widthMm: widths.defaultMm,
+                  })}
+            </span>
+          )}
+          {widths.isDefaultProposed ? (
+            <span className={styles.proposed}>
+              {translate("priceDashboard.cabinets.proposed")}
+            </span>
+          ) : null}
         </span>
       )}
-      {widths.isDefaultProposed ? (
-        <span className={styles.proposed}>
-          {translate("priceDashboard.cabinets.proposed")}
-        </span>
-      ) : null}
     </div>
   );
 }
 
-function CabinetPrice({ row }: { readonly row: CabinetRow }) {
+function CabinetPrice({
+  row,
+  editing,
+}: {
+  readonly row: CabinetRow;
+  readonly editing: PriceEditing | undefined;
+}) {
   const translate = useTranslations();
   const shown = priceOfRow(row);
   if (shown.kind === "none") {
@@ -222,21 +255,37 @@ function CabinetPrice({ row }: { readonly row: CabinetRow }) {
     );
   }
   const currency = translate("priceDashboard.units.currency");
+  const figure = formatLei(shown.headlineMinor, currency);
+  const basisLine = (
+    <span className={styles.muted}>
+      {shown.activeBesideMinor === undefined
+        ? basis
+        : translate("priceDashboard.cabinets.priceBasisWithActive", {
+            basis,
+            active: translate("priceDashboard.common.activeShort", {
+              amount: formatLeiAmount(shown.activeBesideMinor),
+            }),
+          })}
+    </span>
+  );
+  const { anchorField } = row.facts;
   return (
     <div className={styles.rowPrice} data-testid="cabinet-price">
-      <span className={styles.strong}>
-        {formatLei(shown.headlineMinor, currency)}
-      </span>
-      <span className={styles.muted}>
-        {shown.activeBesideMinor === undefined
-          ? basis
-          : translate("priceDashboard.cabinets.priceBasisWithActive", {
-              basis,
-              active: translate("priceDashboard.common.activeShort", {
-                amount: formatLeiAmount(shown.activeBesideMinor),
-              }),
-            })}
-      </span>
+      {editing === undefined || anchorField === undefined ? (
+        <>
+          <span className={styles.strong}>{figure}</span>
+          {basisLine}
+        </>
+      ) : (
+        <EditablePrice
+          cabinetName={row.facts.name}
+          widthMm={price.widthMm}
+          field={anchorField}
+          editing={editing}
+          figure={figure}
+          basis={basisLine}
+        />
+      )}
     </div>
   );
 }

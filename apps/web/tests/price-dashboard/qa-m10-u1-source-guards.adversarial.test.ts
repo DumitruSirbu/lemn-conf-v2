@@ -4,9 +4,8 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
-import { readCabinetList } from "@/price-dashboard/cabinet-list-source";
 import { BUILT_CATALOG_PAGES } from "@/price-dashboard/catalog-pages";
 import { CATALOG_PAGES } from "@/staff/staff-paths";
 
@@ -24,43 +23,59 @@ function withoutComments(source: string): string {
 const sourceOf = (path: string): string =>
   withoutComments(readFileSync(path, "utf8"));
 
-describe("the invented cabinet list can reach nobody in a production build", () => {
-  afterEach(() => {
-    vi.unstubAllEnvs();
+describe("the invented cabinet list can reach nobody", () => {
+  // The sample is a fixture for the screen's tests and lives in `tests/support`: `src/` holds no copy of it, and no
+  // module of the application imports it from anywhere.
+  it("is not in the application's source tree", () => {
+    expect(
+      filesUnder(SOURCE_ROOT).filter((path) =>
+        /cabinet-list-sample\.tsx?$/.test(path),
+      ),
+    ).toEqual([]);
   });
 
-  it("is imported by the list's source and by no other module of the application", () => {
+  it("is imported by no module of the application", () => {
     const importers = filesUnder(SOURCE_ROOT)
       .filter((path) => /cabinet-list-sample["']/.test(sourceOf(path)))
       .map((path) => path.slice(SOURCE_ROOT.length + 1));
 
-    expect(importers).toEqual(["price-dashboard/cabinet-list-source.ts"]);
+    expect(importers).toEqual([]);
   });
 
-  it("decides on the literal the bundler replaces, so a production build holds the branch and not the sample", () => {
+  it("is imported by the staff cabinets page and the staff cabinet's page and by no other module, so a draft's prices reach no customer's page through it", () => {
+    const importers = filesUnder(SOURCE_ROOT)
+      .filter((path) => /\/cabinet-list-source["']/.test(sourceOf(path)))
+      .map((path) => path.slice(SOURCE_ROOT.length + 1));
+
+    expect(importers.sort()).toEqual([
+      "app/[locale]/staff/catalog/cabinets/[ruleId]/page.tsx",
+      "app/[locale]/staff/catalog/cabinets/page.tsx",
+    ]);
+  });
+
+  it("reads the dashboard's state without writing, is server-only, and never reads the environment or loads a sample", () => {
     const source = sourceOf(join(DASHBOARD_ROOT, "cabinet-list-source.ts"));
+    const read = sourceOf(join(DASHBOARD_ROOT, "admitted-state-read.ts"));
 
-    expect(source).toMatch(/process\.env\.NODE_ENV\s*===\s*"production"/);
-    expect(source).not.toMatch(/process\.env\[/);
-    expect(source).not.toMatch(/NEXT_PUBLIC|VERCEL|LEMNARIA_/);
+    expect(source).toMatch(/^import "server-only";/m);
+    expect(source).toMatch(/readStateOrNothing/);
+    expect(read).toMatch(/^import "server-only";/m);
+    expect(read).toMatch(/readDashboardStateForAdmittedPage/);
+    expect(`${source}${read}`).not.toMatch(
+      /readDashboardForStaff|touchCurrentSession|commitAuditRow/,
+    );
+    expect(`${source}${read}`).not.toMatch(
+      /process\.env|isProductionBuild|sample/i,
+    );
   });
 
-  it("answers unavailable in production, every time, however often it is asked", async () => {
-    vi.stubEnv("NODE_ENV", "production");
+  it("still holds the one predicate the other sources ask, with the literal the bundler replaces", () => {
+    const predicate = sourceOf(join(DASHBOARD_ROOT, "is-production-build.ts"));
 
-    for (let ask = 0; ask < 3; ask += 1) {
-      expect(await readCabinetList()).toEqual({ kind: "unavailable" });
-    }
+    expect(predicate).toMatch(/process\.env\.NODE_ENV\s*===\s*"production"/);
+    expect(predicate).not.toMatch(/process\.env\[/);
+    expect(predicate).not.toMatch(/NEXT_PUBLIC|VERCEL|LEMNARIA_/);
   });
-
-  it.each(["development", "test"])(
-    "answers the sample in a %s build, which no deployed site is",
-    async (mode) => {
-      vi.stubEnv("NODE_ENV", mode);
-
-      expect((await readCabinetList()).kind).toBe("ready");
-    },
-  );
 });
 
 describe("the dashboard's code never rounds or re-formats a price", () => {

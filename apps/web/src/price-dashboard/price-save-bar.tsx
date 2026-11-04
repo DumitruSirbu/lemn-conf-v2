@@ -1,0 +1,86 @@
+"use client";
+
+import { useTranslations } from "next-intl";
+import { useEffect, useRef } from "react";
+
+import type { AppLocale } from "@/i18n/routing";
+
+import styles from "./item-screen.module.css";
+import editStyles from "./price-edit.module.css";
+import { publishPathOf } from "./publish-paths";
+import type { SaveFeedback } from "./use-sequential-save";
+
+// The Save and Cancel of an item's own page, and the notice that replaces them once the price is in "De publicat".
+
+export interface PriceSaveBarProps {
+  readonly locale: AppLocale;
+  /** What the last Save came to: once it landed and nothing has been typed since, a notice stands in place of the
+   *  buttons, and a failed one leaves Cancel to take the typed values back. */
+  readonly feedback: SaveFeedback;
+  /** Something is typed that the draft does not hold. */
+  readonly isChanged: boolean;
+  readonly canSave: boolean;
+  /** Something typed cannot be sent as it stands: the page says to correct it before saving. */
+  readonly mustFix: boolean;
+  readonly onSave: () => void;
+  readonly onCancel: () => void;
+}
+
+export function PriceSaveBar({
+  locale,
+  feedback,
+  isChanged,
+  canSave,
+  mustFix,
+  onSave,
+  onCancel,
+}: PriceSaveBarProps) {
+  const translate = useTranslations();
+  const isSaved = feedback.kind === "saved" && !isChanged;
+  const canCancel = isChanged || mustFix || feedback.kind === "failed";
+  const savedNoticeRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    // Save leaves the page with the notice that replaces it; focus lost with it goes to the notice, not the body.
+    if (isSaved && document.activeElement === document.body) {
+      savedNoticeRef.current?.focus();
+    }
+  }, [isSaved]);
+  if (isSaved) {
+    return (
+      <div
+        ref={savedNoticeRef}
+        tabIndex={-1}
+        className={styles.saved}
+        role="status"
+      >
+        <p>{translate("priceDashboard.common.priceSavedNotice")}</p>
+        <a className={styles.savedLink} href={publishPathOf(locale)}>
+          {translate("priceDashboard.nav.publish")}
+        </a>
+      </div>
+    );
+  }
+  return (
+    <div className={styles.actions}>
+      <button
+        type="button"
+        className={editStyles.action}
+        data-tone="primary"
+        disabled={!canSave}
+        onClick={onSave}
+      >
+        {translate("priceDashboard.common.save")}
+      </button>
+      {canCancel ? (
+        <button type="button" className={editStyles.action} onClick={onCancel}>
+          {translate("priceDashboard.common.cancel")}
+        </button>
+      ) : null}
+      {mustFix ? (
+        <p className={styles.fixToSave}>
+          {translate("priceDashboard.errors.fixToSave")}
+        </p>
+      ) : null}
+    </div>
+  );
+}

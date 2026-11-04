@@ -1,7 +1,5 @@
-// A book in percentage form, assembled for tests from the sample book's structure. Every amount and percentage is
-// passed in by the test that uses it, so nothing here is a figure anybody approved (P2-f). The sample book still states
-// the flat form, which is why the percentage tiers are built here and cast: `MaterialTier` keeps `wholeKitchenMinor`
-// until the cut-over.
+// A book assembled for tests from the sample book's structure, its cabinet rules, material tiers and depth rule replaced
+// by figures the test passes in, so nothing here is a figure anybody approved (P2-f).
 import type { AnchoredFormula } from "../../src/pricing/anchored-price-formula.js";
 import type {
   CabinetPriceRule,
@@ -21,14 +19,13 @@ function percentageTier(
   tierId: string,
   percentOfCabinets: number,
 ): MaterialTier {
-  const tier = {
+  return {
     tierId,
     ruleId: tierId,
     name: tierId,
     description: `${tierId} as a test percentage`,
     percentOfCabinets,
   };
-  return tier as unknown as MaterialTier;
 }
 
 /** The reference tier at 0 % (the pricing fallback) and one upgrade at the percentage the test draws. */

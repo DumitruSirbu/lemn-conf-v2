@@ -37,7 +37,7 @@ const M10_LEAVES_IN_OLDER_NAMESPACES = [
   "priceBreakdown.depthLineScope",
 ] as const;
 
-const PLURAL_NODES_ADDED_BY_T1 = 27;
+const PLURAL_NODES_IN_THE_M10_NAMESPACES = 29;
 const COUNT_SWEEP_UPPER_BOUND = 205;
 
 /** Owner ruling 2026-09-10 (engineering-conventions, "Plurals"): cabinets stay the bare noun in every arm. */
@@ -201,9 +201,13 @@ describe("the M10 leaves parse and agree on their parameters across the two loca
     }
   });
 
-  it("adds exactly the plural nodes the signature module counts for wave T1", () => {
-    expect(pluralSitesOf("ro")).toHaveLength(PLURAL_NODES_ADDED_BY_T1);
-    expect(pluralSitesOf("ru")).toHaveLength(PLURAL_NODES_ADDED_BY_T1);
+  it("holds exactly the plural nodes the M10 namespaces are counted to have", () => {
+    expect(pluralSitesOf("ro")).toHaveLength(
+      PLURAL_NODES_IN_THE_M10_NAMESPACES,
+    );
+    expect(pluralSitesOf("ru")).toHaveLength(
+      PLURAL_NODES_IN_THE_M10_NAMESPACES,
+    );
   });
 });
 
@@ -370,22 +374,22 @@ describe("the priced depth sentence has a zero form (a 0 % rule must not read as
   );
 
   it.each(CATALOGUES)(
-    "carries the percent parameter in the other arm only, in %s",
+    "carries the percentage as the plural's own number (#) in the other arm only, in %s",
     (_locale, messages) => {
       const [node] = pluralNodesOf(parse(leafAt(messages, KEY) ?? ""));
-      const armNames = (name: string): readonly string[] => {
+      // `#` rather than a second `{percent}`: the generated declaration types a plural selector and a plain argument of
+      // one name as `never`, so no caller could pass either.
+      const poundCount = (name: string): number => {
         const arm = node?.options[name]?.value ?? [];
-        const names: string[] = [];
+        let count = 0;
         walk(arm, (element) => {
-          if ("value" in element && typeof element.value === "string") {
-            names.push(element.value);
-          }
+          if (element.type === TYPE.pound) count += 1;
         });
-        return names;
+        return count;
       };
 
-      expect(armNames("=0")).not.toContain("percent");
-      expect(armNames("other")).toContain("percent");
+      expect(poundCount("=0")).toBe(0);
+      expect(poundCount("other")).toBe(1);
     },
   );
 

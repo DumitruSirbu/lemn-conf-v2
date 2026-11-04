@@ -274,7 +274,7 @@ describe("the panel over the store's own state", () => {
     expect(
       handle.chips.filter((chip) => chip.isActive).map((chip) => chip.value),
     ).toEqual(["black"]);
-    expect(handle.note).toBeUndefined();
+    expect(handle.follow.isActive).toBe(false);
   });
 
   // §10's loop: pick a row in a slot and the inserted body becomes the selection, so the panel that

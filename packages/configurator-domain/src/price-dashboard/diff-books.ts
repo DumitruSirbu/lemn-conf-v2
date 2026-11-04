@@ -1,6 +1,7 @@
 import { isRecord } from "../pricing/book-reading.js";
 import type { PriceBook } from "../pricing/price-book.js";
 
+import { ABSENT_VALUE, type AbsentValue } from "./absent-value.js";
 import { addressKey } from "./address-key.js";
 import { readBulk } from "./apply-changes.js";
 import type { DraftBulk, DraftChange } from "./book-field-address.js";
@@ -13,6 +14,7 @@ import {
   type FieldUnit,
   type FieldValue,
 } from "./editable-fields.js";
+import { structuralRowsOf, type StructuralDiffRow } from "./row-diff.js";
 
 // What differs between two price books, as the rows D7 (draft against active) and D8 (archived against its
 // predecessor) draw. Rows hold field codes and numbers, never words: the web names a row from its address and the book.
@@ -32,11 +34,7 @@ export const DIFF_SECTIONS = Object.freeze([
 ] as const);
 export type DiffSection = (typeof DIFF_SECTIONS)[number];
 
-/** A side of a row that has no value: the field is not in that book (D8's new depth rule reads "Regulă nouă", before "—"). */
-export interface AbsentValue {
-  readonly kind: "absent";
-}
-export const ABSENT_VALUE: AbsentValue = Object.freeze({ kind: "absent" });
+export { ABSENT_VALUE, type AbsentValue };
 
 export type DiffValue = FieldValue | AbsentValue;
 
@@ -71,7 +69,7 @@ export interface GroupDiffRow {
   readonly items: readonly FieldDiffRow[];
 }
 
-export type BookDiffRow = FieldDiffRow | GroupDiffRow;
+export type BookDiffRow = FieldDiffRow | GroupDiffRow | StructuralDiffRow;
 
 export interface DiffBooksOptions {
   /** The changes that made `after` from `before`, which name the bulk groups. Without them every field is its own row,
@@ -80,15 +78,21 @@ export interface DiffBooksOptions {
 }
 
 /** The rows by which `after` differs from `before`, sectioned in D7's order, and for each change given the row of the
- *  field it names. Equal books and no changes give none. */
+ *  field it names. A row created, deleted or reworded has a row of its own, ahead of the field rows of its section. Equal books and no changes give none. */
 export function diffBooks(
   before: PriceBook,
   after: PriceBook,
   options: DiffBooksOptions = {},
 ): readonly BookDiffRow[] {
   const membership = membershipOf(options.changes ?? []);
+  const structural = structuralRowsOf(
+    { before, after },
+    membership.changedKeys,
+  );
   const fieldRows = changedFieldRows({ before, after }, membership.changedKeys);
-  return foldBulkGroups(fieldRows, membership);
+  return [...structural, ...foldBulkGroups(fieldRows, membership)].sort(
+    bySection,
+  );
 }
 
 function changedFieldRows(
@@ -199,7 +203,10 @@ function sectionOf(address: AppliedAddress): DiffSection {
   }
 }
 
-function bySection(left: FieldDiffRow, right: FieldDiffRow): number {
+function bySection(
+  left: { readonly section: DiffSection },
+  right: { readonly section: DiffSection },
+): number {
   return (
     DIFF_SECTIONS.indexOf(left.section) - DIFF_SECTIONS.indexOf(right.section)
   );

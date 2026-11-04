@@ -18,6 +18,8 @@ import { resolve } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
+import { NOTHING_DISABLED } from "../support/availability";
 
 vi.mock("@/i18n/use-content", async () => {
   const { ro } = await import("../support/romanian-content");
@@ -81,6 +83,8 @@ function priceOf(design: Design): PricingResult {
     catalog: KITCHEN_L_BODY_CATALOG,
     book: SAMPLE_PRICE_BOOK,
     pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
+    deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
   });
 }
 
@@ -258,6 +262,8 @@ describe("a pricing failure puts nothing on the page", () => {
     catalog: KITCHEN_L_BODY_CATALOG,
     book: SAMPLE_PRICE_BOOK,
     pricingVersion: `${SAMPLE_PRICE_BOOK_VERSION}-not-this-one`,
+    deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
   });
 
   it("renders the empty string — not an empty bar, not a hidden one", () => {

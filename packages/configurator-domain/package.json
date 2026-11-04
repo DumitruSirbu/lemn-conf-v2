@@ -20,6 +20,6 @@
     "typecheck": "pnpm run build && tsc --project tsconfig.json --noEmit"
   },
   "dependencies": {
-    "zod": "4.4.3"
+    "zod": "4.6.6"
   }
 }

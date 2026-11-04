@@ -23,6 +23,8 @@ vi.mock("@/i18n/use-content", async () => {
 import { GlobalSettings } from "@/settings/global-settings";
 import { useConfiguratorStore } from "@/store/configurator-store";
 
+import { underSamplePriceBook } from "../support/sample-price-root";
+
 /** The screen, as `useBackgroundInert` walks it: a `<main>` whose children are bands. The settings
  *  control lives in one of them; the others stand in for the header, the stage and the price bar. */
 const RESET_DESIGN_ID = "dom-test-design";
@@ -63,7 +65,7 @@ beforeEach(() => {
 
   root = createRoot(settingsBand);
   act(() => {
-    root.render(createElement(GlobalSettings));
+    root.render(underSamplePriceBook(createElement(GlobalSettings)));
   });
 });
 

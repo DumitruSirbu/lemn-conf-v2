@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { causeOf } from "@/lib/server/contact/contact-failure";
 import { reportContactUnavailable } from "@/lib/server/contact/contact-log";
-import { makeContactProductionPorts } from "@/lib/server/contact/contact-production-ports";
+import { admitContactRequest } from "@/lib/server/contact/contact-production-ports";
 import { refuseWithLine } from "@/lib/server/contact/contact-refusal";
 import {
   submitContact,
@@ -29,13 +29,14 @@ export const runtime = "nodejs";
  *  could not be given them. */
 type MadePorts =
   | { readonly kind: "ports"; readonly ports: SubmitContactPorts }
-  | { readonly kind: "unavailable"; readonly answer: NextResponse };
+  | { readonly kind: "answer"; readonly answer: NextResponse };
 
 /**
  * A contact request: the guard, the content type and the body to its bound come first and count nothing. Then the
- * ports are made inside the request and the body's text goes to the orchestration, which asks every request's
- * judgement before it parses a byte. This route parses nothing and asks no judgement, so the order of what is read
- * and counted is held in one place. No answer sets, clears or refreshes a cookie.
+ * request is admitted (`admitContactRequest`: the every-request bucket first, the price store only after it) and its
+ * ports are made inside the request, and the body's text goes to the orchestration. This route parses nothing and asks no
+ * judgement itself, so the order of what is read and counted is held in the ports module. No answer sets, clears or
+ * refreshes a cookie.
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const refusal = refusalBeforeTheBody(request);
@@ -45,8 +46,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     CONTACT_BODY_MAX_BYTES,
   );
   if (!body.ok) return refusalOfUnreadableBody(body.failure);
-  const made = madeProductionPorts(request);
-  if (made.kind === "unavailable") return made.answer;
+  const made = await madeProductionPorts(request, body.value);
+  if (made.kind === "answer") return made.answer;
   return submitContact(
     { text: body.value, visitorHash: readVisitorHash(request.cookies) },
     made.ports,
@@ -78,16 +79,19 @@ function refusalOfUnreadableBody(failure: BoundedBodyFailure): NextResponse {
     : refuseWithLine({ code: "CONTACT_INVALID", issues: [] });
 }
 
-/** Nothing is held at module level, so a request that cannot be given its ports is answered as unavailable and no
- *  later request inherits what failed. */
-function madeProductionPorts(request: NextRequest): MadePorts {
+/** Nothing is held at module level. A request the every-request bucket refuses is that answer, before the price store is
+ *  read; one that cannot be given its ports is answered as unavailable; and no later request inherits what failed. */
+async function madeProductionPorts(
+  request: NextRequest,
+  text: string,
+): Promise<MadePorts> {
   try {
-    return {
-      kind: "ports",
-      ports: makeContactProductionPorts(request.headers),
-    };
+    const admitted = await admitContactRequest(request.headers, text);
+    return admitted.kind === "limited"
+      ? { kind: "answer", answer: admitted.answer }
+      : admitted;
   } catch (thrown) {
     reportContactUnavailable(causeOf(thrown));
-    return { kind: "unavailable", answer: contactUnavailableResponse() };
+    return { kind: "answer", answer: contactUnavailableResponse() };
   }
 }

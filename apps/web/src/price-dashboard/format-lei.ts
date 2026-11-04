@@ -3,11 +3,11 @@
 // The separators are product constants, not `Intl`'s (ADR 0095 Amendment C). Whole lei carry no decimals; an amount with
 // bani carries two, after a comma, so a stored amount is never shown as another.
 
-const BANI_PER_LEU = 100;
+export const BANI_PER_LEU = 100;
 const DIGITS_PER_GROUP = 3;
 const NON_BREAKING_SPACE = " ";
 const DECIMAL_SEPARATOR = ",";
-const DECIMAL_PLACES = 2;
+export const DECIMAL_PLACES = 2;
 
 /** Whether an amount is a whole, non-negative count of bani: the only kind this module writes. */
 export function isCountOfBani(amount: number): boolean {

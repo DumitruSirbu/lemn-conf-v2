@@ -26,6 +26,8 @@ import type {
   StaffAuditAction,
 } from "@lemnaria/configurator-domain";
 
+import { resolveDashboardAuditDetailCopy } from "./staff-audit-dashboard-copy";
+
 export type ContentTranslator = _Translator<Messages>;
 
 function assertNever(value: never): never {
@@ -1548,6 +1550,7 @@ export function resolveStaffAuditCopy(translate: ContentTranslator) {
     },
     actionLabels: new Map<string, string>(Object.entries(actionLabels)),
     unknownAction: translate("staffAudit.actionUnknown"),
+    dashboard: resolveDashboardAuditDetailCopy(translate),
     details: {
       statusChanged: (change: { from: string; to: string }) =>
         translate("staffAudit.detailStatusChanged", change),
@@ -2324,8 +2327,7 @@ export function resolveContent(translate: ContentTranslator) {
         black: translate("panel.handleLabels.black"),
         push: translate("panel.handleLabels.push"),
       },
-      handleDefaultNote: (label: string) =>
-        translate("panel.handleDefaultNote", { label }),
+      handleFollowsKitchen: translate("panel.handleFollowsKitchen"),
       widthTitle: translate("panel.widthTitle"),
       widthValue: (widthMm: number) =>
         translate("panel.widthValue", { widthMm }),
@@ -2374,6 +2376,14 @@ export function resolveContent(translate: ContentTranslator) {
       },
       included: translate("priceBreakdown.included"),
       notIncluded: translate("priceBreakdown.notIncluded"),
+      /** `percent` is the published depth rule's whole percentage: the leaf states no figure of its own (ADR 0100
+       *  decision 5). The leaf's plain `{percent}` is typed as text, so the number is read here. */
+      depthLine: (cabinetDepthMm: number, percent: number) =>
+        translate("priceBreakdown.depthLine", {
+          cabinetDepthMm,
+          percent: String(percent),
+        }),
+      depthLineScope: translate("priceBreakdown.depthLineScope"),
     },
     review: {
       title: translate("review.title"),
@@ -2427,6 +2437,8 @@ export function resolveContent(translate: ContentTranslator) {
           openLabel: translate("globalSettings.open"),
           settings: settings.join(translate("globalSettings.pillNameJoin")),
         }),
+      kitchenHandleHeading: translate("globalSettings.kitchenHandleHeading"),
+      kitchenHandleHint: translate("globalSettings.kitchenHandleHint"),
       colourHeading: translate("globalSettings.colourHeading"),
       colourNote: translate("globalSettings.colourNote"),
       colourWarning: translate("globalSettings.colourWarning"),
@@ -2434,7 +2446,12 @@ export function resolveContent(translate: ContentTranslator) {
       depthOption: (cabinetDepthMm: number) =>
         translate("globalSettings.depthOption", { cabinetDepthMm }),
       depthWarning: translate("globalSettings.depthWarning"),
-      depthNote: translate("globalSettings.depthNote"),
+      /** A zero `percent` reads as "the depth does not change the price", not as a surcharge of 0 %. */
+      depthNotePriced: (cabinetDepthMm: number, percent: number) =>
+        translate("globalSettings.depthNotePriced", {
+          cabinetDepthMm,
+          percent,
+        }),
       apply: translate("globalSettings.apply"),
       cancel: translate("globalSettings.cancel"),
       materialResetConfirm: {

@@ -33,6 +33,8 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import * as THREE from "three";
 import { beforeAll, describe, expect, it, vi } from "vitest";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
+import { NOTHING_DISABLED } from "../support/availability";
 
 vi.mock("@/i18n/use-content", async () => {
   const { ro } = await import("../support/romanian-content");
@@ -49,6 +51,7 @@ import {
 } from "@/store/configurator-store";
 
 import { createFakeProbeFactory } from "../support/fake-body-probe";
+import { underSamplePriceBook } from "../support/sample-price-root";
 import { createHeadlessCanvas } from "../support/headless-canvas";
 
 /** The store state the hooks under test read. Swapped between cases, so the real `usePanelView` and
@@ -87,7 +90,7 @@ function readFromHook<T>(useHook: () => T): T {
     seen = useHook();
     return null;
   }
-  renderToStaticMarkup(createElement(Probe));
+  renderToStaticMarkup(underSamplePriceBook(createElement(Probe)));
   if (seen === undefined) throw new Error("the hook produced nothing");
   return seen;
 }
@@ -98,6 +101,8 @@ function priceOf(design: Design) {
     catalog: KITCHEN_L_BODY_CATALOG,
     book: SAMPLE_PRICE_BOOK,
     pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
+    deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
   });
 }
 

@@ -1,5 +1,7 @@
 import {
+  countPendingPrices,
   PRICE_GROUP_CODES,
+  type AddressOfKind,
   type DraftChange,
   type PriceGroupCode,
 } from "@lemnaria/configurator-domain";
@@ -36,6 +38,22 @@ export interface CabinetDefaultPrice {
   readonly pendingMinor: number;
 }
 
+/** The address of a cabinet's price: its anchor, or one listed size. */
+export type CabinetPriceAddress = AddressOfKind<"cabinet" | "cabinet-size">;
+
+/**
+ * The one amount the list edits in place: the price the row is quoted at, as the book holds it (not the rounded
+ * display).
+ */
+export interface CabinetAnchorField {
+  /** What a draft change names: the anchor of an anchored rule, or the default size of a rule priced per size. */
+  readonly address: CabinetPriceAddress;
+  /** The amount in bani once the draft is applied: what the field starts from. */
+  readonly pendingMinor: number;
+  /** The amount in bani in the active version: a typed value equal to it takes the change out of the draft. */
+  readonly activeMinor: number;
+}
+
 /** One cabinet type of the book, as the list needs it. The server builds it from the active book and the catalogue. */
 export interface CabinetRuleFacts {
   readonly ruleId: string;
@@ -50,6 +68,10 @@ export interface CabinetRuleFacts {
   readonly isCustomerSupplied: boolean;
   /** Absent exactly for a customer-supplied row. */
   readonly price?: CabinetDefaultPrice;
+  /**
+   * What the price cell edits; absent for a row the list cannot edit (a customer-supplied one, and a read-only list).
+   */
+  readonly anchorField?: CabinetAnchorField;
 }
 
 /** Everything the list screen is given: the cabinets, and the draft beside them (X0's wire shape). */
@@ -63,6 +85,14 @@ export interface CabinetRow {
   /** The draft changes a price of this cabinet. */
   readonly isModified: boolean;
 }
+
+/** The message of each group's heading. */
+export const GROUP_HEADING_KEYS = {
+  base: "priceDashboard.cabinets.groupBase",
+  wall: "priceDashboard.cabinets.groupWall",
+  tall: "priceDashboard.cabinets.groupTall",
+  corner: "priceDashboard.cabinets.groupCorner",
+} as const;
 
 export interface CabinetGroup {
   readonly code: PriceGroupCode;
@@ -86,11 +116,12 @@ function namesRule(change: DraftChange, ruleId: string): boolean {
 }
 
 /**
- * The number the header and the menu show: every change the draft holds, whatever it changes (the depth rule and a
- * bulk action's every field count with the cabinet prices).
+ * The prices the draft waits to publish, counted as the person counts them: the number the header and the menu show.
  */
-export function pendingPriceCountOf(draft: DashboardDraftWire): number {
-  return draft.changes.length;
+export function pendingPriceCountOf(
+  draft: DashboardDraftWire | { readonly changes: readonly DraftChange[] },
+): number {
+  return countPendingPrices(draft.changes);
 }
 
 export function rowsOf(input: CabinetListInput): readonly CabinetRow[] {

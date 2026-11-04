@@ -39,6 +39,7 @@ import { isGreaterRevision } from "@/store/revision-order";
 
 import roMessages from "../../src/messages/ro.json";
 import ruMessages from "../../src/messages/ru.json";
+import { underSamplePriceBook } from "../support/sample-price-root";
 import { filesUnder } from "../support/files-under";
 
 const DESIGN_ID = "design-under-review" as DesignId;
@@ -56,18 +57,20 @@ function editedCopyOf(design: Design): Design {
 function mountReview(pageDesign: Design, locale: "ro" | "ru" = "ro"): void {
   act(() => {
     root.render(
-      createElement(NextIntlClientProvider, {
-        locale,
-        messages: (locale === "ro"
-          ? roMessages
-          : ruMessages) as typeof roMessages,
-        timeZone: "Europe/Chisinau",
-        children: createElement(HydrateAndReview, {
-          design: pageDesign,
-          designId: DESIGN_ID,
-          revision: "1",
+      underSamplePriceBook(
+        createElement(NextIntlClientProvider, {
+          locale,
+          messages: (locale === "ro"
+            ? roMessages
+            : ruMessages) as typeof roMessages,
+          timeZone: "Europe/Chisinau",
+          children: createElement(HydrateAndReview, {
+            design: pageDesign,
+            designId: DESIGN_ID,
+            revision: "1",
+          }),
         }),
-      }),
+      ),
     );
   });
 }
@@ -389,16 +392,18 @@ describe("the review shows the newest copy this tab can know", () => {
   function mountPageAt(revision: string, design: Design): void {
     act(() => {
       root.render(
-        createElement(NextIntlClientProvider, {
-          locale: "ro",
-          messages: roMessages,
-          timeZone: "Europe/Chisinau",
-          children: createElement(HydrateAndReview, {
-            design,
-            designId: DESIGN_ID,
-            revision,
+        underSamplePriceBook(
+          createElement(NextIntlClientProvider, {
+            locale: "ro",
+            messages: roMessages,
+            timeZone: "Europe/Chisinau",
+            children: createElement(HydrateAndReview, {
+              design,
+              designId: DESIGN_ID,
+              revision,
+            }),
           }),
-        }),
+        ),
       );
     });
   }

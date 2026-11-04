@@ -162,7 +162,7 @@ describe("a book row that names no key still renders its own name", () => {
 describe("relocating a row's words relocated no amount", () => {
   it("keeps every figure the book states out of both catalogues", () => {
     // ADR 0062 decision 1 from the catalogue side. Falsified against the book's own amounts rather
-    // than against a pattern: every minor-unit figure the shipped book states, in the major-unit
+    // than against a pattern: every minor-unit amount the shipped book states (a material states a percentage and no amount), in the major-unit
     // spelling a customer would read and in the raw minor one, must appear in no `priceBook.*` leaf.
     const minorAmounts = [
       ...SAMPLE_PRICE_BOOK.hardware.tiers.flatMap((tier) => [
@@ -170,7 +170,6 @@ describe("relocating a row's words relocated no amount", () => {
         tier.perDrawerMinor,
         tier.perPushToOpenMinor,
       ]),
-      ...SAMPLE_PRICE_BOOK.material.tiers.map((tier) => tier.wholeKitchenMinor),
       SAMPLE_PRICE_BOOK.accessories.sinkProtectiveCover.perUnitMinor,
       SAMPLE_PRICE_BOOK.accessories.dishDryingRack.perUnitMinor,
     ].filter((amount) => amount !== 0);
@@ -196,7 +195,7 @@ describe("relocating a row's words relocated no amount", () => {
  * **A keyed price-book text may not restate an amount, a delta or an earning rule** — ADR 0106
  * Amendment A decision 5, and the sweep that amendment says is still owed.
  *
- * Three shipped leaves once did: *"…inclus în preț"* restated `wholeKitchenMinor: 0` in words, and
+ * Three shipped leaves once did: *"…inclus în preț"* restated the retired whole-kitchen amount of zero in words, and
  * two *"Inclus…"* clauses restated ADR 0070 decision 4's earning rule. The owner trimmed all three
  * on 2026-09-10.
  *
