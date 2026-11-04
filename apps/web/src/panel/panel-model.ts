@@ -159,10 +159,18 @@ export interface RalPickerSection {
   readonly note: string;
 }
 
+/** "Like the rest of the kitchen" for the handle, the reset `FollowTheKitchenChip` is for the colour: active when the
+ *  cabinet has no handle of its own. It names the handle the kitchen uses for this cabinet, so a cabinet wearing its
+ *  own still shows what the press would give it. */
+export interface HandleFollowChip extends ChoiceChip<"follow"> {
+  readonly kitchenHandleLabel: string;
+}
+
 export interface HandleSection {
   readonly kind: "handle";
   readonly title: string;
   readonly chips: readonly ChoiceChip<Handle>[];
+  readonly follow: HandleFollowChip;
   /** Present only when no handle was chosen and §6.5's default is what the scene is showing. */
   readonly note?: string;
 }
@@ -826,6 +834,13 @@ function describeHandleSection(
       isActive: active === handle,
       ...describeChipAvailability(editability),
     })),
+    follow: {
+      value: "follow",
+      label: content.panel.handleFollowsKitchen,
+      isActive: meta.handle === undefined,
+      kitchenHandleLabel: content.panel.handleLabels[meta.defaultHandle],
+      ...describeChipAvailability(editability),
+    },
     ...(meta.handle === undefined
       ? {
           note: content.panel.handleDefaultNote(

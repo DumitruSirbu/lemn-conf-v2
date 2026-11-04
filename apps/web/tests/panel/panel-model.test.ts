@@ -385,6 +385,48 @@ describe("describePanel — finish and handle chips", () => {
   });
 });
 
+describe("describePanel — the handle's way back to the kitchen's", () => {
+  it("is active, and names what the kitchen uses, when the cabinet has no handle of its own", () => {
+    const section = findSection(
+      openPanelFor(occupiedMeta({ defaultHandle: "black" })).sections,
+      "handle",
+    );
+
+    expect(section?.follow).toMatchObject({
+      value: "follow",
+      label: ro.panel.handleFollowsKitchen,
+      isActive: true,
+      isDisabled: false,
+      kitchenHandleLabel: ro.panel.handleLabels.black,
+    });
+  });
+
+  it("is inactive on a cabinet with a handle of its own, and still names the kitchen's", () => {
+    const section = findSection(
+      openPanelFor(occupiedMeta({ defaultHandle: "push", handle: "steel" }))
+        .sections,
+      "handle",
+    );
+
+    expect(section?.follow).toMatchObject({
+      isActive: false,
+      kitchenHandleLabel: ro.panel.handleLabels.push,
+    });
+  });
+
+  it("is disabled with the browser's reason where the handle chips are", () => {
+    const section = findSection(
+      openPanelFor(occupiedMeta({ handle: "steel" }), { canWrite: false })
+        .sections,
+      "handle",
+    );
+
+    expect(section?.follow.isDisabled).toBe(true);
+    expect(section?.follow.reason).toBe(section?.chips[0]?.reason);
+    expect(section?.follow.reason).toBeDefined();
+  });
+});
+
 describe("describePanel — the width section, judged by the engine (M5 wave 5D)", () => {
   // The chip set is no longer this module's to derive. `widthOptionsFor` answers per **column** —
   // ADR 0031's scope — while `meta` describes one body, so the panel renders the judged list it is

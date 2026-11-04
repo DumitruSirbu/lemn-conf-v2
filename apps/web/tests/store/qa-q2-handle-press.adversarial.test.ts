@@ -539,7 +539,8 @@ type TargetedEffect =
   | "body_resized"
   | "finish_set"
   | "finish_cleared"
-  | "handle_set";
+  | "handle_set"
+  | "handle_cleared";
 const WHOLE_KITCHEN_RESULTS: Record<
   Exclude<CommandEffect["type"], TargetedEffect>,
   (design: Design) => CommandResult

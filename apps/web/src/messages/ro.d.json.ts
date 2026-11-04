@@ -235,6 +235,7 @@ declare const messages: {
       "push": "Push-to-open"
     },
     "handleDefaultNote": "Implicit pentru acest dulap: {label}.",
+    "handleFollowsKitchen": "Ca restul bucătăriei",
     "widthTitle": "Lățime",
     "widthValue": "{widthMm, number, ::group-off} mm",
     "widthStepLabels": {

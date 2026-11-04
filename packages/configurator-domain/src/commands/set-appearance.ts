@@ -27,6 +27,7 @@ import {
   type CommandTarget,
   type FinishClearedEffect,
   type FinishSetEffect,
+  type HandleClearedEffect,
   type HandleSetEffect,
 } from "./command-result.js";
 import type { RejectionDetail } from "./rejection.js";
@@ -124,20 +125,29 @@ export function clearFinish(
       params: { label: kindLabel(selected.record.kind) },
     });
   }
-  return succeedWith(withoutAFinish(input, selected.record.id), {
-    type: "finish_cleared",
-    placementId: selected.record.id,
-  });
+  return succeedWith(
+    withoutAChoice(input, selected.record.id, (body) => {
+      delete body.finish;
+    }),
+    {
+      type: "finish_cleared",
+      placementId: selected.record.id,
+    },
+  );
 }
 
 /** `applyToBody`'s opposite, not expressible as one: `finish: undefined` is not an absent `finish`,
  *  since a serialised `undefined` is the key not being there and the two would round-trip differently
  *  through a save. */
-function withoutAFinish(input: AppearanceInput, placementId: string): Design {
+function withoutAChoice(
+  input: AppearanceInput,
+  placementId: string,
+  forget: (body: CabinetBody) => void,
+): Design {
   const placements = input.design.placements.map((placement) => {
     if (placement.id !== placementId) return placement;
     const body = { ...placement.body };
-    delete body.finish;
+    forget(body);
     return { ...placement, body };
   });
   return withPlacements(input.design, placements, input.occurredAt);
@@ -160,6 +170,36 @@ export function setHandle(
       type: "handle_set",
       placementId: selected.record.id,
       handle: input.handle,
+    },
+  );
+}
+
+/**
+ * `clearFinish` for the handle: the cabinet stops choosing and the kitchen's handle applies again, or
+ * the module line's where the cabinet stands on the top row (`resolvedHandleOf`). Price, scene and
+ * panel all read that resolver, so none of them has a second place to be told.
+ *
+ * It deletes the key and never writes the kitchen's handle into it, which would pin the cabinet to
+ * today's value. Clearing a cabinet that has chosen nothing is not a refusal.
+ */
+export function clearHandle(
+  input: AppearanceInput,
+): CommandResult<HandleClearedEffect> {
+  const selected = selectBody(input);
+  if (!selected.ok) return refuse(input.design, selected.detail);
+  if (!selected.record.canHandle) {
+    return refuse(input.design, {
+      code: "HANDLE_NOT_SUPPORTED",
+      params: { label: kindLabel(selected.record.kind) },
+    });
+  }
+  return succeedWith(
+    withoutAChoice(input, selected.record.id, (body) => {
+      delete body.handle;
+    }),
+    {
+      type: "handle_cleared",
+      placementId: selected.record.id,
     },
   );
 }

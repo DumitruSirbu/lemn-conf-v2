@@ -14,6 +14,7 @@ import type {
   FinishChip,
   FinishSection,
   FollowTheKitchenChip,
+  HandleFollowChip,
   HandleSection,
   OfferRow,
   PanelFooter,
@@ -451,6 +452,7 @@ function RalPickerView({
 
 function HandleSectionView({ section }: { readonly section: HandleSection }) {
   const setHandle = useConfiguratorStore((state) => state.setHandle);
+  const clearHandle = useConfiguratorStore((state) => state.clearHandle);
   return (
     <section className={styles.section} data-testid="section-handle">
       <span className={styles.sectionTitle}>{section.title}</span>
@@ -472,8 +474,38 @@ function HandleSectionView({ section }: { readonly section: HandleSection }) {
           </button>
         ))}
       </div>
+      <FollowTheKitchenHandleButton
+        chip={section.follow}
+        onFollow={clearHandle}
+      />
       {section.note ? <p className={styles.note}>{section.note}</p> : null}
     </section>
+  );
+}
+
+/** The handle's way back out of an override, on its own full-width row under the chips like the colour's, and for the
+ *  same reason: a reset is not one of the choices it resets. */
+function FollowTheKitchenHandleButton({
+  chip,
+  onFollow,
+}: {
+  readonly chip: HandleFollowChip;
+  readonly onFollow: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={styles.followRow}
+      data-testid="handle-follow-kitchen"
+      data-follow="true"
+      aria-pressed={chip.isActive}
+      disabled={chip.isDisabled}
+      onClick={onFollow}
+    >
+      <span className={styles.followRowLabel}>{chip.label}</span>
+      <span className={styles.followRowDetail}>{chip.kitchenHandleLabel}</span>
+      <ChipReason reason={chip.reason} />
+    </button>
   );
 }
 
