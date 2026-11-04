@@ -10,8 +10,8 @@ import {
   PRICE_STORES_GLOBAL_KEY,
 } from "@/lib/server/price-stores";
 
-// Adversarial QA for M10 wave W1 with the persistence package's own Neon stores, never replaced: what making them costs,
-// and what a connection string the driver refuses does to a request. No request reaches a network.
+// Adversarial QA with the persistence package's own Neon stores, never replaced: what making them costs, and what a
+// connection string the driver refuses does to a request. No request reaches a network.
 
 const DATABASE = "postgres://user:pass@w1-qa.database.invalid/db";
 const SECRET_WORD = "w1-qa-secret-7f3a";

@@ -6,9 +6,9 @@ import { NO_PRICE_BOOK } from "@/price/price-book-root";
 
 import { priceBookRootOf } from "../support/price-book-wrapper";
 
-// Adversarial QA for M10 wave W1: with production's stores the database's and no version ever published, every surface
-// that prices a kitchen is handed no book (A-10). The stores are the ones `getPriceStores` makes for a production
-// process, so the route from the environment to the surface is whole; only the Neon driver is replaced.
+// Adversarial QA of the surfaces with production's stores the database's and no version ever published: every surface that
+// prices a kitchen is handed no book (A-10). The stores are the ones `getPriceStores` makes for a production process, so
+// the route from the environment to the surface is whole; only the Neon driver is replaced.
 
 const world = vi.hoisted(() => ({
   readActive: undefined as undefined | (() => Promise<unknown>),

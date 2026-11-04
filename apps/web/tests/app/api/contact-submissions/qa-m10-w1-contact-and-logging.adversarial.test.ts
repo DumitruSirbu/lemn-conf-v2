@@ -4,10 +4,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { NO_PRICE_BOOK } from "@/price/price-book-root";
 
-// Adversarial QA for M10 wave W1, at the contact route and at a page read of the dashboard: with production's stores the
-// database's, no version ever published is the one unavailable answer and no line, a database that cannot answer is the
-// same answer and a line, and the stub stores of a process with no database say nothing a second time. The stores are the
-// ones `getPriceStores` makes for the environment; only the Neon driver is replaced.
+// Adversarial QA at the contact route and at a page read of the dashboard, with production's stores the database's: no
+// version ever published is the one unavailable answer and no line, a database that cannot answer is the same answer and
+// a line, and the stub stores of a process with no database say nothing a second time. The stores are the ones
+// `getPriceStores` makes for the environment; only the Neon driver is replaced.
 
 const world = vi.hoisted(() => ({
   priceBook: {} as Record<

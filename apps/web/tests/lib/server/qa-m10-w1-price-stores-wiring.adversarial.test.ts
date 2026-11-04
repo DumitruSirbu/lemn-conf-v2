@@ -12,8 +12,8 @@ import {
 
 import { sourceFilesMatching } from "./server-source-support";
 
-// Adversarial QA for M10 wave W1: which stores a process holds once production's are the database's. The Neon
-// constructors are counted and the seeding is a sentinel, so the choice is read off what was made and never off a driver.
+// Adversarial QA of which stores a process holds once production's are the database's. The Neon constructors are
+// counted and the seeding is a sentinel, so the choice is read off what was made and never off a driver.
 
 const world = vi.hoisted(() => ({
   priceBookStores: [] as object[],
@@ -349,17 +349,23 @@ describe("a refusal that arrives after a newer attempt has succeeded", () => {
 describe("importing what reads the stores", () => {
   const READERS_OF_THE_STORES =
     /price-stores"|active-price-book"|with-active-price-book"/;
+  const ENTRY_MODULES_OF_THE_BUILD = /^app\/.*\b(?:page|route|layout)\.tsx?$/;
 
-  it("makes no store in any module that imports the price stores or the price root, so a build opens no connection", async () => {
+  it("makes no store in any module that imports the price stores or the price root, nor in any page, route or layout, so a build opens no connection", async () => {
     // `VERCEL_ENV` is what makes this process production's: a production `NODE_ENV` would load React's runtime without
     // the development JSX the pages are compiled to.
     stubEnvironment({ DATABASE_URL: DATABASE, VERCEL_ENV: "production" });
-    const readers = sourceFilesMatching(READERS_OF_THE_STORES)
+    const readers = [
+      ...sourceFilesMatching(READERS_OF_THE_STORES),
+      ...sourceFilesMatching(/./).filter((path) =>
+        ENTRY_MODULES_OF_THE_BUILD.test(path),
+      ),
+    ]
       .filter((path) => !path.endsWith(".d.ts"))
       .map((path) => `@/${path.replace(/\.(?:ts|tsx)$/, "")}`);
-    expect(readers.length).toBeGreaterThan(8);
+    expect(new Set(readers).size).toBeGreaterThan(40);
 
-    for (const reader of readers) {
+    for (const reader of new Set(readers)) {
       vi.resetModules();
       try {
         await import(/* @vite-ignore */ reader);
