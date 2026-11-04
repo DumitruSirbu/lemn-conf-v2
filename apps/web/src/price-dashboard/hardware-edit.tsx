@@ -7,9 +7,9 @@ import type { ContentTranslator } from "@/i18n/content";
 import type { AppLocale } from "@/i18n/routing";
 import { useContent } from "@/i18n/use-content";
 import { StaffShell, type StaffShellContext } from "@/staff/staff-shell";
-import { TextField } from "@/account/account-form-parts";
 
 import { pendingPriceCountOf } from "./cabinet-list-model";
+import { CreatedNameField } from "./created-name-field";
 import { formatLei } from "./format-lei";
 import {
   hardwareClassOf,
@@ -32,19 +32,14 @@ import { ItemDeskNotice, ItemDialogs } from "./item-dialogs";
 import type { ItemLifecycleClient } from "./item-lifecycle-client";
 import { isItemOn } from "./item-lifecycle-model";
 import type { PriceDraftClient } from "./price-draft-client";
-import {
-  createdTextRefusalWords,
-  leiRefusalWords,
-  priceWriteFailureWords,
-  saveFailureWords,
-} from "./price-input-words";
+import { leiRefusalWords, saveFailureWords } from "./price-input-words";
 import editStyles from "./price-edit.module.css";
+import { PriceSaveBar } from "./price-save-bar";
 import { PriceUnitField } from "./price-unit-field";
-import { publishPathOf } from "./publish-paths";
 import {
-  useHardwareClassNameEditing,
-  type HardwareClassNameEditing,
-} from "./use-hardware-class-name-editing";
+  useCreatedRowNameEditing,
+  type CreatedRowNameEditing,
+} from "./use-created-row-name-editing";
 import { useFocusAfterCancel } from "./use-focus-after-cancel";
 import { useHardwareDesk, type HardwareDesk } from "./use-hardware-desk";
 import {
@@ -145,8 +140,8 @@ function HardwareEdit({
     rates: facts.rates,
     draft: desk.draft,
   });
-  const renaming = useHardwareClassNameEditing({
-    tierId: facts.tierId,
+  const renaming = useCreatedRowNameEditing({
+    item: hardwareItemOf(facts),
     currentName: facts.name.authored,
     publishedName: facts.activeName,
     draft: desk.draft,
@@ -198,7 +193,7 @@ function ClassWords({
 }: {
   readonly facts: HardwareClassFacts;
   readonly name: string;
-  readonly renaming: HardwareClassNameEditing;
+  readonly renaming: CreatedRowNameEditing;
 }) {
   const translate = useTranslations();
   const content = useContent();
@@ -210,7 +205,11 @@ function ClassWords({
   return (
     <>
       {canRename ? (
-        <CreatedName renaming={renaming} />
+        <CreatedNameField
+          renaming={renaming}
+          nameLabel={translate("priceDashboard.hardware.nameLabel")}
+          renameLabel={translate("priceDashboard.hardware.renameAction")}
+        />
       ) : (
         <div className={styles.words}>
           <span className={styles.wordsLabel}>
@@ -234,70 +233,6 @@ function ClassWords({
       </p>
     </>
   );
-}
-
-/** The name of a created class as a field with its button; where the client cannot take it, the name is text with the
- *  reason. */
-function CreatedName({
-  renaming,
-}: {
-  readonly renaming: HardwareClassNameEditing;
-}) {
-  const translate = useTranslations();
-  if (!renaming.canWrite) {
-    return (
-      <div className={styles.words}>
-        <span className={styles.wordsLabel}>
-          {translate("priceDashboard.hardware.nameLabel")}
-        </span>
-        <span className={styles.wordsValue}>{renaming.text}</span>
-        <p className={styles.hint}>
-          {translate("priceDashboard.lifecycle.cannotJudge")}
-        </p>
-      </div>
-    );
-  }
-  return (
-    <>
-      <TextField
-        label={translate("priceDashboard.hardware.nameLabel")}
-        name="name"
-        type="text"
-        autoComplete="off"
-        autoCapitalize="words"
-        spellCheck
-        value={renaming.text}
-        onChange={renaming.type}
-        {...nameErrorProps(translate, renaming)}
-      />
-      <div className={styles.actions}>
-        <button
-          type="button"
-          className={editStyles.action}
-          data-tone="primary"
-          disabled={!renaming.canSave}
-          onClick={() => {
-            void renaming.save();
-          }}
-        >
-          {translate("priceDashboard.hardware.renameAction")}
-        </button>
-      </div>
-    </>
-  );
-}
-
-/** What the typed name reads as, then what the server's answer to its Save says. */
-function nameErrorProps(
-  translate: ContentTranslator,
-  { judgement, isTouched, failure }: HardwareClassNameEditing,
-): { readonly error?: string } {
-  if (isTouched && !judgement.ok) {
-    return { error: createdTextRefusalWords(translate, judgement.code) };
-  }
-  return failure === undefined
-    ? {}
-    : { error: priceWriteFailureWords(translate, failure) };
 }
 
 /** Whether customers may choose the class, and its deletion. */
@@ -376,6 +311,9 @@ function RateFields({
   const translate = useTranslations();
   const fieldsRef = useRef<HTMLDivElement>(null);
   const cancel = useFocusAfterCancel(editing.cancel, fieldsRef);
+  const mustFix = editing.states.some(
+    (state) => state.reading.kind === "refused",
+  );
   return (
     <>
       <h2 className={styles.cardTitle}>
@@ -389,7 +327,19 @@ function RateFields({
           <RateField key={state.rate.field} state={state} editing={editing} />
         ))}
       </div>
-      <SaveBar locale={locale} editing={editing} onCancel={cancel} />
+      <PriceSaveBar
+        locale={locale}
+        isSaved={editing.feedback.kind === "saved" && !editing.isChanged}
+        canSave={editing.canSave}
+        mustFix={mustFix}
+        canCancel={
+          editing.isChanged || mustFix || editing.feedback.kind === "failed"
+        }
+        onSave={() => {
+          void editing.save();
+        }}
+        onCancel={cancel}
+      />
     </>
   );
 }
@@ -455,67 +405,4 @@ function errorOf(
     return saveFailureWords(translate, feedback);
   }
   return undefined;
-}
-
-function SaveBar({
-  locale,
-  editing,
-  onCancel,
-}: {
-  readonly locale: AppLocale;
-  readonly editing: HardwareRateEditing;
-  readonly onCancel: () => void;
-}) {
-  const translate = useTranslations();
-  const savedNoticeRef = useRef<HTMLDivElement>(null);
-  const isSaved = editing.feedback.kind === "saved" && !editing.isChanged;
-  const mustFix = editing.states.some(
-    (state) => state.reading.kind === "refused",
-  );
-  useEffect(() => {
-    // Save leaves the page with the notice that replaces it; focus lost with it goes to the notice, not the body.
-    if (isSaved && document.activeElement === document.body) {
-      savedNoticeRef.current?.focus();
-    }
-  }, [isSaved]);
-  if (isSaved) {
-    return (
-      <div
-        ref={savedNoticeRef}
-        tabIndex={-1}
-        className={styles.saved}
-        role="status"
-      >
-        <p>{translate("priceDashboard.common.priceSavedNotice")}</p>
-        <a className={styles.savedLink} href={publishPathOf(locale)}>
-          {translate("priceDashboard.nav.publish")}
-        </a>
-      </div>
-    );
-  }
-  return (
-    <div className={styles.actions}>
-      <button
-        type="button"
-        className={editStyles.action}
-        data-tone="primary"
-        disabled={!editing.canSave}
-        onClick={() => {
-          void editing.save();
-        }}
-      >
-        {translate("priceDashboard.common.save")}
-      </button>
-      {editing.isChanged || mustFix || editing.feedback.kind === "failed" ? (
-        <button type="button" className={editStyles.action} onClick={onCancel}>
-          {translate("priceDashboard.common.cancel")}
-        </button>
-      ) : null}
-      {mustFix ? (
-        <p className={styles.fixToSave}>
-          {translate("priceDashboard.errors.fixToSave")}
-        </p>
-      ) : null}
-    </div>
-  );
 }

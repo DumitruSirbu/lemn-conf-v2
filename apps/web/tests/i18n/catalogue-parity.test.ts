@@ -53,6 +53,7 @@ const EXPECTED_POUND_DIVERGENCES: Readonly<
     russianGroupOffNumberIn("count"),
   "priceDashboard.lifecycle.deleteBlockedAccessoryBody":
     russianGroupOffNumberIn("count"),
+  "priceDashboard.lifecycle.usedByAccessory": russianGroupOffNumberIn("count"),
   "priceDashboard.publish.subtitleMobile": russianPoundIn("count"),
   "priceDashboard.publish.publishAction": russianPoundIn("count"),
   "priceDashboard.publish.confirmBody": russianPoundIn("count"),

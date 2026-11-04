@@ -291,10 +291,16 @@ export type FailedCreation = Exclude<
   { kind: "created" | "busy" }
 >;
 
-/** What the server's answer to a new class says, after a form whose every value read well. */
+/** The sentence of the form that created the row, for a refusal the form's own reading could not foresee. */
+export type CreationRefusalLeaf =
+  | "priceDashboard.hardware.createRefused"
+  | "priceDashboard.accessories.createRefused";
+
+/** What the server's answer to a new row says, after a form whose every value read well. */
 export function creationFailureWords(
   translate: ContentTranslator,
   failure: FailedCreation,
+  createRefusedLeaf: CreationRefusalLeaf,
 ): string {
   switch (failure.kind) {
     case "conflict":
@@ -302,9 +308,9 @@ export function creationFailureWords(
     case "failed":
       return translate(SAVE_FAILED);
     case "candidate-refused":
-      return translate("priceDashboard.hardware.createRefused");
+      return translate(createRefusedLeaf);
     case "refused":
-      return creationRefusalWords(translate, failure.code);
+      return creationRefusalWords(translate, failure.code, createRefusedLeaf);
   }
 }
 
@@ -312,6 +318,7 @@ export function creationFailureWords(
 function creationRefusalWords(
   translate: ContentTranslator,
   code: DraftChangeRefusalCode,
+  createRefusedLeaf: CreationRefusalLeaf,
 ): string {
   switch (code) {
     case "NEGATIVE":
@@ -325,18 +332,19 @@ function creationRefusalWords(
     case "TEXT_FORBIDDEN_CHARACTER":
     case "TEXT_STATES_AN_AMOUNT":
       return createdTextRefusalWords(translate, code);
+    case "LINK_TARGET_UNKNOWN":
+    case "LINK_TARGET_CUSTOMER_SUPPLIED":
+      return translate("priceDashboard.accessories.linkRefused");
     case "UNKNOWN_ADDRESS":
     case "UNKNOWN_RULE":
     case "UNKNOWN_ITEM":
     case "NOT_EDITABLE":
     case "FIELD_NOT_ON_RULE":
-    case "LINK_TARGET_UNKNOWN":
-    case "LINK_TARGET_CUSTOMER_SUPPLIED":
     case "ITEM_IS_DEFAULT":
     case "ITEM_IN_USE":
     case "CREATED_TIER_RATES_MISSING":
     case "PRICE_WOULD_BE_NEGATIVE":
-      return translate("priceDashboard.hardware.createRefused");
+      return translate(createRefusedLeaf);
   }
 }
 

@@ -147,6 +147,14 @@
   composes: danger from "./item-screen.module.css";
 }
 
+.addLink {
+  composes: addLink from "./item-screen.module.css";
+}
+
+.linkAction {
+  composes: linkAction from "./item-screen.module.css";
+}
+
 .page {
   composes: page from "./item-screen.module.css";
   /* The widest title word of a column at 11 px uppercase with its letter-spacing ("Состояние", about 85 px at the

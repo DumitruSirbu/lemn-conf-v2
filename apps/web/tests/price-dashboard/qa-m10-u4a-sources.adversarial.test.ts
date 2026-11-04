@@ -153,6 +153,7 @@ describe("the invented counts", () => {
     );
 
     expect(writers).toEqual([
+      "price-dashboard/accessory-sample.ts",
       "price-dashboard/hardware-sample.ts",
       "price-dashboard/material-sample.ts",
     ]);
@@ -160,7 +161,7 @@ describe("the invented counts", () => {
 
   it("are not a default of any seam in the lifecycle's modules: a missing count is never a number", () => {
     const lifecycleModules = allSources.filter((path) =>
-      /price-dashboard\/(item-lifecycle|item-flows|use-item-availability|use-hardware-desk|use-material-desk|use-material-usage|default-item)/.test(
+      /price-dashboard\/(item-lifecycle|item-flows|use-item-availability|use-hardware-desk|use-accessory-desk|use-material-desk|use-material-usage|default-item)/.test(
         path,
       ),
     );

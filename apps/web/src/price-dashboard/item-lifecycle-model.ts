@@ -1,5 +1,6 @@
 import {
   fixedDefaultItemsOf,
+  isBuiltInAccessoryId,
   isItemOffered,
   isItemStated,
   isSameItem,
@@ -38,6 +39,8 @@ export type OffReason =
   | "item-is-default"
   | "item-is-fixed-default"
   | "item-not-in-active-book"
+  /** A built-in accessory comes with the catalogue: it can be switched off, never deleted. */
+  | "built-in-accessory"
   | "cannot-judge";
 
 /** What the switch of an item does when pressed. */
@@ -156,6 +159,7 @@ function deletionRefusalWithoutCount(
   context: LifecycleContext,
 ): OffReason | undefined {
   const { book, defaults } = context;
+  if (isBuiltInAccessory(item)) return "built-in-accessory";
   const reason = refusalOfUncountedDeletion({
     item,
     usage: [],
@@ -164,6 +168,10 @@ function deletionRefusalWithoutCount(
   });
   if (reason !== undefined) return reason;
   return mustAwaitDefaults(item, context) ? "cannot-judge" : undefined;
+}
+
+function isBuiltInAccessory(item: ItemRef): boolean {
+  return item.kind === "accessory" && isBuiltInAccessoryId(item.accessoryId);
 }
 
 function refusalOfUncountedDeletion(

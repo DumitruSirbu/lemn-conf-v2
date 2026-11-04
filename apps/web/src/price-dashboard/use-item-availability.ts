@@ -54,6 +54,8 @@ export interface ItemAvailabilityDesk {
   readonly isBusy: boolean;
   /** The saved kitchens are being counted. */
   readonly isReading: boolean;
+  /** The item whose saved kitchens are being counted; absent when none is. */
+  readonly readingItem: ItemRef | undefined;
   readonly requestSwitch: (item: ItemRef) => void;
   readonly requestDeletion: (item: DeletableItemRef) => void;
   readonly confirm: () => void;
@@ -93,7 +95,9 @@ export function useItemAvailability({
   const [flow, setFlow] = useState<ItemFlow>(CLOSED);
   const [failure, setFailure] = useState<ItemFailure | undefined>(undefined);
   const [isBusy, setIsBusy] = useState(false);
-  const [isReading, setIsReading] = useState(false);
+  const [readingItem, setReadingItem] = useState<ItemRef | undefined>(
+    undefined,
+  );
   const availabilityRef = useRef(availability);
   const leftBehindRef = useRef<ReadonlySet<string>>(new Set());
   const observedRef = useRef(observed);
@@ -129,20 +133,20 @@ export function useItemAvailability({
 
   const moveOn = useCallback(() => {
     markMoved();
-    setIsReading(false);
+    setReadingItem(undefined);
     setFailure(undefined);
   }, [markMoved]);
 
   const openAfterCounting = useCallback(
     async (item: ItemRef, flowOf: (read: UsageRead) => ItemFlow) => {
       const hasMoved = begin();
-      setIsReading(true);
+      setReadingItem(item);
       const read = await orFailed(
         () => client.readUsage([item]),
         UNREADABLE_USAGE,
       );
       if (hasMoved()) return;
-      setIsReading(false);
+      setReadingItem(undefined);
       setFlow(flowOf(read));
     },
     [client, begin],
@@ -341,7 +345,8 @@ export function useItemAvailability({
     flow,
     failure,
     isBusy,
-    isReading,
+    isReading: readingItem !== undefined,
+    readingItem,
     requestSwitch,
     requestDeletion,
     confirm,

@@ -16,6 +16,7 @@ import {
 import { priceDashboardCatalogue } from "@/price-dashboard/price-dashboard-catalogue";
 import type {
   BulkChangeRequestWire,
+  CreateAccessoryRequestWire,
   CreateHardwareClassRequestWire,
   DashboardStateWire,
   DraftChangeRequestWire,
@@ -35,6 +36,10 @@ export type RecordedCall =
   | {
       readonly kind: "createHardwareClass";
       readonly request: CreateHardwareClassRequestWire;
+    }
+  | {
+      readonly kind: "createAccessory";
+      readonly request: CreateAccessoryRequestWire;
     }
   | { readonly kind: "readState" };
 
@@ -185,6 +190,37 @@ export function inMemoryPriceDraftClient(
       return {
         kind: "changed",
         written: { draft, ruleCount: ruleIds.size, amountCount: minted.length },
+      };
+    },
+    createAccessory: async (request) => {
+      calls.push({ kind: "createAccessory", request });
+      await gate();
+      const forced = takeAnswer() as CreateHardwareClassOutcome | undefined;
+      if (forced !== undefined) return forced;
+      if (isStale(request.expectedDraftRevision)) return { kind: "conflict" };
+      created += 1;
+      const accessoryId = `created-${String(created)}`;
+      const changes = [
+        ...state.draft.changes,
+        {
+          address: { kind: "accessory-created", accessoryId },
+          value: request.value,
+        } as DraftChange,
+      ];
+      const applied = applyChanges(state.active.book, changes);
+      if (!applied.ok && applied.reason === "changes-refused") {
+        const [refusal] = applied.refusals;
+        if (refusal !== undefined) {
+          return { kind: "refused", code: refusal.code };
+        }
+      }
+      if (!applied.ok) return { kind: "candidate-refused" };
+      return {
+        kind: "changed",
+        written: {
+          draft: adopt(changes),
+          created: { kind: "accessory", accessoryId },
+        },
       };
     },
     createHardwareClass: async (request) => {

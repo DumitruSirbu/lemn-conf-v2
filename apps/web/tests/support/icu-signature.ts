@@ -167,5 +167,6 @@ export function isExactValueSwitch(branches: readonly string[]): boolean {
  *  `staffNotes.count` and `staffNotes.truncated`; the audit page added one: `staffAudit.detailRows`. The M10 copy (wave T1)
  *  added twenty-seven: twenty-three in `priceDashboard`, three in `staffChanges` and one in `replacementSheet`. The
  *  audit log's dashboard details (wave U5) added one: `staffAuditDetail.detailChanges`. The block on deleting a used accessory
- *  added one: `priceDashboard.lifecycle.deleteBlockedAccessoryBody`. */
-export const PLURAL_NODES_PER_CATALOGUE = 46;
+ *  added one: `priceDashboard.lifecycle.deleteBlockedAccessoryBody`. The dialogs' words for a switched-off accessory added
+ *  one: `priceDashboard.lifecycle.usedByAccessory`. */
+export const PLURAL_NODES_PER_CATALOGUE = 47;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 
 import type { AppLocale } from "@/i18n/routing";
 import { useContent } from "@/i18n/use-content";
@@ -37,8 +37,8 @@ import {
   materialPercentRefusalWords,
   materialWriteFailureWords,
 } from "./price-input-words";
+import { PriceSaveBar } from "./price-save-bar";
 import { PERCENT_UNIT, PriceUnitField } from "./price-unit-field";
-import { publishPathOf } from "./publish-paths";
 import { useFocusAfterCancel } from "./use-focus-after-cancel";
 import { useMaterialDesk, type MaterialDesk } from "./use-material-desk";
 import {
@@ -402,6 +402,7 @@ function SurchargeEditor({
   const translate = useTranslations();
   const fieldsRef = useRef<HTMLDivElement>(null);
   const cancel = useFocusAfterCancel(editing.cancel, fieldsRef);
+  const mustFix = editing.reading.kind === "refused";
   const percent =
     editing.reading.kind === "percent"
       ? editing.reading.percent
@@ -414,7 +415,19 @@ function SurchargeEditor({
       <div ref={fieldsRef} tabIndex={-1} className={styles.fields}>
         <SurchargeField facts={facts} editing={editing} />
       </div>
-      <SaveBar locale={locale} editing={editing} onCancel={cancel} />
+      <PriceSaveBar
+        locale={locale}
+        isSaved={editing.feedback.kind === "saved" && !editing.isChanged}
+        canSave={editing.canSave}
+        mustFix={mustFix}
+        canCancel={
+          editing.isChanged || mustFix || editing.feedback.kind === "failed"
+        }
+        onSave={() => {
+          void editing.save();
+        }}
+        onCancel={cancel}
+      />
       <MaterialExampleCard
         active={derivation.active}
         draft={derivation.candidate}
@@ -455,66 +468,5 @@ function SurchargeField({
       }
       onChange={editing.type}
     />
-  );
-}
-
-function SaveBar({
-  locale,
-  editing,
-  onCancel,
-}: {
-  readonly locale: AppLocale;
-  readonly editing: MaterialSurchargeEditing;
-  readonly onCancel: () => void;
-}) {
-  const translate = useTranslations();
-  const savedNoticeRef = useRef<HTMLDivElement>(null);
-  const isSaved = editing.feedback.kind === "saved" && !editing.isChanged;
-  const mustFix = editing.reading.kind === "refused";
-  useEffect(() => {
-    // Save leaves the page with the notice that replaces it; focus lost with it goes to the notice, not the body.
-    if (isSaved && document.activeElement === document.body) {
-      savedNoticeRef.current?.focus();
-    }
-  }, [isSaved]);
-  if (isSaved) {
-    return (
-      <div
-        ref={savedNoticeRef}
-        tabIndex={-1}
-        className={styles.saved}
-        role="status"
-      >
-        <p>{translate("priceDashboard.common.priceSavedNotice")}</p>
-        <a className={styles.savedLink} href={publishPathOf(locale)}>
-          {translate("priceDashboard.nav.publish")}
-        </a>
-      </div>
-    );
-  }
-  return (
-    <div className={styles.actions}>
-      <button
-        type="button"
-        className={editStyles.action}
-        data-tone="primary"
-        disabled={!editing.canSave}
-        onClick={() => {
-          void editing.save();
-        }}
-      >
-        {translate("priceDashboard.common.save")}
-      </button>
-      {editing.isChanged || mustFix || editing.feedback.kind === "failed" ? (
-        <button type="button" className={editStyles.action} onClick={onCancel}>
-          {translate("priceDashboard.common.cancel")}
-        </button>
-      ) : null}
-      {mustFix ? (
-        <p className={styles.fixToSave}>
-          {translate("priceDashboard.errors.fixToSave")}
-        </p>
-      ) : null}
-    </div>
   );
 }

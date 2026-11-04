@@ -4,7 +4,6 @@ import { useCallback, useMemo } from "react";
 
 import type { DeletableItemRef } from "@lemnaria/configurator-domain";
 
-import { defaultItemLifecycleClient } from "./default-item-lifecycle-client";
 import {
   deriveHardware,
   hardwareClassOf,
@@ -13,6 +12,7 @@ import {
 } from "./hardware-model";
 import type { ItemLifecycleClient } from "./item-lifecycle-client";
 import type { PriceDraftClient } from "./price-draft-client";
+import { useLifecycleClient } from "./use-lifecycle-client";
 import {
   useItemAvailability,
   type ItemAvailabilityDesk,
@@ -42,17 +42,7 @@ export function useHardwareDesk({
   const draft = usePriceDraft({ initial: page.state, client });
   const { change, revert } = draft;
   const derivation = useMemo(() => deriveHardware(draft.state), [draft.state]);
-  const lifecycle = useMemo(
-    () =>
-      lifecycleClient ??
-      defaultItemLifecycleClient({
-        book: page.state.active.book,
-        availability: page.state.active.availability,
-        defaults: page.defaults,
-        usage: page.sampleUsage ?? [],
-      }),
-    [lifecycleClient, page],
-  );
+  const lifecycle = useLifecycleClient(page, lifecycleClient);
   const isDraftOnly = useCallback(
     (item: DeletableItemRef) => isCreatedInDraft(derivation, item),
     [derivation],

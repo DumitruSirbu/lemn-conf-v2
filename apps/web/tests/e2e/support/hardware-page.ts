@@ -334,11 +334,15 @@ export const SAYS_SAVED_KITCHENS_USE_IT =
 export const PROMISES_PUBLICATION = /publici|publicare/i;
 /* eslint-enable no-restricted-syntax */
 
-/** The elements of the list, outside the table's titles, whose text is wider than their own box, named. */
-export function overflowingBoxes(page: Page): Promise<string[]> {
-  return page.evaluate(() => {
+/** The elements of the list, outside the table's titles, whose text is wider than their own box, named. Another item
+ *  screen's list is named by its test id. */
+export function overflowingBoxes(
+  page: Page,
+  listTestId = "hardware-list",
+): Promise<string[]> {
+  return page.evaluate((testId) => {
     const found: string[] = [];
-    const scope = document.querySelector('[data-testid="hardware-list"]');
+    const scope = document.querySelector(`[data-testid="${testId}"]`);
     for (const element of scope?.querySelectorAll("*") ?? []) {
       if (!(element instanceof HTMLElement)) continue;
       if (element.closest('[aria-hidden="true"]') !== null) continue;
@@ -351,5 +355,5 @@ export function overflowingBoxes(page: Page): Promise<string[]> {
       }
     }
     return found.slice(0, 8);
-  });
+  }, listTestId);
 }

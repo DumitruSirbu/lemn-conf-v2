@@ -9,13 +9,11 @@ import { StaffShell, type StaffShellContext } from "@/staff/staff-shell";
 import { CatalogUnavailableNotice } from "./catalog-states";
 import type { ActionReasons } from "./action-that-may-be-off";
 import {
-  deleteStandOf,
   isDefaultItem,
   isItemOn,
-  switchStandOf,
   type LifecycleContext,
 } from "./item-lifecycle-model";
-import { offReasonWords } from "./item-lifecycle-words";
+import { reasonsOfItem } from "./item-lifecycle-words";
 import {
   materialItemOf,
   type MaterialColours,
@@ -98,8 +96,7 @@ function inactiveWords(
     : translate("priceDashboard.chips.inactive");
 }
 
-/** Why each action on a material is off; absent, it can be taken. A material the draft deletes cannot be switched, and
- *  nothing is offered of it once the deletion is published. */
+/** Why each action on a material is off; absent, it can be taken. */
 export function materialReasonsOf({
   translate,
   facts,
@@ -109,23 +106,14 @@ export function materialReasonsOf({
   readonly facts: MaterialFacts;
   readonly context: LifecycleContext;
 }): ActionReasons {
-  if (facts.isDeletionPending) {
-    const pending = translate("priceDashboard.materials.deleteNotice");
-    return { switchReason: pending, deleteReason: pending };
-  }
-  const item = materialItemOf(facts);
-  const switchStand = switchStandOf(item, context);
-  const deleteStand = deleteStandOf(item, context);
-  return {
-    switchReason:
-      switchStand.kind === "off"
-        ? offReasonWords(translate, switchStand.reason)
-        : undefined,
-    deleteReason:
-      deleteStand.kind === "off"
-        ? offReasonWords(translate, deleteStand.reason)
-        : undefined,
-  };
+  return reasonsOfItem({
+    translate,
+    item: materialItemOf(facts),
+    context,
+    deletionPendingNotice: facts.isDeletionPending
+      ? translate("priceDashboard.materials.deleteNotice")
+      : undefined,
+  });
 }
 
 /** A surcharge as a sentence part: "+30 %", and "0 %" where it adds nothing. */

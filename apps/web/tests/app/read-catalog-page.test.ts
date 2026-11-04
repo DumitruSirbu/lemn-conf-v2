@@ -264,6 +264,7 @@ describe("what each kind of account is shown", () => {
           "cabinets",
           "hardware",
           "materials",
+          "accessories",
           "defaults",
           "publish",
         ],

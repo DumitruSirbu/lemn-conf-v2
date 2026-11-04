@@ -53,7 +53,10 @@ export function ItemDialogs({
 }
 
 export interface ItemDeskNoticeProps {
-  readonly desk: Pick<ItemAvailabilityDesk, "flow" | "failure" | "isReading">;
+  readonly desk: Pick<
+    ItemAvailabilityDesk,
+    "flow" | "failure" | "isReading" | "readingItem"
+  >;
 }
 
 /** What the desk says where no dialog is open: that the saved kitchens are being counted, and the answer to a
@@ -63,7 +66,11 @@ export function ItemDeskNotice({ desk }: ItemDeskNoticeProps) {
   if (desk.isReading) {
     return (
       <FormNotice tone="info">
-        {translate("priceDashboard.lifecycle.counting")}
+        {translate(
+          desk.readingItem?.kind === "accessory"
+            ? "priceDashboard.lifecycle.countingAccessory"
+            : "priceDashboard.lifecycle.counting",
+        )}
       </FormNotice>
     );
   }
@@ -145,7 +152,7 @@ function DeactivateDialog({
           remainingNames: remaining.map(nameOf),
         })}
       />
-      <UsageNotice usage={usage} />
+      <UsageNotice usage={usage} item={item} />
       <FailureNotice failure={desk.failure} />
     </AccountDialog>
   );
@@ -165,7 +172,11 @@ function ActivateDialog({
       title={translate("priceDashboard.lifecycle.activateTitle", {
         name: nameOf(flow.item),
       })}
-      description={translate("priceDashboard.lifecycle.activateBody")}
+      description={translate(
+        flow.item.kind === "accessory"
+          ? "priceDashboard.lifecycle.activateAccessoryBody"
+          : "priceDashboard.lifecycle.activateBody",
+      )}
       returnFocusFallbackRef={returnFocusFallbackRef}
       confirm={{
         label: translate("priceDashboard.lifecycle.activateConfirm"),
@@ -216,11 +227,7 @@ function DeleteDialog({
       title={translate("priceDashboard.lifecycle.deleteTitle", {
         name: nameOf(flow.item),
       })}
-      description={translate(
-        flow.isDraftOnly
-          ? "priceDashboard.lifecycle.deleteCreatedBody"
-          : "priceDashboard.lifecycle.deleteBody",
-      )}
+      description={translate(deleteBodyLeafOf(flow))}
       returnFocusFallbackRef={returnFocusFallbackRef}
       confirm={{
         label: translate("priceDashboard.common.delete"),
@@ -234,10 +241,23 @@ function DeleteDialog({
         onPress: desk.dismiss,
       }}
     >
-      <UsageNotice usage={flow.usage} />
+      <UsageNotice usage={flow.usage} item={flow.item} />
       <FailureNotice failure={desk.failure} />
     </AccountDialog>
   );
+}
+
+function deleteBodyLeafOf({
+  item,
+  isDraftOnly,
+}: FlowOf<"delete">):
+  | "priceDashboard.lifecycle.deleteBody"
+  | "priceDashboard.lifecycle.deleteCreatedBody"
+  | "priceDashboard.lifecycle.deleteCreatedAccessoryBody" {
+  if (!isDraftOnly) return "priceDashboard.lifecycle.deleteBody";
+  return item.kind === "accessory"
+    ? "priceDashboard.lifecycle.deleteCreatedAccessoryBody"
+    : "priceDashboard.lifecycle.deleteCreatedBody";
 }
 
 /** A deletion that a use forbids. Where the item is on, switching it off is offered instead; where it already is off,
@@ -374,7 +394,7 @@ function WhatHappens({
 
 /** What a switch-off does, in the order the person reads it: who is affected, what customers can no longer do, what a
  *  saved kitchen is asked, that it applies now and what stays on offer. A line about use is left out where nobody could
- *  be counted or none use the item. */
+ *  be counted or none use the item. An accessory is earned, not chosen, so it is told as one. */
 function deactivationLines({
   translate,
   item,
@@ -388,15 +408,27 @@ function deactivationLines({
 }): readonly string[] {
   const count = usage.kind === "counted" ? usage.count : 0;
   const isUsed = count > 0;
+  const isAccessory = item.kind === "accessory";
   return [
-    ...(isUsed
-      ? [translate("priceDashboard.lifecycle.usedBy", { count })]
-      : []),
-    translate("priceDashboard.lifecycle.clientsCannotChoose"),
     ...(isUsed
       ? [
           translate(
-            item.kind === "accessory"
+            isAccessory
+              ? "priceDashboard.lifecycle.usedByAccessory"
+              : "priceDashboard.lifecycle.usedBy",
+            { count },
+          ),
+        ]
+      : []),
+    translate(
+      isAccessory
+        ? "priceDashboard.lifecycle.clientsNoLongerGetAccessory"
+        : "priceDashboard.lifecycle.clientsCannotChoose",
+    ),
+    ...(isUsed
+      ? [
+          translate(
+            isAccessory
               ? "priceDashboard.lifecycle.accessoryRemovedExplained"
               : "priceDashboard.lifecycle.replacementExplained",
           ),
@@ -414,12 +446,22 @@ function deactivationLines({
 }
 
 /** Said where the saved kitchens could not be counted: nothing is claimed about them, and the act waits. */
-function UsageNotice({ usage }: { readonly usage: UsageStand }) {
+function UsageNotice({
+  usage,
+  item,
+}: {
+  readonly usage: UsageStand;
+  readonly item: ItemRef;
+}) {
   const translate = useTranslations();
   if (usage.kind === "counted") return null;
   return (
     <FormNotice tone="error">
-      {translate("priceDashboard.lifecycle.usageUnavailable")}
+      {translate(
+        item.kind === "accessory"
+          ? "priceDashboard.lifecycle.usageUnavailableAccessory"
+          : "priceDashboard.lifecycle.usageUnavailable",
+      )}
     </FormNotice>
   );
 }

@@ -8,6 +8,7 @@ export const BUILT_CATALOG_PAGES: readonly CatalogPage[] = [
   "cabinets",
   "hardware",
   "materials",
+  "accessories",
   "defaults",
   "publish",
 ];

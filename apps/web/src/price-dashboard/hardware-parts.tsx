@@ -13,13 +13,11 @@ import { CatalogUnavailableNotice } from "./catalog-states";
 import type { HardwareClassFacts } from "./hardware-model";
 import styles from "./hardware.module.css";
 import {
-  deleteStandOf,
   isDefaultItem,
   isItemOn,
-  switchStandOf,
   type LifecycleContext,
 } from "./item-lifecycle-model";
-import { offReasonWords } from "./item-lifecycle-words";
+import { reasonsOfItem } from "./item-lifecycle-words";
 
 // What the hardware list and the class page draw the same way: the chips of a class, the item it stands for, why a
 // switch or a deletion may be off, and the control that says so beside itself.
@@ -96,21 +94,12 @@ export function reasonsOf({
   readonly facts: HardwareClassFacts;
   readonly context: LifecycleContext;
 }): ActionReasons {
-  if (facts.isDeletionPending) {
-    const pending = translate("priceDashboard.hardware.deleteNotice");
-    return { switchReason: pending, deleteReason: pending };
-  }
-  const item = hardwareItemOf(facts);
-  const switchStand = switchStandOf(item, context);
-  const deleteStand = deleteStandOf(item, context);
-  return {
-    switchReason:
-      switchStand.kind === "off"
-        ? offReasonWords(translate, switchStand.reason)
-        : undefined,
-    deleteReason:
-      deleteStand.kind === "off"
-        ? offReasonWords(translate, deleteStand.reason)
-        : undefined,
-  };
+  return reasonsOfItem({
+    translate,
+    item: hardwareItemOf(facts),
+    context,
+    deletionPendingNotice: facts.isDeletionPending
+      ? translate("priceDashboard.hardware.deleteNotice")
+      : undefined,
+  });
 }

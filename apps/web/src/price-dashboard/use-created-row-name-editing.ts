@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 
 import {
   judgeCreatedRowText,
+  type CreatedRowItemRef,
   type CreatedRowTextJudgement,
 } from "@lemnaria/configurator-domain";
 
@@ -11,9 +12,10 @@ import type { FailedFieldWrite } from "./price-input-words";
 import { useLateAnswerGuard } from "./use-late-answer-guard";
 import type { PriceDraft } from "./use-price-draft";
 
-// A name typed back to the published one takes its change out of the draft instead of adding a no-op change.
+// The name of a row the dashboard created, a hardware class or a linked accessory, typed and saved on its own page. A name
+// typed back to the published one takes its change out of the draft instead of adding a no-op change.
 
-export interface HardwareClassNameEditing {
+export interface CreatedRowNameEditing {
   readonly text: string;
   readonly judgement: CreatedRowTextJudgement;
   /** The person has typed in it, so a refusal of it is shown. */
@@ -31,10 +33,10 @@ export interface HardwareClassNameEditing {
 }
 
 interface EditingInput {
-  readonly tierId: string;
+  readonly item: CreatedRowItemRef;
   /** The name once the draft is applied. */
   readonly currentName: string;
-  /** The active version's name; absent for a class only the draft knows. */
+  /** The active version's name; absent for a row only the draft knows. */
   readonly publishedName: string | undefined;
   readonly draft: Pick<
     PriceDraft,
@@ -42,12 +44,12 @@ interface EditingInput {
   >;
 }
 
-export function useHardwareClassNameEditing({
-  tierId,
+export function useCreatedRowNameEditing({
+  item,
   currentName,
   publishedName,
   draft,
-}: EditingInput): HardwareClassNameEditing {
+}: EditingInput): CreatedRowNameEditing {
   const [typed, setTyped] = useState<string | undefined>(undefined);
   const [failure, setFailure] = useState<FailedFieldWrite | undefined>(
     undefined,
@@ -83,7 +85,7 @@ export function useHardwareClassNameEditing({
     try {
       const address = {
         kind: "created-row-text",
-        item: { kind: "hardware", tierId },
+        item,
         field: "name",
       } as const;
       const wanted = { address, value: judgement.text };
@@ -100,15 +102,7 @@ export function useHardwareClassNameEditing({
     } finally {
       setIsSaving(false);
     }
-  }, [
-    canSave,
-    judgement,
-    begin,
-    change,
-    changeOrRevert,
-    publishedName,
-    tierId,
-  ]);
+  }, [canSave, judgement, begin, change, changeOrRevert, publishedName, item]);
 
   return {
     text,
