@@ -360,28 +360,41 @@ describe("describePanel — finish and handle chips", () => {
     );
   });
 
-  // §6.5 / §11 row 13: with nothing chosen, the marked chip is the one the scene is rendering.
-  it("marks §6.5's default handle, and says the mark came from the default", () => {
+  // Mirrors the colour control: while the cabinet follows the kitchen the follow row alone is pressed.
+  it("presses no handle chip while the cabinet follows the kitchen, whatever the kitchen's handle is", () => {
     const section = findSection(
       openPanelFor(occupiedMeta({ defaultHandle: "push" })).sections,
       "handle",
     );
-    expect(
-      section?.chips.filter((chip) => chip.isActive).map((chip) => chip.value),
-    ).toEqual(["push"]);
-    expect(section?.note ?? "").toContain("Push-to-open");
+
+    expect(section?.chips.filter((chip) => chip.isActive)).toEqual([]);
+    expect(section?.follow.isActive).toBe(true);
   });
 
-  it("lets a chosen handle win over the default, and drops the note", () => {
+  it("presses the chosen handle's chip alone, and not the follow row", () => {
     const section = findSection(
       openPanelFor(occupiedMeta({ defaultHandle: "push", handle: "black" }))
         .sections,
       "handle",
     );
+
     expect(
       section?.chips.filter((chip) => chip.isActive).map((chip) => chip.value),
     ).toEqual(["black"]);
-    expect(section?.note).toBeUndefined();
+    expect(section?.follow.isActive).toBe(false);
+  });
+
+  it("presses the chip of a handle that matches the kitchen's when the cabinet chose it itself", () => {
+    const section = findSection(
+      openPanelFor(occupiedMeta({ defaultHandle: "steel", handle: "steel" }))
+        .sections,
+      "handle",
+    );
+
+    expect(
+      section?.chips.filter((chip) => chip.isActive).map((chip) => chip.value),
+    ).toEqual(["steel"]);
+    expect(section?.follow.isActive).toBe(false);
   });
 });
 
@@ -397,7 +410,7 @@ describe("describePanel — the handle's way back to the kitchen's", () => {
       label: ro.panel.handleFollowsKitchen,
       isActive: true,
       isDisabled: false,
-      kitchenHandleLabel: ro.panel.handleLabels.black,
+      detail: ro.panel.handleLabels.black,
     });
   });
 
@@ -410,7 +423,7 @@ describe("describePanel — the handle's way back to the kitchen's", () => {
 
     expect(section?.follow).toMatchObject({
       isActive: false,
-      kitchenHandleLabel: ro.panel.handleLabels.push,
+      detail: ro.panel.handleLabels.push,
     });
   });
 

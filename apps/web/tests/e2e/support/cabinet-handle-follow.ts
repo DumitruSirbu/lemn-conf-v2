@@ -15,7 +15,6 @@ const ro = JSON.parse(
 ) as {
   readonly panel: {
     readonly handleFollowsKitchen: string;
-    readonly handleDefaultNote: string;
     readonly handleLabels: Readonly<Record<string, string>>;
   };
 };
@@ -80,11 +79,12 @@ async function expectFollowing(page: Page): Promise<void> {
   await expect(followRow(page)).toContainText(
     ro.panel.handleLabels.steel ?? "",
   );
-  await expect(page.getByTestId("handle-steel")).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
-  await expect(page.getByTestId("section-handle")).toContainText("Implicit");
+  for (const handle of ["steel", "black", "push"]) {
+    await expect(page.getByTestId(`handle-${handle}`)).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+  }
 }
 
 export async function followTheKitchenHandleAgain(

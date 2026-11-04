@@ -231,7 +231,6 @@
       "black": "Чёрная ручка-рейлинг",
       "push": "Push-to-open"
     },
-    "handleDefaultNote": "По умолчанию для этого шкафа: {label}.",
     "handleFollowsKitchen": "Как в остальной кухне",
     "widthTitle": "Ширина",
     "widthValue": "{widthMm, number, ::group-off} мм",

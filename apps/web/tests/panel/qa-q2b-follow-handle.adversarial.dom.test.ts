@@ -1,8 +1,6 @@
 // @vitest-environment happy-dom
 //
-// Adversarial QA for the handle control's "Ca restul bucătăriei" row, on the mounted panel over the real store: what the
-// row names for every kitchen handle setting in both locales, that it keeps focus through a press, that a read-only
-// browser cannot press it, that its pressed state survives a save and a resume, and that its copy carries no figure.
+// Adversarial QA for the handle control's follow row, on the mounted panel over the real store.
 import {
   HandleSchema,
   KITCHEN_L_DESIGN,
@@ -200,11 +198,10 @@ describe("the copy", () => {
 });
 
 describe("the row as a control", () => {
-  it("is a real button in the tab order, after every chip and before the note, with a pressed state that is never absent", () => {
+  it("is a real button in the tab order, after every chip, with a pressed state that is never absent", () => {
     openThePanelOn(kitchenWith({}), BASE_CABINET_ID);
     const row = elementAt(FOLLOW_ROW);
     const chips = HANDLES.map((handle) => elementAt(`handle-${handle}`));
-    const note = container.querySelector('[data-testid="section-handle"] > p');
 
     expect(row.tagName).toBe("BUTTON");
     expect(row.getAttribute("type")).toBe("button");
@@ -215,11 +212,6 @@ describe("the row as a control", () => {
         chip.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING,
       ).toBeTruthy();
     }
-    expect(note).not.toBeNull();
-    expect(
-      row.compareDocumentPosition(note as Node) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
   });
 
   it("keeps the same element, and focus on it, through a press that changes the document", () => {
@@ -311,7 +303,7 @@ describe("saved and resumed", () => {
     expect(ownHandleOf(BASE_CABINET_ID)).toBeUndefined();
   });
 
-  it("keeps a cleared cabinet cleared when the same design is loaded again over a stale copy that still has the handle", () => {
+  it("keeps a cleared cabinet cleared when the design is loaded again over a stale copy with the handle", () => {
     const stale = kitchenWith({ handle: "steel" });
     const withOwn: Design = {
       ...stale,

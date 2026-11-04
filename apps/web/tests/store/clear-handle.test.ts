@@ -25,7 +25,7 @@ import { createHeadlessCanvas } from "../support/headless-canvas";
 const CLOCK = "2026-11-04T10:00:00.000Z";
 const TOP_ROW_CABINET_ID = "p15";
 const BASE_CABINET_ID = "p0";
-const NO_HANDLE_BODY_ID = "p12";
+const NO_HANDLE_BODY_ID = "p25";
 const HANDLE_GROUP = "handle";
 
 let kit: Kit;

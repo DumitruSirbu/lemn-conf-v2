@@ -1,5 +1,5 @@
-// The handle control's "Ca restul bucătăriei" row by keyboard alone at 1440 x 900, and across a reload: Tab reaches it
-// from the chips, Enter and Space press it, focus stays on the row, the stored document loses the handle, and the
+// The handle control's "Ca restul bucătăriei" row by keyboard alone at 1440 x 900, and across a reload: Tab reaches
+// it from the chips, Enter and Space press it, focus stays on the row, the stored document loses the handle, and the
 // cabinet that was opened again from storage still follows the kitchen.
 import { expect, type Page } from "@playwright/test";
 
@@ -83,7 +83,7 @@ test("Tab reaches the row from the chips and Enter and Space each give the cabin
   }
 });
 
-test("a cabinet given back to the kitchen is still the kitchen's after the design is opened again from storage", async ({
+test("a cabinet given back to the kitchen is still the kitchen's after a reload from storage", async ({
   page,
   seededDesign,
 }) => {
@@ -106,12 +106,10 @@ test("a cabinet given back to the kitchen is still the kitchen's after the desig
 
   const row = page.getByTestId("handle-follow-kitchen");
   await expect(row).toHaveAttribute("aria-pressed", "true");
-  await expect(page.getByTestId("handle-steel")).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
-  await expect(page.getByTestId("handle-black")).toHaveAttribute(
-    "aria-pressed",
-    "false",
-  );
+  for (const handle of ["steel", "black", "push"]) {
+    await expect(page.getByTestId(`handle-${handle}`)).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+  }
 });

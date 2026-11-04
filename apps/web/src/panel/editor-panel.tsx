@@ -14,7 +14,6 @@ import type {
   FinishChip,
   FinishSection,
   FollowTheKitchenChip,
-  HandleFollowChip,
   HandleSection,
   OfferRow,
   PanelFooter,
@@ -327,20 +326,25 @@ interface FollowTheKitchenStep {
  *  swatch styling cannot make it look like a colour. */
 function FollowTheKitchenButton({
   step,
+  testId,
 }: {
   readonly step: FollowTheKitchenStep;
+  readonly testId: string;
 }) {
   return (
     <button
       type="button"
       className={styles.followRow}
-      data-testid="finish-follow-kitchen"
+      data-testid={testId}
       data-follow="true"
       aria-pressed={step.chip.isActive}
       disabled={step.chip.isDisabled}
       onClick={step.onFollow}
     >
       <span className={styles.followRowLabel}>{step.chip.label}</span>
+      {step.chip.detail === undefined ? null : (
+        <span className={styles.followRowDetail}>{step.chip.detail}</span>
+      )}
       <ChipReason reason={step.chip.reason} />
     </button>
   );
@@ -375,7 +379,9 @@ function PaletteSwatchView({
         ))}
       </div>
       {/* Outside `colour-options` so the way back does not scroll away with the colours. */}
-      {follow === undefined ? null : <FollowTheKitchenButton step={follow} />}
+      {follow === undefined ? null : (
+        <FollowTheKitchenButton step={follow} testId="finish-follow-kitchen" />
+      )}
       <p className={styles.note}>{section.note}</p>
     </section>
   );
@@ -443,7 +449,9 @@ function RalPickerView({
         <span className={styles.pickerLabel}>{section.label}</span>
       </label>
       {/* Without this an MDF cabinet has no way to stop choosing: every hex is a choice. */}
-      {follow === undefined ? null : <FollowTheKitchenButton step={follow} />}
+      {follow === undefined ? null : (
+        <FollowTheKitchenButton step={follow} testId="finish-follow-kitchen" />
+      )}
       <ChipReason reason={section.reason} />
       <p className={styles.note}>{section.note}</p>
     </section>
@@ -474,38 +482,11 @@ function HandleSectionView({ section }: { readonly section: HandleSection }) {
           </button>
         ))}
       </div>
-      <FollowTheKitchenHandleButton
-        chip={section.follow}
-        onFollow={clearHandle}
+      <FollowTheKitchenButton
+        step={{ chip: section.follow, onFollow: clearHandle }}
+        testId="handle-follow-kitchen"
       />
-      {section.note ? <p className={styles.note}>{section.note}</p> : null}
     </section>
-  );
-}
-
-/** The handle's way back out of an override, on its own full-width row under the chips like the colour's, and for the
- *  same reason: a reset is not one of the choices it resets. */
-function FollowTheKitchenHandleButton({
-  chip,
-  onFollow,
-}: {
-  readonly chip: HandleFollowChip;
-  readonly onFollow: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      className={styles.followRow}
-      data-testid="handle-follow-kitchen"
-      data-follow="true"
-      aria-pressed={chip.isActive}
-      disabled={chip.isDisabled}
-      onClick={onFollow}
-    >
-      <span className={styles.followRowLabel}>{chip.label}</span>
-      <span className={styles.followRowDetail}>{chip.kitchenHandleLabel}</span>
-      <ChipReason reason={chip.reason} />
-    </button>
   );
 }
 

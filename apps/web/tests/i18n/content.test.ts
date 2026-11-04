@@ -126,7 +126,6 @@ const FUNCTION_FAMILIES = [
   "panel.noOffersTooNarrow",
   "panel.offerSize",
   "panel.savePausedNotice",
-  "panel.handleDefaultNote",
   "panel.widthValue",
   "price.amountWithCurrency",
   "priceBreakdown.placementLabel",
@@ -236,9 +235,6 @@ describe("the localized content resolver", () => {
       );
       expect(content.panel.savePausedNotice("14:05")).toBe(
         translate("panel.savePausedNotice", { time: "14:05" }),
-      );
-      expect(content.panel.handleDefaultNote("label-token")).toBe(
-        translate("panel.handleDefaultNote", { label: "label-token" }),
       );
       expect(content.panel.widthValue(600)).toBe(
         translate("panel.widthValue", { widthMm: 600 }),

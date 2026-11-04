@@ -1,7 +1,4 @@
-// Adversarial QA for the store's `clearHandle`: the scene, the price and the panel read one resolved handle, so a cabinet
-// that was given a handle and then cleared must look, bill and be described exactly as the same kitchen's cabinet that
-// never chose. Swept over every kitchen handle setting and over cabinets on both sides of the module line, because the
-// panel derives the module line from a frame in metres and the price from the placement's millimetres.
+// Adversarial QA for the store's `clearHandle`, swept over every kitchen handle and both sides of the module line.
 import {
   buildKitchenLBodyCatalog,
   cabinetDepthMmOf,

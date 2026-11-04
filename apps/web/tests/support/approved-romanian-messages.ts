@@ -346,7 +346,6 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       black: "Bară neagră",
       push: "Push-to-open",
     },
-    handleDefaultNote: "Implicit pentru acest dulap: {label}.",
     // Drafted, not approved: the cabinet follows the kitchen's handle again.
     handleFollowsKitchen: "Ca restul bucătăriei",
     widthTitle: "Lățime",

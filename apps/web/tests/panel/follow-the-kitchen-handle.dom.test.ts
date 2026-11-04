@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 //
-// The handle's way back to the kitchen's, on the mounted panel over the real store: the row is pressed while the cabinet
-// has no handle of its own, names the handle the kitchen uses for it, and a press writes `clearHandle`, not a handle.
+// The handle's way back to the kitchen's, on the mounted panel over the real store: the row is pressed while the
+// cabinet has no handle of its own, names the handle the kitchen uses for it, and a press writes `clearHandle`.
 import {
   KITCHEN_L_DESIGN,
   type Design,
@@ -25,7 +25,7 @@ import { ro } from "../support/romanian-content";
 
 const BASE_CABINET_ID = "p0";
 const TOP_ROW_CABINET_ID = "p15";
-const NO_HANDLE_BODY_ID = "p12";
+const NO_HANDLE_BODY_ID = "p25";
 
 /** The store takes back an unsaved edit it holds for the same design id and revision, so each open gets an id of its
  *  own. */
@@ -147,16 +147,35 @@ describe("the handle control's row for following the kitchen", () => {
     ).toBe("true");
   });
 
-  it("shows the kitchen's handle marked again on the chips once the row is pressed", () => {
+  it("presses the follow row alone while the cabinet follows the kitchen, and again once the row is pressed", () => {
     openThePanelOn(withSettings({ handle: "push" }), BASE_CABINET_ID);
+    const pressedChips = () =>
+      ["steel", "black", "push"].filter(
+        (handle) =>
+          elementAt(`handle-${handle}`).getAttribute("aria-pressed") === "true",
+      );
+    const whileFollowing = pressedChips();
     press("handle-black");
 
     press("handle-follow-kitchen");
 
+    expect(whileFollowing).toEqual([]);
+    expect(pressedChips()).toEqual([]);
+    expect(
+      elementAt("handle-follow-kitchen").getAttribute("aria-pressed"),
+    ).toBe("true");
+  });
+
+  it("pins the cabinet when the chip matching the kitchen's handle is pressed, and the screen shows it", () => {
+    openThePanelOn(withSettings({ handle: "push" }), BASE_CABINET_ID);
+
+    press("handle-push");
+
+    expect(ownHandleOf(BASE_CABINET_ID)).toBe("push");
     expect(elementAt("handle-push").getAttribute("aria-pressed")).toBe("true");
-    expect(elementAt("handle-black").getAttribute("aria-pressed")).toBe(
-      "false",
-    );
+    expect(
+      elementAt("handle-follow-kitchen").getAttribute("aria-pressed"),
+    ).toBe("false");
   });
 
   it("is not drawn for a body that takes no handle, as its chips are not", () => {

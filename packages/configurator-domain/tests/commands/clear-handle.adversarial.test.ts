@@ -216,7 +216,8 @@ describe.each(KITCHENS)(
               cleared.placements.some((p) => p.id === id && "handle" in p.body)
             ) {
               disagreements.push(
-                `${id} kitchen=${JSON.stringify(settings)} own=${own}: worn=${String(worn)} expected=${String(expectedWorn)} panel=${String(offered)}`,
+                `${id} kitchen=${JSON.stringify(settings)} own=${own}: ` +
+                  `worn=${String(worn)} expected=${String(expectedWorn)} panel=${String(offered)}`,
               );
             }
           }
@@ -255,7 +256,7 @@ describe.each(KITCHENS)(
       expect(disagreements).toEqual([]);
     });
 
-    it("leaves every other cabinet and the kitchen's own settings equal to the input, whichever cabinet is cleared", () => {
+    it("leaves every other cabinet and the kitchen's settings equal to the input, whichever cabinet is cleared", () => {
       const wearing = kitchen.design.placements.reduce(
         (design, placement) =>
           handleTakers(kitchen).includes(placement.id)
@@ -297,6 +298,24 @@ describe.each(KITCHENS)(
   },
 );
 
+/** The catalogue with one placement's row overridden to take a handle but wear no finish: the shipped rows never
+ *  part the two capabilities that way round, and a command asking for both would pass on every one of them. */
+function withoutFinish(catalog: BodyCatalog, placementId: string): BodyCatalog {
+  const buildId = KITCHEN_L_DESIGN.placements.find(
+    (placement) => placement.id === placementId,
+  )?.body.buildId;
+  const definition = buildId === undefined ? undefined : catalog.get(buildId);
+  if (buildId === undefined || definition === undefined)
+    throw new Error(`fixture: no row for ${placementId}`);
+  if (!definition.canHandle)
+    throw new Error("fixture: the row takes no handle");
+  return new Map(catalog).set(buildId, {
+    ...definition,
+    canFinish: false,
+    finishRule: "follows-the-kitchens-colour",
+  });
+}
+
 describe("clearHandle against clearFinish, case for case", () => {
   const input = {
     design: KITCHEN_L_DESIGN,
@@ -310,9 +329,7 @@ describe("clearHandle against clearFinish, case for case", () => {
   const canFinishNotHandle = records.find(
     (record) => record.canFinish && !record.canHandle,
   );
-  const canHandleNotFinish = records.find(
-    (record) => record.canHandle && !record.canFinish,
-  );
+  const finishlessCatalog = withoutFinish(KITCHEN_L_BODY_CATALOG, "p0");
 
   it.each([
     ["an unknown placement", { kind: "placement", id: "nope" }],
@@ -344,11 +361,11 @@ describe("clearHandle against clearFinish, case for case", () => {
   });
 
   it("does not ask the finish capability: a body that takes a handle but no finish is cleared", () => {
-    if (!canHandleNotFinish) return;
-    const target = { kind: "placement", id: canHandleNotFinish.id } as const;
+    const target = { kind: "placement", id: "p0" } as const;
+    const finishless = { ...input, catalog: finishlessCatalog, target };
 
-    expect(clearHandle({ ...input, target }).ok).toBe(true);
-    expect(clearFinish({ ...input, target }).ok).toBe(false);
+    expect(clearHandle(finishless).ok).toBe(true);
+    expect(clearFinish(finishless).ok).toBe(false);
   });
 
   const coloured: Finish = { kind: "free-colour", value: "#336699" };

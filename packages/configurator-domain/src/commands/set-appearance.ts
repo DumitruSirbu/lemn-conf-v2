@@ -125,29 +125,24 @@ export function clearFinish(
       params: { label: kindLabel(selected.record.kind) },
     });
   }
-  return succeedWith(
-    withoutAChoice(input, selected.record.id, (body) => {
-      delete body.finish;
-    }),
-    {
-      type: "finish_cleared",
-      placementId: selected.record.id,
-    },
-  );
+  return succeedWith(withoutOwn(input, selected.record.id, "finish"), {
+    type: "finish_cleared",
+    placementId: selected.record.id,
+  });
 }
 
-/** `applyToBody`'s opposite, not expressible as one: `finish: undefined` is not an absent `finish`,
- *  since a serialised `undefined` is the key not being there and the two would round-trip differently
- *  through a save. */
-function withoutAChoice(
+/** `applyToBody`'s opposite for the finish or the handle, not expressible as one: `finish: undefined` is not an
+ *  absent `finish`, since a serialised `undefined` is the key not being there and the two would round-trip
+ *  differently through a save. */
+function withoutOwn(
   input: AppearanceInput,
   placementId: string,
-  forget: (body: CabinetBody) => void,
+  key: "finish" | "handle",
 ): Design {
   const placements = input.design.placements.map((placement) => {
     if (placement.id !== placementId) return placement;
     const body = { ...placement.body };
-    forget(body);
+    Reflect.deleteProperty(body, key);
     return { ...placement, body };
   });
   return withPlacements(input.design, placements, input.occurredAt);
@@ -193,13 +188,8 @@ export function clearHandle(
       params: { label: kindLabel(selected.record.kind) },
     });
   }
-  return succeedWith(
-    withoutAChoice(input, selected.record.id, (body) => {
-      delete body.handle;
-    }),
-    {
-      type: "handle_cleared",
-      placementId: selected.record.id,
-    },
-  );
+  return succeedWith(withoutOwn(input, selected.record.id, "handle"), {
+    type: "handle_cleared",
+    placementId: selected.record.id,
+  });
 }

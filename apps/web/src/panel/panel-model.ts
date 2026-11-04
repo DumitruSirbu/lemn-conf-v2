@@ -139,7 +139,11 @@ export interface PaletteSwatchSection {
 
 /** "Follow the kitchen's colour" (ADR 0099 decision 8): without a control that un-chooses, the first swatch tap pins
  *  a cabinet out of the kitchen's colour for ever. A `ChoiceChip`, active when the cabinet chose nothing. */
-export type FollowTheKitchenChip = ChoiceChip<"follow">;
+export interface FollowTheKitchenChip extends ChoiceChip<"follow"> {
+  /** What the press would give the cabinet, for a control whose label alone does not say: the handle row names the
+   *  kitchen's handle, where the colour row needs no such line. */
+  readonly detail?: string;
+}
 
 /** MDF: a colour picker, as painted MDF can be any colour. `value` is the six-digit hex it opens on: the body's own
  *  colour, else the material's default. Present only on an MDF kitchen, never present-and-disabled (§13.1). */
@@ -159,20 +163,13 @@ export interface RalPickerSection {
   readonly note: string;
 }
 
-/** "Like the rest of the kitchen" for the handle, the reset `FollowTheKitchenChip` is for the colour: active when the
- *  cabinet has no handle of its own. It names the handle the kitchen uses for this cabinet, so a cabinet wearing its
- *  own still shows what the press would give it. */
-export interface HandleFollowChip extends ChoiceChip<"follow"> {
-  readonly kitchenHandleLabel: string;
-}
-
 export interface HandleSection {
   readonly kind: "handle";
   readonly title: string;
   readonly chips: readonly ChoiceChip<Handle>[];
-  readonly follow: HandleFollowChip;
-  /** Present only when no handle was chosen and §6.5's default is what the scene is showing. */
-  readonly note?: string;
+  /** Active when the cabinet has no handle of its own; its `detail` names the handle the kitchen uses for it, which
+   *  is the one the scene shows meanwhile, so no handle chip is pressed while it is. */
+  readonly follow: FollowTheKitchenChip;
 }
 
 /** `+50` / `−50` from where the body stands, each button disabled at its bound carrying the engine's reason rather
@@ -824,30 +821,22 @@ function describeHandleSection(
   editability: PanelEditability,
   content: Content,
 ): HandleSection {
-  const active = meta.handle ?? meta.defaultHandle;
   return {
     kind: "handle",
     title: content.panel.handleTitle,
     chips: HandleSchema.options.map((handle) => ({
       value: handle,
       label: content.panel.handleLabels[handle],
-      isActive: active === handle,
+      isActive: meta.handle === handle,
       ...describeChipAvailability(editability),
     })),
     follow: {
       value: "follow",
       label: content.panel.handleFollowsKitchen,
       isActive: meta.handle === undefined,
-      kitchenHandleLabel: content.panel.handleLabels[meta.defaultHandle],
+      detail: content.panel.handleLabels[meta.defaultHandle],
       ...describeChipAvailability(editability),
     },
-    ...(meta.handle === undefined
-      ? {
-          note: content.panel.handleDefaultNote(
-            content.panel.handleLabels[active],
-          ),
-        }
-      : {}),
   };
 }
 

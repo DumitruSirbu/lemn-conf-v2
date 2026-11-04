@@ -172,7 +172,7 @@ describe("§6.5's default handle, against every seeded placement's own y0", () =
 
   // The scene hides handles by the module line (2200 mm, written out below) and the panel marks the chip by
   // `meta.defaultHandle`; the two must agree.
-  it("marks the chip the scene is actually rendering, for every body with handles", () => {
+  it("names on the follow row the handle the scene is actually rendering, for every body with handles", () => {
     const world = worldFrom(KITCHEN_L_DESIGN);
     let swept = 0;
     for (const record of world.records) {
@@ -182,12 +182,13 @@ describe("§6.5's default handle, against every seeded placement's own y0", () =
         id: record.id,
       }).find((candidate) => candidate.kind === "handle");
       if (section?.kind !== "handle") throw new Error("no handle section");
-      const active = section.chips
-        .filter((chip) => chip.isActive)
-        .map((chip) => chip.value);
       const rendered =
         Math.round(record.frame.y0 * 1000) >= 2_200 ? "push" : "steel";
-      expect([record.id, active]).toEqual([record.id, [rendered]]);
+      expect([record.id, section.follow.detail]).toEqual([
+        record.id,
+        ro.panel.handleLabels[rendered],
+      ]);
+      expect(section.chips.filter((chip) => chip.isActive)).toEqual([]);
       swept += 1;
     }
     expect(swept).toBeGreaterThan(0);
@@ -211,7 +212,7 @@ describe("§6.5's default handle, against every seeded placement's own y0", () =
     expect(
       section.chips.filter((chip) => chip.isActive).map((chip) => chip.value),
     ).toEqual(["steel"]);
-    expect(section.note).toBeUndefined();
+    expect(section.follow.isActive).toBe(false);
   });
 });
 

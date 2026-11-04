@@ -1,6 +1,6 @@
-// `clearHandle` is `clearFinish` for the handle: it deletes the cabinet's own key so the kitchen's handle, or the module
-// line's on the top row, applies again. Price, scene and panel all read `resolvedHandleOf`, so the price is asserted
-// here from the design the command returns, and the scene and panel in the web package from the real store.
+// `clearHandle` is `clearFinish` for the handle: it deletes the cabinet's own key so the kitchen's handle, or the
+// module line's on the top row, applies again. Price, scene and panel all read `resolvedHandleOf`, so the price is
+// asserted here from the design the command returns, and the scene and panel in the web package.
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
@@ -28,7 +28,7 @@ import {
 } from "../price-dashboard/m2-support.js";
 
 const BASE_CABINET_ID = "p0";
-const NO_HANDLE_BODY_ID = "p12";
+const NO_HANDLE_BODY_ID = "p25";
 const TWO_DOOR_TOP_ROW_ID = "p15";
 const ONE_DOOR_TOP_ROW_ID = "p16";
 const HANDLES: readonly Handle[] = HandleSchema.options;
