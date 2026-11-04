@@ -1,14 +1,16 @@
 import "server-only";
 
 import type { KitchenChangeStore } from "@lemnaria/persistence";
+import { NeonKitchenChangeStore } from "@lemnaria/persistence";
+
+let kitchenChangeStore: KitchenChangeStore | undefined;
 
 /**
- * The kitchen change store's one instance. No database-backed store exists until wave S4, so this throws fixed text
- * and a seen mark answers `503` and writes nothing: fail closed, never a silent success. Tests replace this module
- * with the fake; nothing selects a fake in production code.
+ * The kitchen change store's one instance, made on first use and never at import or build, so no connection is opened
+ * where no kitchen is marked seen. A module of its own, as the staff kitchen reader's is, so a test that fakes one
+ * does not take the other along.
  */
 export function getKitchenChangeStore(): KitchenChangeStore {
-  throw new Error(
-    "No database-backed KitchenChangeStore exists yet (wave S4): a seen mark is unavailable.",
-  );
+  kitchenChangeStore ??= new NeonKitchenChangeStore();
+  return kitchenChangeStore;
 }
