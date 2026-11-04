@@ -78,6 +78,7 @@ export type AccountKeyedPurpose =
   | "staff-note"
   | "staff-status"
   | "staff-unhide"
+  | "staff-seen"
   | "staff-prices-read"
   | "staff-price-draft";
 
@@ -204,6 +205,7 @@ const SUBJECT_PLAN_OF_PURPOSE: Readonly<
     event: "staff-unhide",
     buckets: ["staff-unhide-by-account"],
   },
+  "staff-seen": { event: "staff-seen", buckets: ["staff-seen-by-account"] },
   "staff-prices-read": {
     event: "staff-prices",
     buckets: ["staff-prices-read-by-account"],

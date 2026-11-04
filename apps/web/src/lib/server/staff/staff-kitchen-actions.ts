@@ -76,7 +76,7 @@ export interface StaffBodyActionRequest extends StaffActionRequest {
   readonly bodyText: string;
 }
 
-type Judged<Value> =
+export type Judged<Value> =
   | { readonly kind: "judged"; readonly value: Value }
   | { readonly kind: "refused"; readonly response: NextResponse };
 
@@ -246,7 +246,7 @@ function judgedStatusSave(bodyText: string): Judged<StatusSaveInput> {
 /** The body is an object whose members are among the ones this route takes. Any other member, whatever its name, is a
  *  request this route does not read, and its name is not echoed. Each member is judged by the caller: an absent member is
  *  `undefined`. */
-function onlyMembersOf<Name extends string>(
+export function onlyMembersOf<Name extends string>(
   bodyText: string,
   names: readonly Name[],
 ): Judged<Readonly<Record<Name, unknown>>> {

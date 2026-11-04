@@ -79,17 +79,29 @@ describe("kitchens-listed: one served page of the kitchens list", () => {
         hasSearch,
       });
     });
+
+    it.each([true, false])("accepts onlyChanged %s", (onlyChanged) => {
+      expect(detailOf({ ...VALID_DETAIL, onlyChanged })).toEqual({
+        ...VALID_DETAIL,
+        onlyChanged,
+      });
+    });
+
+    it("reads a row written before the filter existed, which names no onlyChanged, and does not invent one", () => {
+      expect(detailOf(VALID_DETAIL)).toEqual(VALID_DETAIL);
+      expect(Object.keys(detailOf(VALID_DETAIL))).not.toContain("onlyChanged");
+    });
   });
 
   describe("refuses, as INVALID_DETAIL", () => {
     it.each([
       [
-        "the search text as a sixth member",
+        "the search text as an extra member",
         { ...VALID_DETAIL, q: "ana@example.ro" },
       ],
       ["a search member", { ...VALID_DETAIL, search: "ana" }],
       [
-        "a client's e-mail as a sixth member",
+        "a client's e-mail as an extra member",
         { ...VALID_DETAIL, email: "a@b.ro" },
       ],
       ["page zero", { ...VALID_DETAIL, page: 0 }],
@@ -118,6 +130,16 @@ describe("kitchens-listed: one served page of the kitchens list", () => {
       ["hasSearch as the text true", { ...VALID_DETAIL, hasSearch: "true" }],
       ["hasSearch as a number", { ...VALID_DETAIL, hasSearch: 1 }],
       ["hasSearch as null", { ...VALID_DETAIL, hasSearch: null }],
+      [
+        "onlyChanged as the text true",
+        { ...VALID_DETAIL, onlyChanged: "true" },
+      ],
+      ["onlyChanged as a number", { ...VALID_DETAIL, onlyChanged: 1 }],
+      ["onlyChanged as null", { ...VALID_DETAIL, onlyChanged: null }],
+      [
+        "onlyChanged named and undefined, which is not absent",
+        { ...VALID_DETAIL, onlyChanged: undefined },
+      ],
       ["no detail", undefined],
       ["a null detail", null],
       ["an empty object", {}],
@@ -204,9 +226,39 @@ describe("kitchens-listed: one served page of the kitchens list", () => {
       });
     });
 
-    it("holds exactly five members, none of them text a person typed", () => {
+    it("reads onlyChanged once, so a getter cannot pass one value and store another", () => {
+      let reads = 0;
+      const input: Record<string, unknown> = { ...VALID_DETAIL };
+      Object.defineProperty(input, "onlyChanged", {
+        enumerable: true,
+        get: () => {
+          reads += 1;
+          return reads === 1;
+        },
+      });
+
+      const detail = detailOf(input);
+
+      expect(reads).toBe(1);
+      expect(detail).toMatchObject({ onlyChanged: true });
+    });
+
+    it("holds exactly the five members a row written before the filter named, none of them text a person typed", () => {
       expect(Object.keys(detailOf(VALID_DETAIL)).sort()).toEqual([
         "hasSearch",
+        "page",
+        "rowCount",
+        "segment",
+        "status",
+      ]);
+    });
+
+    it("holds a sixth member, the filter's flag, only when the row names it", () => {
+      expect(
+        Object.keys(detailOf({ ...VALID_DETAIL, onlyChanged: true })).sort(),
+      ).toEqual([
+        "hasSearch",
+        "onlyChanged",
         "page",
         "rowCount",
         "segment",

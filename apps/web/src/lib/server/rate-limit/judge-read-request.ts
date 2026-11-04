@@ -27,8 +27,12 @@ export type ReadJudgement =
 
 const SERVE: ReadJudgement = Object.freeze({ kind: "serve" });
 
-/** The two purposes a read is judged under: the pages and the design reads together, and the presets' own. */
-type ReadPurpose = Extract<PolicyPurpose, "read" | "preset-read">;
+/** The purposes a read is judged under: the pages and the design reads together, the presets' own, and the staff menu
+ *  counter's poll. */
+type ReadPurpose = Extract<
+  PolicyPurpose,
+  "read" | "preset-read" | "staff-changed-count"
+>;
 
 /**
  * Judges one read by the network's block. A read fails open: whatever cannot be judged, or is not judged in the read's
@@ -47,6 +51,13 @@ export function judgePresetReadRequest(
   headers: HeaderReader,
 ): Promise<ReadJudgement> {
   return judgeReadOf("preset-read", headers);
+}
+
+/** The same judgement under the poll's own bucket, so a timer cannot spend the pages' figure. */
+export function judgeChangedCountRequest(
+  headers: HeaderReader,
+): Promise<ReadJudgement> {
+  return judgeReadOf("staff-changed-count", headers);
 }
 
 async function judgeReadOf(

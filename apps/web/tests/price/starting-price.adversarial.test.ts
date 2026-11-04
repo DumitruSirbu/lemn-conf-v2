@@ -448,6 +448,9 @@ describe("only these modules may go near a price, and only one of them may round
       // The server's projection of a stored book onto its declared members, before a page is handed it: it copies the
       // book's amounts and derives, rounds and prices nothing.
       "lib/server/project-price-book.ts",
+      // The staff kitchen's two estimates: it copies the stored total of the request as sent, and carries the total the
+      // one pricing query gives the kitchen now (`priceAgainstBook`); it derives and rounds nothing.
+      "lib/server/staff/staff-kitchen-estimates.ts",
       "panel/editor-panel.tsx",
       "panel/panel-model.ts",
       "panel/use-panel-view.ts",
@@ -480,6 +483,8 @@ describe("only these modules may go near a price, and only one of them may round
       // The staff kitchen's summary card prints the price line `describeKitchenPrice` makes, as the kitchen card does,
       // and names the book's two tiers from the same priced design; it derives and rounds nothing.
       "staff/staff-kitchen-view.tsx",
+      // The wire's types name the two estimates' `totalMinor`; it holds no code.
+      "staff/staff-kitchens-wire-contract.ts",
     ]);
   });
 
