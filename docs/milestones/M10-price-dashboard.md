@@ -1897,6 +1897,16 @@ P4b), so it runs last and holds nothing up. Migration numbers follow §9.2, not 
 | **S3** defaults and usage | `0029` (ex-`0027`); `NeonKitchenDefaultsStore`; `NeonKitchenUsageReader` (jsonb paths; client-deleted rows excluded) with a **parity test against M3's `usesItem`** over shared fixture designs. For a linked accessory, the reader is given the set of build ids that price as the linked row (computed by the domain through `resolveCatalogEquivalent`), never a hand list | 1 migration, `neon-kitchen-defaults-store.ts`, `neon-kitchen-usage-reader.ts`, `kitchen-usage-statements.ts` | S5, M3 | A-9; M3's `item-usage.ts`; `design.ts:170-195` (the settings paths); `0016` (`deleted_by_client_at`) |
 | **S6** backup (OQ-13) | Price-book versions, the availability log and the defaults added to the scheduled export | `backup` statement (one file) | S3 | ADR 0012; `apps/web/src/lib/server/backup-designs.ts` (read only; its route is not S's) |
 
+**S5 hand-off to R5** (S5 logic and security reviews, 2026-11-04; inference until R5 reads them). The port is safe only
+if the routes do all of this:
+1. The first-open pair is the server's own, taken from the same read that prices the page, never from the request.
+   `recordIfAbsent` judges nothing in SQL. With no active version, skip it rather than invent a pair.
+2. Both routes authorise the design exactly like a save (write token or owning account), the `GET` included, because
+   it performs the first-open write. A share-link viewer or a staff session never reaches either write.
+3. Load the design under that authorisation before writing: `0028` has no foreign key.
+4. A malformed version id is the store's `invalid-request`; the route shape-checks it or answers 400, never 5xx.
+5. Refuse cross-site requests and non-JSON bodies (415), as the save route does. Never serialise an error's cause.
+
 **S2 and S4 hand-off: the stored change count** (architect, 2026-11-04; ADR 0178's last Amendment). Source-verified at
 `m10/s2` @ `c44978ec`. `m10/s4` @ `678c4131` holds the same bytes in the statements, the store, the fake, `0023`, the
 helper and every named test except one. Measured with `git diff --stat m10/s2 m10/s4` over every file named here, S4
