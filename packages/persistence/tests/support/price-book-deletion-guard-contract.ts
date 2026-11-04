@@ -11,6 +11,7 @@ import {
   aBookLinking,
   aDeletedItem,
   aNewItem,
+  aNewItemPair,
   dashboardFailureOf,
   linkedBuildIdOf,
   publishNextVersion,
@@ -141,7 +142,11 @@ function describeWhatTheGuardRefuses(
         await world.aDesignNaming(item, namedThrough(item));
         const before = await stateOf(world, staff);
 
-        const result = await publishWith(world, staff, deleting([item]));
+        const result = await publishWith(
+          world,
+          staff,
+          deleting([item], { createdItems: aNewItemPair() }),
+        );
 
         expect(result).toEqual({ kind: "item-in-use", items: [item] });
         expect(await stateOf(world, staff)).toEqual(before);
@@ -181,6 +186,7 @@ function describeWhatTheGuardRefuses(
         staff,
         deleting([item], {
           expectedAvailabilityRevision: await aStaleHead(world),
+          createdItems: aNewItemPair(),
         }),
       );
       const overStaleDraft = await publishWith(
@@ -191,6 +197,7 @@ function describeWhatTheGuardRefuses(
             draft.draftRevision,
             1,
           ),
+          createdItems: aNewItemPair(),
         }),
       );
 
@@ -353,6 +360,7 @@ function describeTheRequestsItTurnsAway(
           publishWith(world, staff, {
             changeSummary: [itemDeleted(item)],
             deletedItems: [{ item, buildIds: buildIds() } as DeletedItem],
+            createdItems: aNewItemPair(),
           }),
           "invalid-request",
         );
@@ -370,7 +378,11 @@ function describeTheRequestsItTurnsAway(
       const before = await stateOf(world, staff);
 
       await dashboardFailureOf(
-        publishWith(world, staff, deleting([unstated])),
+        publishWith(
+          world,
+          staff,
+          deleting([unstated], { createdItems: aNewItemPair() }),
+        ),
         "invalid-request",
       );
 
