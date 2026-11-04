@@ -1,5 +1,6 @@
 import type { Design } from "./design.js";
 import { boundedFailureReason } from "./failure-text.js";
+import { isRevisionShape } from "./revision-shape.js";
 
 /** Opaque identifier for a stored `Design` row. Unguessable generation is an adapter concern. */
 export type DesignId = string;
@@ -14,12 +15,10 @@ export function isDesignId(value: string): boolean {
   return DESIGN_ID_SHAPE.test(value);
 }
 
-/** A digit run with no leading zero, at most nineteen digits (a `bigint` column's width). A second
- *  statement of `packages/persistence`'s `isDesignRevision`, tied to it by a property there. */
-const DESIGN_REVISION_SHAPE = /^[1-9][0-9]{0,18}$/;
-
+/** A revision a design can hold: the shared revision shape, and never 0, which only a head nothing has written
+ *  starts at. `packages/persistence`'s `isDesignRevision` is the same judgement. */
 export function isDesignRevisionShape(value: string): boolean {
-  return DESIGN_REVISION_SHAPE.test(value);
+  return value !== "0" && isRevisionShape(value);
 }
 
 /**

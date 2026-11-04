@@ -12,6 +12,7 @@ import {
   type BookFieldAddressKind,
 } from "../price-dashboard/book-field-address.js";
 import type { ItemKind } from "../pricing/catalogue-availability.js";
+import { isRevisionShape } from "../revision-shape.js";
 
 import {
   isPositiveSafeInteger,
@@ -224,16 +225,6 @@ export const DASHBOARD_AUDIT_ACTION_NAMES_DESIGN: Readonly<
 
 /** An id as an audit detail may hold one: short, no space, no free text. */
 const AUDIT_DETAIL_ID_SHAPE = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/;
-
-/**
- * An availability revision as the head holds it: 1 to 19 digits with no leading zero, **or the single digit 0**. The
- * head is seeded at 0 (`INITIAL_REVISION`) and a stored revision is never 0 after the first change, so 0 is a revision
- * here and nowhere else in M10.
- */
-const AVAILABILITY_REVISION_SHAPE = /^(0|[1-9][0-9]{0,18})$/;
-
-/** The widest a `bigint` reaches. At 19 digits a revision is compared with it as text, never parsed into a number. */
-const BIGINT_MAX_TEXT = "9223372036854775807";
 
 /** The keys each action's detail may hold, checked by the compiler against the action's detail type. */
 export type DashboardDetailKeys = {
@@ -504,7 +495,7 @@ function readActivationChanged(
     !isOneOf(ITEM_KINDS, itemKind) ||
     !isAuditDetailId(itemId) ||
     typeof active !== "boolean" ||
-    !isAvailabilityRevision(availabilityRevision)
+    !isRevisionShape(availabilityRevision)
   ) {
     return refused("INVALID_DETAIL");
   }
@@ -593,14 +584,6 @@ function copyEntriesUpToOnePast(
     if (copy.length > limit) break;
   }
   return copy;
-}
-
-function isAvailabilityRevision(value: unknown): value is string {
-  return (
-    typeof value === "string" &&
-    AVAILABILITY_REVISION_SHAPE.test(value) &&
-    (value.length < BIGINT_MAX_TEXT.length || value <= BIGINT_MAX_TEXT)
-  );
 }
 
 function isOneOf<Member extends string>(

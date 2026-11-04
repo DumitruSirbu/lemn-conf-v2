@@ -44,7 +44,8 @@ describe("the domain's statement of a revision's shape and persistence's isDesig
   );
 
   it.each([
-    ["accepted", "9".repeat(19), true],
+    ["accepted at the widest bigint", "9223372036854775807", true],
+    ["refused past the widest bigint", "9".repeat(19), false],
     ["refused for width", "9".repeat(20), false],
     ["refused for a leading zero", "01", false],
     ["refused for a trailing line feed", "1\n", false],

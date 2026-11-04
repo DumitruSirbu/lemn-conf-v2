@@ -296,6 +296,8 @@ describe("validateContactSubmission: the design reference's shapes", () => {
     ["a sign", "-1"],
     ["a decimal point", "1.5"],
     ["twenty digits", "1".repeat(20)],
+    ["one past the widest bigint", "9223372036854775808"],
+    ["nineteen nines", "9".repeat(19)],
     ["empty", ""],
   ])("refuses a revision of %s as MALFORMED", (_name, revision) => {
     expect(designIssues({ id: DESIGN_ID, revision })).toEqual([
@@ -303,7 +305,7 @@ describe("validateContactSubmission: the design reference's shapes", () => {
     ]);
   });
 
-  it.each(["1", "9", "10", "1".repeat(19)])(
+  it.each(["1", "9", "10", "1".repeat(19), "9223372036854775807"])(
     "accepts the revision %s",
     (revision) => {
       expect(

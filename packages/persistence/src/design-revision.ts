@@ -1,3 +1,5 @@
+import { isDesignRevisionShape } from "@lemnaria/configurator-domain";
+
 /**
  * The concurrency token WEB-003 added to `designs`, as every layer above SQL sees it: **a string**.
  *
@@ -10,23 +12,15 @@
 export type DesignRevision = string;
 
 /**
- * A digit run with no leading zero, bounded so it cannot be an unbounded body dressed as a
- * revision. Nineteen digits is the widest a `bigint` reaches.
+ * Whether a caller-supplied string could be a design's revision at all: the domain's one revision
+ * shape (a digit run no wider than a `bigint`, no leading zero), and never 0, which only a head
+ * nothing has written starts at. A boundary check, not the concurrency check: matching this says
+ * nothing about whether it is the row's *current* one.
  *
  * Stated as what a revision **is**, the same way `requireSha256Digest` states what a write-token
  * hash is: a blocklist of `""`, `"1e3"`, `" 1"` and `"01"` grows one discovered value at a time and
- * the contract does not.
- *
- * `^`/`$` are the whole string here and need no `\A`/`\z` equivalent. JavaScript is not Perl: with
- * no `m` flag, `$` matches only at the end of input and **not** before a trailing newline, so
- * `"1\n"` is refused. Said explicitly because the opposite is true in most other regex dialects,
- * and a reader carrying that assumption would "fix" this into `[\s\S]`-anchored noise or add an
- * `m` flag that would genuinely open the hole. `design-revision.test.ts` pins it.
+ * the contract does not. `design-revision.test.ts` pins that `"1\n"` is refused.
  */
-const DESIGN_REVISION_SHAPE = /^[1-9][0-9]{0,18}$/;
-
-/** Whether a caller-supplied string could be a revision at all. A boundary check, not the
- *  concurrency check: matching this says nothing about whether it is the row's *current* one. */
 export function isDesignRevision(value: string): boolean {
-  return DESIGN_REVISION_SHAPE.test(value);
+  return isDesignRevisionShape(value);
 }
