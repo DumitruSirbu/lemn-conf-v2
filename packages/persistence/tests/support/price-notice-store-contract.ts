@@ -330,6 +330,24 @@ export function describePriceNoticeStoreContract(
         "invalid-request",
       );
     });
+
+    it("refuses a version id that is not a version id's shape, for a first open and for an acknowledgement, writing nothing", async () => {
+      const world = await newWorld();
+      const designId = await world.aDesignId();
+      const pair = await currentPair(world);
+      const malformed = { ...pair, versionId: "not a version id" };
+
+      await dashboardFailureOf(
+        world.store.recordIfAbsent(designId, malformed),
+        "invalid-request",
+      );
+      await dashboardFailureOf(
+        world.store.recordAcknowledged(designId, malformed),
+        "invalid-request",
+      );
+
+      expect(await world.store.readAcknowledged(designId)).toBe(NEVER_RECORDED);
+    });
   });
 }
 
