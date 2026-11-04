@@ -19,7 +19,7 @@ const world = vi.hoisted(() => ({
   priceBookStores: [] as object[],
   availabilityStores: [] as object[],
   seedings: 0,
-  refusals: [] as (() => never)[],
+  refusals: [] as (() => void)[],
   seedWith: undefined as undefined | (() => Promise<unknown>),
 }));
 
