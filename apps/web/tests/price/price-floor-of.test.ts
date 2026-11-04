@@ -11,6 +11,7 @@ import {
 import { describe, expect, it } from "vitest";
 
 import { priceAgainstBook, priceFloorOf } from "@/price/price-book-root";
+import { SAMPLE_PRICE_ROOT } from "../support/sample-price-root";
 import { createConfiguratorStore } from "@/store/configurator-store";
 
 import { ARMS, composedKitchensOf } from "../support/swept-kitchens";
@@ -22,14 +23,14 @@ function editorPricingOf(design: Design) {
     catalogAt: buildKitchenLBodyCatalog,
   });
   const { design: held, catalog } = store.getState();
-  return priceAgainstBook(held, catalog);
+  return priceAgainstBook(SAMPLE_PRICE_ROOT, held, catalog);
 }
 
 describe("priceFloorOf agrees with the editor's price hook", () => {
   it("on the shipped kitchen", () => {
     const editor = editorPricingOf(KITCHEN_L_DESIGN);
     expect(editor.ok).toBe(true);
-    expect(priceFloorOf(KITCHEN_L_DESIGN)).toEqual(
+    expect(priceFloorOf(SAMPLE_PRICE_ROOT, KITCHEN_L_DESIGN)).toEqual(
       editor.ok ? editor.priced : undefined,
     );
   });
@@ -41,7 +42,7 @@ describe("priceFloorOf agrees with the editor's price hook", () => {
       expect(kitchens.length).toBeGreaterThan(0);
       for (const { design } of kitchens) {
         const editor = editorPricingOf(design);
-        expect(priceFloorOf(design)).toEqual(
+        expect(priceFloorOf(SAMPLE_PRICE_ROOT, design)).toEqual(
           editor.ok ? editor.priced : undefined,
         );
       }
@@ -55,17 +56,19 @@ describe("priceFloorOf agrees with the editor's price hook", () => {
     };
     const editor = editorPricingOf(deeper);
     expect(editor.ok).toBe(true);
-    expect(priceFloorOf(deeper)).toEqual(editor.ok ? editor.priced : undefined);
+    expect(priceFloorOf(SAMPLE_PRICE_ROOT, deeper)).toEqual(
+      editor.ok ? editor.priced : undefined,
+    );
   });
 
   it("with the document's own whole-kitchen selections", () => {
-    const priced = priceFloorOf(KITCHEN_L_DESIGN);
+    const priced = priceFloorOf(SAMPLE_PRICE_ROOT, KITCHEN_L_DESIGN);
     expect(priced).toBeDefined();
     fc.assert(
       fc.property(fc.constantFrom(...ARMS), (arm) => {
         const [first] = composedKitchensOf(arm);
         if (first === undefined) return;
-        expect(priceFloorOf(first.design)?.totalMinor).toBe(
+        expect(priceFloorOf(SAMPLE_PRICE_ROOT, first.design)?.totalMinor).toBe(
           first.pricing.ok ? first.pricing.priced.totalMinor : undefined,
         );
       }),
@@ -81,7 +84,10 @@ describe("priceFloorOf gives no figure when no honest one exists", () => {
         ...KITCHEN_L_DESIGN,
         settings: { ...KITCHEN_L_DESIGN.settings, cabinetDepthMm },
       } as Design;
-      expect(priceFloorOf(design), String(cabinetDepthMm)).toBeUndefined();
+      expect(
+        priceFloorOf(SAMPLE_PRICE_ROOT, design),
+        String(cabinetDepthMm),
+      ).toBeUndefined();
     }
   });
 
@@ -93,13 +99,13 @@ describe("priceFloorOf gives no figure when no honest one exists", () => {
         materialTierId: "no-such-tier",
       },
     } as Design;
-    expect(priceFloorOf(design)).toBeUndefined();
+    expect(priceFloorOf(SAMPLE_PRICE_ROOT, design)).toBeUndefined();
   });
 
   it("is a pure function of the document: a second call gives an equal answer and leaves the document untouched", () => {
     const snapshot = structuredClone(KITCHEN_L_DESIGN);
-    expect(priceFloorOf(KITCHEN_L_DESIGN)).toEqual(
-      priceFloorOf(KITCHEN_L_DESIGN),
+    expect(priceFloorOf(SAMPLE_PRICE_ROOT, KITCHEN_L_DESIGN)).toEqual(
+      priceFloorOf(SAMPLE_PRICE_ROOT, KITCHEN_L_DESIGN),
     );
     expect(KITCHEN_L_DESIGN).toEqual(snapshot);
   });

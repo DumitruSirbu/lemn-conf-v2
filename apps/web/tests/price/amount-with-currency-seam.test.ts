@@ -33,6 +33,8 @@ import {
   type CatalogueLocale,
 } from "../support/catalogues";
 import { RULED_TO_CARRY_THE_CURRENCY } from "../support/ruled-price-copy";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
+import { NOTHING_DISABLED } from "../support/availability";
 
 /** The mockups' own figure, and the one this file pins byte for byte. The seeded book's real total
  *  is drafted and moves with the price book, so it is asserted for *shape* below and never pinned —
@@ -50,6 +52,8 @@ const LOCALE_AWARE_INTL_CONSTRUCTORS = [
 
 function priceSeededKitchen(): PricedDesign {
   const result = priceDesign({
+    deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
     design: KITCHEN_L_DESIGN,
     catalog: KITCHEN_L_BODY_CATALOG,
     book: SAMPLE_PRICE_BOOK,

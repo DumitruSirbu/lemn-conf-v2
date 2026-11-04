@@ -50,6 +50,7 @@ import { useCameraPreset } from "@/scene/camera-preset-store";
 import { useConfiguratorStore } from "@/store/configurator-store";
 
 import roMessages from "../../src/messages/ro.json";
+import { underSamplePriceBook } from "../support/sample-price-root";
 
 const WALL_A_CHIP = roMessages.configure.cameraPresets.wallA;
 
@@ -62,12 +63,14 @@ function mount(variant: ConfigureScreenVariant = "owner"): void {
   root = createRoot(container);
   act(() => {
     root.render(
-      createElement(NextIntlClientProvider, {
-        children: createElement(ConfigureScreen, { variant }),
-        locale: "ro",
-        messages: roMessages,
-        timeZone: "Europe/Chisinau",
-      }),
+      underSamplePriceBook(
+        createElement(NextIntlClientProvider, {
+          children: createElement(ConfigureScreen, { variant }),
+          locale: "ro",
+          messages: roMessages,
+          timeZone: "Europe/Chisinau",
+        }),
+      ),
     );
   });
 }

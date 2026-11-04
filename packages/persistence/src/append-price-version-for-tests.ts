@@ -41,9 +41,11 @@ export async function appendPriceVersionForTests(
   const versionId = nanoid();
   const sql = openTestDatabase();
   const rows = (await sql`
-    insert into price_book_versions (id, sequence_number, label, note, book, change_summary, published_by_account_id)
+    insert into price_book_versions (
+      id, sequence_number, label, note, book, change_summary, change_count, published_by_account_id
+    )
     select ${versionId}::text, coalesce(max(sequence_number), 0) + 1, ${TEST_VERSION_LABEL}::text, ''::text,
-      ${JSON.stringify(stampedWithVersion(versionId, book))}::jsonb, '[]'::jsonb, ${publishedByAccountId}::text
+      ${JSON.stringify(stampedWithVersion(versionId, book))}::jsonb, '[]'::jsonb, 0, ${publishedByAccountId}::text
     from price_book_versions
     returning id, sequence_number::text as sequence_number
   `) as { id?: unknown; sequence_number?: unknown }[];

@@ -17,6 +17,7 @@ vi.mock("@lemnaria/configurator-domain", async (importOriginal) => {
 });
 
 const { priceFloorOf } = await import("@/price/price-book-root");
+const { SAMPLE_PRICE_ROOT } = await import("../support/sample-price-root");
 
 beforeEach(() => {
   buildCatalog.mockReset();
@@ -27,14 +28,14 @@ describe("priceFloorOf when the catalogue cannot be built", () => {
     buildCatalog.mockImplementation(() => {
       throw new UnknownWorktopDepthError(655);
     });
-    expect(priceFloorOf(KITCHEN_L_DESIGN)).toBeUndefined();
+    expect(priceFloorOf(SAMPLE_PRICE_ROOT, KITCHEN_L_DESIGN)).toBeUndefined();
   });
 
   it("answers nothing for a cabinet depth below the dishwasher floor", () => {
     buildCatalog.mockImplementation(() => {
       throw new CabinetDepthBelowMinimumError(400);
     });
-    expect(priceFloorOf(KITCHEN_L_DESIGN)).toBeUndefined();
+    expect(priceFloorOf(SAMPLE_PRICE_ROOT, KITCHEN_L_DESIGN)).toBeUndefined();
   });
 
   it.each([
@@ -45,7 +46,9 @@ describe("priceFloorOf when the catalogue cannot be built", () => {
     buildCatalog.mockImplementation(() => {
       throw error;
     });
-    expect(() => priceFloorOf(KITCHEN_L_DESIGN)).toThrow(error);
+    expect(() => priceFloorOf(SAMPLE_PRICE_ROOT, KITCHEN_L_DESIGN)).toThrow(
+      error,
+    );
   });
 
   it("rethrows a thrown non-error value", () => {
@@ -53,14 +56,16 @@ describe("priceFloorOf when the catalogue cannot be built", () => {
       // eslint-disable-next-line @typescript-eslint/only-throw-error -- the case under test is a thrown string.
       throw "a string";
     });
-    expect(() => priceFloorOf(KITCHEN_L_DESIGN)).toThrow("a string");
+    expect(() => priceFloorOf(SAMPLE_PRICE_ROOT, KITCHEN_L_DESIGN)).toThrow(
+      "a string",
+    );
   });
 
   it("builds the catalogue at the document's own cabinet depth", () => {
     buildCatalog.mockImplementation(() => {
       throw new UnknownWorktopDepthError(1);
     });
-    priceFloorOf({
+    priceFloorOf(SAMPLE_PRICE_ROOT, {
       ...KITCHEN_L_DESIGN,
       settings: { ...KITCHEN_L_DESIGN.settings, cabinetDepthMm: 700 },
     });

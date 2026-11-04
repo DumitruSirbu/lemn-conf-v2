@@ -52,6 +52,8 @@ interface HeldVersion {
   readonly publishedAt: Date;
   readonly book: unknown;
   readonly changeSummary: readonly unknown[];
+  /** Counted once, when the version is published, and never derived again. */
+  readonly changeCount: number;
 }
 
 export interface FakePriceBookStoreOptions {
@@ -141,7 +143,7 @@ export class FakePriceBookStore implements PriceBookStore {
           label: held.label,
           state: this.stateOf(held),
           publishedAt: new Date(held.publishedAt),
-          changeCount: held.changeSummary.length,
+          changeCount: held.changeCount,
         })),
       };
     });
@@ -222,13 +224,14 @@ export class FakePriceBookStore implements PriceBookStore {
       changeSummary: structuredClone(
         request.changeSummary as readonly unknown[],
       ),
+      changeCount: publishable.changeCount,
     };
     this.versions.push(held);
     this.draftChanges = [];
     this.draftRevision.advance();
     staged.commit({
       sequenceNumber: held.sequenceNumber,
-      changeCount: held.changeSummary.length,
+      changeCount: held.changeCount,
     });
     return {
       kind: "ok",

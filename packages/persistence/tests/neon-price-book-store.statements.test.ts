@@ -260,6 +260,27 @@ describe("reading the versions", () => {
     );
   });
 
+  it("takes each row's change count from the stored column and never loads the change summary", async () => {
+    answerQueryWith([
+      {
+        total: 1,
+        id: VERSION_ID,
+        sequence_number: "1",
+        label: "L",
+        published_ms: "1790000000000",
+        change_count: 0,
+        is_active: true,
+      },
+    ]);
+
+    await newStore().listVersions({ page: 1 });
+
+    const text = normalised(loneStatement());
+    expect(text).toContain("v.change_count,");
+    expect(text).not.toContain("change_summary");
+    expect(text).not.toContain("jsonb_array_length");
+  });
+
   it.each([0, -1, 1.5, Number.NaN, 100_001, Number.MAX_SAFE_INTEGER])(
     "refuses page %s before it sends anything",
     async (page) => {
@@ -673,7 +694,7 @@ describe("a publish", () => {
 
     const text = normalised(statement);
     expect(text).toContain(
-      "insert into price_book_versions (id, sequence_number, label, note, book, change_summary, published_by_account_id) select ?::text, ?::bigint + 1,",
+      "insert into price_book_versions ( id, sequence_number, label, note, book, change_summary, change_count, published_by_account_id ) select ?::text, ?::bigint + 1,",
     );
     expect(text).not.toContain("published_at");
     expect(text).toContain(
@@ -696,6 +717,7 @@ describe("a publish", () => {
       JSON.stringify(BOOK),
       VERSION_ID,
       JSON.stringify([DEPTH_CHANGE]),
+      1,
       AUDIT_ID,
       "price-published",
       JSON.stringify({ provisional: true }),
@@ -707,7 +729,7 @@ describe("a publish", () => {
     const { statement } = await publishAndCapture([PUBLISHED_ROW]);
 
     expect(normalised(statement)).toContain(
-      "?::jsonb || jsonb_build_object('version', ?::text), ?::jsonb, a.account_id",
+      "?::jsonb || jsonb_build_object('version', ?::text), ?::jsonb, ?::int, a.account_id",
     );
     expect(statement.values).toContain(JSON.stringify(BOOK));
   });
@@ -865,7 +887,7 @@ describe("a publish", () => {
 
   it.each([
     ["a book", { book: { text: "x".repeat(2_097_152) } }],
-    ["a change summary", { changeSummary: ["x".repeat(2_097_152)] }],
+    ["a change summary", { changeSummary: [{ text: "x".repeat(2_097_152) }] }],
   ])(
     "refuses %s longer than a table takes before it sends anything, without quoting it",
     async (_name, overrides) => {
@@ -1033,7 +1055,8 @@ describe("wave S2 adversarial QA: what the statements' text and the stores' shap
         const failures = [
           () =>
             newStore().publish(aPublishRequest({ book: { text } as never })),
-          () => newStore().publish(aPublishRequest({ changeSummary: [text] })),
+          () =>
+            newStore().publish(aPublishRequest({ changeSummary: [{ text }] })),
           () =>
             newStore().writeDraft({
               expectedDraftRevision: "3",
@@ -1045,6 +1068,25 @@ describe("wave S2 adversarial QA: what the statements' text and the stores' shap
         for (const call of failures) {
           await failureOf(call, "invalid-request");
         }
+
+        expect(queryDriver.statements).toHaveLength(0);
+      },
+    );
+
+    it.each([
+      ["a number", 42],
+      ["a string", "x"],
+      ["an array", [DEPTH_CHANGE]],
+    ])(
+      "refuses a change summary entry that is %s before it sends anything",
+      async (_name, entry) => {
+        await failureOf(
+          () =>
+            newStore().publish(
+              aPublishRequest({ changeSummary: [DEPTH_CHANGE, entry] }),
+            ),
+          "invalid-request",
+        );
 
         expect(queryDriver.statements).toHaveLength(0);
       },
@@ -1064,7 +1106,7 @@ describe("wave S2 adversarial QA: what the statements' text and the stores' shap
   describe("the bound on a stored document, counted in bytes of compact text", () => {
     const BOUND = 2_097_152;
     const BOOK_WRAPPER_BYTES = '{"text":""}'.length;
-    const ARRAY_WRAPPER_BYTES = '[""]'.length;
+    const ARRAY_WRAPPER_BYTES = '[{"text":""}]'.length;
 
     it("sends a book of exactly the bound and refuses one byte more", async () => {
       answerQueryWith([PUBLISHED_ROW]);
@@ -1086,7 +1128,7 @@ describe("wave S2 adversarial QA: what the statements' text and the stores' shap
 
     it("sends a change summary and draft changes of exactly the bound and refuses one byte more", async () => {
       const entry = (bytes: number) => [
-        "x".repeat(bytes - ARRAY_WRAPPER_BYTES),
+        { text: "x".repeat(bytes - ARRAY_WRAPPER_BYTES) },
       ];
       const draft = (changes: readonly unknown[]) =>
         newStore().writeDraft({

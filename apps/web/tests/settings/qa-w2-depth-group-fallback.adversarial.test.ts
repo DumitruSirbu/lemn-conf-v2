@@ -17,6 +17,7 @@
 // **What would open it** is asserted too: the moment `offeredCabinetDepthsMm` publishes fewer depths
 // than the schema accepts, a valid document can name a depth the sheet does not offer, and the tier
 // group's defect arrives on the depth group with no code change at all.
+import { SAMPLE_DEEP_CABINET_PERCENT } from "../support/sample-deep-cabinet-percent";
 import {
   cabinetDepthMmOf,
   declaredCabinetDepthsMm,
@@ -40,6 +41,8 @@ import {
   describeGlobalSettings,
   resolveOpeningChoice,
 } from "@/settings/global-settings-model";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
+import { NOTHING_DISABLED } from "../support/availability";
 
 /** A number the wall-depth map does not declare, and the one a legacy or hand-edited document would
  *  most plausibly carry. */
@@ -79,9 +82,12 @@ function depthOptionsOf(design: Design) {
     book: SAMPLE_PRICE_BOOK,
     pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
     selections: design.settings,
+    deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
   };
   const offer = offerWholeKitchenTiers(priced);
   const view = describeGlobalSettings({
+    deepCabinetPercent: SAMPLE_DEEP_CABINET_PERCENT,
     content: ro,
     pricing: priceDesign(priced),
     offer,
@@ -139,6 +145,8 @@ describe("the sheet's depth group, over every document the schema accepts", () =
           catalog: KITCHEN_L_BODY_CATALOG,
           book: SAMPLE_PRICE_BOOK,
           pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
+          deepeningRows: MEASURED_DEEPENING_ROWS,
+          availability: NOTHING_DISABLED,
           selections: noDepth.settings,
         }),
       ).cabinetDepthMm,

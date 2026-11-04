@@ -6,6 +6,7 @@ import {
   readSentReference,
 } from "@/lib/server/contact/sent-reference";
 import { loadOwnedDesign } from "@/lib/server/load-owned-design";
+import { withActivePriceBook } from "@/lib/server/with-active-price-book";
 
 /** The contact page of a stored design, opened only in the browser that owns it: every refusal is `loadOwnedDesign`'s
  *  (ADR 0114 decision 5), and a refused request reads nothing of the contact store. Rendered per request (the owned
@@ -23,13 +24,13 @@ export default async function ContactPage({
     { designId: id, revision: load.revision },
     { deadlineMs: CONTACT_PAGE_READ_DEADLINE_MS },
   );
-  return (
+  return withActivePriceBook(
     <HydrateAndContact
       design={load.design}
       designId={id}
       revision={load.revision}
       isSendable={isContactSendable(process.env)}
       sentReference={sentReference}
-    />
+    />,
   );
 }

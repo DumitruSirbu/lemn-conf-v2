@@ -77,7 +77,9 @@ export type AccountKeyedPurpose =
   | "staff-audit-page"
   | "staff-note"
   | "staff-status"
-  | "staff-unhide";
+  | "staff-unhide"
+  | "staff-prices-read"
+  | "staff-price-draft";
 
 /**
  * What the subject stage is judged from, keyed by purpose so that the text a purpose counts cannot be left out: an
@@ -201,6 +203,14 @@ const SUBJECT_PLAN_OF_PURPOSE: Readonly<
   "staff-unhide": {
     event: "staff-unhide",
     buckets: ["staff-unhide-by-account"],
+  },
+  "staff-prices-read": {
+    event: "staff-prices",
+    buckets: ["staff-prices-read-by-account"],
+  },
+  "staff-price-draft": {
+    event: "staff-price-draft",
+    buckets: ["staff-price-draft-by-account"],
   },
 };
 

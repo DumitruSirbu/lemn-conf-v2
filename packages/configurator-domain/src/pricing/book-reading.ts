@@ -3,27 +3,32 @@
 // nothing here reads a member bare: fields go through `readDeclared`, enumerations through `enumerableFieldsOf`, lists
 // through `boundedListOf`, and a refusal is built by `invalidBook` only. This module imports no pricing type, so
 // both parsers and `anchored-price-formula.ts` can depend on it.
-import { MAX_DESIGN_DIMENSION_MM } from "../design-bounds.js";
+import {
+  MAX_DESIGN_DIMENSION_MM,
+  MAX_IDENTIFIER_LENGTH,
+} from "../design-bounds.js";
 import { boundedFailureReason } from "../failure-text.js";
 
 import type { PricingFailure } from "./price-lines.js";
 
-/** The widest linear shape's term count: base, width, height and door-leaf terms, each multiplied by a
- *  millimetre count. An anchored shape has five terms, but it multiplies each by a count of 50 mm steps or of door
- *  leaves, so its multipliers sum to far less than four millimetre-sized ones and the same bound holds. */
+/** The term count the coefficient bound was derived over: the four millimetre-multiplied terms of the shapes this
+ *  build retired at the cut-over. An anchored shape has five terms, but it multiplies each by a count of 50 mm steps
+ *  or of door leaves, so its multipliers sum to far less than four millimetre-sized ones. The bound is kept, not
+ *  re-derived, by the re-ruling of 2026-10-26 (ADR 0177 A-5): the percentage seam bounds a cabinet's whole amount
+ *  instead (`MAX_CABINET_AMOUNT_MINOR`). */
 const TERMS_IN_THE_WIDEST_FORMULA = 4;
 
 /** The largest count a book amount is multiplied by: a millimetre dimension, since every other
- *  multiplier (steps, door leaves, hinges, drawers, latches, sinks) stays far below ten thousand. */
+ *  multiplier (steps, door leaves, hinges, drawers, push runners, latches, sinks) stays far below ten thousand. */
 const MAX_BOOK_AMOUNT_MULTIPLIER = MAX_DESIGN_DIMENSION_MM;
 
 /**
- * The largest magnitude a flat-form book's coefficient or stated amount may carry, in minor units. Derived from the
+ * The largest magnitude a book's coefficient or stated amount may carry, in minor units. Derived from the
  * arithmetic: at this bound every product and partial sum `amountForBody` forms stays in the
  * safe-integer range, so cancelling terms cannot lose precision. A bound on magnitude, not sign:
  * `refuseNegativeAmount` refuses a negative price and the published line is refused where it is built.
  *
- * Held for every form of book. The percentage seam bounds a cabinet's whole amount instead, by
+ * The percentage seam bounds a cabinet's whole amount beside it, by
  * `MAX_CABINET_AMOUNT_MINOR` (`percentage-lines.ts`, ADR 0177 A-5): the terms' own arithmetic is exact-checked.
  */
 export const MAX_PRICE_COEFFICIENT_MINOR = Math.floor(
@@ -254,6 +259,8 @@ export function refuseUnreadFields(
     readonly named: string;
     /** The path a field is named under when the record sits inside the formula, such as `sizes[2].`. */
     readonly within?: string;
+    /** The id of the row the record is, carried on the refusal so a surface can name it without parsing the detail. */
+    readonly id?: string;
   },
 ): PricingFailure | undefined {
   const fields = enumerableFieldsOf(record);
@@ -266,7 +273,59 @@ export function refuseUnreadFields(
     if (readDeclared(record, field) === undefined) continue;
     return invalidBook(
       `The ${context.named} declares "${context.within ?? ""}${field}", which its shape "${context.shape}" does not read`,
+      context.id === undefined ? undefined : { id: context.id },
     );
   }
   return undefined;
+}
+
+/** The longest a tier's or an accessory's name may be: a radio label on one line. A version's name has the same
+ *  bound. */
+export const MAX_BOOK_NAME_LENGTH = 80;
+
+/** The longest a tier's or an accessory's one-line description may be. */
+export const MAX_BOOK_DESCRIPTION_LENGTH = 240;
+
+/** An id a rule, tier or book is known by: a non-empty string within `MAX_IDENTIFIER_LENGTH`; an
+ *  unbounded one multiplies every refusal message and log line it reaches. */
+export function refuseUnusableIdentifier(
+  declared: unknown,
+  field: string,
+): PricingFailure | undefined {
+  if (declared === "")
+    return invalidBook(`Book declares an empty "${field}", which is not an id`);
+  return refuseUnusableText(declared, {
+    named: `"${field}"`,
+    maxLength: MAX_IDENTIFIER_LENGTH,
+  });
+}
+
+export function refuseUnusableText(
+  declared: unknown,
+  bound: { readonly named: string; readonly maxLength: number },
+): PricingFailure | undefined {
+  if (typeof declared !== "string")
+    return invalidBook(
+      `Book declares no ${bound.named}, which is a string. Found: ${describeDeclared(declared)}`,
+    );
+  if (declared.length <= bound.maxLength) return undefined;
+  return invalidBook(
+    `Book declares a ${bound.named} of ${String(declared.length)} characters, ` +
+      `past the ${String(bound.maxLength)} a book may state`,
+  );
+}
+
+/** The first id a list repeats, or nothing: the sweep every "ids are unique" refusal is made of. */
+export function firstDuplicate(ids: readonly string[]): string | undefined {
+  const seen = new Set<string>();
+  for (const id of ids) {
+    if (seen.has(id)) return id;
+    seen.add(id);
+  }
+  return undefined;
+}
+
+/** An id as a message renders it, whatever the book declared it as. */
+export function idAsText(declared: unknown): string {
+  return typeof declared === "string" ? declared : describeDeclared(declared);
 }

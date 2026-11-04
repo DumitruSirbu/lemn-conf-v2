@@ -42,6 +42,7 @@ import { HydrateAndContact } from "@/app/d/[id]/contact/hydrate-and-contact";
 import { useConfiguratorStore } from "@/store/configurator-store";
 
 import roMessages from "../../src/messages/ro.json";
+import { underSamplePriceBook } from "../support/sample-price-root";
 import {
   DESIGN_ID,
   FIRST_REVISION,
@@ -50,18 +51,20 @@ import {
 let consoleError: ReturnType<typeof vi.spyOn>;
 
 function page() {
-  return createElement(NextIntlClientProvider, {
-    locale: "ro",
-    messages: roMessages,
-    timeZone: "Europe/Chisinau",
-    children: createElement(HydrateAndContact, {
-      design: KITCHEN_L_DESIGN,
-      designId: DESIGN_ID,
-      revision: FIRST_REVISION,
-      isSendable: true,
-      sentReference: { kind: "sent", reference: "LM-2614" },
+  return underSamplePriceBook(
+    createElement(NextIntlClientProvider, {
+      locale: "ro",
+      messages: roMessages,
+      timeZone: "Europe/Chisinau",
+      children: createElement(HydrateAndContact, {
+        design: KITCHEN_L_DESIGN,
+        designId: DESIGN_ID,
+        revision: FIRST_REVISION,
+        isSendable: true,
+        sentReference: { kind: "sent", reference: "LM-2614" },
+      }),
     }),
-  });
+  );
 }
 
 function holdAnUnsavedEditOfThisDesign(): void {

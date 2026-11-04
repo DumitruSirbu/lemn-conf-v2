@@ -16,6 +16,7 @@ import {
   removePlacement,
   setCabinetDepth as setCabinetDepthOnDesign,
   clearFinish as clearFinishOnDesign,
+  clearHandle as clearHandleOnDesign,
   setFinish as setFinishOnDesign,
   setHandle as setHandleOnDesign,
   setHardwareTier as setHardwareTierOnDesign,
@@ -111,6 +112,9 @@ export interface ConfiguratorState {
    *  the cabinet also tracks the next global change. */
   readonly clearFinish: () => void;
   readonly setHandle: (handle: Handle) => void;
+  /** This cabinet follows the kitchen's handle again. The handle key is deleted, so the cabinet also tracks the
+   *  next whole-kitchen change. */
+  readonly clearHandle: () => void;
   /** The resize (DEVELOPMENT-SPEC §5.4); takes a width only. Which bodies move and whether it is legal are
    *  the command's decision (ADR 0031). */
   readonly setWidth: (widthMm: number) => void;
@@ -529,6 +533,16 @@ export function createConfiguratorStore(
             target,
             catalog: held,
             handle,
+            occurredAt: now(),
+          }),
+        );
+      },
+      clearHandle: () => {
+        runCommand(({ design: current, catalog: held, target }) =>
+          clearHandleOnDesign({
+            design: current,
+            target,
+            catalog: held,
             occurredAt: now(),
           }),
         );

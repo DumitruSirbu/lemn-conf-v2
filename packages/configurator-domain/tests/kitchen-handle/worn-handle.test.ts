@@ -1,8 +1,9 @@
-// Wave H1b: `DisplayEntry.wornHandle` is the handle a customer-facing list names for a body, and it must never name a
-// latch the price does not bill. A body with no front that opens (an open shelf, a hood) is billed no latch whatever
-// row it stands on, so it wears nothing; a top-row body that takes no handle but has doors still wears push-to-open.
-// The oracle is written out here (own handle, else the kitchen's below the top row, else steel; the top row is the
-// kitchen's top-row handle, else push, at the literal 2200 mm), and the price's latch count is the independent witness.
+// `DisplayEntry.wornHandle` is the handle a customer-facing list names for a body, and it must never name push-to-open
+// where the price bills neither a latch nor a push runner. A body with no front that opens (an open shelf, a hood) is
+// billed neither whatever row it stands on, so it wears nothing; a top-row body that takes no handle but has doors
+// still wears push-to-open. The oracle is written out here (own handle, else the kitchen's below the top row, else
+// steel; the top row is the kitchen's top-row handle, else push, at the literal 2200 mm), and the price's counts are
+// the independent witness.
 import { describe, expect, it } from "vitest";
 
 import {
@@ -104,7 +105,7 @@ function oracleWorn(args: {
 }
 
 describe("the handle a list names for a body", () => {
-  it("is the oracle's, and names push exactly where the price bills a latch, for every row at every floor", () => {
+  it("is the oracle's, and names push exactly where the price bills a latch or a push runner, for every row at every floor", () => {
     const wrong: string[] = [];
     let swept = 0;
     for (const probe of PROBES) {
@@ -121,10 +122,11 @@ describe("the handle a list names for a body", () => {
                 kitchen,
                 topRow,
               });
-              const latches = countHardwareMechanisms(
+              const { pushToOpen, pushRunners } = countHardwareMechanisms(
                 [entry],
                 probe.catalog,
-              ).pushToOpen;
+              );
+              const latches = pushToOpen + pushRunners;
               const agreesWithThePrice =
                 (entry.wornHandle === "push") === latches > 0;
               swept += 1;

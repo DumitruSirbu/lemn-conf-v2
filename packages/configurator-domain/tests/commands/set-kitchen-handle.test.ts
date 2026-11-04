@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import type { CommandResult } from "../../src/commands/command-result.js";
+import { reconcileSuccessfulCommandResult } from "../../src/commands/reconcile-command-result.js";
 import { setKitchenHandle } from "../../src/commands/set-kitchen-handle.js";
 import {
   CurrentDesignSchema,
@@ -8,12 +10,20 @@ import {
   type Design,
   type Handle,
 } from "../../src/design.js";
-import { KITCHEN_L_DESIGN } from "../../src/fixtures/kitchen-l-design.js";
+import {
+  buildKitchenLBodyCatalog,
+  KITCHEN_L_DESIGN,
+} from "../../src/fixtures/kitchen-l-design.js";
 import {
   CURRENT_SCHEMA_VERSION,
   migrateDesign,
 } from "../../src/migrate-design.js";
 import { canonicalSerializeDesign } from "../../src/serialize-design.js";
+import {
+  deriveRecordedColumns,
+  derivePlacementRecords,
+} from "../../src/void-engine.js";
+import { toMetres } from "../../src/millimetres.js";
 
 const OCCURRED_AT = "2026-10-26T09:30:00.000Z";
 const EVERY_HANDLE: readonly Handle[] = ["steel", "black", "push"];
@@ -87,6 +97,33 @@ describe("setKitchenHandle", () => {
 
     expect(applied(first, "push").settings?.handle).toBe("push");
     expect(applied(first, "black").settings?.handle).toBe("black");
+  });
+});
+
+describe("setKitchenHandle as a command of the shared envelope", () => {
+  it("is accepted wherever a `CommandResult` is, and reconciles with the recorded columns left as they were", () => {
+    const catalog = buildKitchenLBodyCatalog(600);
+    const before = derivePlacementRecords(KITCHEN_L_DESIGN, catalog);
+    const recordedColumns = deriveRecordedColumns(
+      before,
+      KITCHEN_L_DESIGN,
+      toMetres(KITCHEN_L_DESIGN.room.widthMm),
+    );
+    const result: CommandResult = setKitchenHandle({
+      design: KITCHEN_L_DESIGN,
+      handle: "push",
+      occurredAt: OCCURRED_AT,
+    });
+    if (!result.ok) throw new Error("setKitchenHandle refused");
+
+    const reconciled = reconcileSuccessfulCommandResult({
+      result,
+      catalog,
+      previousRecordedColumns: recordedColumns,
+    });
+
+    expect(reconciled.design.settings?.handle).toBe("push");
+    expect(reconciled.recordedColumns).toEqual(recordedColumns);
   });
 });
 

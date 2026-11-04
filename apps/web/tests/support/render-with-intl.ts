@@ -5,8 +5,12 @@ import { NextIntlClientProvider } from "next-intl";
 import { act, createElement, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
+import { PriceBookProvider } from "@/price/price-book-provider";
+import type { PriceBookRoot } from "@/price/price-book-root";
+
 import roMessages from "../../src/messages/ro.json";
 import ruMessages from "../../src/messages/ru.json";
+import { SAMPLE_PRICE_ROOT } from "./sample-price-root";
 
 export type TestLocale = "ro" | "ru";
 
@@ -21,20 +25,26 @@ export interface MountedScreen {
   readonly unmount: () => void;
 }
 
+/** Under the sample book unless the test says otherwise: a page always supplies a root, and `NO_PRICE_BOOK` is a test's
+ *  choice to make. */
 export function mountInCatalogue(
   element: ReactElement,
   locale: TestLocale = "ro",
+  priceBook: PriceBookRoot = SAMPLE_PRICE_ROOT,
 ): MountedScreen {
   const container = document.createElement("div");
   document.body.append(container);
   const root: Root = createRoot(container);
   act(() => {
     root.render(
-      createElement(NextIntlClientProvider, {
-        locale,
-        messages: CATALOGUE_OF[locale],
-        timeZone: "Europe/Chisinau",
-        children: element,
+      createElement(PriceBookProvider, {
+        root: priceBook,
+        children: createElement(NextIntlClientProvider, {
+          locale,
+          messages: CATALOGUE_OF[locale],
+          timeZone: "Europe/Chisinau",
+          children: element,
+        }),
       }),
     );
   });

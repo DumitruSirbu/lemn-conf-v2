@@ -120,7 +120,7 @@ function requiredFixtureValue<T>(value: T | undefined, id: string): T {
 const BASE_BAND_WORD = romanianContent.panel.bandWords.base.one;
 
 /**
- * The 34 function-valued content families. The gate compares this declaration to a runtime walk of
+ * The 35 function-valued content families. The gate compares this declaration to a runtime walk of
  * resolved Romanian content, so a newly introduced function cannot silently miss the oracle.
  */
 export const CONTENT_FUNCTION_FAMILIES = [
@@ -133,15 +133,16 @@ export const CONTENT_FUNCTION_FAMILIES = [
   "panel.noOffersTooNarrow",
   "panel.offerSize",
   "panel.savePausedNotice",
-  "panel.handleDefaultNote",
   "panel.widthValue",
   "price.amountWithCurrency",
   "priceBreakdown.placementLabel",
   "priceBreakdown.groupHeading",
   "priceBreakdown.wholeKitchenLabel",
+  "priceBreakdown.depthLine",
   "globalSettings.appliesTo",
   "globalSettings.tierDelta",
   "globalSettings.depthOption",
+  "globalSettings.depthNotePriced",
   "globalSettings.materialResetConfirm.body",
   "globalSettings.applyRefused",
   "globalSettings.pillMaterial",
@@ -259,19 +260,6 @@ export const FUNCTION_CONTENT_FIXTURES: readonly GoldenFixture[] = [
       () => translate("panel.savePausedNotice", { time }),
     ),
   ),
-  ...(
-    [
-      { id: "steel", value: romanianContent.panel.handleLabels.steel },
-      { id: "push", value: romanianContent.panel.handleLabels.push },
-    ] as const
-  ).map(({ id, value: label }) =>
-    contentFixture(
-      "panel.handleDefaultNote",
-      id,
-      () => romanianContent.panel.handleDefaultNote(label),
-      () => translate("panel.handleDefaultNote", { label }),
-    ),
-  ),
   ...[200, 800, 1_200].map((widthMm) =>
     contentFixture(
       "panel.widthValue",
@@ -372,6 +360,16 @@ export const FUNCTION_CONTENT_FIXTURES: readonly GoldenFixture[] = [
         }),
     ),
   ),
+  contentFixture(
+    "priceBreakdown.depthLine",
+    "700-mm-15-percent",
+    () => romanianContent.priceBreakdown.depthLine(700, 15),
+    () =>
+      translateRuntime("priceBreakdown.depthLine", {
+        cabinetDepthMm: 700,
+        percent: 15,
+      }),
+  ),
   ...PLURAL_BOUNDARIES.map((bodyCount) =>
     contentFixture(
       "globalSettings.appliesTo",
@@ -397,6 +395,18 @@ export const FUNCTION_CONTENT_FIXTURES: readonly GoldenFixture[] = [
       String(cabinetDepthMm),
       () => romanianContent.globalSettings.depthOption(cabinetDepthMm),
       () => translate("globalSettings.depthOption", { cabinetDepthMm }),
+    ),
+  ),
+  ...[0, 15].map((percent) =>
+    contentFixture(
+      "globalSettings.depthNotePriced",
+      `700-mm-${String(percent)}-percent`,
+      () => romanianContent.globalSettings.depthNotePriced(700, percent),
+      () =>
+        translate("globalSettings.depthNotePriced", {
+          cabinetDepthMm: 700,
+          percent,
+        }),
     ),
   ),
   contentFixture(

@@ -106,15 +106,17 @@ function drawnBarsOf(placementId: string): DrawnBars {
   return { built, visible, black };
 }
 
-/** What the price bills this body, asked of the real counter. */
+/** What the price bills this body, asked of the real counter: a latch on a door leaf or a push runner on a drawer. */
 function priceBillsALatch(design: Design, placementId: string): boolean {
   const entry = projectDesignForDisplay(design, KITCHEN_L_BODY_CATALOG)
     .flatMap((group) => group.entries)
     .find((candidate) => candidate.placementId === placementId);
   if (!entry) throw new Error(`no entry for "${placementId}"`);
-  return (
-    countHardwareMechanisms([entry], KITCHEN_L_BODY_CATALOG).pushToOpen > 0
+  const { pushToOpen, pushRunners } = countHardwareMechanisms(
+    [entry],
+    KITCHEN_L_BODY_CATALOG,
   );
+  return pushToOpen + pushRunners > 0;
 }
 
 /** What the panel says the body wears, as it marks its chip. */

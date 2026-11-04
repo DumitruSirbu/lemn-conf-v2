@@ -64,12 +64,21 @@ function entriesOf(design: Design, catalog: BodyCatalog): DisplayEntry[] {
   );
 }
 
-function frontsOf(entry: DisplayEntry, catalog: BodyCatalog): number {
-  const query = frontPopulationQueryFor({
+function frontPopulationOf(entry: DisplayEntry, catalog: BodyCatalog) {
+  return frontPopulationQueryFor({
     body: entry,
     definition: catalog.get(entry.buildId) ?? {},
   });
+}
+
+function frontsOf(entry: DisplayEntry, catalog: BodyCatalog): number {
+  const query = frontPopulationOf(entry, catalog);
   return doorLeafHeightsMm(query).length + drawerCount(query);
+}
+
+/** A latch takes a door leaf and no drawer. */
+function doorLeavesOf(entry: DisplayEntry, catalog: BodyCatalog): number {
+  return doorLeafHeightsMm(frontPopulationOf(entry, catalog)).length;
 }
 
 interface Oracle {
@@ -134,7 +143,9 @@ describe("a generated kitchen stamped with a handle and a top-row handle is read
                 fronts,
                 kitchen,
               });
-              if (oracle.isLatched) expectedLatches += fronts;
+              if (oracle.isLatched) {
+                expectedLatches += doorLeavesOf(entry, catalog);
+              }
               if (placement.y0Mm >= MODULE_LINE_MM) {
                 topRowBodiesSeen += 1;
                 if (oracle.isLatched) latchedTopRowBodiesSeen += 1;

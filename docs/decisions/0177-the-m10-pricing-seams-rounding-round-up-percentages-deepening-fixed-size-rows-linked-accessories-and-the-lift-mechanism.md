@@ -120,6 +120,11 @@ the "expected set" sentence above, which excluded wall rows and wall corners.
 `price-per-size` is priced at the smallest listed size ≥ the body's width (round up, as A-2). A width above every listed
 size is refused with a new code, `NO_PRICE_FOR_SIZE`; it is never priced at 0 and never at the nearest size.
 
+**Amendment 2026-10-27 (coordinator, relayed; the scribe ran nothing):** the six structural corner rules are
+`price-per-size` with one entry keyed at the round-up of their built width to 50 mm (320 → 350, 570 → 600, 900 → 900; plan
+P3-Q4, 2026-10-27), because per-size keys are on the 50 mm grid and the lookup rounds the body's width up first. Each built
+body's price is unchanged, and frame D3G shows the built width.
+
 ### A-8 — Material ordering (settles S-5)
 
 The book's `material.defaultTierId` is the **pricing fallback**, fixed at the PAL reference. With percentages whole and
@@ -170,6 +175,16 @@ priced."
   the `hardware-mechanisms.ts:27-29` comment are rewritten in P5.
 - The ADR 0092 Amendment C quantifier for Hettich below Standard gains a lift term, derived from the declared rates and
   never restated.
+
+**Amendment, 2026-11-03 — OQ-17: the third hinge reads the door's width, not the body's.** Evidence tier: owner answer
+coordinator-relayed (a relay, not a verbatim transcript), doc-quoted from `docs/milestones/M10-price-dashboard.md` §6.3
+OQ-17, whose recorded answer is "The door." Source-verified for the door's width at
+`packages/three-adapter/src/kitchen-parts.ts:1615` (`W - 0.006`).
+
+- "Wider than 500 mm" compares the **door's** width, strictly (`> 500`, as OQ-5a built it). The door is the body less a
+  6 mm reveal, the same door the 3D adapter builds. A parity test holds the pricing figure and the adapter's together.
+- Bodies of 501 to 506 mm therefore take 2 hinges, where the body's width gave them 3.
+- The strict boundary and OQ-5a are unchanged; only the quantity compared moves.
 
 ### Other rows settled here
 

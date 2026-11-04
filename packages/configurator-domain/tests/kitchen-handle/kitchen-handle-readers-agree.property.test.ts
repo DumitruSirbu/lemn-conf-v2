@@ -118,9 +118,10 @@ function frontsOf(entry: DisplayEntry, catalog: BodyCatalog): number {
   return doorLeafHeightsMm(query).length + drawerCount(query);
 }
 
-/** What the price says: this one body is billed a latch. */
+/** What the price says: this one body is billed a push mechanism, a latch on a door leaf or a push runner on a drawer. */
 function priceLatches(entry: DisplayEntry, catalog: BodyCatalog): boolean {
-  return countHardwareMechanisms([entry], catalog).pushToOpen > 0;
+  const { pushToOpen, pushRunners } = countHardwareMechanisms([entry], catalog);
+  return pushToOpen + pushRunners > 0;
 }
 
 /** What the panel says the body wears: the chip it marks, which is the cabinet's own handle, else what it

@@ -3,13 +3,15 @@
 import { describe, expect, it } from "vitest";
 
 import { parsePriceBook } from "../../src/pricing/parse-price-book.js";
-import type { PriceBook } from "../../src/pricing/price-book.js";
+import type { HardwareTier, PriceBook } from "../../src/pricing/price-book.js";
 import { SAMPLE_PRICE_BOOK } from "../../src/pricing/sample-price-book.js";
 
 const HARDWARE_RATES = [
   "perHingeMinor",
   "perDrawerMinor",
   "perPushToOpenMinor",
+  "perLiftMinor",
+  "perPushRunnerMinor",
 ] as const;
 
 function withHardwareRate(
@@ -44,8 +46,20 @@ describe("the book parser and negative tier and accessory amounts", () => {
     },
   );
 
-  it.each(HARDWARE_RATES)("accepts a hardware tier's %s at zero", (field) => {
-    expect(parsePriceBook(withHardwareRate(field, 0)).ok).toBe(true);
+  it.each(HARDWARE_RATES.filter((field) => field !== "perPushRunnerMinor"))(
+    "accepts a hardware tier's %s at zero",
+    (field) => {
+      expect(parsePriceBook(withHardwareRate(field, 0)).ok).toBe(true);
+    },
+  );
+
+  it("refuses a hardware tier's perPushRunnerMinor at zero, naming it, since a free push runner bills nothing", () => {
+    const result = parsePriceBook(withHardwareRate("perPushRunnerMinor", 0));
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.failure.code).toBe("INVALID_PRICE_BOOK");
+    expect(result.failure.detail).toContain("perPushRunnerMinor");
   });
 
   it.each(["sinkProtectiveCover", "dishDryingRack"] as const)(
@@ -66,6 +80,54 @@ describe("the book parser and negative tier and accessory amounts", () => {
       expect(parsePriceBook(priced(0)).ok).toBe(true);
     },
   );
+});
+
+describe("the book parser and a hardware tier that states no lift rate", () => {
+  function withoutLiftRate(tierIndex: number): PriceBook {
+    return {
+      ...SAMPLE_PRICE_BOOK,
+      hardware: {
+        ...SAMPLE_PRICE_BOOK.hardware,
+        tiers: SAMPLE_PRICE_BOOK.hardware.tiers.map((tier, index) =>
+          index === tierIndex
+            ? (Object.fromEntries(
+                Object.entries(tier).filter(([key]) => key !== "perLiftMinor"),
+              ) as unknown as HardwareTier)
+            : tier,
+        ),
+      },
+    };
+  }
+
+  it.each(SAMPLE_PRICE_BOOK.hardware.tiers.map((_, index) => index))(
+    "refuses the book when tier %i carries no perLiftMinor, naming the field",
+    (tierIndex) => {
+      const result = parsePriceBook(withoutLiftRate(tierIndex));
+
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.failure.code).toBe("INVALID_PRICE_BOOK");
+      expect(result.failure.detail).toContain("perLiftMinor");
+    },
+  );
+
+  it.each([null, "20000", true])(
+    "refuses a perLiftMinor of %j, which is not a number",
+    (declared) => {
+      const result = parsePriceBook(
+        withHardwareRate("perLiftMinor", declared as unknown as number),
+      );
+
+      expect(result.ok).toBe(false);
+    },
+  );
+
+  it("does not ask a material tier for a lift rate", () => {
+    expect(parsePriceBook(SAMPLE_PRICE_BOOK).ok).toBe(true);
+    expect(
+      Object.keys(SAMPLE_PRICE_BOOK.material.tiers[0] ?? {}),
+    ).not.toContain("perLiftMinor");
+  });
 });
 
 describe("the book parser and tier and accessory amounts that are not whole", () => {
@@ -101,14 +163,14 @@ describe("the book parser and tier and accessory amounts that are not whole", ()
     expect(parsePriceBook(book).ok).toBe(false);
   });
 
-  it("refuses a flat material tier's amount of 12.5", () => {
+  it("refuses a material tier's percentage of 12.5", () => {
     const [first, ...rest] = SAMPLE_PRICE_BOOK.material.tiers;
     if (first === undefined) throw new Error("the sample book has no tier");
     const book: PriceBook = {
       ...SAMPLE_PRICE_BOOK,
       material: {
         ...SAMPLE_PRICE_BOOK.material,
-        tiers: [{ ...first, wholeKitchenMinor: 12.5 }, ...rest],
+        tiers: [{ ...first, percentOfCabinets: 12.5 }, ...rest],
       },
     };
 

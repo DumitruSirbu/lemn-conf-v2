@@ -163,8 +163,11 @@ test("the tap that opens the sheet is not also delivered to the sheet", async ({
   expect(await storedRevision(page, seededDesign.id)).toBe(
     seededDesign.revision,
   );
-  // The handle section's note marks the §6.5 default; a ghost tap on a chip would have replaced it with a real choice.
-  await expect(page.getByTestId("section-handle")).toContainText("Implicit");
+  // The follow row marks a cabinet with no handle; a ghost tap on a chip would have replaced it with a real choice.
+  await expect(page.getByTestId("handle-follow-kitchen")).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
 });
 
 test("the sheet occupies 70-83 vh, scrolls internally, and keeps its footer pinned", async ({

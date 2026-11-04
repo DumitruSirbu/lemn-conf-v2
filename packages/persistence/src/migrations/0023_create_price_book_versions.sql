@@ -2,9 +2,12 @@
 -- 2026-10-27: where the manufacturer's published price books are kept, one row per version, append-only.
 --
 -- A version is the whole book as it was published (`book`, a JSON object, stored whole and never edited) and the changes
--- that produced it (`change_summary`, a JSON array of the published draft changes, whose length is the version's change
--- count and is stored nowhere else). A published version never changes: the application role has no `UPDATE`, no
--- `DELETE` and no `TRUNCATE` on this table, so a restore or a correction is a new version, never an edit of an old one.
+-- that produced it (`change_summary`, a JSON array of the published draft changes). `change_count` is the number of
+-- prices in `change_summary` (`countPendingPrices`), computed by the application at publish: the count the publisher
+-- was shown. It has no default, so every insert names it. Nothing in the database ties it to `change_summary`; the
+-- runbook's cross-check against the audit row's `changeCount` is what detects a mismatch. A published version never
+-- changes: the application role has no `UPDATE`, no `DELETE` and no `TRUNCATE` on this table, so a restore or a
+-- correction is a new version, never an edit of an old one.
 --
 -- **There is no `state` column.** The active version is the row with the greatest `sequence_number` (F7); an archived
 -- version is any other. `sequence_number` starts at 1 and the application inserts the next number only when the one it
@@ -21,8 +24,9 @@
 -- character) is the domain's, applied before the insert. `book` and `change_summary` are each bounded to 4 MiB of
 -- `jsonb` text (4194304 bytes), `0011`'s ceiling for a stored document and for its reason: far above any book the
 -- product writes and above what `jsonb` adds in spaces to the application's own, lower limit (2 MiB of compact JSON
--- whose numbers are all whole, checked before any statement; `jsonb` prints any other number out in full), so no honest book meets it and no credential can make a row that every price surface
--- must then load. The ceiling must be in the first apply; it cannot be added to a table that holds versions.
+-- whose numbers are all whole, checked before any statement; `jsonb` prints any other number out in full), so no honest
+-- book meets it and no credential can make a row that every price surface must then load. The ceiling must be in the
+-- first apply; it cannot be added to a table that holds versions.
 --
 -- `published_at` is `now()` by default and is **not in the grant**, so a leaked credential cannot back-date or
 -- forward-date a version (`0011`'s `created_at` reasoning).
@@ -32,13 +36,13 @@
 -- from: the prices go live with no `price-published` audit row, because the audit row is written by the application's
 -- own publish and not by the table. No check in the database can tie a row to an audit row (a trigger was declined).
 -- What detects it is the owner's runbook cross-check: every version beyond the first (the seed writes the first, with no
--- audit row, on purpose) has a `price-published` row in `staff_audit_events` whose `sequenceNumber` is its own. A
--- version without one was not published by the application.
+-- audit row, on purpose) has a `price-published` row in `staff_audit_events` whose `sequenceNumber` is its own, and its
+-- `change_count` equals that row's `changeCount`. A version without one was not published by the application.
 --
 -- The grant is the owner's separate step:
 --
 --   GRANT SELECT ON TABLE public.price_book_versions TO app_designs;
---   GRANT INSERT (id, sequence_number, label, note, book, change_summary, published_by_account_id)
+--   GRANT INSERT (id, sequence_number, label, note, book, change_summary, change_count, published_by_account_id)
 --     ON TABLE public.price_book_versions TO app_designs;
 --
 -- No UPDATE, no DELETE, no TRUNCATE, no ALL, no WITH GRANT OPTION, nothing to PUBLIC, and no INSERT on `published_at`.
@@ -73,6 +77,8 @@ create table if not exists price_book_versions (
   change_summary jsonb not null
     constraint price_book_versions_change_summary_is_an_array check (jsonb_typeof(change_summary) = 'array')
     constraint price_book_versions_change_summary_size check (octet_length(change_summary::text) <= 4194304),
+  change_count integer not null
+    constraint price_book_versions_change_count_is_a_count check (change_count >= 0),
   published_at timestamptz not null default now(),
   published_by_account_id text not null
     constraint price_book_versions_published_by_account_id_shape check (published_by_account_id ~ '^[A-Za-z0-9_-]{21}$')

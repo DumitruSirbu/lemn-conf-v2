@@ -326,20 +326,25 @@ interface FollowTheKitchenStep {
  *  swatch styling cannot make it look like a colour. */
 function FollowTheKitchenButton({
   step,
+  testId,
 }: {
   readonly step: FollowTheKitchenStep;
+  readonly testId: string;
 }) {
   return (
     <button
       type="button"
       className={styles.followRow}
-      data-testid="finish-follow-kitchen"
+      data-testid={testId}
       data-follow="true"
       aria-pressed={step.chip.isActive}
       disabled={step.chip.isDisabled}
       onClick={step.onFollow}
     >
       <span className={styles.followRowLabel}>{step.chip.label}</span>
+      {step.chip.detail === undefined ? null : (
+        <span className={styles.followRowDetail}>{step.chip.detail}</span>
+      )}
       <ChipReason reason={step.chip.reason} />
     </button>
   );
@@ -374,7 +379,9 @@ function PaletteSwatchView({
         ))}
       </div>
       {/* Outside `colour-options` so the way back does not scroll away with the colours. */}
-      {follow === undefined ? null : <FollowTheKitchenButton step={follow} />}
+      {follow === undefined ? null : (
+        <FollowTheKitchenButton step={follow} testId="finish-follow-kitchen" />
+      )}
       <p className={styles.note}>{section.note}</p>
     </section>
   );
@@ -442,7 +449,9 @@ function RalPickerView({
         <span className={styles.pickerLabel}>{section.label}</span>
       </label>
       {/* Without this an MDF cabinet has no way to stop choosing: every hex is a choice. */}
-      {follow === undefined ? null : <FollowTheKitchenButton step={follow} />}
+      {follow === undefined ? null : (
+        <FollowTheKitchenButton step={follow} testId="finish-follow-kitchen" />
+      )}
       <ChipReason reason={section.reason} />
       <p className={styles.note}>{section.note}</p>
     </section>
@@ -451,6 +460,7 @@ function RalPickerView({
 
 function HandleSectionView({ section }: { readonly section: HandleSection }) {
   const setHandle = useConfiguratorStore((state) => state.setHandle);
+  const clearHandle = useConfiguratorStore((state) => state.clearHandle);
   return (
     <section className={styles.section} data-testid="section-handle">
       <span className={styles.sectionTitle}>{section.title}</span>
@@ -472,7 +482,10 @@ function HandleSectionView({ section }: { readonly section: HandleSection }) {
           </button>
         ))}
       </div>
-      {section.note ? <p className={styles.note}>{section.note}</p> : null}
+      <FollowTheKitchenButton
+        step={{ chip: section.follow, onFollow: clearHandle }}
+        testId="handle-follow-kitchen"
+      />
     </section>
   );
 }

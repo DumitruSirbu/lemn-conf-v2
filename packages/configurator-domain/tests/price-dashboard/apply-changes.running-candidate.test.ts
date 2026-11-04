@@ -1,13 +1,13 @@
-// `applyChanges` judges each change against the running candidate, the book with the earlier changes applied. No change
-// kind introduces a row until the creation kinds exist, so the dependent-change case is simulated: `prepareWrite` is
-// wrapped, it records the book each change was judged against, and for a creation address it supplies the updater the
-// creation kind will have. The wrapper hands every other address to the real `prepareWrite`.
+// `applyChanges` judges each change against the running candidate, the book with the earlier changes applied. The seam is
+// observed, not replaced: `prepareWrite` is wrapped, it records the book each change was judged against and hands every
+// address to the real one. The dependent-change cases use the real creation kind.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { prepareWrite as PrepareWrite } from "../../src/price-dashboard/editable-fields.js";
 import { applyChanges } from "../../src/price-dashboard/apply-changes.js";
 import type {
   BookFieldAddress,
+  HardwareRateField,
   DraftChange,
 } from "../../src/price-dashboard/book-field-address.js";
 import type { PriceBook } from "../../src/pricing/price-book.js";
@@ -30,48 +30,40 @@ vi.mock(
       await importOriginal<
         typeof import("../../src/price-dashboard/editable-fields.js")
       >();
-    const wrapped: typeof PrepareWrite = (book, address, value) => {
+    const recording: typeof PrepareWrite = (book, address, value) => {
       seam.judgedAgainst.push(book);
-      if (address.kind !== "hardware-tier-created")
-        return original.prepareWrite(book, address, value);
-      return {
-        ok: true,
-        value: (target) => withCreatedTier(target),
-      };
+      return original.prepareWrite(book, address, value);
     };
-    return { ...original, prepareWrite: wrapped };
+    return { ...original, prepareWrite: recording };
   },
 );
-
-function withCreatedTier(book: PriceBook): PriceBook {
-  const template = book.hardware.tiers[0];
-  if (template === undefined)
-    throw new Error("the fixture has no hardware tier");
-  return {
-    ...book,
-    hardware: {
-      ...book.hardware,
-      tiers: [
-        ...book.hardware.tiers,
-        { ...template, tierId: CREATED_TIER_ID, ruleId: CREATED_TIER_ID },
-      ],
-    },
-  };
-}
 
 const createTier = {
   address: { kind: "hardware-tier-created", tierId: CREATED_TIER_ID },
   value: { name: "Created", description: "A class created in the draft." },
 } as unknown as DraftChange;
 
-const rateOnCreatedTier = {
-  address: {
-    kind: "hardware",
-    tierId: CREATED_TIER_ID,
-    field: "perHingeMinor",
-  } satisfies BookFieldAddress,
-  value: 4_321,
-} as DraftChange;
+function rateOnCreatedTier(
+  field: HardwareRateField,
+  value: number,
+): DraftChange {
+  return {
+    address: {
+      kind: "hardware",
+      tierId: CREATED_TIER_ID,
+      field,
+    } satisfies BookFieldAddress,
+    value,
+  } as DraftChange;
+}
+
+const [hingeRate, drawerRate, pushRate, liftRate, pushRunnerRate] = [
+  rateOnCreatedTier("perHingeMinor", 4_321),
+  rateOnCreatedTier("perDrawerMinor", 5_000),
+  rateOnCreatedTier("perPushToOpenMinor", 0),
+  rateOnCreatedTier("perLiftMinor", 7_000),
+  rateOnCreatedTier("perPushRunnerMinor", 9_000),
+];
 
 beforeEach(() => {
   seam.judgedAgainst.length = 0;
@@ -107,10 +99,14 @@ describe("each change is judged against the running candidate", () => {
     expect(seam.judgedAgainst[1]).toEqual(PERCENTAGE_BOOK);
   });
 
-  it("applies a change that names a tier an earlier change introduced", () => {
+  it("applies a rate change that names a tier an earlier change created", () => {
     const result = applyChanges(PERCENTAGE_BOOK, [
       createTier,
-      rateOnCreatedTier,
+      hingeRate,
+      drawerRate,
+      pushRate,
+      liftRate,
+      pushRunnerRate,
     ]);
 
     expect(result.ok).toBe(true);
@@ -118,19 +114,51 @@ describe("each change is judged against the running candidate", () => {
     const created = result.book.hardware.tiers.find(
       (tier) => tier.tierId === CREATED_TIER_ID,
     );
-    expect(created?.perHingeMinor).toBe(4_321);
+    expect(created).toMatchObject({
+      perHingeMinor: 4_321,
+      perDrawerMinor: 5_000,
+      perPushToOpenMinor: 0,
+      perLiftMinor: 7_000,
+      perPushRunnerMinor: 9_000,
+    });
   });
 
-  it("refuses the same list reordered, at the change that now comes first, and not the creation", () => {
-    const result = applyChanges(PERCENTAGE_BOOK, [
-      rateOnCreatedTier,
+  it("judges the rate against a candidate that already holds the created tier, not the base book", () => {
+    applyChanges(PERCENTAGE_BOOK, [
       createTier,
+      hingeRate,
+      drawerRate,
+      pushRate,
+      liftRate,
+      pushRunnerRate,
+    ]);
+
+    const [, judgedAtRate] = seam.judgedAgainst;
+    expect(judgedAtRate?.hardware.tiers.map((tier) => tier.tierId)).toContain(
+      CREATED_TIER_ID,
+    );
+    expect(
+      PERCENTAGE_BOOK.hardware.tiers.map((tier) => tier.tierId),
+    ).not.toContain(CREATED_TIER_ID);
+  });
+
+  it("refuses the same list reordered at the rate that now comes first, and the creation for the rate it then lacks", () => {
+    const result = applyChanges(PERCENTAGE_BOOK, [
+      hingeRate,
+      createTier,
+      drawerRate,
+      pushRate,
+      liftRate,
+      pushRunnerRate,
     ]);
 
     expect(result).toMatchObject({
       ok: false,
       reason: "changes-refused",
-      refusals: [{ index: 0, code: "UNKNOWN_ITEM" }],
+      refusals: [
+        { index: 0, code: "UNKNOWN_ITEM" },
+        { index: 1, code: "CREATED_TIER_RATES_MISSING" },
+      ],
     });
   });
 });

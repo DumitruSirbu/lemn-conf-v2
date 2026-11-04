@@ -11,6 +11,7 @@ import {
 import { resolveAccountKitchensCopy } from "@/i18n/content";
 import { routing } from "@/i18n/routing";
 import { readSignedInPage } from "@/lib/server/account/signed-in-page";
+import { withActivePriceBook } from "@/lib/server/with-active-price-book";
 
 interface KitchensPageProps {
   readonly params: Promise<{ locale: string }>;
@@ -40,7 +41,7 @@ export default async function KitchensPage({ params }: KitchensPageProps) {
   });
   switch (read.kind) {
     case "signed-in":
-      return <KitchensScreen locale={locale} />;
+      return withActivePriceBook(<KitchensScreen locale={locale} />);
     case "forbidden":
       return <ForbiddenScreen locale={locale} />;
     case "unavailable":

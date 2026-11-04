@@ -49,6 +49,14 @@ import {
   type Fingerprint,
 } from "./support/ssr-html";
 
+/**
+ * A design's revision as a value under a `revision` key, in plain or RSC-escaped JSON. The catalogue's availability
+ * carries a `revision` of its own, a counter of the dashboard's switches that every page is handed (A-17) and that
+ * belongs to no design, so a `revision` followed by the availability's `disabled` list is not matched.
+ */
+const DESIGN_REVISION_FIELD =
+  /\\?"revision\\?":\\?"([^"\\]*)\\?"(?!,\\?"disabled\\?":)/g;
+
 const REQUESTS_PER_ROUTE = 8;
 const SAVE_TIMEOUT_MS = 15_000;
 /** A client transition fetches the next route's RSC payload, which under a parallel run can take
@@ -188,7 +196,7 @@ test.describe("U7 S0 adversarial: isolation across users and within a shape", ()
     expect(html.includes(kitchen.id), "the design id").toBe(false);
     // A revision is a small integer, so it is looked for as a value under a `revision` key (plain
     // or RSC-escaped JSON), not as a bare substring: the only one allowed is the view's sentinel.
-    const revisions = [...html.matchAll(/\\?"revision\\?":\\?"([^"\\]*)/g)].map(
+    const revisions = [...html.matchAll(DESIGN_REVISION_FIELD)].map(
       (match) => match[1],
     );
     expect(
@@ -197,9 +205,7 @@ test.describe("U7 S0 adversarial: isolation across users and within a shape", ()
     ).toEqual([]);
     const ownersHtml = await htmlOf(page.request, kitchen.designPath);
     expect(
-      [...ownersHtml.matchAll(/\\?"revision\\?":\\?"([^"\\]*)/g)].map(
-        (match) => match[1],
-      ),
+      [...ownersHtml.matchAll(DESIGN_REVISION_FIELD)].map((match) => match[1]),
       "the owner's page carries its revision, so the pattern above can see one",
     ).toContain(kitchen.revision);
     // next-intl's own `NEXT_LOCALE` is the one cookie any page may set; no visitor or design cookie.

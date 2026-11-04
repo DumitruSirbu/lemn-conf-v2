@@ -122,7 +122,10 @@ export interface StoredPriceVersion extends ActivePriceVersion {
   readonly state: "active" | "archived";
   /** Authored text. */
   readonly note: string;
-  /** The published `DraftChange[]` as a JSON array, with minted ids and group ids (m8). `changeCount` is its length. */
+  /**
+   * The published `DraftChange[]` as a JSON array, with minted ids and group ids (m8). `changeCount` is the number of
+   * prices it holds (`countPendingPrices`), computed by the store at publish and stored with the version.
+   */
   readonly changeSummary: unknown;
 }
 
@@ -132,7 +135,10 @@ export interface PriceVersionSummary {
   readonly label: string;
   readonly state: "active" | "archived";
   readonly publishedAt: Date;
-  /** The length of the stored change summary's array, derived and stored nowhere else (X0-5, m8). */
+  /**
+   * The prices the stored change summary holds (`countPendingPrices`), computed by the store at publish and stored with
+   * the version.
+   */
   readonly changeCount: number;
 }
 
@@ -212,7 +218,10 @@ export interface PublishPriceBookRequest {
    * never a book a request carried. Stored whole and immutable.
    */
   readonly book: unknown;
-  /** The published `DraftChange[]`, as a JSON array (m8). It is stored whole; `changeCount` is its length. */
+  /**
+   * The published `DraftChange[]`, as a JSON array (m8). It is stored whole; `changeCount` is the number of prices it
+   * holds (`countPendingPrices`), computed by the store at publish and stored with the version.
+   */
   readonly changeSummary: unknown;
   /** The availability head the publisher read. A publish takes the same compare-and-set as an availability write (M1). */
   readonly expectedAvailabilityRevision: string;
@@ -220,7 +229,7 @@ export interface PublishPriceBookRequest {
   readonly createdItems: readonly ItemRef[];
   /**
    * `price-published` without `sequenceNumber` and `changeCount`. The store fills both: the sequence it inserted and the
-   * length of the change summary it stored. A value forced into either through a cast is overwritten.
+   * count of the prices it stored. A value forced into either through a cast is overwritten.
    */
   readonly audit: PublishAuditRecord;
 }
@@ -242,6 +251,11 @@ export type PublishPriceBookResult =
  * `expectedActiveSequence + 1`, the draft reset and the audit row, or none of them. Of two racing publishes the second
  * meets the uniqueness of the sequence and is `changed-meanwhile`; a stale `expectedAvailabilityRevision` is
  * `availability-changed-meanwhile`.
+ *
+ * **Any change to the active version advances the draft's revision**, in the same transaction (a publish resets the draft
+ * to a revision it has never held). A reader that reads the draft first and the active version second can therefore never
+ * hold a newer version together with the older draft revision it was read at: a write that names that revision is refused
+ * as `changed-meanwhile`. The dashboard's routes read in that order and depend on this.
  *
  * The store does not return `item-is-default` or a used deletion: the domain judges both **before** the call, against
  * defaults and usage read at `expectedAvailabilityRevision`, which the compare-and-set keeps current (M5).

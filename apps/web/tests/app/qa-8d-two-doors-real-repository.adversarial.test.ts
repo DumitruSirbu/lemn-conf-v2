@@ -24,6 +24,10 @@ import {
 import DesignPage from "../../src/app/[locale]/d/[id]/page";
 import ReviewPage from "../../src/app/[locale]/d/[id]/review/page";
 import { DesignLoadError } from "../../src/app/d/[id]/design-load-error";
+import {
+  priceBookRootOf,
+  withoutPriceBook,
+} from "../support/price-book-wrapper";
 
 const VISITOR_COOKIE_NAME = "__Host-lemnaria_visitor";
 const OWNER_VALUE = "O".repeat(43);
@@ -429,11 +433,14 @@ describe("a stored row, read through the real load seam", () => {
   it("opens both doors on the stored design when the seam accepts it", async () => {
     socketAnswer = storedRowOf(KITCHEN_L_DESIGN, CURRENT_SCHEMA_VERSION);
 
-    const editor = await renderDoor("editor", OWNED_ID);
-    const review = await renderDoor("review", OWNED_ID);
+    const editorPage = await renderDoor("editor", OWNED_ID);
+    const reviewPage = await renderDoor("review", OWNED_ID);
+    const editor = withoutPriceBook(editorPage);
+    const review = withoutPriceBook(reviewPage);
 
     if (!isValidElement(editor) || !isValidElement(review))
       throw new Error("a door answered no element");
+    expect(priceBookRootOf(reviewPage)).toEqual(priceBookRootOf(editorPage));
     expect(editor.type).toBe(hydrateAndConfigure);
     expect(review.type).toBe(hydrateAndReview);
     expect(review.props).toEqual(editor.props);

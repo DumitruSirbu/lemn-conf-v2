@@ -164,7 +164,14 @@ describe("what the catalog gate shows each caller, held against the staff gate",
     const listed = answer.shell.navigation.filter((page) =>
       CATALOG_PAGES.some((catalogPage) => catalogPage === page),
     );
-    expect(listed).toEqual(["cabinets"]);
+    expect(listed).toEqual([
+      "cabinets",
+      "hardware",
+      "materials",
+      "accessories",
+      "defaults",
+      "publish",
+    ]);
   });
 });
 

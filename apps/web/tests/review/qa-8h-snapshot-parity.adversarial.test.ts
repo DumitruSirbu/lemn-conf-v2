@@ -29,6 +29,8 @@ import {
   variedKitchensOf,
   type VariedArm,
 } from "../support/varied-kitchens";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
+import { NOTHING_DISABLED } from "../support/availability";
 
 interface Terms {
   readonly name: string;
@@ -42,12 +44,15 @@ const SHIPPED: Terms = {
   pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
 };
 
+/** The width a handed-over cabinet is quoted at: a free anchored row steps by nothing, so the figure decides nothing. */
+const HANDED_OVER_ANCHOR_WIDTH_MM = 600;
+
 const CUSTOMER_SUPPLIES_EVERYTHING: PriceBook = {
   ...SAMPLE_PRICE_BOOK,
   cabinetRules: SAMPLE_PRICE_BOOK.cabinetRules.map(({ ruleId, buildId }) => ({
     ruleId,
     buildId,
-    ...drawnButNotSupplied(),
+    ...drawnButNotSupplied(HANDED_OVER_ANCHOR_WIDTH_MM),
   })),
 };
 
@@ -94,10 +99,19 @@ function judge(design: Design, terms: Terms): Judged {
         book,
         pricingVersion,
         selections: design.settings,
+        deepeningRows: MEASURED_DEEPENING_ROWS,
+        availability: NOTHING_DISABLED,
       }),
       groups: projectDesignForDisplay(design, catalog),
     }),
-    snapshot: snapshotSubmission({ design, catalog, book, pricingVersion }),
+    snapshot: snapshotSubmission({
+      design,
+      catalog,
+      book,
+      pricingVersion,
+      deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
+    }),
   };
 }
 

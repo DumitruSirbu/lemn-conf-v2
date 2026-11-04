@@ -34,6 +34,8 @@ import {
   RULED_TO_CONTAIN_A_SUM_WORD,
   SUM_CLAIM_WORDS,
 } from "../support/ruled-price-copy";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
+import { NOTHING_DISABLED } from "../support/availability";
 
 /** The desktop file, read only for the question mark the owner ruled onto this control; frame 2D (the mobile file,
  *  the only one carrying every frame) draws the wording unpunctuated. */
@@ -73,6 +75,8 @@ function shippedBreakdown(): AvailableBreakdown {
   const view = describePriceBreakdown({
     content: ro,
     pricing: priceDesign({
+      deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
       design: KITCHEN_L_DESIGN,
       catalog: KITCHEN_L_BODY_CATALOG,
       book: SAMPLE_PRICE_BOOK,
@@ -257,9 +261,10 @@ describe("no surface claims the rounded lines add up to the rounded total", () =
     ).not.toEqual(accountedForNumbers(view));
   });
 
-  it("shows a figure the rendered rows do not add up to, by more than a whole step", () => {
-    // The reason the rule exists, on what is on the page: each amount is rounded up on its own, so a customer adding
-    // the rows lands elsewhere and no element may present itself as their sum.
+  it("shows a figure the rendered rows do not add up to, short of it by less than a whole step", () => {
+    // The reason the rule exists, on what is on the page (owner ruling 2026-10-28): each row is shown to the ten lei
+    // and the figure is rounded up to the thousand, so a customer adding the rows lands just short of the figure and
+    // no element may present itself as their sum.
     const view = shippedBreakdown();
     const text = visibleText(renderedMarkup(view));
     const amountsOf = (tokens: string[]): number[] =>
@@ -277,7 +282,8 @@ describe("no surface claims the rounded lines add up to the rounded total", () =
     const figure = amountsOf(numberTokens(view.figure.amountText))[0] ?? 0;
 
     expect(text).toContain(view.figure.amountText);
-    expect(rowTotal).toBeGreaterThan(figure + ROUNDING_STEP_MDL);
+    expect(rowTotal).toBeLessThan(figure);
+    expect(figure - rowTotal).toBeLessThan(ROUNDING_STEP_MDL);
   });
 
   it("puts no sum-family word on the surface outside the two sentences ruled to carry one", () => {

@@ -32,6 +32,8 @@ import { validateDesignForCatalog } from "../src/validate-design.js";
 import type { DisplayEntry } from "../src/queries/design-projection.js";
 import type { BodyCatalog, BodyDefinition } from "../src/void-engine.js";
 import type { Handle } from "../src/design.js";
+import { MEASURED_DEEPENING_ROWS } from "./support/deepening-rows.js";
+import { NOTHING_DISABLED } from "./support/availability.js";
 
 const CATALOG = KITCHEN_L_BODY_CATALOG;
 
@@ -358,6 +360,8 @@ describe("the door band refusal is reachable from exactly the rows the code name
       catalog: CATALOG,
       book: SAMPLE_PRICE_BOOK,
       pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
+      deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
     });
 
     expect(result.ok).toBe(false);

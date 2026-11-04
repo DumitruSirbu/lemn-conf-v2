@@ -16,6 +16,7 @@ import {
 import type { StaffPageRead } from "@/lib/server/staff/staff-page";
 
 import roMessages from "../../src/messages/ro.json";
+import { withoutPriceBook } from "../support/price-book-wrapper";
 import ruMessages from "../../src/messages/ru.json";
 
 const world = vi.hoisted(() => ({
@@ -78,7 +79,7 @@ function paramsOf(locale: string, id: string = KITCHEN_ID) {
 
 async function pageFor(answer: StaffPageRead, id: string = KITCHEN_ID) {
   world.answer = answer;
-  return StaffKitchenPage(paramsOf("ro", id));
+  return withoutPriceBook(await StaffKitchenPage(paramsOf("ro", id)));
 }
 
 describe("the page for each answer of the staff gate", () => {

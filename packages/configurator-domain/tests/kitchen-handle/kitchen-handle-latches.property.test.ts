@@ -1,4 +1,4 @@
-// The latch count is per opening front, not per body (ADR 0092 decision 3). Since wave H1b
+// The latch count is per door leaf, not per body (ADR 0092 decision 3). Since wave H1b
 // `countHardwareMechanisms` reads the kitchen handle from the entries it is handed (`DisplayEntry.kitchenSettings`), so
 // this file asks it two things: with no kitchen handle it equals the count by `isPushToOpen` front by front, and with
 // the handle stamped on the design it equals the count by `isPushToOpen` with that handle stamped on the bodies that
@@ -9,7 +9,6 @@ import { describe, expect, it } from "vitest";
 import {
   countHardwareMechanisms,
   doorLeafHeightsMm,
-  drawerCount,
   frontPopulationQueryFor,
   projectDesignForDisplay,
   type BodyCatalog,
@@ -54,13 +53,13 @@ function entriesOf(design: Design, catalog: BodyCatalog): DisplayEntry[] {
   );
 }
 
-/** One latch per opening front: the denominator `hardware-mechanisms.ts` uses. */
-function frontsOf(entry: DisplayEntry, catalog: BodyCatalog): number {
+/** One latch per door leaf, none per drawer: the denominator `hardware-mechanisms.ts` uses. */
+function doorLeavesOf(entry: DisplayEntry, catalog: BodyCatalog): number {
   const query = frontPopulationQueryFor({
     body: entry,
     definition: catalog.get(entry.buildId) ?? {},
   });
-  return doorLeafHeightsMm(query).length + drawerCount(query);
+  return doorLeafHeightsMm(query).length;
 }
 
 function takesAHandle(entry: DisplayEntry, catalog: BodyCatalog): boolean {
@@ -80,7 +79,7 @@ function latchesUnder(
         kitchenSettings: { handle: kitchenHandle },
         canHandle: takesAHandle(entry, catalog),
       })
-        ? total + frontsOf(entry, catalog)
+        ? total + doorLeavesOf(entry, catalog)
         : total,
     0,
   );
@@ -116,7 +115,7 @@ function withKitchenHandleStamped(
 function followingFronts(design: Design, catalog: BodyCatalog): number {
   return entriesOf(design, catalog)
     .filter((entry) => followsTheKitchen(entry, catalog))
-    .reduce((total, entry) => total + frontsOf(entry, catalog), 0);
+    .reduce((total, entry) => total + doorLeavesOf(entry, catalog), 0);
 }
 
 const randomDesign = fc.record({

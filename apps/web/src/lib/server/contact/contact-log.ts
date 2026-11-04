@@ -38,6 +38,7 @@ export const CONTACT_UNAVAILABLE_CAUSES = [
   "submission-store-failed",
   "notice-unbuildable",
   "price-book-mismatch",
+  "no-price-book",
   "unexpected",
 ] as const;
 

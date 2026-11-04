@@ -28,6 +28,7 @@ import {
   describeBreakdownRows,
   describePlacementLabel,
   describePlacementName,
+  type BreakdownDepthLine,
   type BreakdownGroup,
   type BreakdownRow,
 } from "@/price/price-breakdown-model";
@@ -103,6 +104,10 @@ export interface AvailableReview {
   /** The two lines of each body's row, by placement id: the breakdown's rows are not touched. */
   readonly rowDetails: Readonly<Record<string, ReviewRowDetail>>;
   readonly wholeKitchenRows: readonly BreakdownRow[];
+  /** The depth line the total counts, worded from the priced (or stored) line: present exactly when the priced design
+   *  carries one. `listWholeKitchenRows` lists it among the whole-kitchen rows, after `depthLineAfterKey`. */
+  readonly depthLine?: BreakdownDepthLine;
+  readonly depthLineAfterKey?: string;
   readonly notIncluded: ReviewNotIncludedSlot;
   readonly disclaimer: ReviewDisclaimer;
   readonly figure: PriceFigure;
@@ -116,7 +121,12 @@ export type ReviewView = UnavailableReview | AvailableReview;
 export type ReviewSection =
   | Exclude<
       keyof AvailableReview,
-      "kind" | "overflowWarning" | "submit" | "rowDetails"
+      | "kind"
+      | "overflowWarning"
+      | "submit"
+      | "rowDetails"
+      | "depthLine"
+      | "depthLineAfterKey"
     >
   | "overflowWarning"
   | "refusal"
@@ -163,7 +173,8 @@ export class MissingWholeKitchenTierError extends Error {
 export class MissingRowDetailError extends Error {
   constructor(placementId: string) {
     super(
-      `The review holds no row detail for placement "${placementId}"; its rows and details are built from one projection`,
+      `The review holds no row detail for placement "${placementId}"; ` +
+        "its rows and details are built from one projection",
     );
     this.name = "MissingRowDetailError";
   }
@@ -234,6 +245,7 @@ function describeAvailableReview(
     groups: rows.groups,
     rowDetails: describeRowDetails(groups, content),
     wholeKitchenRows: rows.wholeKitchenRows,
+    ...rows.depth,
     notIncluded: describeNotIncludedSlot(content),
     disclaimer: describeDisclaimer(content),
     figure: describeStartingPrice({
@@ -290,7 +302,8 @@ function describeRowDetail(
   };
 }
 
-/** A palette finish by its approved name; a free colour has no name, so by its value, as the settings pill speaks it. */
+/** A palette finish by its approved name; a free colour has no name, so by its value, as the settings pill speaks
+ *  it. */
 function describeFinish(finish: Finish, content: Content): string {
   return finish.kind === "palette-entry"
     ? content.finishName(finish.entryId)

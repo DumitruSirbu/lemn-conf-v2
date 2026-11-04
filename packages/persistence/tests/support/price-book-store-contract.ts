@@ -1,3 +1,4 @@
+import { countPendingPrices } from "@lemnaria/configurator-domain";
 import type { DraftChange } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
@@ -50,6 +51,18 @@ const DEPTH_TO_40: DraftChange = { address: { kind: "depth-rule" }, value: 40 };
 const ANCHOR_TO_5000: DraftChange = {
   address: { kind: "cabinet", ruleId: "base-1-door", field: "anchorMinor" },
   value: 5000,
+};
+const CREATED_CLASS: DraftChange = {
+  address: { kind: "hardware-tier-created", tierId: "created-class" },
+  value: { name: "Clasa noua", description: "O clasa." },
+};
+const CREATED_CLASS_HINGE_RATE: DraftChange = {
+  address: {
+    kind: "hardware",
+    tierId: "created-class",
+    field: "perHingeMinor",
+  },
+  value: 1_000,
 };
 
 export function describePriceBookStoreContract(
@@ -343,7 +356,7 @@ function describePublish(
       ]);
     });
 
-    it("records the sequence it inserted and the length of the summary it stored in the audit row, whatever a cast put there", async () => {
+    it("records the sequence it inserted and the count of the prices it stored in the audit row, whatever a cast put there", async () => {
       const world = await newWorld();
       const staff = await world.aStaffMember();
       const newestBefore = await newestSequenceOf(world.store);
@@ -354,10 +367,17 @@ function describePublish(
           detail: { provisional: false, sequenceNumber: 99, changeCount: 7 },
         },
       } as unknown as PublishAuditRecord;
+      // Four entries, three prices (a created class and its rate are one), and the forged 7 is neither.
+      const changeSummary = [
+        DEPTH_TO_40,
+        ANCHOR_TO_5000,
+        CREATED_CLASS,
+        CREATED_CLASS_HINGE_RATE,
+      ];
 
       const result = await publish(world, staff, {
         audit: forged,
-        changeSummary: [DEPTH_TO_40, ANCHOR_TO_5000],
+        changeSummary,
       });
 
       expect(result.kind).toBe("ok");
@@ -366,7 +386,7 @@ function describePublish(
       );
       expect(stored).toMatchObject({
         kind: "found",
-        version: { changeSummary: [DEPTH_TO_40, ANCHOR_TO_5000] },
+        version: { changeSummary },
       });
       expect(await world.auditEventsOf(staff.accountId)).toEqual([
         {
@@ -375,7 +395,7 @@ function describePublish(
           detail: {
             provisional: false,
             sequenceNumber: newestBefore + 1,
-            changeCount: 2,
+            changeCount: 3,
           },
         },
       ]);
@@ -965,6 +985,82 @@ function describeHistory(
       expect(
         (await world.store.listVersions({ page: 1 })).versions[0],
       ).toMatchObject({ changeCount: 3 });
+    });
+
+    it("counts a created class and its rates as one price, as the screens that asked for the publish counted them", async () => {
+      const world = await newWorld();
+      const staff = await world.aStaffMember();
+      const rate = (field: string, value: number) => ({
+        address: { kind: "hardware", tierId: "created-class", field },
+        value,
+      });
+      const summary = [
+        ANCHOR_TO_5000,
+        {
+          address: { kind: "hardware-tier-created", tierId: "created-class" },
+          value: { name: "Clasa noua", description: "O clasa." },
+        },
+        rate("perHingeMinor", 1_000),
+        rate("perDrawerMinor", 2_000),
+        rate("perLiftMinor", 3_000),
+      ];
+
+      const result = await publish(world, staff, { changeSummary: summary });
+      if (result.kind !== "ok") throw new Error("the publish was refused");
+
+      expect(
+        (await world.store.listVersions({ page: 1 })).versions[0],
+      ).toMatchObject({ changeCount: 2 });
+    });
+
+    it("stamps the audit row with the same count it lists the version with, counted once at the publish", async () => {
+      const world = await newWorld();
+      const staff = await world.aStaffMember();
+      const rate = (field: string) => ({
+        address: { kind: "hardware", tierId: "created-class", field },
+        value: 1_000,
+      });
+      const summary = [
+        {
+          address: { kind: "hardware-tier-created", tierId: "created-class" },
+          value: { name: "Clasa noua", description: "O clasa." },
+        },
+        rate("perHingeMinor"),
+        rate("perDrawerMinor"),
+        rate("perLiftMinor"),
+        ANCHOR_TO_5000,
+      ];
+
+      await publish(world, staff, { changeSummary: summary });
+
+      const listed = (await world.store.listVersions({ page: 1 })).versions[0];
+      const stamped = (await world.auditEventsOf(staff.accountId)).map(
+        ({ detail }) => (detail as { changeCount?: number }).changeCount,
+      );
+      expect(listed?.changeCount).toBe(2);
+      expect(stamped).toEqual([2]);
+    });
+
+    it("lists, stamps and counts one publish the same: the list's count, the audit row's count and the rule's count agree", async () => {
+      const world = await newWorld();
+      const staff = await world.aStaffMember();
+      const summary = [
+        DEPTH_TO_40,
+        CREATED_CLASS,
+        CREATED_CLASS_HINGE_RATE,
+        ANCHOR_TO_5000,
+      ];
+
+      await publish(world, staff, { changeSummary: summary });
+
+      const listed = (await world.store.listVersions({ page: 1 })).versions[0];
+      const stamped = (await world.auditEventsOf(staff.accountId)).map(
+        ({ detail }) => (detail as { changeCount?: number }).changeCount,
+      );
+      const counted = countPendingPrices(summary);
+      expect(counted).not.toBe(summary.length);
+      expect(listed?.changeCount).toBe(counted);
+      expect(stamped).toEqual([counted]);
     });
 
     it("lists a page past the last as no versions, with the same total", async () => {

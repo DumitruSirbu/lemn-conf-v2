@@ -20,12 +20,15 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 import { createFakeProbeFactory } from "../support/fake-body-probe";
+import { underSamplePriceBook } from "../support/sample-price-root";
 import {
   FINISHES_RESOLVED_BY_VENEER,
   HOOD_PLACEMENT_ID,
   MDF_KITCHEN_WEARING_CHOSEN_COLOURS,
   VENEER_TIER_ID,
 } from "../support/mdf-kitchen-wearing-chosen-colours";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
+import { NOTHING_DISABLED } from "../support/availability";
 
 /** The store state the hook under test reads, swapped between cases so the real `usePricedDesign`
  *  runs against a real store's real fields rather than a fixture shaped like one. */
@@ -67,7 +70,7 @@ function readFromHook<T>(useHook: () => T): T {
     seen = useHook();
     return null;
   }
-  renderToStaticMarkup(createElement(Probe));
+  renderToStaticMarkup(underSamplePriceBook(createElement(Probe)));
   if (seen === undefined) throw new Error("the hook produced nothing");
   return seen;
 }
@@ -197,6 +200,8 @@ describe("the two whole-kitchen store actions", () => {
 describe("usePricedDesign reads the settings container", () => {
   function priceWith(design: Design) {
     return priceDesign({
+      deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
       design,
       catalog: KITCHEN_L_BODY_CATALOG,
       book: SAMPLE_PRICE_BOOK,

@@ -8,6 +8,7 @@ import {
   setCabinetDepth as setCabinetDepthOnDesign,
   setGlobalFinish as setGlobalFinishOnDesign,
   setHardwareTier as setHardwareTierOnDesign,
+  setKitchenHandle as setKitchenHandleOnDesign,
   setMaterialTier as setMaterialTierOnDesign,
   cabinetDepthMmOf,
   refuse,
@@ -18,6 +19,7 @@ import {
   type CommandSuccess,
   type Design,
   type Finish,
+  type Handle,
   type RejectionReason,
   type WholeKitchenTierInput,
 } from "@lemnaria/configurator-domain";
@@ -28,6 +30,7 @@ export type WholeKitchenSetting =
   | "material"
   | "finish"
   | "hardware"
+  | "handle"
   | "cabinetDepth";
 
 /**
@@ -42,6 +45,9 @@ export interface WholeKitchenSettingsRequest {
    *  global colour into a document that deliberately carries none (`resolveOpeningChoice`). */
   readonly finish?: Finish | undefined;
   readonly hardwareTierId?: string | undefined;
+  /** The kitchen's handle. Absent means "leave it alone", like the colour: an untouched sheet must not stamp the
+   *  slot's default into a document that chose none. Availability is the sheet's offer, not this request's. */
+  readonly handle?: Handle | undefined;
   readonly cabinetDepthMm?: number | undefined;
   /** `setMaterialTier` refuses an id its caller did not offer, so the offered list travels with the choice:
    *  one answer to "what is on offer" (ADR 0062 seam 1, `OfferedTierGroup.tierIds`). */
@@ -85,10 +91,11 @@ interface PlannedChange {
 /**
  * Every requested change run in order, stopping at the first refusal. Nothing here writes: the domain's commands are
  * pure, so the whole press is evaluated before any of it is held, making the commit atomic without a rollback.
- * The order (material, colour, hardware, depth) is load-bearing: a depth change rebuilds every body so it must see
- * the same press's material; the store applies the last result, whose effect `applyCommandResult` reads the column
- * map from; and colour runs after material because a material change re-resolves `settings.finish` to the new
- * default (ADR 0099 decision 6), which would discard a colour picked in the same press.
+ * The order (material, colour, hardware, handle, depth) is load-bearing: a depth change rebuilds every body so it
+ * must see the same press's material; the store applies the last result, whose effect `applyCommandResult` reads
+ * the column map from, so depth stays last or a handle result would drop the depth's frozen map; and colour runs
+ * after material because a material change re-resolves `settings.finish` to the new default (ADR 0099
+ * decision 6), which would discard a colour picked in the same press.
  */
 export function preflightWholeKitchenSettings(
   request: WholeKitchenSettingsRequest,
@@ -143,6 +150,8 @@ function planChanges(
         occurredAt: context.occurredAt,
       }),
     );
+  if (isHandleChange(request.handle, applied.handle))
+    planned.push(handleChange(request.handle, context.occurredAt));
   if (isDepthChange(request.cabinetDepthMm, context.design))
     planned.push(depthChange(request.cabinetDepthMm, context));
   return planned;
@@ -163,6 +172,13 @@ function isFinishChange(
 ): requested is Finish {
   if (requested === undefined) return false;
   return applied === undefined || !sameFinish(requested, applied);
+}
+
+function isHandleChange(
+  requested: Handle | undefined,
+  applied: Handle | undefined,
+): requested is Handle {
+  return requested !== undefined && requested !== applied;
 }
 
 /** Read through `cabinetDepthMmOf`, so a document naming no depth is compared against the declared default it
@@ -204,6 +220,13 @@ function finishChange(finish: Finish, occurredAt: string): PlannedChange {
   return {
     setting: "finish",
     run: (design) => setGlobalFinishOnDesign({ design, finish, occurredAt }),
+  };
+}
+
+function handleChange(handle: Handle, occurredAt: string): PlannedChange {
+  return {
+    setting: "handle",
+    run: (design) => setKitchenHandleOnDesign({ design, handle, occurredAt }),
   };
 }
 

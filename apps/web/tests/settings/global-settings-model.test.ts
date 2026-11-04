@@ -6,6 +6,7 @@
 // **Every string this wave added is read from its own catalogue leaf below, never spelled here.**
 // The wording is pinned once, in `tests/support/approved-romanian-messages.ts`; what these pin is
 // which leaf each field asks for, which is the half a copy lock cannot see.
+import { SAMPLE_DEEP_CABINET_PERCENT } from "../support/sample-deep-cabinet-percent";
 import {
   countCabinetsWearingAChosenFinish,
   KITCHEN_L_BODY_CATALOG,
@@ -26,7 +27,7 @@ import { describe, expect, it } from "vitest";
 
 import { swatchOf } from "@lemnaria/three-adapter";
 
-import { describeRoundedAmount } from "@/price/starting-price";
+import { describeTotalAmount } from "@/price/starting-price";
 import {
   offerWholeKitchenTiers,
   type WholeKitchenTierOffer,
@@ -40,9 +41,13 @@ import {
 } from "@/settings/global-settings-model";
 import { GlobalSettingsSurface } from "@/settings/global-settings";
 import { describeEditability } from "@/store/editability";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
+import { NOTHING_DISABLED } from "../support/availability";
 
 function pricingOf(design: Design): PricingResult {
   return priceDesign({
+    deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
     design,
     catalog: KITCHEN_L_BODY_CATALOG,
     book: SAMPLE_PRICE_BOOK,
@@ -53,6 +58,8 @@ function pricingOf(design: Design): PricingResult {
 
 function offerOf(design: Design): WholeKitchenTierOffer {
   return offerWholeKitchenTiers({
+    deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
     design,
     catalog: KITCHEN_L_BODY_CATALOG,
     book: SAMPLE_PRICE_BOOK,
@@ -70,6 +77,7 @@ function inputFor(
   overrides: Partial<DescribeGlobalSettingsInput> = {},
 ): DescribeGlobalSettingsInput {
   return {
+    deepCabinetPercent: SAMPLE_DEEP_CABINET_PERCENT,
     content: overrides.content ?? content,
     pricing: pricingOf(KITCHEN_L_DESIGN),
     offer: offerOf(KITCHEN_L_DESIGN),
@@ -209,7 +217,7 @@ describe("what a tier's badge prints", () => {
         (one) => one.tierId === tier.tierId,
       );
       expect(option?.deltaText, tier.tierId).toBe(
-        `de la +${describeRoundedAmount(tier.deltaMinor)}`,
+        `de la +${describeTotalAmount(tier.deltaMinor)}`,
       );
     }
   });
@@ -501,6 +509,7 @@ describe("a stored tier the book no longer offers", () => {
 
   function withdrawnView(): GlobalSettingsView {
     return describeGlobalSettings({
+      deepCabinetPercent: SAMPLE_DEEP_CABINET_PERCENT,
       content: content,
       pricing: pricingOf(withdrawn),
       offer: offerOf(withdrawn),

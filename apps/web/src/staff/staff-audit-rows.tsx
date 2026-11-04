@@ -8,6 +8,7 @@ import type { AppLocale } from "@/i18n/routing";
 import { useStaffAuditCopy, useStaffKitchensCopy } from "@/i18n/use-content";
 
 import { isolated } from "./bidi-isolate";
+import { dashboardDetailParts } from "./staff-audit-dashboard-details";
 import { dayAndTimeOf, shopRelativeAgeOf } from "./staff-kitchen-dates";
 import styles from "./staff-audit.module.css";
 import listStyles from "./staff-kitchens.module.css";
@@ -64,7 +65,7 @@ function factsOf({
   readonly kitchensCopy: StaffKitchensCopy;
 }): RowFacts {
   const label = actionLabelOf(event.entry, copy);
-  const detail = detailOf(event.entry, copy, kitchensCopy);
+  const detail = detailPartsOf(event.entry, copy, kitchensCopy);
   const clientEmail = event.subject?.email ?? null;
   const clientAddress = clientEmail === null ? [] : [isolated(clientEmail)];
   const objectOf = objectWordsOf({ event, detail, kitchensCopy });
@@ -102,53 +103,73 @@ function actionLabelOf(
     : { text: known, code: undefined };
 }
 
-/** What the action's codes say: the change of status, or the page a list was served as. Nothing a person typed. */
-function detailOf(
+/** What the action's codes say, in the order the log reads them: the change of status, the page a list was served as, or
+ *  what a dashboard action touched. Nothing a person typed. */
+function detailPartsOf(
   entry: StaffAuditEntryWire,
   copy: StaffAuditCopy,
   kitchensCopy: StaffKitchensCopy,
-): string | undefined {
-  if (entry.kind !== "recognised") return undefined;
+): readonly string[] {
+  if (entry.kind !== "recognised") return [];
   switch (entry.action) {
     case "status-changed":
-      return copy.details.statusChanged({
-        from: kitchensCopy.statuses[entry.detail.from],
-        to: kitchensCopy.statuses[entry.detail.to],
-      });
+      return [
+        copy.details.statusChanged({
+          from: kitchensCopy.statuses[entry.detail.from],
+          to: kitchensCopy.statuses[entry.detail.to],
+        }),
+      ];
     case "kitchens-listed":
-      return entry.detail.hasSearch
-        ? copy.details.pageWithSearch(entry.detail)
-        : copy.details.page(entry.detail);
+      return [
+        entry.detail.hasSearch
+          ? copy.details.pageWithSearch(entry.detail)
+          : copy.details.page(entry.detail),
+      ];
     case "audit-viewed": {
       const { hasActorFilter, hasActionFilter, hasDateFilter } = entry.detail;
-      return hasActorFilter || hasActionFilter || hasDateFilter
-        ? copy.details.pageWithFilters(entry.detail)
-        : copy.details.page(entry.detail);
+      return [
+        hasActorFilter || hasActionFilter || hasDateFilter
+          ? copy.details.pageWithFilters(entry.detail)
+          : copy.details.page(entry.detail),
+      ];
     }
+    case "price-draft-changed":
+    case "price-draft-reverted":
+    case "price-bulk-changed":
+    case "price-published":
+    case "price-restored-to-draft":
+    case "catalogue-item-active-changed":
+    case "kitchen-defaults-saved":
+    case "kitchen-seen":
+    case "price-catalogue-viewed":
+      return dashboardDetailParts(entry, copy.dashboard);
     default:
-      return undefined;
+      return [];
   }
 }
 
-/** The kitchen's name stands first; a row that names no kitchen (a list, the log itself, a kitchen the client deleted)
- *  says what it did instead, or a dash. */
+/** The kitchen's name stands first; a row that names no kitchen (a list, the log itself, a dashboard action, a kitchen the
+ *  client deleted) says what it did instead, or a dash. */
 function objectWordsOf({
   event,
   detail,
   kitchensCopy,
 }: {
   readonly event: StaffAuditEventWire;
-  readonly detail: string | undefined;
+  readonly detail: readonly string[];
   readonly kitchensCopy: StaffKitchensCopy;
 }): { readonly primary: string; readonly detail: readonly string[] } {
   const { kitchen } = event;
   if (kitchen === null) {
-    return { primary: detail ?? kitchensCopy.noValue, detail: [] };
+    return {
+      primary: detail[0] ?? kitchensCopy.noValue,
+      detail: detail.slice(1),
+    };
   }
   const name = kitchen.name;
   const primary =
     name === null || name.trim() === "" ? kitchensCopy.noValue : isolated(name);
-  return { primary, detail: detail === undefined ? [] : [detail] };
+  return { primary, detail };
 }
 
 export function AuditTable({

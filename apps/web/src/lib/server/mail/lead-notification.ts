@@ -21,6 +21,7 @@ import {
   type LabelledValue,
   type LeadNoticeView,
   type NoticeAppendixGroup,
+  type NoticeAppendixRow,
   type NoticeAppendixView,
   type NoticeBody,
   type NoticeClientView,
@@ -34,7 +35,10 @@ import {
 } from "@/lib/server/mail/mail-sender";
 import { asciiDomainOfPlainMailbox } from "@/lib/server/mail/plain-mailbox";
 import type { PublicOriginOutcome } from "@/lib/server/public-origin";
-import type { BreakdownGroup } from "@/price/price-breakdown-model";
+import {
+  listWholeKitchenRows,
+  type BreakdownGroup,
+} from "@/price/price-breakdown-model";
 import {
   describeReview,
   rowDetailOf,
@@ -393,7 +397,8 @@ function summaryOf(
   };
 }
 
-/** Every group, row and fact the review shows, in its order: the record of what was sent, whatever the link does. */
+/** Every group, row and fact the review shows, in its order (the depth line among the whole-kitchen rows, worded from
+ *  the stored line's own percent): the record of what was sent, whatever the link does. */
 function appendixOf(
   review: AvailableReview,
   source: KitchenSource,
@@ -404,13 +409,15 @@ function appendixOf(
     groups: review.groups.map((group) =>
       appendixGroupOf(group, { review, line }),
     ),
-    wholeKitchenRows: review.wholeKitchenRows.map((row) =>
-      labelled(
-        "wholeKitchenRow",
-        line("wholeKitchenRow", row.label),
-        row.amountText,
-        line,
-      ),
+    wholeKitchenRows: listWholeKitchenRows(review).map(
+      (row): NoticeAppendixRow => ({
+        label: line("wholeKitchenRow", row.label),
+        value: line("wholeKitchenRow", row.amountText),
+        facts:
+          row.scope === undefined
+            ? []
+            : [line("wholeKitchenRowScope", row.scope)],
+      }),
     ),
   };
 }
@@ -469,18 +476,17 @@ function appendixLines(
   { input, line }: KitchenSource,
 ): string[] {
   const { leadNotice } = input.content;
-  const rowLine = ({ label, value }: LabelledValue) =>
-    line("row", leadNotice.line(label, value));
+  const rowLines = ({ label, value, facts }: NoticeAppendixRow) => [
+    line("row", leadNotice.line(label, value)),
+    ...facts.map((fact) => `${FACT_INDENT}${fact}`),
+  ];
   return [
     appendix.heading,
     ...appendix.groups.flatMap((group) => [
       group.heading,
-      ...group.rows.flatMap((row) => [
-        rowLine(row),
-        ...row.facts.map((fact) => `${FACT_INDENT}${fact}`),
-      ]),
+      ...group.rows.flatMap(rowLines),
     ]),
-    ...appendix.wholeKitchenRows.map(rowLine),
+    ...appendix.wholeKitchenRows.flatMap(rowLines),
   ];
 }
 

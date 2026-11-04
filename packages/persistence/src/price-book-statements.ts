@@ -51,8 +51,8 @@ export function readVersionStatement<Statement>(
 
 /**
  * One statement carries the page and the count, so `total` and the rows come from one snapshot, and an empty page still
- * reports the total (one row with no `id`). Newest first. `change_count` is the stored summary's length and nothing else
- * stores it.
+ * reports the total (one row with no `id`). Newest first. `change_count` is the stored column, written once at publish;
+ * the summary is never loaded here.
  */
 export function listVersionsStatement<Statement>(
   sql: StatementTag<Statement>,
@@ -65,7 +65,7 @@ export function listVersionsStatement<Statement>(
     left join lateral (
       select v.id, v.sequence_number, v.label,
         floor(extract(epoch from v.published_at) * 1000)::bigint::text as published_ms,
-        jsonb_array_length(v.change_summary) as change_count,
+        v.change_count,
         v.sequence_number = (select max(sequence_number) from price_book_versions) as is_active
       from price_book_versions v
       order by v.sequence_number desc
@@ -143,21 +143,24 @@ export interface PublishStatementInput {
   readonly note: string;
   readonly bookJson: string;
   readonly changeSummaryJson: string;
+  /** The prices the summary holds, counted by the store (`countPendingPrices`); never taken from the request. */
+  readonly changeCount: number;
   /** The created items, in order, as two lists of one length: the kind of each, then its id. */
   readonly createdItemKinds: readonly string[];
   readonly createdItemIds: readonly string[];
-  /** The audit detail's members the caller supplies; `sequenceNumber` and `changeCount` are stamped in the statement. */
+  /** The audit detail's members the caller supplies; the statement stamps `sequenceNumber` and `changeCount`. */
   readonly detailJson: string;
   readonly audit: PreparedStaffAuditRecord;
 }
 
 /**
  * The publish, in one statement whose branches depend on one another in this order: `draft_row` locks the draft at the
- * revision read (two publishes meet here first); `moved_head` moves the availability head by `greatest(k, 1)` only while
- * it is still at the revision read, and a head that moved changes no row and then nothing else is written; `reset_draft`,
- * `inserted_version`, `logged` and `audited` follow. The audit row's `sequenceNumber` and `changeCount` are read from the
- * inserted version row. The book is stored with its `version` set to the version's id. The last select reports each
- * branch, and raises `PUBLISH_RACED` for the one state it must not leave. A sequence number taken raises 23505.
+ * revision read (two publishes meet here first); `moved_head` moves the availability head by `greatest(k, 1)` only
+ * while it is still at the revision read, and a head that moved changes no row and then nothing else is written;
+ * `reset_draft`, `inserted_version`, `logged` and `audited` follow. The audit row's `sequenceNumber` and `changeCount`
+ * are read from the inserted version row's columns. The book is stored with its `version` set to the version's id. The
+ * last select reports each branch, and raises `PUBLISH_RACED` for the one state it must not leave. A sequence number
+ * taken raises 23505.
  */
 export function publishStatement<Statement>(
   sql: StatementTag<Statement>,
@@ -207,14 +210,16 @@ export function publishStatement<Statement>(
       returning revision
     ),
     inserted_version as (
-      insert into price_book_versions (id, sequence_number, label, note, book, change_summary, published_by_account_id)
+      insert into price_book_versions (
+        id, sequence_number, label, note, book, change_summary, change_count, published_by_account_id
+      )
       select ${input.versionId}::text, ${input.expectedActiveSequence}::bigint + 1, ${input.label}::text,
         ${input.note}::text,
         ${input.bookJson}::jsonb || jsonb_build_object('version', ${input.versionId}::text),
-        ${input.changeSummaryJson}::jsonb, a.account_id
+        ${input.changeSummaryJson}::jsonb, ${input.changeCount}::int, a.account_id
       from reset_draft
       cross join actor a
-      returning id, sequence_number, jsonb_array_length(change_summary) as change_count
+      returning id, sequence_number, change_count
     ),
     logged as (
       insert into catalogue_availability_changes (revision, item_kind, item_id, active, changed_by_account_id)
@@ -276,9 +281,11 @@ export function seedPriceBookStatement<Statement>(
   const { versionId, label, note, bookJson, ownerAccountId } = input;
   return sql`
     with seeded as (
-      insert into price_book_versions (id, sequence_number, label, note, book, change_summary, published_by_account_id)
+      insert into price_book_versions (
+        id, sequence_number, label, note, book, change_summary, change_count, published_by_account_id
+      )
       select ${versionId}::text, 1, ${label}::text, ${note}::text,
-        ${bookJson}::jsonb, '[]'::jsonb, ${ownerAccountId}::text
+        ${bookJson}::jsonb, '[]'::jsonb, 0, ${ownerAccountId}::text
       where not exists (select 1 from price_book_versions)
         and exists (select 1 from accounts where id = ${ownerAccountId}::text)
       returning id
