@@ -105,10 +105,8 @@ describe("isDesignRevisionShape at its edges", () => {
     expect(isDesignRevisionShape(LARGEST_BIGINT_COLUMN_VALUE)).toBe(true);
   });
 
-  // QA finding 12, as built and the same in persistence's `isDesignRevision`: the shape is nineteen digits,
-  // not a bigint's range, so it lets through values the column cannot hold.
-  it("as built: accepts nineteen digits past a bigint column's largest value", () => {
-    expect(isDesignRevisionShape("9223372036854775808")).toBe(true);
-    expect(isDesignRevisionShape("9".repeat(19))).toBe(true);
+  it("refuses nineteen digits past a bigint column's largest value", () => {
+    expect(isDesignRevisionShape("9223372036854775808")).toBe(false);
+    expect(isDesignRevisionShape("9".repeat(19))).toBe(false);
   });
 });

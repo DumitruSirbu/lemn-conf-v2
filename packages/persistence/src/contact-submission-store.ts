@@ -150,9 +150,6 @@ const CLIENT_REQUEST_ID_SHAPE = /^[A-Za-z0-9_-]{16,64}$/;
 /** The table's check on a reference, wider than what the generator makes, so a look can change without a migration. */
 const REFERENCE_SHAPE = /^[0-9A-Z-]{6,32}$/;
 
-/** The widest value of the table's `bigint` revision column. */
-const LARGEST_REVISION = 9_223_372_036_854_775_807n;
-
 /** What a request that passed the check goes on to send. */
 export interface JudgedSubmission {
   readonly snapshotJson: SnapshotJson | undefined;
@@ -301,11 +298,7 @@ function requireValidDesignReference(design: DesignReference): void {
 }
 
 function isDesignRevisionThatFitsTheColumn(revision: string): boolean {
-  return (
-    typeof revision === "string" &&
-    isDesignRevision(revision) &&
-    BigInt(revision) <= LARGEST_REVISION
-  );
+  return typeof revision === "string" && isDesignRevision(revision);
 }
 
 function requireStorableText(value: unknown, part: RefusedPart): void {

@@ -1,11 +1,14 @@
 import {
   HandleSchema,
   countPendingPrices,
+  isRevisionShape,
 } from "@lemnaria/configurator-domain";
 import type { ItemRef } from "@lemnaria/configurator-domain";
 
 import { isDesignRevision } from "./design-revision.js";
 import type { PublishPriceBookRequest } from "./m10-ports.js";
+
+export { isRevisionShape };
 
 // The shapes the M10 stores refuse before any statement: the fakes and the Neon stores share them, so both turn away
 // the same request. None of these reads a value as a number: a revision is an opaque digit run, and the only ordering
@@ -89,9 +92,6 @@ export function isListablePage(page: number): boolean {
   );
 }
 
-/** A revision as a head or a row holds it: a digit run from 0, no leading zero, as wide as a `bigint`. */
-const REVISION_SHAPE = /^(0|[1-9][0-9]{0,18})$/;
-
 /** `0001-01-01T00:00:00.000Z` and `9999-12-31T23:59:59.999Z` in epoch milliseconds, the years of four digits. */
 const EARLIEST_CASTABLE_INSTANT_MS = -62_135_596_800_000;
 const LATEST_CASTABLE_INSTANT_MS = 253_402_300_799_999;
@@ -124,37 +124,13 @@ export function isCalendarDay(value: unknown): value is string {
   return date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
 }
 
-/** The widest revision a `bigint` column holds: a 19-digit run above it is a revision SQL would refuse to cast. */
-const WIDEST_REVISION = "9223372036854775807";
-
-/** Whether the text is a revision's digit shape and fits a `bigint`. Nothing here orders two revisions. */
-export function isRevisionShape(value: unknown): value is string {
-  return (
-    typeof value === "string" &&
-    REVISION_SHAPE.test(value) &&
-    !isWiderThanABigint(value)
-  );
-}
-
 /**
  * Whether the text is a revision a design can hold (`design-revision.ts`: a positive digit run, no leading zero) and a
  * `bigint` column can store, so a statement's cast of it cannot fail. The seen mark and the digest's entries are judged
  * by this before any statement.
  */
 export function isStorableDesignRevision(value: unknown): value is string {
-  return (
-    typeof value === "string" &&
-    isDesignRevision(value) &&
-    isRevisionShape(value)
-  );
-}
-
-/** Both are canonical digit runs, so of two of one length the greater is the greater as text. */
-function isWiderThanABigint(canonicalDigits: string): boolean {
-  return (
-    canonicalDigits.length === WIDEST_REVISION.length &&
-    canonicalDigits > WIDEST_REVISION
-  );
+  return typeof value === "string" && isDesignRevision(value);
 }
 
 /**

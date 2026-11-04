@@ -26,7 +26,7 @@ describe("isDesignId", () => {
 });
 
 describe("isDesignRevisionShape", () => {
-  it.each(["1", "9", "10", "9007199254740993", "9".repeat(19)])(
+  it.each(["1", "9", "10", "9007199254740993", "9223372036854775807"])(
     "accepts %s",
     (revision) => {
       expect(isDesignRevisionShape(revision)).toBe(true);
@@ -43,6 +43,7 @@ describe("isDesignRevisionShape", () => {
     "1\n",
     "-1",
     "1.5",
+    "9".repeat(19),
     "9".repeat(20),
   ])("refuses %j", (revision) => {
     expect(isDesignRevisionShape(revision)).toBe(false);

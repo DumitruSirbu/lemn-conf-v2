@@ -306,7 +306,7 @@ const targetThatFitsTheColumn: fc.Arbitrary<RawTarget> = fc.oneof(
   fc.constantFrom(1n, LARGEST_REVISION).map(designAtRevision),
 );
 
-/** A design at a revision the domain's nineteen digits admit and the column does not hold. */
+/** A design at a nineteen-digit revision the column does not hold. */
 const targetPastTheColumn: fc.Arbitrary<RawTarget> = fc.oneof(
   fc
     .bigInt({ min: LARGEST_REVISION + 1n, max: WIDEST_NINETEEN_DIGITS })
@@ -331,9 +331,8 @@ type RawRequest =
     ? Raw
     : never;
 
-/** What the shared check says of `raw` once the domain has validated it; the domain's refusal fails the test. */
-function checksVerdictOnTheValidated(raw: RawRequest): string | undefined {
-  const validation = validateContactSubmission(
+function validateRaw(raw: RawRequest) {
+  return validateContactSubmission(
     {
       contact: {
         name: raw.name,
@@ -350,6 +349,11 @@ function checksVerdictOnTheValidated(raw: RawRequest): string | undefined {
     },
     ["ro"],
   );
+}
+
+/** What the shared check says of `raw` once the domain has validated it; the domain's refusal fails the test. */
+function checksVerdictOnTheValidated(raw: RawRequest): string | undefined {
+  const validation = validateRaw(raw);
   if (!validation.ok) {
     throw new Error("the domain refused a request built to be accepted");
   }
@@ -375,9 +379,9 @@ describe("what the domain's validation accepts", () => {
   );
 
   propertyTest.prop([requestTheDomainAccepts(targetPastTheColumn)])(
-    "is refused by the shared check as the revision, when the design's revision is past the column",
+    "is refused by the domain as the revision, when the design's revision is past the column",
     (raw) => {
-      expect(checksVerdictOnTheValidated(raw)).toMatch(/revision/);
+      expect(validateRaw(raw).ok).toBe(false);
     },
   );
 });

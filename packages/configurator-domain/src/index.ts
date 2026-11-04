@@ -306,6 +306,7 @@ export {
 export * from "./fixtures/kitchen-l-design.js";
 export * from "./serialize-design.js";
 export * from "./repository.js";
+export * from "./revision-shape.js";
 export * from "./migrate-design.js";
 // The room a customer types, judged against policy data (ADR 0108). The policy is a parameter of the
 // validator, and the owner-approved one is exported for `apps/web`'s composition root to hand in. The
