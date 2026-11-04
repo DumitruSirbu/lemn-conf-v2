@@ -124,7 +124,7 @@ export interface StoredPriceVersion extends ActivePriceVersion {
   readonly note: string;
   /**
    * The published `DraftChange[]` as a JSON array, with minted ids and group ids (m8). `changeCount` is the number of
-   * prices it holds (`countPendingPrices`).
+   * prices it holds (`countPendingPrices`), computed by the store at publish and stored with the version.
    */
   readonly changeSummary: unknown;
 }
@@ -135,7 +135,10 @@ export interface PriceVersionSummary {
   readonly label: string;
   readonly state: "active" | "archived";
   readonly publishedAt: Date;
-  /** The prices the stored change summary holds (`countPendingPrices`), derived and stored nowhere else (X0-5, m8). */
+  /**
+   * The prices the stored change summary holds (`countPendingPrices`), computed by the store at publish and stored with
+   * the version.
+   */
   readonly changeCount: number;
 }
 
@@ -217,7 +220,7 @@ export interface PublishPriceBookRequest {
   readonly book: unknown;
   /**
    * The published `DraftChange[]`, as a JSON array (m8). It is stored whole; `changeCount` is the number of prices it
-   * holds (`countPendingPrices`).
+   * holds (`countPendingPrices`), computed by the store at publish and stored with the version.
    */
   readonly changeSummary: unknown;
   /** The availability head the publisher read. A publish takes the same compare-and-set as an availability write (M1). */
@@ -226,7 +229,7 @@ export interface PublishPriceBookRequest {
   readonly createdItems: readonly ItemRef[];
   /**
    * `price-published` without `sequenceNumber` and `changeCount`. The store fills both: the sequence it inserted and the
-   * length of the change summary it stored. A value forced into either through a cast is overwritten.
+   * count of the prices it stored. A value forced into either through a cast is overwritten.
    */
   readonly audit: PublishAuditRecord;
 }

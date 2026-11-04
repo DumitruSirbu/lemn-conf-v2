@@ -285,30 +285,55 @@ describe("a stored version that is not what the store declares", () => {
     expect(text).not.toContain("EXTRA-CHANGE-MARKER-33");
   });
 
-  it.each([
-    ["a list of numbers", [1, 2, 3]],
-    [
-      "a list holding a change with a script for a value",
-      [{ address: ANCHOR_ADDRESS, value: "<script>STORED-XSS-41</script>" }],
-    ],
-  ])(
-    "whose change summary is %s is a 503 with no detail on the detail",
-    async (_title, changeSummary) => {
-      const { cookie, tokenHash } = await administrator();
-      await storeVersion(tokenHash, {
-        book: SAMPLE_PRICE_BOOK,
-        changeSummary: changeSummary as never,
-      });
-      const id = await newestVersionId();
-      expect(id).not.toBe(prices.versionId);
+  it("whose change summary is a list holding a change with a script for a value is a 503 with no detail on the detail", async () => {
+    const { cookie, tokenHash } = await administrator();
+    await storeVersion(tokenHash, {
+      book: SAMPLE_PRICE_BOOK,
+      changeSummary: [
+        { address: ANCHOR_ADDRESS, value: "<script>STORED-XSS-41</script>" },
+      ],
+    });
+    const id = await newestVersionId();
+    expect(id).not.toBe(prices.versionId);
 
-      const detail = await readVersion(id, { cookie });
+    const detail = await readVersion(id, { cookie });
 
-      expect(detail.status).toBe(503);
-      expect(await detail.text()).not.toContain("STORED-XSS-41");
-      expect(console_.everything()).not.toContain("STORED-XSS-41");
-    },
-  );
+    expect(detail.status).toBe(503);
+    expect(await detail.text()).not.toContain("STORED-XSS-41");
+    expect(console_.everything()).not.toContain("STORED-XSS-41");
+  });
+
+  // The store refuses a summary of numbers at a publish, but the table has no check on an entry's shape, so a row written
+  // out of band can hold one: the reader is shown it by a store that answers with the row, as the versions route's own
+  // test does.
+  it("whose change summary is a list of numbers is a 503 with no detail on the detail", async () => {
+    const { cookie, tokenHash } = await administrator();
+    await storeVersion(tokenHash, {
+      book: SAMPLE_PRICE_BOOK,
+      changeSummary: [],
+    });
+    const id = await newestVersionId();
+    const real = prices.stores.priceBook.readVersion.bind(
+      prices.stores.priceBook,
+    );
+    vi.spyOn(prices.stores.priceBook, "readVersion").mockImplementation(
+      async (versionId) => {
+        const read = await real(versionId);
+        return read.kind === "found"
+          ? {
+              kind: "found",
+              version: { ...read.version, changeSummary: [1, 2, 3] },
+            }
+          : read;
+      },
+    );
+
+    const detail = await readVersion(id, { cookie });
+
+    expect(detail.status).toBe(503);
+    expect(await detail.text()).not.toContain("[1,2,3]");
+    expect(console_.everything()).not.toContain("[1,2,3]");
+  });
 
   it("whose book is unparseable is a 503 on the detail and the restore, with no row written by either", async () => {
     const { cookie, tokenHash } = await administrator();

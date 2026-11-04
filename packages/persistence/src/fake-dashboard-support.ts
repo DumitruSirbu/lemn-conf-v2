@@ -5,6 +5,7 @@ import type {
 } from "@lemnaria/configurator-domain";
 import { nanoid } from "nanoid";
 
+import { itemIdOf } from "./dashboard-store-shapes.js";
 import { DashboardStoreError } from "./m10-ports.js";
 import type {
   ActivationAuditRecord,
@@ -21,6 +22,15 @@ type StagedAuditRecord =
   | DashboardAuditRecord
   | ActivationAuditRecord
   | PublishAuditRecord;
+
+// The shapes the fakes and the Neon stores share live in `dashboard-store-shapes.ts`; these are re-exported so the
+// fakes' tests keep importing them from here.
+export {
+  isJsonObject,
+  isNamedItem,
+  isRevisionShape,
+  itemIdOf,
+} from "./dashboard-store-shapes.js";
 
 // What the M10 fakes share: the audit log a staff write commits to, the stand-ins for what SQL does to a revision, and
 // the small judgements every fake repeats.
@@ -44,51 +54,14 @@ export function settle<Answer>(
   }
 }
 
-/** The id an item is known by within its kind, as the audit detail names it. */
-export function itemIdOf(item: ItemRef): string {
-  switch (item.kind) {
-    case "material":
-    case "hardware":
-      return item.tierId;
-    case "finish":
-      return item.finishId;
-    case "handle":
-      return item.handle;
-    case "accessory":
-      return item.accessoryId;
-  }
-}
-
 export function itemKeyOf(item: ItemRef): string {
   return `${item.kind}:${itemIdOf(item)}`;
 }
 
-export function isNamedItem(item: ItemRef): boolean {
-  const id: unknown = itemIdOf(item);
-  return typeof id === "string" && id !== "";
-}
-
-export function isJsonObject(value: unknown): boolean {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-/** A revision as a head or a row holds it: a digit run from 0, no leading zero, as wide as a `bigint`. */
-const REVISION_SHAPE = /^(0|[1-9][0-9]{0,18})$/;
-
-/** The widest revision a `bigint` column holds: a 19-digit run above it is a revision SQL would refuse to cast. */
-const WIDEST_REVISION = "9223372036854775807";
-
-export function isRevisionShape(value: unknown): value is string {
-  return (
-    typeof value === "string" &&
-    REVISION_SHAPE.test(value) &&
-    !isRevisionAhead(value, WIDEST_REVISION)
-  );
-}
-
 /**
  * Whether `candidate` is greater than `head`, as `candidate::bigint > head::bigint` is in SQL. Both are canonical digit
- * runs, so a longer one is the greater, and two of one length order as text. Nothing here parses a revision.
+ * runs, so a longer one is the greater, and two of one length order as text. Nothing here parses a revision. For the
+ * fakes alone: the Neon stores compare in SQL and have no ordering of revisions.
  */
 export function isRevisionAhead(candidate: string, head: string): boolean {
   if (candidate.length !== head.length) return candidate.length > head.length;
@@ -147,6 +120,8 @@ export interface StageDashboardAuditRequest {
   readonly provisional?: Readonly<Record<string, unknown>>;
   /** Required exactly when the action names a kitchen. */
   readonly designId?: string;
+  /** A write only an administrator's live session may make, as Neon's actor test for the price book and the log. */
+  readonly onlyAdministrators?: boolean;
 }
 
 export interface FakeDashboardAuditLedgerOptions {
@@ -176,9 +151,9 @@ export class FakeDashboardAuditLedger {
   async stage(
     request: StageDashboardAuditRequest,
   ): Promise<StagedDashboardAudit> {
-    const { operation, record, designId } = request;
+    const { designId } = request;
     const entry = this.requireAcceptedEntry(request);
-    const actorAccountId = await this.liveActorOf(operation, record);
+    const actorAccountId = await this.liveActorOf(request);
     let isCommitted = false;
     return {
       actorAccountId,
@@ -225,14 +200,16 @@ export class FakeDashboardAuditLedger {
     return reading.entry;
   }
 
-  private async liveActorOf(
-    operation: DashboardStoreOperation,
-    record: StagedAuditRecord,
-  ): Promise<string> {
+  private async liveActorOf({
+    operation,
+    record,
+    onlyAdministrators = false,
+  }: StageDashboardAuditRequest): Promise<string> {
     const lookup = await this.findLive(operation, record);
-    if (lookup.kind === "none") {
-      throw new DashboardStoreError(operation, "not-recorded");
-    }
+    const isActor =
+      lookup.kind !== "none" &&
+      (!onlyAdministrators || lookup.account.role === "administrator");
+    if (!isActor) throw new DashboardStoreError(operation, "not-recorded");
     return lookup.account.id;
   }
 

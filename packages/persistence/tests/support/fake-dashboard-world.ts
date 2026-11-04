@@ -47,22 +47,22 @@ export function newFakeDashboardWorld(): FakeDashboardWorld {
   let tick = 0;
   const now = () =>
     new Date(STORE_CLOCK_START_MS + STORE_CLOCK_STEP_MS * tick++);
-  const accountIds = new Set<string>();
+  const roleByAccountId = new Map<string, "administrator" | "operator">();
   const sessions = new FakeSessionStore({
     now: () => new Date(SESSIONS_NOW_MS),
     accountOf: (accountId) =>
-      accountIds.has(accountId)
+      roleByAccountId.has(accountId)
         ? {
             id: accountId,
             email: `staff-${accountId}@example.invalid`,
-            role: "administrator",
+            role: roleByAccountId.get(accountId) ?? "administrator",
             isEmailVerified: true,
           }
         : undefined,
     passwordHashOf: (accountId) =>
-      accountIds.has(accountId) ? PASSWORD_HASH : undefined,
+      roleByAccountId.has(accountId) ? PASSWORD_HASH : undefined,
     passwordChangedAtOf: (accountId) =>
-      accountIds.has(accountId)
+      roleByAccountId.has(accountId)
         ? new Date("2026-01-01T00:00:00.000Z")
         : undefined,
   });
@@ -76,9 +76,11 @@ export function newFakeDashboardWorld(): FakeDashboardWorld {
   const changes = new FakeKitchenChangeStore({ now, ledger });
   const notice = new FakePriceNoticeStore({ priceBook, availability });
 
-  async function signedIn(): Promise<DashboardStaffMember> {
+  async function signedIn(
+    role: "administrator" | "operator" = "administrator",
+  ): Promise<DashboardStaffMember> {
     const accountId = nanoid();
-    accountIds.add(accountId);
+    roleByAccountId.set(accountId, role);
     const sessionTokenHash = randomBytes(32).toString("hex");
     await sessions.create({
       tokenHash: sessionTokenHash,
@@ -99,7 +101,8 @@ export function newFakeDashboardWorld(): FakeDashboardWorld {
     defaults,
     changes,
     notice,
-    aStaffMember: signedIn,
+    aStaffMember: () => signedIn(),
+    aStaffMemberWhoIsNotAnAdministrator: () => signedIn("operator"),
     async aStaffMemberWhoseSessionIsRevoked() {
       const member = await signedIn();
       await sessions.revoke(member.session.sessionTokenHash);

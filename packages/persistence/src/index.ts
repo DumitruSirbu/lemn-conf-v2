@@ -494,6 +494,11 @@ export type {
 } from "./fake-kitchen-change-store.js";
 export { FakePriceNoticeStore } from "./fake-price-notice-store.js";
 export type { FakePriceNoticeStoreOptions } from "./fake-price-notice-store.js";
+// The Neon stores of the price book and the availability log (migrations 0023 to 0025), and the test-only appender.
+export { NeonPriceBookStore } from "./neon-price-book-store.js";
+export { NeonCatalogueAvailabilityStore } from "./neon-catalogue-availability-store.js";
+export { appendPriceVersionForTests } from "./append-price-version-for-tests.js";
+export type { AppendedPriceVersion } from "./append-price-version-for-tests.js";
 export { loadEnvLocal } from "./load-env.js";
 export {
   assertSafeTestDatabaseUrl,

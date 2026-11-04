@@ -95,4 +95,69 @@ describe("the count of prices a draft holds", () => {
       countPendingPrices([{ value: 1 } as unknown as DraftChange, ANCHOR]),
     ).toBe(2);
   });
+
+  describe("never throws on a summary read from storage, and never counts more prices than it has entries", () => {
+    const createdClass = change(
+      { kind: "hardware-tier-created", tierId: "created" },
+      { name: "N", description: "D" },
+    );
+    const textOf = (item: unknown) =>
+      change({ kind: "created-row-text", item, field: "name" }, "words");
+    const deletionOf = (item: unknown) =>
+      change({ kind: "item-deleted", item }, true);
+
+    it.each([
+      ["null", [null]],
+      ["undefined", [undefined]],
+      ["a number", [42]],
+      ["a string", ["x"]],
+      ["an array", [[ANCHOR]]],
+      ["a deletion naming no row", [deletionOf(null)]],
+      ["a deletion naming a string", [deletionOf("hardware")]],
+      [
+        "a deletion naming a row of unknown kind",
+        [deletionOf({ kind: "bogus" })],
+      ],
+      ["the text of a created row naming no row", [createdClass, textOf(null)]],
+    ])("%s", (_name, entries) => {
+      const summary = entries as unknown as readonly DraftChange[];
+
+      const counted = countPendingPrices(summary);
+
+      expect(counted).toBeLessThanOrEqual(summary.length);
+    });
+
+    it("counts two deletions of an item with no id as two prices", () => {
+      const summary = [
+        deletionOf({ kind: "material" }),
+        deletionOf({ kind: "material" }),
+      ];
+
+      expect(countPendingPrices(summary)).toBe(2);
+    });
+
+    it("does not absorb a price set on a tier with no id into the deletion of an item with no id", () => {
+      const summary = [
+        deletionOf({ kind: "hardware" }),
+        change(
+          { kind: "hardware", tierId: undefined, field: "perHingeMinor" },
+          1_000,
+        ),
+      ];
+
+      expect(countPendingPrices(summary)).toBe(2);
+    });
+
+    it("counts each entry it cannot address as one price of its own, joining no row", () => {
+      const summary = [
+        null,
+        undefined,
+        deletionOf(null),
+        createdClass,
+        textOf(null),
+      ] as unknown as readonly DraftChange[];
+
+      expect(countPendingPrices(summary)).toBe(5);
+    });
+  });
 });
