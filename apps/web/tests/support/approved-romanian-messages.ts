@@ -2172,6 +2172,21 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       createAction: "Creează accesoriul",
       createdNotice:
         "Accesoriul a fost creat în „De publicat”. Îl activezi după ce publici.",
+      // Drafted, not approved: the accessory screens' own words for a creation, a rename, a deletion and a refused link.
+      activeHintNew:
+        "Un accesoriu nou se creează inactiv. Îl activezi după ce îi publici prețul.",
+      linkPlaceholder: "Alege tipul de dulap",
+      linkRefused:
+        "Accesoriul nu poate fi legat de acest tip de dulap. Alege altul din listă.",
+      createRefused:
+        "Accesoriul nu poate fi adăugat așa. Nu am schimbat nimic; verifică numele, tipul de dulap și prețul.",
+      renameAction: "Redenumește",
+      deleteHeading: "Șterge accesoriul",
+      deleteHint:
+        "Poți șterge doar un accesoriu creat aici și nefolosit în bucătării salvate. Altfel, dezactivează-l.",
+      deleteAction: "Șterge accesoriul",
+      deleteNotice: "Ștergerea intră în vigoare când publici.",
+      createdRemoved: "Accesoriul a fost scos din „De publicat”.",
     },
     lifecycle: {
       deactivateTitle: "Dezactivezi „{name}”?",
@@ -2222,6 +2237,23 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       counting: "Numărăm bucătăriile salvate care folosesc această opțiune…",
       deleteCreatedBody:
         "Opțiunea nu a fost încă publicată. Ștergerea o scoate din „De publicat”.",
+      // Drafted, not approved: the dialogs' words for an accessory, which is earned and never chosen, so none says "option".
+      usedByAccessory:
+        "{count, plural, one {O bucătărie salvată îl folosește} few {{count, number, ::group-off} bucătării salvate îl folosesc} other {{count, number, ::group-off} de bucătării salvate îl folosesc}}.",
+      clientsNoLongerGetAccessory: "Clienții nu îl mai primesc în bucătărie.",
+      activateAccessoryBody: "Accesoriul se adaugă din nou în bucătării.",
+      usageUnavailableAccessory:
+        "Nu am putut număra bucătăriile salvate care folosesc acest accesoriu, așa că nu schimbăm nimic acum. Încearcă din nou.",
+      countingAccessory:
+        "Numărăm bucătăriile salvate care folosesc acest accesoriu…",
+      builtInAccessoryCannotBeDeleted:
+        "Vine odată cu catalogul și nu se șterge. Îl poți dezactiva.",
+      deleteCreatedAccessoryBody:
+        "Accesoriul nu a fost încă publicat. Ștergerea îl scoate din „De publicat”.",
+      alwaysPresentCannotChange:
+        "Se adaugă întotdeauna, ca protecție, și nu se dezactivează.",
+      alwaysPresentCannotBeDeleted:
+        "Se adaugă întotdeauna, ca protecție, și nu se șterge.",
     },
     publish: {
       title: "Publicare prețuri",

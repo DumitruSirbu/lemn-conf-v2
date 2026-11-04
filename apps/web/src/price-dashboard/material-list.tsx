@@ -31,10 +31,10 @@ import {
   isStillUsed,
   MaterialChips,
   materialReasonsOf,
-  MaterialUnavailableScreen,
   surchargeWords,
 } from "./material-parts";
 import { materialPathOf } from "./material-paths";
+import { ItemUnavailableScreen } from "./catalog-states";
 import styles from "./material.module.css";
 import type { PriceDraftClient } from "./price-draft-client";
 import { useMaterialDesk, type MaterialDesk } from "./use-material-desk";
@@ -65,7 +65,13 @@ export function MaterialListScreen({
   const desk = useMaterialDesk({ page, client, lifecycleClient });
   const { derivation } = desk;
   if (derivation.kind === "unreadable") {
-    return <MaterialUnavailableScreen locale={locale} context={context} />;
+    return (
+      <ItemUnavailableScreen
+        locale={locale}
+        context={context}
+        page="materials"
+      />
+    );
   }
   const shell = {
     ...context,

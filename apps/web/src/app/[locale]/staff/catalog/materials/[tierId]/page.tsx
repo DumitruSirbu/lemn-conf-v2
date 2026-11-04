@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 
 import { routing } from "@/i18n/routing";
 import { MaterialEditScreen } from "@/price-dashboard/material-edit";
-import { MaterialUnavailableScreen } from "@/price-dashboard/material-parts";
+import { ItemUnavailableScreen } from "@/price-dashboard/catalog-states";
 import { readMaterial } from "@/price-dashboard/material-source";
 
 import {
@@ -51,7 +51,11 @@ export default async function MaterialPage({ params }: MaterialPageProps) {
           tierId={id}
         />
       ) : (
-        <MaterialUnavailableScreen locale={locale} context={shell} />
+        <ItemUnavailableScreen
+          locale={locale}
+          context={shell}
+          page="materials"
+        />
       );
     },
   });

@@ -92,6 +92,7 @@ describe("a person who is signed in as staff", () => {
         "cabinets",
         "hardware",
         "materials",
+        "accessories",
         "defaults",
         "publish",
       ],

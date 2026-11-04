@@ -168,6 +168,7 @@ describe("what the catalog gate shows each caller, held against the staff gate",
       "cabinets",
       "hardware",
       "materials",
+      "accessories",
       "defaults",
       "publish",
     ]);

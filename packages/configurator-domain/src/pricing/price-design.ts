@@ -30,7 +30,6 @@ import {
   NoPriceForSizeError,
 } from "./anchored-price-formula.js";
 import {
-  isItemDisabled,
   type CatalogueAvailability,
   type ItemRef,
 } from "./catalogue-availability.js";
@@ -59,6 +58,7 @@ import {
   DEPTH_RULE_ID,
   exactAmountOfTerms,
   InexactPriceArithmeticError,
+  isAccessorySwitchedOff,
   MalformedPriceCoefficientError,
   usableCoefficientOf,
   type CabinetPriceRule,
@@ -989,7 +989,7 @@ function isSwitchedOff(
   availability: CatalogueAvailability,
   accessoryId: string,
 ): boolean {
-  return isItemDisabled(availability, { kind: "accessory", accessoryId });
+  return isAccessorySwitchedOff(availability, accessoryId);
 }
 
 /** What a rule must state to be billed: a built-in's rule (keyed words, a required description) and a linked one's

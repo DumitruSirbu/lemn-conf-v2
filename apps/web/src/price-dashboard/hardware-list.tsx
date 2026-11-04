@@ -17,14 +17,10 @@ import {
   type ReadyHardware,
 } from "./hardware-model";
 import { hardwareNameOf } from "./hardware-names";
-import {
-  ClassChips,
-  hardwareItemOf,
-  HardwareUnavailableScreen,
-  reasonsOf,
-} from "./hardware-parts";
+import { ClassChips, hardwareItemOf, reasonsOf } from "./hardware-parts";
 import { hardwareClassPathOf, hardwareNewPathOf } from "./hardware-paths";
 import { HARDWARE_RATE_WORDS } from "./hardware-rate-words";
+import { ItemUnavailableScreen } from "./catalog-states";
 import styles from "./hardware.module.css";
 import { formatLei, formatLeiAmount } from "./format-lei";
 import { ItemDeskNotice, ItemDialogs } from "./item-dialogs";
@@ -64,7 +60,13 @@ export function HardwareListScreen({
   const desk = useHardwareDesk({ page, client, lifecycleClient });
   const { derivation } = desk;
   if (derivation.kind === "unreadable") {
-    return <HardwareUnavailableScreen locale={locale} context={context} />;
+    return (
+      <ItemUnavailableScreen
+        locale={locale}
+        context={context}
+        page="hardware"
+      />
+    );
   }
   const shell = {
     ...context,

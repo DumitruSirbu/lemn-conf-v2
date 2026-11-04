@@ -12,6 +12,7 @@ import type { ContentTranslator } from "@/i18n/content";
 
 import styles from "./item-dialogs.module.css";
 import type { ItemFailure, ItemFlow, UsageStand } from "./item-flows";
+import { dialogLeavesOf } from "./item-dialog-leaves";
 import { itemFailureWords } from "./item-lifecycle-words";
 import type { ItemAvailabilityDesk } from "./use-item-availability";
 
@@ -53,17 +54,17 @@ export function ItemDialogs({
 }
 
 export interface ItemDeskNoticeProps {
-  readonly desk: Pick<ItemAvailabilityDesk, "flow" | "failure" | "isReading">;
+  readonly desk: Pick<ItemAvailabilityDesk, "flow" | "failure" | "readingItem">;
 }
 
 /** What the desk says where no dialog is open: that the saved kitchens are being counted, and the answer to a
  *  confirmation after which its dialog closed. */
 export function ItemDeskNotice({ desk }: ItemDeskNoticeProps) {
   const translate = useTranslations();
-  if (desk.isReading) {
+  if (desk.readingItem !== undefined) {
     return (
       <FormNotice tone="info">
-        {translate("priceDashboard.lifecycle.counting")}
+        {translate(dialogLeavesOf(desk.readingItem).counting)}
       </FormNotice>
     );
   }
@@ -145,7 +146,7 @@ function DeactivateDialog({
           remainingNames: remaining.map(nameOf),
         })}
       />
-      <UsageNotice usage={usage} />
+      <UsageNotice usage={usage} item={item} />
       <FailureNotice failure={desk.failure} />
     </AccountDialog>
   );
@@ -165,7 +166,7 @@ function ActivateDialog({
       title={translate("priceDashboard.lifecycle.activateTitle", {
         name: nameOf(flow.item),
       })}
-      description={translate("priceDashboard.lifecycle.activateBody")}
+      description={translate(dialogLeavesOf(flow.item).activateBody)}
       returnFocusFallbackRef={returnFocusFallbackRef}
       confirm={{
         label: translate("priceDashboard.lifecycle.activateConfirm"),
@@ -218,8 +219,8 @@ function DeleteDialog({
       })}
       description={translate(
         flow.isDraftOnly
-          ? "priceDashboard.lifecycle.deleteCreatedBody"
-          : "priceDashboard.lifecycle.deleteBody",
+          ? dialogLeavesOf(flow.item).deleteCreatedBody
+          : dialogLeavesOf(flow.item).deleteBody,
       )}
       returnFocusFallbackRef={returnFocusFallbackRef}
       confirm={{
@@ -234,7 +235,7 @@ function DeleteDialog({
         onPress: desk.dismiss,
       }}
     >
-      <UsageNotice usage={flow.usage} />
+      <UsageNotice usage={flow.usage} item={flow.item} />
       <FailureNotice failure={desk.failure} />
     </AccountDialog>
   );
@@ -292,29 +293,12 @@ function deleteBlockedWords(
   { item, isOn, count }: FlowOf<"delete-blocked">,
   name: string,
 ): string {
-  const isAccessory = item.kind === "accessory";
-  if (!isOn) {
-    return translate(
-      isAccessory
-        ? "priceDashboard.lifecycle.deleteBlockedAccessoryInactiveBody"
-        : "priceDashboard.lifecycle.deleteBlockedInactiveBody",
-      { name },
-    );
-  }
+  const leaves = dialogLeavesOf(item);
+  if (!isOn) return translate(leaves.deleteBlockedInactiveBody, { name });
   if (count === undefined) {
-    return translate(
-      isAccessory
-        ? "priceDashboard.lifecycle.deleteBlockedAccessoryUncountedBody"
-        : "priceDashboard.lifecycle.deleteBlockedUncountedBody",
-      { name },
-    );
+    return translate(leaves.deleteBlockedUncountedBody, { name });
   }
-  return translate(
-    isAccessory
-      ? "priceDashboard.lifecycle.deleteBlockedAccessoryBody"
-      : "priceDashboard.lifecycle.deleteBlockedBody",
-    { name, count },
-  );
+  return translate(leaves.deleteBlockedBody, { name, count });
 }
 
 function ClosingDialog({
@@ -374,7 +358,7 @@ function WhatHappens({
 
 /** What a switch-off does, in the order the person reads it: who is affected, what customers can no longer do, what a
  *  saved kitchen is asked, that it applies now and what stays on offer. A line about use is left out where nobody could
- *  be counted or none use the item. */
+ *  be counted or none use the item. An accessory is earned, not chosen, so it is told as one. */
 function deactivationLines({
   translate,
   item,
@@ -388,20 +372,11 @@ function deactivationLines({
 }): readonly string[] {
   const count = usage.kind === "counted" ? usage.count : 0;
   const isUsed = count > 0;
+  const leaves = dialogLeavesOf(item);
   return [
-    ...(isUsed
-      ? [translate("priceDashboard.lifecycle.usedBy", { count })]
-      : []),
-    translate("priceDashboard.lifecycle.clientsCannotChoose"),
-    ...(isUsed
-      ? [
-          translate(
-            item.kind === "accessory"
-              ? "priceDashboard.lifecycle.accessoryRemovedExplained"
-              : "priceDashboard.lifecycle.replacementExplained",
-          ),
-        ]
-      : []),
+    ...(isUsed ? [translate(leaves.usedBy, { count })] : []),
+    translate(leaves.clientsCannotChoose),
+    ...(isUsed ? [translate(leaves.consequenceOfUse)] : []),
     translate("priceDashboard.lifecycle.appliesImmediately"),
     ...(remainingNames.length === 0
       ? []
@@ -414,12 +389,18 @@ function deactivationLines({
 }
 
 /** Said where the saved kitchens could not be counted: nothing is claimed about them, and the act waits. */
-function UsageNotice({ usage }: { readonly usage: UsageStand }) {
+function UsageNotice({
+  usage,
+  item,
+}: {
+  readonly usage: UsageStand;
+  readonly item: ItemRef;
+}) {
   const translate = useTranslations();
   if (usage.kind === "counted") return null;
   return (
     <FormNotice tone="error">
-      {translate("priceDashboard.lifecycle.usageUnavailable")}
+      {translate(dialogLeavesOf(item).usageUnavailable)}
     </FormNotice>
   );
 }

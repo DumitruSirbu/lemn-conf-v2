@@ -4,6 +4,7 @@
 import * as fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
+import { ALWAYS_PRESENT_ACCESSORY_ID } from "../../src/pricing/price-book.js";
 import type { Design, DesignSettings, Handle } from "../../src/design.js";
 import { KITCHEN_L_DESIGN } from "../../src/fixtures/kitchen-l-design.js";
 import {
@@ -331,6 +332,11 @@ describe("an accessory is used exactly when its line is on the price, built-in o
         const billed = billedAccessoryIds(design, book);
         for (const item of accessoryItemsOf(book)) {
           if (item.kind !== "accessory") continue;
+          if (item.accessoryId === ALWAYS_PRESENT_ACCESSORY_ID) {
+            // Always present: a stored switch-off changes nothing, so the line stays billed.
+            expect(billedAccessoryIds(design, book, [item])).toEqual(billed);
+            continue;
+          }
           const offBilled = billedAccessoryIds(design, book, [item]);
           expect(offBilled).not.toContain(item.accessoryId);
           expect(uses(design, item, book)).toBe(

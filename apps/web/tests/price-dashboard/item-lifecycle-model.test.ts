@@ -211,6 +211,36 @@ describe("the deletion of an item", () => {
   });
 });
 
+describe("the deletion of an item where nothing can be written", () => {
+  it.each([
+    ["a hardware class", BLUM],
+    ["a hardware class only the draft holds", STRANGER],
+    ["a material", { kind: "material", tierId: "material.veneer" } as const],
+  ])("is off, as not judged, for %s", (_kind, item) => {
+    expect(
+      deleteStandOf(
+        item as Parameters<typeof deleteStandOf>[0],
+        contextOf({ canWrite: false }),
+      ),
+    ).toEqual({ kind: "off", reason: "cannot-judge" });
+  });
+
+  it("still names what the book alone refuses before it says nothing can be checked", () => {
+    expect(
+      deleteStandOf(
+        STANDARD as Parameters<typeof deleteStandOf>[0],
+        contextOf({ canWrite: false }),
+      ),
+    ).toEqual({ kind: "off", reason: "item-is-fixed-default" });
+  });
+
+  it("is offered, with its count to come, where something can be written", () => {
+    expect(
+      deleteStandOf(BLUM as Parameters<typeof deleteStandOf>[0], contextOf()),
+    ).toEqual({ kind: "count-first" });
+  });
+});
+
 describe("what a count says", () => {
   it("is the reader's number, and undefined, never zero, for an item it did not count or counted twice", () => {
     expect(countOfUse([{ item: BLUM, designCount: 4 }], BLUM)).toBe(4);

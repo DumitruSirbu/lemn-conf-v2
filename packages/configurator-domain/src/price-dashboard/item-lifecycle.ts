@@ -6,15 +6,17 @@
 // leave a customer nothing to be priced at or moved to. A default is fixed (`fixedDefaultItemsOf`, never released) or
 // saved (D9, released by moving D9); a fixed one is named as such. Switching on is refused for an item the active book
 // does not state: a row only the draft knows is activated after it is published. Deleting is refused for a default and
-// for an item any saved kitchen uses; an unused, non-default item may go.
+// for an item any saved kitchen uses; an unused, non-default item may go. The sink cover is never switched off
+// (`ALWAYS_PRESENT_ACCESSORY_ID` says why), and is refused as `item-always-present`.
 //
 // The refusal codes are the wire's own words (`item-is-fixed-default`, `item-is-default`, `last-active-option`,
-// `item-not-in-active-book`, `item-in-use`), so a route maps them and names nothing new.
+// `item-not-in-active-book`, `item-in-use`, `item-always-present`), so a route maps them and names nothing new.
 import {
   isItemDisabled,
   isSameItem,
   type ItemRef,
 } from "../pricing/catalogue-availability.js";
+import { ALWAYS_PRESENT_ACCESSORY_ID } from "../pricing/price-book.js";
 
 import type { DeletableItemRef } from "./book-field-address.js";
 import {
@@ -34,6 +36,7 @@ export const AVAILABILITY_REFUSAL_CODES = Object.freeze([
   "item-not-in-active-book",
   "item-is-fixed-default",
   "item-is-default",
+  "item-always-present",
   "last-active-option",
 ] as const);
 export type AvailabilityRefusalCode =
@@ -71,9 +74,10 @@ const ALLOWED = Object.freeze({ kind: "allowed" } as const);
  * Whether the item may be switched on or off, and the code if it may not.
  *
  * An item the active book does not state is refused either way: the log never names a row that is not there. Switching
- * off is then judged for the last active option before the defaults, so the only option left is told "keep one active"
- * even when it is also a default; a default that is not the last is told which kind it is. An item already off is
- * allowed to be switched off again, since that removes no option.
+ * off is refused for the always-present accessory (`ALWAYS_PRESENT_ACCESSORY_ID`), then judged for the last active
+ * option before the defaults, so the only option left is told "keep one active" even when it is also a default; a
+ * default that is not the last is told which kind it is. Any other item already off is allowed to be switched off
+ * again, since that removes no option.
  */
 export function judgeAvailabilityChange(
   { item, active }: AvailabilityChange,
@@ -83,6 +87,7 @@ export function judgeAvailabilityChange(
     return refusal("item-not-in-active-book");
   }
   if (active) return ALLOWED;
+  if (isAlwaysPresent(item)) return refusal("item-always-present");
   if (isLastActiveOption(item, state)) return refusal("last-active-option");
   const defaultCode = defaultCodeOf(item, state);
   return defaultCode === undefined ? ALLOWED : refusal(defaultCode);
@@ -136,6 +141,13 @@ function defaultCodeOf(
 
 function isAmong(items: readonly ItemRef[], item: ItemRef): boolean {
   return items.some((candidate) => isSameItem(candidate, item));
+}
+
+function isAlwaysPresent(item: ItemRef): boolean {
+  return (
+    item.kind === "accessory" &&
+    item.accessoryId === ALWAYS_PRESENT_ACCESSORY_ID
+  );
 }
 
 /** Whether the item is on and the only option of its group that is: switching it off would leave the group nothing. An

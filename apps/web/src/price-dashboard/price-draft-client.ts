@@ -6,6 +6,7 @@ import {
   type BulkChangedWire,
   type BulkChangeRequestWire,
   type BulkRefusalCode,
+  type CreateAccessoryRequestWire,
   type CreateHardwareClassRequestWire,
   type DashboardDraftWire,
   type DraftChangeCreatedWire,
@@ -50,6 +51,8 @@ export type CreateHardwareClassOutcome = DraftWriteResult<
   DraftChangeCreatedWire
 >;
 
+export type CreateAccessoryOutcome = CreateHardwareClassOutcome;
+
 export interface PriceDraftClient {
   /** The dashboard's state again; absent when it cannot be read. */
   readState(): Promise<DashboardStateWire | undefined>;
@@ -64,6 +67,13 @@ export interface PriceDraftClient {
     | ((
         request: CreateHardwareClassRequestWire,
       ) => Promise<CreateHardwareClassOutcome>)
+    | undefined;
+  /**
+   * Creates a linked accessory in the draft. Absent where no route takes a creation yet, which the screen reads as a
+   * creation that cannot be made: nothing is sent and nothing is shown as created.
+   */
+  readonly createAccessory?:
+    | ((request: CreateAccessoryRequestWire) => Promise<CreateAccessoryOutcome>)
     | undefined;
   /**
    * Whether `change` takes the words of a created row. Absent where the draft route does not, which the screen reads as

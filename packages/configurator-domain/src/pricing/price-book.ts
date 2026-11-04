@@ -18,6 +18,10 @@
 // get deeper; `percentage-lines.ts` rounds each cabinet's stages to 10 lei (ADR 0177 A-1).
 
 import {
+  isItemDisabled,
+  type CatalogueAvailability,
+} from "./catalogue-availability.js";
+import {
   anchoredShapeReadsDoorLeaves,
   anchoredShapeReadsHeight,
   listedSizeFor,
@@ -207,6 +211,26 @@ export const ACCESSORY_IDS: readonly AccessoryId[] = [
 /** Whether `id` names one of the two accessories code declares, as against a linked accessory the dashboard created. */
 export function isBuiltInAccessoryId(id: string): id is AccessoryId {
   return (ACCESSORY_IDS as readonly string[]).includes(id);
+}
+
+/**
+ * The accessory that is protection and never an option (ADR 0070 decision 4): the sink cover is always present and is
+ * never switched off. Named here, by its book field. Every judgement of it reads this id: the refusal of a switch-off
+ * (`judgeAvailabilityChange`) and, for whatever availability happens to be stored, `isAccessorySwitchedOff`, which the
+ * price, the notice of what was removed and the screens' state all read.
+ */
+export const ALWAYS_PRESENT_ACCESSORY_ID: AccessoryId = "sinkProtectiveCover";
+
+/** Whether availability removes this accessory from a kitchen. The always-present one is never removed, whatever is
+ *  stored: a row that switched it off is read as no switch at all. */
+export function isAccessorySwitchedOff(
+  availability: CatalogueAvailability,
+  accessoryId: string,
+): boolean {
+  return (
+    accessoryId !== ALWAYS_PRESENT_ACCESSORY_ID &&
+    isItemDisabled(availability, { kind: "accessory", accessoryId })
+  );
 }
 
 /** One whole-kitchen choice: the tiers on offer and the one a design that has chosen nothing is

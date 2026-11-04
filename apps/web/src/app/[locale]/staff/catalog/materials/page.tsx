@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 
 import { routing } from "@/i18n/routing";
 import { MaterialListScreen } from "@/price-dashboard/material-list";
-import { MaterialUnavailableScreen } from "@/price-dashboard/material-parts";
+import { ItemUnavailableScreen } from "@/price-dashboard/catalog-states";
 import { readMaterials } from "@/price-dashboard/material-source";
 
 import {
@@ -43,7 +43,11 @@ export default async function MaterialsPage({ params }: MaterialsPageProps) {
       return read.kind === "ready" ? (
         <MaterialListScreen locale={locale} context={shell} page={read.page} />
       ) : (
-        <MaterialUnavailableScreen locale={locale} context={shell} />
+        <ItemUnavailableScreen
+          locale={locale}
+          context={shell}
+          page="materials"
+        />
       );
     },
   });

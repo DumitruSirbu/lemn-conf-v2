@@ -37,7 +37,7 @@ const M10_LEAVES_IN_OLDER_NAMESPACES = [
   "priceBreakdown.depthLineScope",
 ] as const;
 
-const PLURAL_NODES_IN_THE_M10_NAMESPACES = 28;
+const PLURAL_NODES_IN_THE_M10_NAMESPACES = 29;
 const COUNT_SWEEP_UPPER_BOUND = 205;
 
 /** Owner ruling 2026-09-10 (engineering-conventions, "Plurals"): cabinets stay the bare noun in every arm. */

@@ -279,9 +279,8 @@ describe("deleting a class only the draft holds", () => {
 
 describe("where the saved kitchens cannot be counted", () => {
   it("claims nothing, leaves the confirmation off and sends nothing", async () => {
-    mounted = await mountHardwareList(hardwarePageOf(), {
-      lifecycleClient: UNAVAILABLE_ITEM_LIFECYCLE_CLIENT,
-    });
+    mounted = await mountHardwareList(hardwarePageOf());
+    mounted.lifecycle.answerNextUsageWith({ kind: "unavailable" });
 
     const dialog = await openDeleteFor(BLUM, BLUM_NAME);
     const confirm = dialogButton(dialog, DELETE);
@@ -293,5 +292,26 @@ describe("where the saved kitchens cannot be counted", () => {
     expect(confirm.getAttribute("aria-disabled")).toBe("true");
     expect(mounted.draftServer.calls).toEqual([]);
     expect(allIn(dialog, '[role="alert"]').length).toBeGreaterThan(0);
+  });
+});
+
+describe("where nothing can be written", () => {
+  it("offers no deletion: the entry is off for the reason that nothing can be checked, no dialog opens and nothing is sent", async () => {
+    mounted = await mountHardwareList(hardwarePageOf(), {
+      lifecycleClient: UNAVAILABLE_ITEM_LIFECYCLE_CLIENT,
+    });
+
+    await openMenuOf(mounted.container, BLUM, BLUM_NAME);
+    const entry = menuEntry(mounted.container, BLUM, DELETE);
+    await press(entry);
+
+    expect(entry.getAttribute("aria-disabled")).toBe("true");
+    expect(openDialog()).toBeNull();
+    expect(
+      allIn(rowOf(mounted.container, BLUM), '[data-testid="menu-reason"]').map(
+        (reason) => reason.textContent,
+      ),
+    ).toContain(roCopy("priceDashboard.lifecycle.cannotJudge"));
+    expect(mounted.draftServer.calls).toEqual([]);
   });
 });

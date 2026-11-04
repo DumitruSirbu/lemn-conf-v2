@@ -3,19 +3,14 @@
 import { useTranslations } from "next-intl";
 
 import type { ContentTranslator } from "@/i18n/content";
-import type { AppLocale } from "@/i18n/routing";
-import { StaffShell, type StaffShellContext } from "@/staff/staff-shell";
 
-import { CatalogUnavailableNotice } from "./catalog-states";
 import type { ActionReasons } from "./action-that-may-be-off";
 import {
-  deleteStandOf,
   isDefaultItem,
   isItemOn,
-  switchStandOf,
   type LifecycleContext,
 } from "./item-lifecycle-model";
-import { offReasonWords } from "./item-lifecycle-words";
+import { reasonsOfItem } from "./item-lifecycle-words";
 import {
   materialItemOf,
   type MaterialColours,
@@ -25,21 +20,6 @@ import styles from "./material.module.css";
 
 // What the materials list and the material page draw the same way: the chips of a material, why a switch or a deletion
 // may be off, and the screen that stands in for the page when the materials could not be read.
-
-/** The materials could not be read: the frame stays, and the notice stands in the page's place. */
-export function MaterialUnavailableScreen({
-  locale,
-  context,
-}: {
-  readonly locale: AppLocale;
-  readonly context: StaffShellContext;
-}) {
-  return (
-    <StaffShell locale={locale} page="materials" context={context}>
-      <CatalogUnavailableNotice />
-    </StaffShell>
-  );
-}
 
 /** What the material is to customers now, whether it is the default, and whether the draft touches it. `usedBy` is how
  *  many saved kitchens use it, where that was counted. */
@@ -98,8 +78,7 @@ function inactiveWords(
     : translate("priceDashboard.chips.inactive");
 }
 
-/** Why each action on a material is off; absent, it can be taken. A material the draft deletes cannot be switched, and
- *  nothing is offered of it once the deletion is published. */
+/** Why each action on a material is off; absent, it can be taken. */
 export function materialReasonsOf({
   translate,
   facts,
@@ -109,23 +88,14 @@ export function materialReasonsOf({
   readonly facts: MaterialFacts;
   readonly context: LifecycleContext;
 }): ActionReasons {
-  if (facts.isDeletionPending) {
-    const pending = translate("priceDashboard.materials.deleteNotice");
-    return { switchReason: pending, deleteReason: pending };
-  }
-  const item = materialItemOf(facts);
-  const switchStand = switchStandOf(item, context);
-  const deleteStand = deleteStandOf(item, context);
-  return {
-    switchReason:
-      switchStand.kind === "off"
-        ? offReasonWords(translate, switchStand.reason)
-        : undefined,
-    deleteReason:
-      deleteStand.kind === "off"
-        ? offReasonWords(translate, deleteStand.reason)
-        : undefined,
-  };
+  return reasonsOfItem({
+    translate,
+    item: materialItemOf(facts),
+    context,
+    deletionPendingNotice: facts.isDeletionPending
+      ? translate("priceDashboard.materials.deleteNotice")
+      : undefined,
+  });
 }
 
 /** A surcharge as a sentence part: "+30 %", and "0 %" where it adds nothing. */

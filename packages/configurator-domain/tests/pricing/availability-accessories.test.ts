@@ -83,27 +83,35 @@ describe("a switched-off built-in accessory yields no line and no refusal (P4a-d
     ]);
   });
 
-  it("drops the cover's line and keeps the rack's, and the other lines do not move", () => {
-    const priced = pricedOrThrow(priceUnder(availabilityOf([COVER])));
-    const coverLine = baseline.lines.find(
-      (line) => line.lineId === "accessory:sinkProtectiveCover",
+  it("drops the rack's line and keeps the cover's, and the other lines do not move", () => {
+    const priced = pricedOrThrow(priceUnder(availabilityOf([RACK])));
+    const rackLine = baseline.lines.find(
+      (line) => line.lineId === "accessory:dishDryingRack",
     );
 
-    expect(accessoryIdsOf(priced)).toEqual(["dishDryingRack"]);
+    expect(accessoryIdsOf(priced)).toEqual(["sinkProtectiveCover"]);
     expect(priced.lines).toEqual(
-      baseline.lines.filter((line) => line !== coverLine),
+      baseline.lines.filter((line) => line !== rackLine),
     );
     expect(priced.totalMinor).toBe(
-      baseline.totalMinor - (coverLine?.amountMinor ?? Number.NaN),
+      baseline.totalMinor - (rackLine?.amountMinor ?? Number.NaN),
     );
   });
 
-  it("drops both lines when both are switched off, and still prices the kitchen", () => {
+  it("bills the sink cover whatever is stored: a row that switched it off is read as no switch, and the kitchen is priced as before", () => {
+    const priced = pricedOrThrow(priceUnder(availabilityOf([COVER])));
+
+    expect(JSON.stringify(priced)).toBe(JSON.stringify(baseline));
+  });
+
+  it("drops only the rack's line when both are stored as off, and still prices the kitchen", () => {
     const priced = pricedOrThrow(priceUnder(availabilityOf([COVER, RACK])));
 
-    expect(accessoryIdsOf(priced)).toEqual([]);
+    expect(accessoryIdsOf(priced)).toEqual(["sinkProtectiveCover"]);
     expect(priced.lines).toEqual(
-      baseline.lines.filter((line) => line.kind !== "accessory"),
+      baseline.lines.filter(
+        (line) => line.lineId !== "accessory:dishDryingRack",
+      ),
     );
   });
 
@@ -143,28 +151,29 @@ describe("removedAccessoriesSince names what a customer has lost since they last
     });
 
   it("names an accessory the kitchen earns that is now off and was on", () => {
-    expect(removed([], [COVER])).toEqual([COVER]);
+    expect(removed([], [RACK])).toEqual([RACK]);
   });
 
-  it("names both, in the one order of items", () => {
-    expect(removed([], [COVER, RACK])).toEqual([RACK, COVER]);
-    expect(removed([], [RACK, COVER])).toEqual([RACK, COVER]);
+  it("never names the sink cover, which is always present, whatever availability stores of it", () => {
+    expect(removed([], [COVER])).toEqual([]);
+    expect(removed([], [COVER, RACK])).toEqual([RACK]);
+    expect(removed([], [RACK, COVER])).toEqual([RACK]);
+    expect(removed([RACK], [RACK, COVER])).toEqual([]);
   });
 
   it("does not name one the customer already saw removed", () => {
-    expect(removed([COVER], [COVER])).toEqual([]);
-    expect(removed([COVER], [COVER, RACK])).toEqual([RACK]);
+    expect(removed([RACK], [RACK])).toEqual([]);
   });
 
   it("names nothing for one switched back on, or for nothing switched off", () => {
-    expect(removed([COVER], [])).toEqual([]);
+    expect(removed([RACK], [])).toEqual([]);
     expect(removed([], [])).toEqual([]);
   });
 
   it("does not name an accessory the kitchen does not earn", () => {
     expect(removed([], [COVER, RACK], kitchenWithNoSink())).toEqual([]);
     expect(removed([], [COVER, RACK], kitchenWithASinkAndNoRackHost())).toEqual(
-      [COVER],
+      [],
     );
   });
 
@@ -175,10 +184,10 @@ describe("removedAccessoriesSince names what a customer has lost since they last
       seenBook: BOOK,
       activeBook: BOOK,
       seen: availabilityOf([], "a"),
-      current: availabilityOf([COVER], "b"),
+      current: availabilityOf([RACK], "b"),
     });
 
-    expect(sameItems).toEqual([COVER]);
+    expect(sameItems).toEqual([RACK]);
   });
 
   it("agrees with the price: what it names is exactly the earned lines the price no longer bills", () => {

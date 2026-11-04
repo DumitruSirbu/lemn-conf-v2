@@ -18,3 +18,11 @@ export function refuseLinkTarget(
     ? "LINK_TARGET_CUSTOMER_SUPPLIED"
     : undefined;
 }
+
+/** The catalogue rows a linked accessory may follow: every row the book prices that the manufacturer supplies, in the
+ *  book's order, so a select offers exactly what a creation accepts. */
+export function linkTargetBuildIdsOf(book: PriceBook): readonly string[] {
+  return book.cabinetRules
+    .map(({ buildId }) => buildId)
+    .filter((buildId) => refuseLinkTarget(book, buildId) === undefined);
+}

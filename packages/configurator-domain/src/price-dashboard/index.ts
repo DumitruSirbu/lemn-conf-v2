@@ -83,6 +83,11 @@ export {
   type AuthoredTextRefusalCode,
 } from "./created-row-text.js";
 export { hardwareRatesOf, isStructuralAddress } from "./structural-changes.js";
+export {
+  linkTargetBuildIdsOf,
+  refuseLinkTarget,
+  type LinkTargetRefusalCode,
+} from "./link-target.js";
 export { createdItemsOf, deletedItemsOf } from "./draft-structure.js";
 export {
   judgeDeletionsAtPublish,

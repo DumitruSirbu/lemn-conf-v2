@@ -1,17 +1,17 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 
 import type { AppLocale } from "@/i18n/routing";
 import { useContent } from "@/i18n/use-content";
 import { StaffShell, type StaffShellContext } from "@/staff/staff-shell";
 
 import { pendingPriceCountOf } from "./cabinet-list-model";
-import { ActionThatMayBeOff } from "./action-that-may-be-off";
 import { ItemDeskNotice, ItemDialogs } from "./item-dialogs";
-import type { ItemLifecycleClient } from "./item-lifecycle-client";
 import { isItemOn } from "./item-lifecycle-model";
+import { ItemLifecycleSection } from "./item-edit-parts";
+import type { ItemLifecycleClient } from "./item-lifecycle-client";
 import { MaterialExampleCard } from "./material-example-card";
 import {
   materialItemOf,
@@ -26,10 +26,10 @@ import {
   managedColourWords,
   MaterialChips,
   materialReasonsOf,
-  MaterialUnavailableScreen,
   surchargeWords,
 } from "./material-parts";
 import { materialsPathOf } from "./material-paths";
+import { ItemUnavailableScreen } from "./catalog-states";
 import styles from "./material.module.css";
 import type { PriceDraftClient } from "./price-draft-client";
 import editStyles from "./price-edit.module.css";
@@ -37,8 +37,8 @@ import {
   materialPercentRefusalWords,
   materialWriteFailureWords,
 } from "./price-input-words";
+import { PriceSaveBar } from "./price-save-bar";
 import { PERCENT_UNIT, PriceUnitField } from "./price-unit-field";
-import { publishPathOf } from "./publish-paths";
 import { useFocusAfterCancel } from "./use-focus-after-cancel";
 import { useMaterialDesk, type MaterialDesk } from "./use-material-desk";
 import {
@@ -79,7 +79,13 @@ export function MaterialEditScreen({
   const facts =
     derivation.kind === "ready" ? materialOf(derivation, tierId) : undefined;
   if (derivation.kind !== "ready" || facts === undefined) {
-    return <MaterialUnavailableScreen locale={locale} context={context} />;
+    return (
+      <ItemUnavailableScreen
+        locale={locale}
+        context={context}
+        page="materials"
+      />
+    );
   }
   const shell = {
     ...context,
@@ -213,65 +219,37 @@ function Lifecycle({
   const translate = useTranslations();
   const { availability } = desk;
   const item = materialItemOf(facts);
-  const { switchReason, deleteReason } = materialReasonsOf({
+  const reasons = materialReasonsOf({
     translate,
     facts,
     context: availability.context,
   });
-  const isOn = isItemOn(item, availability.context);
   const usedBy = desk.usage.get(facts.tierId);
   return (
-    <>
-      {isOn ? null : (
-        <InactiveBanner
-          usedBy={usedBy}
-          canActivate={switchReason === undefined}
-          onActivate={() => {
-            availability.requestSwitch(item);
-          }}
-        />
-      )}
-      <ActionThatMayBeOff
-        reason={switchReason}
-        restingNote={translate("priceDashboard.materials.activeHint")}
-        switchState={isOn}
-        buttonClassName={styles.switch}
-        noteClassName={styles.hint}
-        noteTag="p"
-        onPress={() => {
-          availability.requestSwitch(item);
-        }}
-      >
-        <span>{translate("priceDashboard.materials.activeLabel")}</span>
-        <span className={styles.switchState}>
-          {translate(
-            isOn
-              ? "priceDashboard.chips.active"
-              : "priceDashboard.chips.inactive",
-          )}
-        </span>
-      </ActionThatMayBeOff>
-      <MaterialFactLines facts={facts} usedBy={usedBy} />
-      <div className={styles.danger}>
-        <h2 className={styles.cardTitle}>
-          {translate("priceDashboard.materials.deleteHeading")}
-        </h2>
-        <p className={styles.hint}>
-          {translate("priceDashboard.materials.deleteHint")}
-        </p>
-        <ActionThatMayBeOff
-          reason={deleteReason}
-          buttonClassName={editStyles.action}
-          noteClassName={styles.hint}
-          noteTag="p"
-          onPress={() => {
-            availability.requestDeletion(item);
-          }}
-        >
-          {translate("priceDashboard.materials.deleteAction")}
-        </ActionThatMayBeOff>
-      </div>
-    </>
+    <ItemLifecycleSection
+      availability={availability}
+      item={item}
+      reasons={reasons}
+      words={{
+        activeLabel: translate("priceDashboard.materials.activeLabel"),
+        activeNote: translate("priceDashboard.materials.activeHint"),
+        deleteHeading: translate("priceDashboard.materials.deleteHeading"),
+        deleteHint: translate("priceDashboard.materials.deleteHint"),
+        deleteAction: translate("priceDashboard.materials.deleteAction"),
+      }}
+      aboveSwitch={
+        isItemOn(item, availability.context) ? null : (
+          <InactiveBanner
+            usedBy={usedBy}
+            canActivate={reasons.switchReason === undefined}
+            onActivate={() => {
+              availability.requestSwitch(item);
+            }}
+          />
+        )
+      }
+      belowSwitch={<MaterialFactLines facts={facts} usedBy={usedBy} />}
+    />
   );
 }
 
@@ -402,6 +380,7 @@ function SurchargeEditor({
   const translate = useTranslations();
   const fieldsRef = useRef<HTMLDivElement>(null);
   const cancel = useFocusAfterCancel(editing.cancel, fieldsRef);
+  const mustFix = editing.reading.kind === "refused";
   const percent =
     editing.reading.kind === "percent"
       ? editing.reading.percent
@@ -414,7 +393,17 @@ function SurchargeEditor({
       <div ref={fieldsRef} tabIndex={-1} className={styles.fields}>
         <SurchargeField facts={facts} editing={editing} />
       </div>
-      <SaveBar locale={locale} editing={editing} onCancel={cancel} />
+      <PriceSaveBar
+        locale={locale}
+        feedback={editing.feedback}
+        isChanged={editing.isChanged}
+        canSave={editing.canSave}
+        mustFix={mustFix}
+        onSave={() => {
+          void editing.save();
+        }}
+        onCancel={cancel}
+      />
       <MaterialExampleCard
         active={derivation.active}
         draft={derivation.candidate}
@@ -455,66 +444,5 @@ function SurchargeField({
       }
       onChange={editing.type}
     />
-  );
-}
-
-function SaveBar({
-  locale,
-  editing,
-  onCancel,
-}: {
-  readonly locale: AppLocale;
-  readonly editing: MaterialSurchargeEditing;
-  readonly onCancel: () => void;
-}) {
-  const translate = useTranslations();
-  const savedNoticeRef = useRef<HTMLDivElement>(null);
-  const isSaved = editing.feedback.kind === "saved" && !editing.isChanged;
-  const mustFix = editing.reading.kind === "refused";
-  useEffect(() => {
-    // Save leaves the page with the notice that replaces it; focus lost with it goes to the notice, not the body.
-    if (isSaved && document.activeElement === document.body) {
-      savedNoticeRef.current?.focus();
-    }
-  }, [isSaved]);
-  if (isSaved) {
-    return (
-      <div
-        ref={savedNoticeRef}
-        tabIndex={-1}
-        className={styles.saved}
-        role="status"
-      >
-        <p>{translate("priceDashboard.common.priceSavedNotice")}</p>
-        <a className={styles.savedLink} href={publishPathOf(locale)}>
-          {translate("priceDashboard.nav.publish")}
-        </a>
-      </div>
-    );
-  }
-  return (
-    <div className={styles.actions}>
-      <button
-        type="button"
-        className={editStyles.action}
-        data-tone="primary"
-        disabled={!editing.canSave}
-        onClick={() => {
-          void editing.save();
-        }}
-      >
-        {translate("priceDashboard.common.save")}
-      </button>
-      {editing.isChanged || mustFix || editing.feedback.kind === "failed" ? (
-        <button type="button" className={editStyles.action} onClick={onCancel}>
-          {translate("priceDashboard.common.cancel")}
-        </button>
-      ) : null}
-      {mustFix ? (
-        <p className={styles.fixToSave}>
-          {translate("priceDashboard.errors.fixToSave")}
-        </p>
-      ) : null}
-    </div>
   );
 }

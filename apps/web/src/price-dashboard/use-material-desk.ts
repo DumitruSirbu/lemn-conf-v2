@@ -4,7 +4,6 @@ import { useCallback, useMemo } from "react";
 
 import type { DeletableItemRef } from "@lemnaria/configurator-domain";
 
-import { defaultItemLifecycleClient } from "./default-item-lifecycle-client";
 import type { ItemLifecycleClient } from "./item-lifecycle-client";
 import {
   deriveMaterials,
@@ -13,6 +12,7 @@ import {
 } from "./material-model";
 import type { PriceDraftClient } from "./price-draft-client";
 import { useMaterialUsage, type MaterialUsage } from "./use-material-usage";
+import { useLifecycleClient } from "./use-lifecycle-client";
 import {
   useItemAvailability,
   type ItemAvailabilityDesk,
@@ -52,17 +52,7 @@ export function useMaterialDesk({
   const draft = usePriceDraft({ initial: page.state, client });
   const { change } = draft;
   const derivation = useMemo(() => deriveMaterials(draft.state), [draft.state]);
-  const lifecycle = useMemo(
-    () =>
-      lifecycleClient ??
-      defaultItemLifecycleClient({
-        book: page.state.active.book,
-        availability: page.state.active.availability,
-        defaults: page.defaults,
-        usage: page.sampleUsage ?? [],
-      }),
-    [lifecycleClient, page],
-  );
+  const lifecycle = useLifecycleClient(page, lifecycleClient);
   const deleteFromDraft = useCallback(
     (item: DeletableItemRef) =>
       change({ address: { kind: "item-deleted", item }, value: true }),

@@ -9,6 +9,7 @@ import type { AppLocale } from "@/i18n/routing";
 import { StaffShell, type StaffShellContext } from "@/staff/staff-shell";
 
 import { pendingPriceCountOf } from "./cabinet-list-model";
+import type { CreationFeedback, TextEntry } from "./creation-entries";
 import type { HardwarePageInput } from "./hardware-model";
 import { hardwareClassPathOf, hardwarePathOf } from "./hardware-paths";
 import { HARDWARE_RATE_WORDS } from "./hardware-rate-words";
@@ -23,10 +24,8 @@ import {
 import { PriceUnitField } from "./price-unit-field";
 import {
   useHardwareCreation,
-  type CreationFeedback,
   type HardwareCreation,
   type RateEntry,
-  type TextEntry,
 } from "./use-hardware-creation";
 import { usePriceDraft } from "./use-price-draft";
 
@@ -280,7 +279,11 @@ function FailureNotice({ feedback }: { readonly feedback: CreationFeedback }) {
   if (feedback.kind !== "failed") return null;
   return (
     <FormNotice tone="error">
-      {creationFailureWords(translate, feedback.failure)}
+      {creationFailureWords(
+        translate,
+        feedback.failure,
+        "priceDashboard.hardware.createRefused",
+      )}
     </FormNotice>
   );
 }

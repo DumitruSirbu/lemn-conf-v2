@@ -103,6 +103,7 @@ describe("an administrator", () => {
           "cabinets",
           "hardware",
           "materials",
+          "accessories",
           "defaults",
           "publish",
         ],

@@ -6,6 +6,7 @@ import {
   isSameAddress,
   type AddressOfKind,
   type AppliedAddress,
+  type AccessoryCreation,
   type HardwareTierCreation,
   type ItemRef,
 } from "@lemnaria/configurator-domain";
@@ -22,6 +23,7 @@ import type {
   BulkTargetWire,
   DashboardDraftWire,
   DashboardStateWire,
+  DraftChangeCreatedWire,
   HardwareRatesWire,
   DraftChangeInputWire,
   DraftChangeRefusalCode,
@@ -118,8 +120,12 @@ export interface PriceDraft {
   readonly createHardwareClass: (
     input: HardwareClassCreation,
   ) => Promise<CreateWriteResult>;
+  readonly createAccessory: (
+    creation: AccessoryCreation,
+  ) => Promise<CreateWriteResult>;
   /** Whether the client has any route that takes a creation; where it has none, a screen offers none. */
   readonly canCreateHardwareClass: boolean;
+  readonly canCreateAccessory: boolean;
   /** Whether the client takes a change of a created row's words; where it does not, a screen offers no rename. */
   readonly canChangeCreatedText: boolean;
   /** Takes a state made elsewhere (a publish, a discard) as the one the next write names the revision of. */
@@ -286,10 +292,19 @@ export function usePriceDraft({
     [client, exclusively, settle],
   );
 
-  const createHardwareClass = useCallback(
-    (input: HardwareClassCreation) =>
+  /** Sends a creation through the client's route for it, which is absent where the client has none. */
+  const createRow = useCallback(
+    <Input extends object>(
+      create:
+        | ((
+            request: { readonly expectedDraftRevision: string } & Input,
+          ) => Promise<
+            DraftWriteResult<DraftChangeRefusalCode, DraftChangeCreatedWire>
+          >)
+        | undefined,
+      input: Input,
+    ) =>
       exclusively<CreateWriteResult>(async () => {
-        const { createHardwareClass: create } = client;
         if (create === undefined) return FAILED;
         const outcome = await sendOrFail(() =>
           create({
@@ -300,7 +315,18 @@ export function usePriceDraft({
         await settle(outcome, (written) => written.draft);
         return createResultOf(outcome);
       }, BUSY),
-    [client, exclusively, settle],
+    [exclusively, settle],
+  );
+
+  const createHardwareClass = useCallback(
+    (input: HardwareClassCreation) =>
+      createRow(client.createHardwareClass, input),
+    [client, createRow],
+  );
+
+  const createAccessory = useCallback(
+    (value: AccessoryCreation) => createRow(client.createAccessory, { value }),
+    [client, createRow],
   );
 
   return {
@@ -311,7 +337,9 @@ export function usePriceDraft({
     changeOrRevert,
     bulk,
     createHardwareClass,
+    createAccessory,
     canCreateHardwareClass: client.createHardwareClass !== undefined,
+    canCreateAccessory: client.createAccessory !== undefined,
     canChangeCreatedText: client.acceptsCreatedRowText === true,
     adopt,
     refresh,
