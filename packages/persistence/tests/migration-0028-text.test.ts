@@ -6,20 +6,19 @@ import {
   executableStatementsOf,
   unattendedMigrationRefusals,
 } from "../src/migration-safety.js";
+import {
+  PRICE_NOTICES_MIGRATION as NOTICES,
+  priceNoticesCheckPattern as patternOfCheck,
+} from "./support/price-notices-migration.js";
 
 /**
  * Migration `0028` (the price-notice marker), read as text with no database. What this file can show: it follows `0027`
- * with no gap, it is additive and re-runnable, it carries the columns, checks and key the plan specifies, the checks accept
+ * with no gap, it is additive and re-runnable, it carries the columns, checks and key ADR 0178 (A-11) specifies, the checks accept
  * and refuse the values the store will send, and the grants the header prescribes are the exact ones, with nothing that
  * deletes. What it cannot show is what the application role is granted on a real database (the privilege test reads that
  * from the catalog) or what the store's statements do with a row (the live file's).
  */
 const migrations = readMigrationFiles();
-const NOTICES = migrations.find((migration) =>
-  migration.fileName.startsWith("0028_"),
-);
-if (NOTICES === undefined) throw new Error("no migration starts with 0028_");
-
 const A_21_CHARACTER_ID = "Ab3_-".repeat(4) + "Z";
 
 const statements = executableStatementsOf(NOTICES.sql).join("\n");
@@ -35,20 +34,6 @@ const header = NOTICES.sql
 const grantsPrescribed = [
   ...header.matchAll(/GRANT (?:SELECT|INSERT|UPDATE)\b[^;]*? TO app_designs;/g),
 ].map((match) => match[0]);
-
-/** The JavaScript regular expression that reads like the one named check's Postgres pattern. */
-function patternOfCheck(constraintName: string): RegExp {
-  const sqlWithoutComments = NOTICES?.sql
-    .split("\n")
-    .filter((line) => !line.startsWith("--"))
-    .join("\n");
-  const match = new RegExp(
-    `constraint ${constraintName} check \\(\\w+ ~ '([^']+)'\\)`,
-  ).exec(sqlWithoutComments ?? "");
-  if (match?.[1] === undefined)
-    throw new Error(`no pattern check named ${constraintName}`);
-  return new RegExp(match[1]);
-}
 
 describe("migration 0028 is the next version of the ledger", () => {
   it("follows 0027 without a gap, under the name of what it creates", () => {
@@ -68,6 +53,26 @@ describe("migration 0028 is the next version of the ledger", () => {
     expect(header).toContain("ledger reads 1-27 before running, and 1-28");
     expect(header).toContain(
       "Once this file has been applied anywhere, its bytes are frozen, comments included.",
+    );
+  });
+});
+
+describe("0028 says when to apply it", () => {
+  it("is applied before the code that reads it and before the grants, and says the routes answer 503 until then", () => {
+    expect(header).toContain(
+      "APPLY THIS BEFORE THE CODE THAT READS IT SHIPS, AND BEFORE THE GRANTS.",
+    );
+    expect(header).toContain(
+      "answer 503 against a database without this table, or without the grants above",
+    );
+  });
+
+  it("does not claim a first-open pair is judged: only an acknowledged pair is", () => {
+    expect(header).toContain(
+      "A first open is not judged: it records the server's own current pair.",
+    );
+    expect(header).not.toContain(
+      "is therefore always one the shop has published",
     );
   });
 });
@@ -105,6 +110,13 @@ describe("0028 creates design_price_notices, one row per design", () => {
       expect(at, `column "${column}"`).toBeGreaterThanOrEqual(from);
       from = at + column.length;
     }
+  });
+
+  it("gives the database exactly one default, the instant's, and the version and the revision none", () => {
+    expect(statements.match(/\bdefault\b/g)).toHaveLength(1);
+    expect(statements).toMatch(
+      /acknowledged_at timestamptz not null default now\(\)/,
+    );
   });
 
   it("accepts a revision of 0, which the availability head starts at, and refuses a negative one", () => {

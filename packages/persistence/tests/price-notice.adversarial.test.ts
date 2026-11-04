@@ -4,8 +4,6 @@ import { fc } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
 import { isMintedId, isRevisionShape } from "../src/dashboard-store-shapes.js";
-import { readMigrationFiles } from "../src/migration-files.js";
-import { executableStatementsOf } from "../src/migration-safety.js";
 import type { StatementTag } from "../src/preset-statements.js";
 import {
   readAcknowledgedStatement,
@@ -13,11 +11,15 @@ import {
   recordIfAbsentStatement,
 } from "../src/price-notice-statements.js";
 import { isActionableDesignId } from "../src/staff-kitchen-actions-store.js";
+import {
+  PRICE_NOTICES_MIGRATION,
+  priceNoticesCheckPattern,
+} from "./support/price-notices-migration.js";
 
 /**
  * What the price-notice marker's three layers must agree on, asked from outside the layer that states each rule: the
  * statements it sends, the shape rules the stores apply before a statement against the checks `0028` puts on the table,
- * the migration's defaults and grants, and the runbook's grant block against the migration's header. It needs no
+ * and the runbook's grant block against the migration's header. It needs no
  * database.
  */
 const DESIGN_ID = "D".repeat(21);
@@ -91,23 +93,6 @@ describe("the writes touch only the marker's own table", () => {
 });
 
 describe("the shape rules the stores apply are exactly the checks the table holds", () => {
-  const notices = readMigrationFiles().find((migration) =>
-    migration.fileName.startsWith("0028_"),
-  );
-  if (notices === undefined) throw new Error("no migration starts with 0028_");
-  const sqlWithoutComments = notices.sql
-    .split("\n")
-    .filter((line) => !line.startsWith("--"))
-    .join("\n");
-
-  function checkPattern(constraintName: string): RegExp {
-    const found = new RegExp(
-      `constraint ${constraintName} check \\(\\w+ ~ '([^']+)'\\)`,
-    ).exec(sqlWithoutComments);
-    if (found?.[1] === undefined) throw new Error(`no ${constraintName}`);
-    return new RegExp(found[1]);
-  }
-
   const NEAR_ID_CHARACTERS = [
     ...ID_ALPHABET,
     "\n",
@@ -140,7 +125,9 @@ describe("the shape rules the stores apply are exactly the checks the table hold
     });
 
   it("accepts a design id exactly when design_price_notices_design_id_shape does", () => {
-    const tableAccepts = checkPattern("design_price_notices_design_id_shape");
+    const tableAccepts = priceNoticesCheckPattern(
+      "design_price_notices_design_id_shape",
+    );
 
     fc.assert(
       fc.property(
@@ -156,7 +143,7 @@ describe("the shape rules the stores apply are exactly the checks the table hold
   });
 
   it("accepts a version id exactly when design_price_notices_acknowledged_version_id_shape does", () => {
-    const tableAccepts = checkPattern(
+    const tableAccepts = priceNoticesCheckPattern(
       "design_price_notices_acknowledged_version_id_shape",
     );
 
@@ -195,73 +182,6 @@ describe("the shape rules the stores apply are exactly the checks the table hold
   });
 });
 
-describe("migration 0028's defaults and grants", () => {
-  const notices = readMigrationFiles().find((migration) =>
-    migration.fileName.startsWith("0028_"),
-  );
-  if (notices === undefined) throw new Error("no migration starts with 0028_");
-  const statements = executableStatementsOf(notices.sql).join("\n");
-  const header = notices.sql
-    .split("\n")
-    .filter((line) => line.startsWith("--"))
-    .map((line) => line.replace(/^--\s?/, ""))
-    .join(" ")
-    .replace(/\s+/g, " ");
-  const grants = [
-    ...header.matchAll(
-      /GRANT (SELECT|INSERT|UPDATE)\b([^;]*?) TO app_designs;/g,
-    ),
-  ].map((match) => ({
-    privilege: match[1],
-    columns: [...(/\(([^)]*)\)/.exec(match[2] ?? "")?.[1] ?? "").split(",")]
-      .map((column) => column.trim())
-      .filter((column) => column !== ""),
-  }));
-  const columnsGranted = (privilege: string): string[] =>
-    grants.find((grant) => grant.privilege === privilege)?.columns ?? [];
-
-  it("gives the database exactly one default, the instant's, and the version and the revision none", () => {
-    expect(statements.match(/\bdefault\b/g)).toHaveLength(1);
-    expect(statements).toMatch(
-      /acknowledged_at timestamptz not null default now\(\)/,
-    );
-  });
-
-  it("holds no column of a kind a plain insert could leave to chance: every column but the instant is not null", () => {
-    expect(statements).toMatch(/acknowledged_version_id text not null/);
-    expect(statements).toMatch(
-      /acknowledged_availability_revision bigint not null/,
-    );
-    expect(statements.match(/\bnot null\b/g)).toHaveLength(3);
-  });
-
-  it("keeps every instant column out of the insert grant and the key out of the update grant", () => {
-    const instants = [...statements.matchAll(/\b(\w+_at)\b/g)].map(
-      (match) => match[1] ?? "",
-    );
-
-    expect(instants).toEqual(["acknowledged_at"]);
-    for (const instant of instants) {
-      expect(columnsGranted("INSERT")).not.toContain(instant);
-    }
-    expect(columnsGranted("UPDATE")).not.toContain("design_id");
-    expect(columnsGranted("INSERT")).toEqual([
-      "design_id",
-      "acknowledged_version_id",
-      "acknowledged_availability_revision",
-    ]);
-  });
-
-  it("grants select without a column list, so the whole row reads", () => {
-    expect(grants.map((grant) => grant.privilege)).toEqual([
-      "SELECT",
-      "INSERT",
-      "UPDATE",
-    ]);
-    expect(columnsGranted("SELECT")).toEqual([]);
-  });
-});
-
 describe("the owner's runbook", () => {
   const runbook = readFileSync(
     new URL(
@@ -270,11 +190,6 @@ describe("the owner's runbook", () => {
     ),
     "utf8",
   );
-  const notices = readMigrationFiles().find((migration) =>
-    migration.fileName.startsWith("0028_"),
-  );
-  if (notices === undefined) throw new Error("no migration starts with 0028_");
-
   function grantLinesOf(text: string, from: number): string[] {
     const fenceOpen = text.indexOf("```sql", from);
     const fenceClose = text.indexOf("```", fenceOpen + 6);
@@ -286,7 +201,7 @@ describe("the owner's runbook", () => {
   }
 
   it("prescribes the three grants of 0028's header, word for word and in the same order", () => {
-    const headerGrants = notices.sql
+    const headerGrants = PRICE_NOTICES_MIGRATION.sql
       .split("\n")
       .filter((line) => /^--\s+GRANT /.test(line))
       .map((line) => line.replace(/^--\s+/, "").trim());
@@ -295,15 +210,5 @@ describe("the owner's runbook", () => {
 
     expect(headerGrants).toHaveLength(3);
     expect(grantLinesOf(runbook, section)).toEqual(headerGrants);
-  });
-
-  it("does not hand the application role a delete, a truncate, an all, public or a grant option in that block", () => {
-    const section = runbook.indexOf("`0028_create_design_price_notices`");
-
-    for (const line of grantLinesOf(runbook, section)) {
-      expect(line).not.toMatch(
-        /\b(?:DELETE|TRUNCATE|ALL|PUBLIC|GRANT OPTION)\b/,
-      );
-    }
   });
 });

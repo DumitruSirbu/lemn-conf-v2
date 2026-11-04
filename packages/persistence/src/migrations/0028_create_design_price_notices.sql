@@ -14,8 +14,9 @@
 --
 -- An acknowledgement is judged in SQL by the statement that writes it: the version must exist in `price_book_versions`,
 -- and the availability revision must not be greater than the head's. Those are the statement's rules and not the
--- table's, because a check constraint cannot read another table. A row's pair is therefore always one the shop has
--- published, unless the application credential wrote it some other way (see the residual below).
+-- table's, because a check constraint cannot read another table. A first open is not judged: it records the server's
+-- own current pair. So an acknowledged pair is one the shop has published, and a first-open pair is the server's own,
+-- unless the application credential wrote either some other way (see the residual below).
 --
 -- `design_id` is the primary key, in the shape of `designs.id` as `0021`, `0022` and `0026` hold it (21 characters of
 -- `[A-Za-z0-9_-]`), and so is `acknowledged_version_id`, the shape of a version's id. `acknowledged_availability_revision`
@@ -46,9 +47,9 @@
 -- **Markers are not in the nightly export** (which covers `designs` alone), so a restore does not bring them back: a
 -- design then reads as never recorded and is given the current pair silently on its next open.
 --
--- Nothing reads this table until the price-notice routes ship, so applying it early breaks nothing. **Apply it, and issue
--- the grants above, before those routes are deployed**: until then they answer 503, because the store's statements name
--- a table the role cannot read.
+-- **APPLY THIS BEFORE THE CODE THAT READS IT SHIPS, AND BEFORE THE GRANTS.** Nothing reads this table until the
+-- price-notice routes ship, so applying it early breaks nothing. Those routes answer 503 against a database without this
+-- table, or without the grants above, until the owner has applied the migration and issued every grant.
 --
 -- Check the target database's ledger reads 1-27 before running, and 1-28 after (ADR 0020: verify by reading the schema,
 -- never by this command's exit status).
