@@ -113,9 +113,9 @@ async function walkedCountsOfOneDesign(
   answerQueryWith([
     { id: "only-design", schema_version: schemaVersion, document },
   ]);
-  const counts = await newReader().countEach(
-    usageProbesFor(WALKED_ITEMS, USAGE_BASIS),
-  );
+  const counts = (
+    await newReader().countEach(usageProbesFor(WALKED_ITEMS, USAGE_BASIS))
+  ).counts;
   return new Map(
     counts.map(({ item, designCount }) => [JSON.stringify(item), designCount]),
   );

@@ -2,7 +2,6 @@ import type { ItemRef } from "@lemnaria/configurator-domain";
 
 import type { FakeCatalogueAvailabilityStore } from "./fake-catalogue-availability-store.js";
 import {
-  countsWithUnreadable,
   isCountableProbeSet,
   storableDefaultsJsonOf,
 } from "./dashboard-store-shapes.js";
@@ -22,8 +21,8 @@ import {
 import type {
   ItemUsageProbe,
   KitchenDefaultsStore,
-  KitchenUsageCounts,
   KitchenUsageReader,
+  KitchenUsageResult,
   ReadKitchenDefaultsResult,
   SaveKitchenDefaultsRequest,
   SaveKitchenDefaultsResult,
@@ -119,7 +118,7 @@ export class FakeKitchenDefaultsStore
     return { kind: "ok", revision, availabilityRevision };
   }
 
-  countEach(probes: readonly ItemUsageProbe[]): Promise<KitchenUsageCounts> {
+  countEach(probes: readonly ItemUsageProbe[]): Promise<KitchenUsageResult> {
     return settle("count the kitchens using an item", () => {
       if (!isCountableProbeSet(probes)) {
         throw new DashboardStoreError(
@@ -128,13 +127,13 @@ export class FakeKitchenDefaultsStore
         );
       }
       const isWalked = probes.some(({ via }) => via === "migrated-design");
-      return countsWithUnreadable(
-        probes.map(({ item }) => ({
+      return {
+        counts: probes.map(({ item }) => ({
           item,
           designCount: this.countUsing(item),
         })),
-        isWalked ? this.countUnreadable() : 0,
-      );
+        unreadableDesigns: isWalked ? this.countUnreadable() : 0,
+      };
     });
   }
 

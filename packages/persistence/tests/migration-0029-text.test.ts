@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import { describe, expect, it } from "vitest";
 
 import { checksumOfMigration } from "../src/migration-checksum.js";
@@ -76,11 +78,20 @@ describe("migration 0029 is the next version of the ledger", () => {
     );
   });
 
-  it("says when to apply it: before the code that reads it and before the grants, or the routes answer 503", () => {
+  it("says when to apply it as a standing fact: before any code that reads it runs and before the grants", () => {
     expect(header).toContain(
-      "APPLY THIS BEFORE THE CODE THAT READS IT SHIPS, AND BEFORE THE GRANTS.",
+      "Apply this before any code that reads it runs, and before the grants.",
     );
-    expect(header).toContain("answer 503");
+    expect(header).toContain(
+      "fails against a database that lacks the table or the grants",
+    );
+  });
+
+  it("states how the head is shared as what holds, naming no wave, route or screen", () => {
+    expect(header).toContain("at most one succeeds");
+    expect(header).not.toMatch(
+      /cannot all succeed|ships with|unattended screen|\b503\b|routes/,
+    );
   });
 });
 
@@ -210,5 +221,21 @@ describe("0029 creates kitchen_defaults, one row for the whole shop", () => {
 
   it("says plainly that the defaults are not in the nightly export", () => {
     expect(header).toContain("The defaults are not in the nightly export");
+  });
+});
+
+describe("the runbook's cross-check of the defaults row", () => {
+  const RUNBOOK = readFileSync(
+    new URL(
+      "../../../docs/runbooks/applying-a-table-migration-and-its-application-role-grant.md",
+      import.meta.url,
+    ),
+    "utf8",
+  ).replace(/\s+/g, " ");
+
+  it("is an equality: the revision equals the number of kitchen-defaults-saved audit rows", () => {
+    expect(RUNBOOK).toContain(
+      "`kitchen_defaults.revision` must equal the number of `kitchen-defaults-saved` rows in `staff_audit_events`",
+    );
   });
 });

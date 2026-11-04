@@ -102,9 +102,9 @@ describe("the reader's walk, which serves a colour, a handle and a built-in acce
   it("counts what usesItem says for each, over every fixture", async () => {
     answerQueryWith(ROWS);
 
-    const counts = await newReader().countEach(
-      usageProbesFor(WALKED_ITEMS, USAGE_BASIS),
-    );
+    const counts = (
+      await newReader().countEach(usageProbesFor(WALKED_ITEMS, USAGE_BASIS))
+    ).counts;
 
     for (const item of WALKED_ITEMS) {
       const counted = counts.find((count) => isSameItem(count.item, item));
@@ -121,9 +121,9 @@ describe("the reader's walk, which serves a colour, a handle and a built-in acce
       JSON.stringify(document).includes("veneer.stejar"),
     );
 
-    const [counted] = await newReader().countEach(
-      usageProbesFor([stejar], USAGE_BASIS),
-    );
+    const [counted] = (
+      await newReader().countEach(usageProbesFor([stejar], USAGE_BASIS))
+    ).counts;
 
     expect(documentsNamingIt).toHaveLength(2);
     expect(counted?.designCount).toBe(1);
@@ -132,14 +132,16 @@ describe("the reader's walk, which serves a colour, a handle and a built-in acce
 
   it("is the same walk whatever the order the items are asked in", async () => {
     answerQueryWith(ROWS);
-    const forward = await newReader().countEach(
-      usageProbesFor(WALKED_ITEMS, USAGE_BASIS),
-    );
+    const forward = (
+      await newReader().countEach(usageProbesFor(WALKED_ITEMS, USAGE_BASIS))
+    ).counts;
     answerQueryWith(ROWS);
 
-    const backward = await newReader().countEach(
-      usageProbesFor([...WALKED_ITEMS].reverse(), USAGE_BASIS),
-    );
+    const backward = (
+      await newReader().countEach(
+        usageProbesFor([...WALKED_ITEMS].reverse(), USAGE_BASIS),
+      )
+    ).counts;
 
     expect(
       [...backward].sort((a, b) =>
@@ -256,11 +258,11 @@ describe("a stored design the product cannot read", () => {
       },
     ]);
 
-    const counts = await newReader().countEach([everyDesignProbe()]);
+    const result = await newReader().countEach([everyDesignProbe()]);
 
-    expect(counts).toEqual([{ item: COLOUR, designCount: ROWS.length }]);
-    expect(counts.unreadableDesigns).toBe(1);
-    expect(JSON.stringify(counts)).not.toContain("DOCUMENT-TEXT-SECRET");
+    expect(result.counts).toEqual([{ item: COLOUR, designCount: ROWS.length }]);
+    expect(result.unreadableDesigns).toBe(1);
+    expect(JSON.stringify(result)).not.toContain("DOCUMENT-TEXT-SECRET");
   });
 
   it("is left out when its stored version is one this build never wrote, or is not a number", async () => {
@@ -270,10 +272,10 @@ describe("a stored design the product cannot read", () => {
       ...ROWS,
     ]);
 
-    const counts = await newReader().countEach([everyDesignProbe()]);
+    const result = await newReader().countEach([everyDesignProbe()]);
 
-    expect(counts).toEqual([{ item: COLOUR, designCount: ROWS.length }]);
-    expect(counts.unreadableDesigns).toBe(2);
+    expect(result.counts).toEqual([{ item: COLOUR, designCount: ROWS.length }]);
+    expect(result.unreadableDesigns).toBe(2);
   });
 
   it("is a design a predicate could not place a body of, left out of every count and counted once as unreadable", async () => {
@@ -282,7 +284,7 @@ describe("a stored design the product cannot read", () => {
       throw new UnknownBodyError("a-body-the-catalogue-lacks");
     };
 
-    const counts = await newReader().countEach([
+    const result = await newReader().countEach([
       { via: "migrated-design", item: COLOUR, isUsedBy: placesNoBody },
       {
         via: "migrated-design",
@@ -291,8 +293,8 @@ describe("a stored design the product cannot read", () => {
       },
     ]);
 
-    expect(counts.map(({ designCount }) => designCount)).toEqual([0, 0]);
-    expect(counts.unreadableDesigns).toBe(ROWS.length);
+    expect(result.counts.map(({ designCount }) => designCount)).toEqual([0, 0]);
+    expect(result.unreadableDesigns).toBe(ROWS.length);
   });
 
   it("fails the call when a predicate fails any other way, and leaks nothing of the failure", async () => {
@@ -318,13 +320,13 @@ describe("a stored design the product cannot read", () => {
   it("reports no unreadable designs for a call that walks nothing", async () => {
     answerQueryWith([{ designs: 1 }]);
 
-    const counts = await newReader().countEach(
+    const result = await newReader().countEach(
       usageProbesFor(
         [{ kind: "material", tierId: "material.veneer" }],
         USAGE_BASIS,
       ),
     );
 
-    expect(counts.unreadableDesigns).toBe(0);
+    expect(result.unreadableDesigns).toBe(0);
   });
 });

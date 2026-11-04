@@ -364,26 +364,27 @@ export type ItemUsageProbe =
  * The one read the dashboard's disable and delete dialogs and the publish-time judgement make. It owes exactly one entry
  * per probe, in the probes' order, which is what `usageCountOf` requires of the counts it is given.
  *
- * Every probe names a different item (`invalid-request` otherwise). A design its client deleted is never counted, and a
- * design counts once however many of its levels use the item. A `migrated-design` probe leaves out a stored design that
- * cannot be read as the product reads it, or a body of which the predicate cannot place; it is left out of every count of
- * the call and added to `unreadableDesigns`, so the caller can say that the count is of the designs that could be read. No
- * deletion is judged by such a count. A `settings-tier` or `placed-bodies` probe reads the stored document as written and
- * leaves none out. A predicate that fails any other way fails the call (`unexpected-answer`): it never reads as unused.
+ * Every probe names a different item and is of the way of reading that suits its kind (`invalid-request` otherwise): a
+ * `settings-tier` probe a material or hardware class, a `placed-bodies` probe a linked accessory, and a `migrated-design`
+ * probe a colour, a handle or a built-in accessory. A design its client deleted is never counted, and a design counts
+ * once however many of its levels use the item. A `migrated-design` probe leaves out a stored design that cannot be read
+ * as the product reads it, or a body of which the predicate cannot place; it is left out of every count of the call and
+ * added to `unreadableDesigns`, so the caller can say that the count is of the designs that could be read. No deletion is
+ * judged by such a count. A `settings-tier` or `placed-bodies` probe reads the stored document as written and leaves none
+ * out. A predicate or a migration that fails any other way fails the call (`unexpected-answer`): it never reads as unused.
  */
 export interface KitchenUsageReader {
-  countEach(probes: readonly ItemUsageProbe[]): Promise<KitchenUsageCounts>;
+  countEach(probes: readonly ItemUsageProbe[]): Promise<KitchenUsageResult>;
 }
 
 /**
- * The counts, one entry per probe, which are what `usageCountOf` reads, and beside them how many stored designs the walk
- * for the `migrated-design` probes could not read (0 when no such probe was asked). It is a property of the array and not
- * of an entry: it is one fact about the walk, and it is not enumerable, so the counts compare and print as the plain list
- * they are. Read it by name; a copy of the array (a spread, `JSON.stringify`) does not carry it.
+ * What a count answers: one entry per probe, and how many stored designs the walk for the `migrated-design` probes could
+ * not read (0 when no such probe was asked).
  */
-export type KitchenUsageCounts = ItemUsageCounts & {
+export interface KitchenUsageResult {
+  readonly counts: ItemUsageCounts;
   readonly unreadableDesigns: number;
-};
+}
 
 // ---------------------------------------------------------------------------------------------------------------------
 // KitchenChangeStore

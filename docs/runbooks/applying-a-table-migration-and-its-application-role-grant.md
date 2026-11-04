@@ -1278,9 +1278,11 @@ counts as the application role. Neither arm has run against any database in this
 the test against the target before trusting the grants.
 
 **After applying, cross-check (owner, by hand).** The application credential can write any defaults into the one row, so
-whoever holds it can change what every new kitchen starts with; it changes no saved kitchen and no price. A `kitchen_defaults`
-row whose `revision` is above 0 and for which `staff_audit_events` holds no `kitchen-defaults-saved` row did not come from
-the application: every save writes both in one statement.
+whoever holds it can change what every new kitchen starts with; it changes no saved kitchen and no price. Every save moves
+`revision` by exactly one, from 0, and writes one `kitchen-defaults-saved` row in `staff_audit_events` in the same
+statement. So `kitchen_defaults.revision` must equal the number of `kitchen-defaults-saved` rows in `staff_audit_events`. A
+revision that differs, higher or lower, means the row was written, or the audit rows were removed, by something other than the
+application's save.
 
 **Not in the nightly export.** A restore leaves new kitchens at the fixed fallbacks until the defaults are saved again.
 

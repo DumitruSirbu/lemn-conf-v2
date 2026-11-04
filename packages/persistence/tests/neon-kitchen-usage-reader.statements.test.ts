@@ -107,7 +107,8 @@ describe("counting by the tier a design chose", () => {
   it("reads only designs their client has not deleted, and compares the stored tier where migration rewrites none", async () => {
     answerQueryWith([{ designs: 2 }]);
 
-    const counts = await newReader().countEach([tierProbe(MATERIAL, true)]);
+    const counts = (await newReader().countEach([tierProbe(MATERIAL, true)]))
+      .counts;
 
     const statement = loneStatement();
     expect(counts).toEqual([{ item: MATERIAL, designCount: 2 }]);
@@ -140,9 +141,11 @@ describe("counting by the bodies a design places", () => {
   it("reads the placements of each design once, however many bodies of the set it places", async () => {
     answerQueryWith([{ designs: 3 }]);
 
-    const counts = await newReader().countEach([
-      bodiesProbe(["base-3drawer", "base-3drawer-seeded"]),
-    ]);
+    const counts = (
+      await newReader().countEach([
+        bodiesProbe(["base-3drawer", "base-3drawer-seeded"]),
+      ])
+    ).counts;
 
     const statement = loneStatement();
     expect(counts).toEqual([{ item: LINKED, designCount: 3 }]);
@@ -153,7 +156,7 @@ describe("counting by the bodies a design places", () => {
   });
 
   it("counts none, without a statement, for an accessory the book does not state", async () => {
-    const counts = await newReader().countEach([bodiesProbe([])]);
+    const counts = (await newReader().countEach([bodiesProbe([])])).counts;
 
     expect(counts).toEqual([{ item: LINKED, designCount: 0 }]);
     expect(queryDriver.statements).toHaveLength(0);
@@ -162,7 +165,7 @@ describe("counting by the bodies a design places", () => {
 
 describe("walking the stored designs", () => {
   it("sends no statement for a call that holds no probe of the walking kind, and no walk for none at all", async () => {
-    expect(await newReader().countEach([])).toEqual([]);
+    expect((await newReader().countEach([])).counts).toEqual([]);
     answerQueryWith([{ designs: 1 }]);
 
     await newReader().countEach([tierProbe(MATERIAL)]);
@@ -186,10 +189,12 @@ describe("walking the stored designs", () => {
   it("shares one walk between every probe of a call, counting each design once per probe", async () => {
     answerQueryWith(storedDesigns(0, 2));
 
-    const counts = await newReader().countEach([
-      walkProbe(() => true),
-      walkProbe(() => false, { kind: "handle", handle: "steel" }),
-    ]);
+    const counts = (
+      await newReader().countEach([
+        walkProbe(() => true),
+        walkProbe(() => false, { kind: "handle", handle: "steel" }),
+      ])
+    ).counts;
 
     expect(queryDriver.statements).toHaveLength(1);
     expect(counts.map(({ designCount }) => designCount)).toEqual([2, 0]);
@@ -199,7 +204,8 @@ describe("walking the stored designs", () => {
     answerQueryWith(storedDesigns(0, USAGE_DESIGN_PAGE_SIZE));
     answerQueryWith(storedDesigns(USAGE_DESIGN_PAGE_SIZE, 3));
 
-    const counts = await newReader().countEach([walkProbe(() => true)]);
+    const counts = (await newReader().countEach([walkProbe(() => true)]))
+      .counts;
 
     expect(counts).toEqual([
       { item: COLOUR, designCount: USAGE_DESIGN_PAGE_SIZE + 3 },
@@ -241,6 +247,32 @@ describe("what the reader refuses", () => {
       [{ via: "settings-tier", item: MATERIAL }],
     ],
     ["an item with no name", [tierProbe({ kind: "material", tierId: "" })]],
+    [
+      "a tier probe naming a colour",
+      [{ via: "settings-tier", item: COLOUR, isFallback: false }],
+    ],
+    [
+      "a body probe naming a built-in accessory",
+      [
+        {
+          via: "placed-bodies",
+          item: { kind: "accessory", accessoryId: "dishDryingRack" },
+          buildIds: ["base-3drawer"],
+        },
+      ],
+    ],
+    [
+      "a body probe naming a colour",
+      [{ via: "placed-bodies", item: COLOUR, buildIds: [] }],
+    ],
+    [
+      "a walking probe naming a material",
+      [{ via: "migrated-design", item: MATERIAL, isUsedBy: () => false }],
+    ],
+    [
+      "a walking probe naming a linked accessory",
+      [{ via: "migrated-design", item: LINKED, isUsedBy: () => false }],
+    ],
   ])("turns away %s before it sends anything", async (_name, probes) => {
     await failureOf(
       () => newReader().countEach(probes as readonly ItemUsageProbe[]),
@@ -270,7 +302,7 @@ describe("what the reader refuses", () => {
     failQueryWith(new SyntaxError("Unexpected end of JSON input"));
     answerQueryWith([{ designs: 4 }]);
 
-    const counts = await newReader().countEach([tierProbe(MATERIAL)]);
+    const counts = (await newReader().countEach([tierProbe(MATERIAL)])).counts;
 
     expect(counts).toEqual([{ item: MATERIAL, designCount: 4 }]);
     expect(queryDriver.statements).toHaveLength(2);

@@ -1,15 +1,12 @@
 import {
   HandleSchema,
   countPendingPrices,
+  isBuiltInAccessoryId,
 } from "@lemnaria/configurator-domain";
-import type { ItemRef, ItemUsageCounts } from "@lemnaria/configurator-domain";
+import type { ItemRef } from "@lemnaria/configurator-domain";
 
 import { isDesignRevision } from "./design-revision.js";
-import type {
-  ItemUsageProbe,
-  KitchenUsageCounts,
-  PublishPriceBookRequest,
-} from "./m10-ports.js";
+import type { ItemUsageProbe, PublishPriceBookRequest } from "./m10-ports.js";
 
 // The shapes the M10 stores refuse before any statement: the fakes and the Neon stores share them, so both turn away
 // the same request. None of these reads a value as a number: a revision is an opaque digit run, and the only ordering
@@ -416,40 +413,42 @@ function probeKeyOf({ item }: ItemUsageProbe): string {
   return `${item.kind}:${itemIdOf(item)}`;
 }
 
-/** The kind a caller's item really has: a probe's types say, but the reader also turns away a probe that was cast. */
-function kindOf(item: ItemRef): ItemRef["kind"] {
-  return item.kind;
-}
-
-function isTierKind(kind: ItemRef["kind"]): boolean {
-  return kind === "material" || kind === "hardware";
-}
-
 function isCountableProbe(probe: ItemUsageProbe): boolean {
-  if (!isNamedItem(probe.item)) return false;
-  switch (probe.via) {
+  return (
+    isNamedItem(probe.item) &&
+    isWayOfReadingFor(probe.via, probe.item) &&
+    carriesWhatItReads(probe)
+  );
+}
+
+/** Each way of reading suits the kinds of item whose use it can tell, and no other. */
+function isWayOfReadingFor(via: ItemUsageProbe["via"], item: ItemRef): boolean {
+  switch (via) {
     case "settings-tier":
-      return (
-        isTierKind(kindOf(probe.item)) && typeof probe.isFallback === "boolean"
-      );
+      return item.kind === "material" || item.kind === "hardware";
     case "placed-bodies":
       return (
-        kindOf(probe.item) === "accessory" &&
+        item.kind === "accessory" && !isBuiltInAccessoryId(item.accessoryId)
+      );
+    case "migrated-design":
+      return (
+        item.kind === "finish" ||
+        item.kind === "handle" ||
+        (item.kind === "accessory" && isBuiltInAccessoryId(item.accessoryId))
+      );
+  }
+}
+
+function carriesWhatItReads(probe: ItemUsageProbe): boolean {
+  switch (probe.via) {
+    case "settings-tier":
+      return typeof probe.isFallback === "boolean";
+    case "placed-bodies":
+      return (
         Array.isArray(probe.buildIds) &&
         probe.buildIds.every((id) => typeof id === "string" && id !== "")
       );
     case "migrated-design":
       return typeof probe.isUsedBy === "function";
   }
-}
-
-/** The counts with the number of designs the walk could not read, as a property that is not enumerable. */
-export function countsWithUnreadable(
-  counts: ItemUsageCounts,
-  unreadableDesigns: number,
-): KitchenUsageCounts {
-  return Object.defineProperty([...counts], "unreadableDesigns", {
-    value: unreadableDesigns,
-    enumerable: false,
-  }) as unknown as KitchenUsageCounts;
 }

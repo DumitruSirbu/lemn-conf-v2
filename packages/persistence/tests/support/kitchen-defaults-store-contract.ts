@@ -1,4 +1,4 @@
-import { usageCountOf } from "@lemnaria/configurator-domain";
+import { isItemDisabled, usageCountOf } from "@lemnaria/configurator-domain";
 import type { ItemRef } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
@@ -419,6 +419,44 @@ function describeSharedHead(
       );
       expect(await world.auditEventsOf(staff.accountId)).toHaveLength(1);
     });
+
+    it("lets exactly one of a save that makes an item the default and a switch-off of that same item succeed, so the default is never a disabled item", async () => {
+      const world = await newWorld();
+      const staff = await world.aStaffMember();
+      const head = (await world.availability.readCurrent()).revision;
+      const item = aNewItem("material");
+      const tierId = item.kind === "material" ? item.tierId : "";
+      const defaultsBefore = await world.store.read();
+
+      const [saved, switched] = await Promise.all([
+        save(world, staff, {
+          defaults: { materialTierId: tierId },
+          expectedAvailabilityRevision: head,
+        }),
+        world.availability.setActive({
+          item,
+          active: false,
+          expectedRevision: head,
+          audit: auditRecordOf(staff, activationEntryFor(item, false)),
+        }),
+      ]);
+
+      expect(
+        [saved.kind === "ok", switched.kind === "ok"].filter(Boolean),
+      ).toHaveLength(1);
+      expect(isItemDisabled(await world.availability.readCurrent(), item)).toBe(
+        switched.kind === "ok",
+      );
+      const defaultsAfter = await world.store.read();
+      if (saved.kind === "ok") {
+        expect(defaultsAfter).toMatchObject({
+          kind: "saved",
+          saved: { defaults: { materialTierId: tierId } },
+        });
+      } else {
+        expect(defaultsAfter).toEqual(defaultsBefore);
+      }
+    });
   });
 }
 
@@ -461,7 +499,7 @@ async function countUsing(
   item: ItemRef,
 ): Promise<number> {
   return usageCountOf(
-    await world.usage.countEach([world.probeFor(item)]),
+    (await world.usage.countEach([world.probeFor(item)])).counts,
     item,
   );
 }
@@ -536,10 +574,12 @@ function describeUsage(
       await world.aDesignUsing({ uses: [used] });
       await world.aDesignUsing({ uses: [used] });
 
-      const counts = await world.usage.countEach([
-        world.probeFor(unused),
-        world.probeFor(used),
-      ]);
+      const counts = (
+        await world.usage.countEach([
+          world.probeFor(unused),
+          world.probeFor(used),
+        ])
+      ).counts;
 
       expect(counts.map(({ item }) => item)).toEqual([unused, used]);
       expect(usageCountOf(counts, used)).toBeGreaterThanOrEqual(2);
@@ -554,9 +594,9 @@ function describeUsage(
       await world.anUnreadableDesign();
       await world.anUnreadableDesign({ isDeletedByClient: true });
 
-      const counts = await world.usage.countEach([walked]);
-      expect(counts.unreadableDesigns).toBe(before + 1);
-      expect(counts).toHaveLength(1);
+      const result = await world.usage.countEach([walked]);
+      expect(result.unreadableDesigns).toBe(before + 1);
+      expect(result.counts).toHaveLength(1);
       expect(
         (await world.usage.countEach([world.probeFor(tier)])).unreadableDesigns,
       ).toBe(0);
@@ -565,11 +605,51 @@ function describeUsage(
     it("answers no counts for no probes", async () => {
       const world = await newWorld();
 
-      const counts = await world.usage.countEach([]);
+      const result = await world.usage.countEach([]);
 
-      expect(counts).toEqual([]);
-      expect(counts.unreadableDesigns).toBe(0);
+      expect(result).toEqual({ counts: [], unreadableDesigns: 0 });
     });
+
+    it.each([
+      ["a material", { kind: "material", tierId: "usage-routing" }],
+      ["a colour", { kind: "finish", finishId: "usage-routing" }],
+      ["a handle", { kind: "handle", handle: "steel" }],
+      [
+        "a linked accessory",
+        { kind: "accessory", accessoryId: "usage-routing" },
+      ],
+      [
+        "a built-in accessory",
+        { kind: "accessory", accessoryId: "dishDryingRack" },
+      ],
+    ] as const)(
+      "refuses a way of reading that does not suit %s",
+      async (_name, item) => {
+        const world = await newWorld();
+        const everyWay: readonly ItemUsageProbe[] = [
+          { via: "settings-tier", item, isFallback: false } as never,
+          { via: "placed-bodies", item, buildIds: [] } as never,
+          { via: "migrated-design", item, isUsedBy: () => false },
+        ];
+        const suited: Record<string, ItemUsageProbe["via"]> = {
+          material: "settings-tier",
+          finish: "migrated-design",
+          handle: "migrated-design",
+          accessory:
+            item.kind === "accessory" && item.accessoryId === "dishDryingRack"
+              ? "migrated-design"
+              : "placed-bodies",
+        };
+
+        for (const probe of everyWay) {
+          if (probe.via === suited[item.kind]) continue;
+          await dashboardFailureOf(
+            world.usage.countEach([probe]),
+            "invalid-request",
+          );
+        }
+      },
+    );
 
     it("refuses probes that name one item twice, because one of its counts would be the wrong one", async () => {
       const world = await newWorld();

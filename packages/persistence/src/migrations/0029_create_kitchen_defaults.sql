@@ -8,10 +8,10 @@
 -- unversioned and apply at once.
 --
 -- `revision` is the compare-and-set of a save: a save names the revision it read and moves it by one only while that is
--- still the stored one, in one statement with the availability head's own compare-and-set (`0025`), so a save, a publish
--- and an availability write that read the same head cannot all succeed. It starts at 0, which is the row that was seeded
--- and has never been saved, and only ever grows. It is opaque to the application, which compares it for equality and
--- never does arithmetic on it above SQL.
+-- still the stored one, in one statement with the availability head's own compare-and-set (`0025`). Of a save, a publish
+-- and an availability write that read the same head, at most one succeeds. It starts at 0, which is the row that was
+-- seeded and has never been saved, and only ever grows. It is opaque to the application, which compares it for equality
+-- and never does arithmetic on it above SQL.
 --
 -- `defaults` is the JSON object of the settings, as the domain builds it. It is seeded `{}`. **Whether a save has ever
 -- happened is `revision`, not the content**: a save of `{}` is a save, and the row then holds revision 1. The application
@@ -27,7 +27,7 @@
 -- parameter.
 --
 -- The row is seeded with `insert … on conflict do nothing`, so a re-run changes no data and never resets defaults that
--- have been saved. The unattended screen recognises that shape (`insert into … values (…) on conflict … do nothing`).
+-- have been saved. `migration-safety.ts` accepts that shape (`insert into … values (…) on conflict … do nothing`).
 --
 -- The grants are the owner's separate step:
 --
@@ -36,14 +36,14 @@
 --
 -- No INSERT, no DELETE, no TRUNCATE, no ALL, no WITH GRANT OPTION, nothing to PUBLIC, and no UPDATE of `singleton`.
 --
--- The usage reader that ships with this table reads `designs`, which the application role already holds `SELECT` on, and
--- the save also reads and updates `catalogue_availability_head` under `0025`'s grants: nothing is granted on either here.
+-- The usage count of a design reads `designs`, which the application role already holds `SELECT` on, and a save also
+-- reads and updates `catalogue_availability_head` under `0025`'s grants: nothing is granted on either here.
 --
 -- **The defaults are not in the nightly export** (which covers `designs` alone), so a restore does not bring them back: a
 -- restored database starts new kitchens from the fixed fallbacks until the defaults are saved again.
 --
--- **APPLY THIS BEFORE THE CODE THAT READS IT SHIPS, AND BEFORE THE GRANTS.** Without the table, or without the grants
--- above, the defaults routes and the dashboard's disable and delete judgements answer 503.
+-- **Apply this before any code that reads it runs, and before the grants.** Code that reads or saves the defaults, or
+-- counts the kitchens that use an item, fails against a database that lacks the table or the grants above.
 --
 -- Check the target database's ledger reads 1-28 before running, and 1-29 after (ADR 0020: verify by reading the schema,
 -- never by this command's exit status).

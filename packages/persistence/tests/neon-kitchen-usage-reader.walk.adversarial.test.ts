@@ -105,7 +105,7 @@ describe("the walk over a table that answers by keyset", () => {
     async (designCount) => {
       serveKeysetPagesFrom(readableRows(designCount));
 
-      const [counted] = await newReader().countEach([EVERY_DESIGN]);
+      const [counted] = (await newReader().countEach([EVERY_DESIGN])).counts;
 
       expect(counted?.designCount).toBe(designCount);
       expect(queryDriver.statements).toHaveLength(
@@ -140,7 +140,8 @@ describe("the walk over a table that answers by keyset", () => {
       isUsedBy: () => (asked += 1) % 3 === 0,
     };
 
-    const counts = await newReader().countEach([EVERY_DESIGN, everyThird]);
+    const counts = (await newReader().countEach([EVERY_DESIGN, everyThird]))
+      .counts;
 
     expect(counts.map(({ designCount }) => designCount)).toEqual([150, 50]);
     expect(queryDriver.statements).toHaveLength(2);
@@ -152,7 +153,7 @@ describe("the walk over a table that answers by keyset", () => {
       if (pageNumber === 1) table.push(...readableRows(1, 500));
     });
 
-    const [counted] = await newReader().countEach([EVERY_DESIGN]);
+    const [counted] = (await newReader().countEach([EVERY_DESIGN])).counts;
 
     expect(counted?.designCount).toBe(151);
   });
@@ -163,7 +164,7 @@ describe("the walk over a table that answers by keyset", () => {
       if (pageNumber === 1) table.push(...readableRows(1, 0));
     });
 
-    const [counted] = await newReader().countEach([EVERY_DESIGN]);
+    const [counted] = (await newReader().countEach([EVERY_DESIGN])).counts;
 
     expect(counted?.designCount).toBe(150);
   });
@@ -174,7 +175,7 @@ describe("the walk over a table that answers by keyset", () => {
     );
     serveKeysetPagesFrom([...unreadable, ...readableRows(5, 1000)]);
 
-    const [counted] = await newReader().countEach([EVERY_DESIGN]);
+    const [counted] = (await newReader().countEach([EVERY_DESIGN])).counts;
 
     expect(counted?.designCount).toBe(5);
     expect(cursorsSent()).toEqual(["", idAt(USAGE_DESIGN_PAGE_SIZE - 1)]);
@@ -186,7 +187,7 @@ describe("the walk over a table that answers by keyset", () => {
     });
     serveKeysetPagesFrom([...page, ...readableRows(3, 1000)]);
 
-    const [counted] = await newReader().countEach([EVERY_DESIGN]);
+    const [counted] = (await newReader().countEach([EVERY_DESIGN])).counts;
 
     expect(counted?.designCount).toBe(USAGE_DESIGN_PAGE_SIZE - 1 + 3);
     expect(cursorsSent()[1]).toBe(idAt(USAGE_DESIGN_PAGE_SIZE - 1));
@@ -230,24 +231,26 @@ describe("a call with probes of every way of reading", () => {
     answerQueryWith([{ designs: 4 }]);
     answerQueryWith([{ designs: 2 }]);
 
-    const counts = await newReader().countEach([
-      {
-        via: "settings-tier",
-        item: MATERIAL as ItemUsageProbe["item"] & { kind: "material" },
-        isFallback: false,
-      },
-      {
-        via: "placed-bodies",
-        item: LINKED as ItemUsageProbe["item"] & { kind: "accessory" },
-        buildIds: ["base-sink"],
-      },
-      {
-        via: "placed-bodies",
-        item: UNSTATED as ItemUsageProbe["item"] & { kind: "accessory" },
-        buildIds: [],
-      },
-      EVERY_DESIGN,
-    ]);
+    const counts = (
+      await newReader().countEach([
+        {
+          via: "settings-tier",
+          item: MATERIAL as ItemUsageProbe["item"] & { kind: "material" },
+          isFallback: false,
+        },
+        {
+          via: "placed-bodies",
+          item: LINKED as ItemUsageProbe["item"] & { kind: "accessory" },
+          buildIds: ["base-sink"],
+        },
+        {
+          via: "placed-bodies",
+          item: UNSTATED as ItemUsageProbe["item"] & { kind: "accessory" },
+          buildIds: [],
+        },
+        EVERY_DESIGN,
+      ])
+    ).counts;
 
     expect(counts).toEqual([
       { item: MATERIAL, designCount: 4 },

@@ -1,15 +1,12 @@
 import {
+  InvalidDesignError,
   UnknownBodyError,
   migrateDesign,
-  usageCountOf,
 } from "@lemnaria/configurator-domain";
 import type { Design, ItemUsageCounts } from "@lemnaria/configurator-domain";
 import type { NeonQueryFunction } from "@neondatabase/serverless";
 
-import {
-  countsWithUnreadable,
-  isCountableProbeSet,
-} from "./dashboard-store-shapes.js";
+import { isCountableProbeSet } from "./dashboard-store-shapes.js";
 import {
   countDesignsChoosingTierStatement,
   countDesignsPlacingBodiesStatement,
@@ -19,8 +16,8 @@ import type { TierSettingKey } from "./kitchen-usage-statements.js";
 import { DashboardStoreError } from "./m10-ports.js";
 import type {
   ItemUsageProbe,
-  KitchenUsageCounts,
   KitchenUsageReader,
+  KitchenUsageResult,
 } from "./m10-ports.js";
 import {
   onlyRow,
@@ -37,9 +34,21 @@ type MigratedDesignProbe = Extract<ItemUsageProbe, { via: "migrated-design" }>;
 type SqlProbe = Exclude<ItemUsageProbe, MigratedDesignProbe>;
 
 /** What one walk found: the designs each probe's predicate holds of, and the designs it could not read. */
-interface Walk {
+class Walk {
   readonly counts: Map<MigratedDesignProbe, number>;
-  unreadableDesigns: number;
+  unreadableDesigns = 0;
+
+  constructor(probes: readonly MigratedDesignProbe[]) {
+    this.counts = new Map(probes.map((probe) => [probe, 0]));
+  }
+
+  recordUnreadable(): void {
+    this.unreadableDesigns += 1;
+  }
+
+  recordUse(probe: MigratedDesignProbe): void {
+    this.counts.set(probe, (this.counts.get(probe) ?? 0) + 1);
+  }
 }
 
 const COUNT_USAGE = "count the kitchens using an item";
@@ -69,7 +78,7 @@ export class NeonKitchenUsageReader implements KitchenUsageReader {
 
   async countEach(
     probes: readonly ItemUsageProbe[],
-  ): Promise<KitchenUsageCounts> {
+  ): Promise<KitchenUsageResult> {
     if (!isCountableProbeSet(probes)) {
       throw new DashboardStoreError(COUNT_USAGE, "invalid-request");
     }
@@ -84,10 +93,7 @@ export class NeonKitchenUsageReader implements KitchenUsageReader {
           : await this.countInSql(probe),
       })),
     );
-    return countsWithUnreadable(
-      requireOneCountEach(probes, counts),
-      walk.unreadableDesigns,
-    );
+    return { counts, unreadableDesigns: walk.unreadableDesigns };
   }
 
   private async countInSql(probe: SqlProbe): Promise<number> {
@@ -119,10 +125,7 @@ export class NeonKitchenUsageReader implements KitchenUsageReader {
   private async walkMigratedDesigns(
     probes: readonly MigratedDesignProbe[],
   ): Promise<Walk> {
-    const walk: Walk = {
-      counts: new Map(probes.map((probe) => [probe, 0])),
-      unreadableDesigns: 0,
-    };
+    const walk = new Walk(probes);
     if (probes.length === 0) return walk;
     let afterId = "";
     for (;;) {
@@ -173,12 +176,10 @@ function tallyDesign(walk: Walk, row: Row): void {
   const used =
     design === undefined ? undefined : usedProbesOf(walk.counts.keys(), design);
   if (used === undefined) {
-    walk.unreadableDesigns += 1;
+    walk.recordUnreadable();
     return;
   }
-  for (const probe of used) {
-    walk.counts.set(probe, (walk.counts.get(probe) ?? 0) + 1);
-  }
+  for (const probe of used) walk.recordUse(probe);
 }
 
 /**
@@ -198,26 +199,19 @@ function usedProbesOf(
   }
 }
 
-/** The failure is dropped whole: a refusal of a document can quote its text. */
+/**
+ * The design as the product reads it, or `undefined` when the domain says the document is not a design it can read
+ * (`InvalidDesignError`, which every refusal of a stored document is). Any other failure of the migration is a failure to
+ * count, so a defect there is never read as a design that uses nothing. Both are dropped whole: a refusal of a document
+ * can quote its text.
+ */
 function readableDesignOf(row: Row): Design | undefined {
   const schemaVersion = row["schema_version"];
   if (typeof schemaVersion !== "number") return undefined;
   try {
     return migrateDesign(schemaVersion, row["document"]);
-  } catch {
-    return undefined;
-  }
-}
-
-/** The reader's own check of what it owes: one count per probe, found by the same rule the judgement reads them with. */
-function requireOneCountEach(
-  probes: readonly ItemUsageProbe[],
-  counts: ItemUsageCounts,
-): ItemUsageCounts {
-  try {
-    for (const { item } of probes) usageCountOf(counts, item);
-  } catch {
+  } catch (failure) {
+    if (failure instanceof InvalidDesignError) return undefined;
     throw unexpectedAnswer(COUNT_USAGE);
   }
-  return counts;
 }

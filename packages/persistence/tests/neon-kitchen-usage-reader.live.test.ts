@@ -88,7 +88,9 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
   }
 
   function countsOf(items: readonly ItemRef[]) {
-    return reader().countEach(usageProbesFor(items, USAGE_BASIS));
+    return reader()
+      .countEach(usageProbesFor(items, USAGE_BASIS))
+      .then(({ counts }) => counts);
   }
 
   function designsUsing(item: ItemRef): number {
@@ -170,12 +172,12 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
         createdAt: PLANTED_MARK,
       }),
     ) as unknown;
-    const [before] = await reader().countEach([probe]);
+    const [before] = (await reader().countEach([probe])).counts;
 
     for (let planted = 0; planted < USAGE_DESIGN_PAGE_SIZE + 5; planted += 1) {
       await plant(5, markedKitchen, false);
     }
-    const [after] = await reader().countEach([probe]);
+    const [after] = (await reader().countEach([probe])).counts;
 
     expect((after?.designCount ?? NaN) - (before?.designCount ?? NaN)).toBe(
       USAGE_DESIGN_PAGE_SIZE + 5,
