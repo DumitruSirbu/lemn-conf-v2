@@ -728,7 +728,7 @@ the stated default and needs only a yes or a correction.
 | OQ-31 | The sink cover: ADR 0070 d4 says it "is never toggled off"; D6A/D6C draw both built-in accessories as switchable | **The cover's switch is off with a reason** (the dated ADR wins); the rack stays switchable | U4c |
 | OQ-32 | A created accessory priced at 0 | Accepted, as the domain allows; the form requires a typed amount | U4c |
 | OQ-11c | U4c's 17 new Romanian lines (`accessories.*`, `lifecycle.*` accessory variants) | Built as drafted | U4c |
-| OQ-11d | U5c's new Romanian lines: `publish.staleChangeKept`, `staleChangeWholeDraftOnly`, `noActiveVersion`, `answerUnreadableTitle`/`Body`, `history.restoreCandidateRefused`, and the revised `staleDraftBody` | Built as drafted | U5c |
+| OQ-11d | U5c's new Romanian lines: `publish.staleChangeKept`, `staleChangeWholeDraftOnly`, `noActiveVersion`, `answerUnreadableTitle`/`Body`, `history.restoreCandidateRefused`, `publish.staleDraftWholeBook`, `publish.writeCandidateRefused`, and the revised `staleDraftBody` | Built as drafted | U5c |
 | OQ-28c | P6 leaves the seeded default kitchen's hardware total unchanged (its push fronts are top-row doors, no drawers); only push-to-open drawers move | Recorded, no question | P6 |
 
 ---
