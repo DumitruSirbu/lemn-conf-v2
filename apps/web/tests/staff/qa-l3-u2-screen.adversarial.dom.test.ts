@@ -556,6 +556,7 @@ describe("the line 'a to b of n', for every cut of a list", () => {
       search: null,
       segment: "sent",
       status: null,
+      onlyChanged: false,
       total,
       pageSize,
       firstPage: page,

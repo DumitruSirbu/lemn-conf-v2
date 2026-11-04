@@ -23,6 +23,10 @@ export interface WireKitchenOverrides {
   readonly status?: unknown;
   readonly notes?: unknown;
   readonly notesTruncated?: unknown;
+  readonly changedAfterSeen?: unknown;
+  readonly displayedRevision?: unknown;
+  readonly sentEstimate?: unknown;
+  readonly currentEstimate?: unknown;
 }
 
 /** A sent kitchen of a client with a profile: the document as sent, a request, status "new" never changed, no notes. */
@@ -51,6 +55,10 @@ export function wireKitchen({
     status: { value: "new", changedBy: null, changedAt: null },
     notes: [],
     notesTruncated: false,
+    changedAfterSeen: false,
+    displayedRevision: "5",
+    sentEstimate: { totalMinor: 5_820_000, currency: "MDL" },
+    currentEstimate: { totalMinor: 6_140_000, currency: "MDL" },
     ...members,
   });
 }

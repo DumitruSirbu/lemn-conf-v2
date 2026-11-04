@@ -101,6 +101,12 @@ export interface StaffListedKitchen {
    * for a kitchen never sent, which never shows the badge.
    */
   readonly isChangedSinceSeen: boolean;
+  /**
+   * When staff last saw the kitchen, by the mark that counts: the seen row's `seen_at`, which moves only when a mark
+   * raises the revision, so it describes the revision the row keeps. `null` when no mark counts: none was made, or the one
+   * held is above the kitchen's own revision, which the changed judgement also ignores.
+   */
+  readonly seenAt: Date | null;
 }
 
 export interface StaffKitchenPage {

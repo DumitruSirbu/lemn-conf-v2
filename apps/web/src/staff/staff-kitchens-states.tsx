@@ -16,7 +16,11 @@ import {
   PrimaryAction,
 } from "@/account/account-shell";
 import type { AppLocale } from "@/i18n/routing";
-import { useAccountKitCopy, useStaffKitchensCopy } from "@/i18n/use-content";
+import {
+  useAccountKitCopy,
+  useStaffChangesCopy,
+  useStaffKitchensCopy,
+} from "@/i18n/use-content";
 
 import styles from "./staff-kitchens.module.css";
 import type { ListFailure, StaffKitchensListing } from "./use-staff-kitchens";
@@ -163,23 +167,57 @@ export function EmptyKitchens({
   );
 }
 
-/** A search or a status that matched nothing, and the one press that drops it. */
+/** A search, a status or the changed-only switch that matched nothing, and the one press that drops it. A search is
+ *  named first: it is the narrowest, and dropping it shows the next reason if there is one. */
 export function NoResults({
   listing,
   onClearSearch,
   onClearStatus,
+  onClearOnlyChanged,
 }: {
   readonly listing: StaffKitchensListing;
   readonly onClearSearch: () => void;
   readonly onClearStatus: () => void;
+  readonly onClearOnlyChanged: () => void;
 }) {
   const copy = useStaffKitchensCopy();
+  const changes = useStaffChangesCopy();
   const { search } = listing;
+  if (search === null && listing.status === null && listing.onlyChanged) {
+    return (
+      <NoResultsNotice
+        words={changes.noChanged}
+        action={{
+          label: changes.noChanged.showAll,
+          onPress: onClearOnlyChanged,
+        }}
+      />
+    );
+  }
   const isSearch = search !== null;
-  const words =
-    search === null
-      ? copy.noResults.forStatus
-      : copy.noResults.forSearch(search);
+  return (
+    <NoResultsNotice
+      words={
+        search === null
+          ? copy.noResults.forStatus
+          : copy.noResults.forSearch(search)
+      }
+      action={
+        isSearch
+          ? { label: copy.filters.searchClear, onPress: onClearSearch }
+          : { label: copy.noResults.clearStatus, onPress: onClearStatus }
+      }
+    />
+  );
+}
+
+function NoResultsNotice({
+  words,
+  action,
+}: {
+  readonly words: { readonly title: string; readonly body: string };
+  readonly action: { readonly label: string; readonly onPress: () => void };
+}) {
   return (
     <section className={styles.state} data-testid="staff-kitchens-no-results">
       <span
@@ -192,9 +230,9 @@ export function NoResults({
       <button
         type="button"
         className={styles.stateAction}
-        onClick={isSearch ? onClearSearch : onClearStatus}
+        onClick={action.onPress}
       >
-        {isSearch ? copy.filters.searchClear : copy.noResults.clearStatus}
+        {action.label}
       </button>
     </section>
   );

@@ -645,6 +645,7 @@ describe("which module rounds what", () => {
         "price/price-bar-model.ts",
         "review/review-model.ts",
         "settings/global-settings-model.ts",
+        "staff/kitchen-estimates.tsx",
         THE_FORMATTER,
       ]),
     );
@@ -682,6 +683,7 @@ describe("which module rounds what", () => {
         "price/price-breakdown.tsx",
         "review/review-groups.tsx",
         "settings/global-settings.tsx",
+        "staff/kitchen-estimates.tsx",
         "staff/staff-kitchen-view.tsx",
         THE_FORMATTER,
       ]),

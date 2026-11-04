@@ -45,10 +45,10 @@ export function withoutRepeatedNotes(
 
 /** The kitchen with a note the server has stored in front, the newest first, and no longer than the read carries. A note
  *  that does not fit is one more that the kitchen holds and this page does not show. */
-export function withNoteAdded(
-  kitchen: StaffKitchenWire,
+export function withNoteAdded<Kitchen extends StaffKitchenWire>(
+  kitchen: Kitchen,
   note: StaffKitchenNoteWire,
-): StaffKitchenWire {
+): Kitchen {
   const notes = withoutRepeatedNotes([note, ...kitchen.notes]);
   return {
     ...kitchen,

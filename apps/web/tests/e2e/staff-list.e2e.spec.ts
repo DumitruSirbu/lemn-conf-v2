@@ -183,8 +183,11 @@ test.describe("the list as an operator", () => {
   test("the first page of 'Toate' lists the hidden kitchen and never the client-deleted one or the visitor's draft", async ({
     context,
   }) => {
+    // Searched for this run's marker: the unsearched first page of the shared table also holds every kitchen another run
+    // planted a moment later and every kitchen the list puts first for having changed, so it cannot say where this
+    // world's last-planted rows stand.
     const answer = await context.request.get(
-      "/api/staff/kitchens?segment=all&page=1",
+      `/api/staff/kitchens?segment=all&page=1&q=${world.marker}`,
     );
 
     expect(answer.status()).toBe(200);

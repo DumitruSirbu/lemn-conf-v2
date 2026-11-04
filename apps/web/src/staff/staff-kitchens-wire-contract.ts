@@ -285,8 +285,16 @@ export interface StaffChangedMarkWire {
   readonly changedAfterSeen: boolean;
 }
 
+/** When staff last saw the kitchen, as the mark that counts records it: ISO 8601, UTC, milliseconds. `null` when no mark
+ *  counts (none was made, or the one held is above the kitchen's own revision, which nothing judges by). Only the
+ *  list's rows carry it, beside the mark, so the row can say when the kitchen was seen and when it changed again. */
+export interface StaffSeenAtWire {
+  readonly seenAt: string | null;
+}
+
 export type StaffListedKitchenMarkedWire = StaffListedKitchenWire &
-  StaffChangedMarkWire;
+  StaffChangedMarkWire &
+  StaffSeenAtWire;
 
 /** The list with its marked rows, and the number of changed kitchens the menu counter shows. */
 export interface StaffKitchenMarkedListWire
@@ -343,6 +351,12 @@ export interface StaffEstimateRefusedWire {
   readonly refused: PricingFailureCode;
 }
 
+/** The kitchen as it stands holds no cabinet, so it has no estimate: the lines an empty design still carries would read as
+ *  a price over nothing. Not a pricing failure, so it names no code. */
+export interface StaffEstimateEmptyWire {
+  readonly empty: true;
+}
+
 export interface StaffKitchenEstimatesWire {
   /**
    * The total the shop's notice carried, read from what was stored with the request and never priced again, so a later
@@ -351,7 +365,10 @@ export interface StaffKitchenEstimatesWire {
    */
   readonly sentEstimate: StaffEstimateWire | null;
   /** The kitchen as it stands, priced now with the active book and the availability current at the read. */
-  readonly currentEstimate: StaffEstimateWire | StaffEstimateRefusedWire;
+  readonly currentEstimate:
+    | StaffEstimateWire
+    | StaffEstimateRefusedWire
+    | StaffEstimateEmptyWire;
 }
 
 /** `200` of the kitchen read: the kitchen, its mark and revision, and both estimates. */

@@ -5,7 +5,10 @@ import { nanoid } from "nanoid";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { NeonSessionStore } from "../src/neon-session-store.js";
+import { KITCHEN_L_DESIGN } from "@lemnaria/configurator-domain";
+
 import {
+  changeStaffDesignForTests,
   countStaffFixturesForTests,
   newStaffFixtureMarker,
   plantStaffAccountForTests,
@@ -43,6 +46,7 @@ const ZERO_COUNTS: StaffFixtureCounts = {
   staffAuditEvents: 0,
   contactSubmissions: 0,
   designShareLinks: 0,
+  designStaffSeen: 0,
   designs: 0,
   accountSessions: 0,
   accountEmailTokens: 0,
@@ -97,6 +101,10 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
     await sql()`
       insert into staff_audit_events (id, actor_account_id, action)
       values (${nanoid()}, ${spec.operatorId}, 'kitchens-listed')
+    `;
+    await sql()`
+      insert into design_staff_seen (design_id, seen_revision, seen_by_account_id)
+      values (${spec.designId}, 1, ${spec.operatorId})
     `;
     await sql()`
       insert into account_sessions (token_hash, account_id, absolute_expires_at)
@@ -161,6 +169,7 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
       staffAuditEvents: 3,
       contactSubmissions: 1,
       designShareLinks: 1,
+      designStaffSeen: 1,
       designs: 2,
       accountSessions: 2,
       accountEmailTokens: 1,
@@ -273,6 +282,67 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
 
     expect(survivors).toHaveLength(1);
     await sql()`delete from designs where id = ${appDesignId}`;
+  });
+
+  it("plants a request at a revision with a stored total and a copy as sent, and saves the kitchen again so it moves past the request", async () => {
+    const marker = freshMarker();
+    const client = await plantStaffAccountForTests(marker, { role: "client" });
+    const designId = await plantStaffDesignForTests(marker, {
+      kind: "visible",
+      ownerAccountId: client.accountId,
+    });
+    const sentDocument = { ...KITCHEN_L_DESIGN, placements: [] };
+
+    await plantStaffRequestForTests(marker, {
+      designId,
+      designRevision: "3",
+      pricedTotalMinor: 5_820_000,
+      sentDocument,
+    });
+    await changeStaffDesignForTests(marker, { designId });
+
+    const [request] = (await sql()`
+      select design_revision::text as revision, priced ->> 'totalMinor' as total, priced ->> 'currency' as currency
+      from contact_submissions where design_id = ${designId}
+    `) as { revision: string; total: string; currency: string }[];
+    const copies = (await sql()`
+      select csv.design_document -> 'placements' as placements
+      from contact_submission_views csv
+      join contact_submissions cs on cs.client_request_id = csv.client_request_id
+      where cs.design_id = ${designId}
+    `) as { placements: unknown[] }[];
+    const [design] = (await sql()`
+      select revision::text as revision from designs where id = ${designId}
+    `) as { revision: string }[];
+    expect(request).toEqual({
+      revision: "3",
+      total: "5820000",
+      currency: "MDL",
+    });
+    expect(copies).toEqual([{ placements: [] }]);
+    expect(design?.revision).toBe("2");
+    await removeStaffFixturesForTests(marker);
+    expect(await countStaffFixturesForTests(marker)).toEqual(ZERO_COUNTS);
+  });
+
+  it("refuses to save a kitchen of another marker again, and a request at a revision that is not one", async () => {
+    const mine = freshMarker();
+    const neighbour = freshMarker();
+    const neighbourDesign = await plantStaffDesignForTests(neighbour, {
+      kind: "visible",
+    });
+
+    await expect(
+      changeStaffDesignForTests(mine, { designId: neighbourDesign }),
+    ).rejects.toThrow(/no kitchen of this marker/u);
+    await expect(
+      plantStaffRequestForTests(neighbour, {
+        designId: neighbourDesign,
+        designRevision: "01",
+      }),
+    ).rejects.toThrow(/revision/u);
+
+    await removeStaffFixturesForTests(neighbour);
   });
 
   it("removes nothing and answers zero for a marker that holds nothing, repeatedly", async () => {

@@ -7,13 +7,18 @@ import {
 } from "@lemnaria/configurator-domain";
 
 import { formatRelativeAge } from "@/account/kitchens/relative-age";
-import type { StaffKitchensCopy } from "@/i18n/content";
+import type { StaffChangesCopy, StaffKitchensCopy } from "@/i18n/content";
 import type { AppLocale } from "@/i18n/routing";
-import { useStaffKitchensCopy } from "@/i18n/use-content";
+import { useStaffChangesCopy, useStaffKitchensCopy } from "@/i18n/use-content";
 
-import { dayOf, shopRelativeAgeOf } from "./staff-kitchen-dates";
+import {
+  dayOf,
+  recentDayAndTimeOf,
+  shopRelativeAgeOf,
+} from "./staff-kitchen-dates";
 import styles from "./staff-kitchens.module.css";
 import type {
+  StaffListedKitchenMarkedWire,
   StaffListedKitchenWire,
   StaffRequestStatusWire,
   StaffThumbnailDesign,
@@ -25,24 +30,28 @@ import type { StaffKitchensListing } from "./use-staff-kitchens";
 
 /** What a row says, worked out once for the table and the cards. */
 interface RowFacts {
-  readonly row: StaffListedKitchenWire;
+  readonly row: StaffListedKitchenMarkedWire;
   /** The full name: the stylesheet clips it to two lines, the text and the link's name never are. */
   readonly name: string;
   readonly href: string;
   readonly sentDate: string | undefined;
   readonly modifiedAgo: string;
   readonly modifiedAtIso: string;
+  /** When it was seen and when it changed again, for a kitchen that was seen before it changed; else nothing. */
+  readonly seenAndChangedAgain: string | undefined;
 }
 
 function factsOf({
   row,
   locale,
   copy,
+  changes,
   readAtMs,
 }: {
-  readonly row: StaffListedKitchenWire;
+  readonly row: StaffListedKitchenMarkedWire;
   readonly locale: AppLocale;
   readonly copy: StaffKitchensCopy;
+  readonly changes: StaffChangesCopy;
   readonly readAtMs: number;
 }): RowFacts {
   const age = shopRelativeAgeOf(Date.parse(row.updatedAt), readAtMs);
@@ -53,11 +62,33 @@ function factsOf({
     sentDate: row.sentAt === null ? undefined : dayOf(row.sentAt, locale),
     modifiedAgo: formatRelativeAge(locale, age),
     modifiedAtIso: row.updatedAt,
+    seenAndChangedAgain: isChangedAgainAfterSeen(row)
+      ? changes.seenAndChangedAgain({
+          seen: recentDayAndTimeOf(row.seenAt, readAtMs, locale),
+          changed: recentDayAndTimeOf(row.updatedAt, readAtMs, locale),
+        })
+      : undefined,
   };
 }
 
+/** The sub-line says the kitchen changed again after it was seen, so it needs a save strictly after the mark. A save that
+ *  landed between the page's read and the mark leaves the mark later than the save: the kitchen still reads as changed
+ *  and the badge says so, but "changed again" would read backwards. */
+function isChangedAgainAfterSeen(
+  row: StaffListedKitchenMarkedWire,
+): row is StaffListedKitchenMarkedWire & { readonly seenAt: string } {
+  return (
+    row.changedAfterSeen &&
+    row.seenAt !== null &&
+    Date.parse(row.updatedAt) > Date.parse(row.seenAt)
+  );
+}
+
 /** The name the client gave, else the one the room's facts generate, else a plain word. */
-function nameOf(row: StaffListedKitchenWire, copy: StaffKitchensCopy): string {
+function nameOf(
+  row: StaffListedKitchenMarkedWire,
+  copy: StaffKitchensCopy,
+): string {
   if (row.name !== null && row.name.trim() !== "") return row.name;
   if (row.design === null) return copy.unnamedKitchen;
   return copy.kitchenName(
@@ -84,6 +115,7 @@ export function KitchensTable({
   readonly listing: StaffKitchensListing;
 }) {
   const copy = useStaffKitchensCopy();
+  const changes = useStaffChangesCopy();
   return (
     <div
       className={styles.tableScroll}
@@ -113,7 +145,13 @@ export function KitchensTable({
           {listing.rows.map((row) => (
             <TableRow
               key={row.id}
-              facts={factsOf({ row, locale, copy, readAtMs: listing.readAtMs })}
+              facts={factsOf({
+                row,
+                locale,
+                copy,
+                changes,
+                readAtMs: listing.readAtMs,
+              })}
             />
           ))}
         </tbody>
@@ -126,7 +164,7 @@ function TableRow({ facts }: { readonly facts: RowFacts }) {
   const copy = useStaffKitchensCopy();
   const { row } = facts;
   return (
-    <tr data-testid="staff-kitchen-row">
+    <tr data-testid="staff-kitchen-row" data-changed={row.changedAfterSeen}>
       <td aria-hidden="true">
         <span className={styles.thumb} />
       </td>
@@ -134,6 +172,10 @@ function TableRow({ facts }: { readonly facts: RowFacts }) {
         <span className={styles.clamped} title={facts.name}>
           {facts.name}
         </span>
+        {row.changedAfterSeen ? <ChangedBadge /> : null}
+        {facts.seenAndChangedAgain === undefined ? null : (
+          <span className={styles.sub}>{facts.seenAndChangedAgain}</span>
+        )}
       </th>
       <td>
         <ClientCell client={row.client} />
@@ -166,12 +208,19 @@ export function KitchenCards({
   readonly listing: StaffKitchensListing;
 }) {
   const copy = useStaffKitchensCopy();
+  const changes = useStaffChangesCopy();
   return (
     <ul className={styles.cards} data-testid="staff-kitchens-cards">
       {listing.rows.map((row) => (
         <KitchenCard
           key={row.id}
-          facts={factsOf({ row, locale, copy, readAtMs: listing.readAtMs })}
+          facts={factsOf({
+            row,
+            locale,
+            copy,
+            changes,
+            readAtMs: listing.readAtMs,
+          })}
         />
       ))}
     </ul>
@@ -183,17 +232,25 @@ function KitchenCard({ facts }: { readonly facts: RowFacts }) {
   const { row } = facts;
   const phone = row.client?.phone ?? null;
   return (
-    <li className={styles.card} data-testid="staff-kitchen-row">
+    <li
+      className={styles.card}
+      data-testid="staff-kitchen-row"
+      data-changed={row.changedAfterSeen}
+    >
       <div className={styles.cardMain}>
         <span className={styles.thumb} aria-hidden="true" />
         <div className={styles.cardInfo}>
           <div className={styles.badgeRow}>
+            {row.changedAfterSeen ? <ChangedBadge /> : null}
             <KitchenBadges row={row} />
             <StatusBadges status={row.isSent ? row.requestStatus : null} />
           </div>
           <span className={styles.clamped} title={facts.name}>
             {facts.name}
           </span>
+          {facts.seenAndChangedAgain === undefined ? null : (
+            <span className={styles.line}>{facts.seenAndChangedAgain}</span>
+          )}
           <ClientLine client={row.client} />
           <span className={styles.line}>
             {phone === null ? (
@@ -281,7 +338,22 @@ function KitchenBadges({ row }: { readonly row: StaffListedKitchenWire }) {
   );
 }
 
-function StatusCell({ row }: { readonly row: StaffListedKitchenWire }) {
+/** The client changed the kitchen after staff saw it. It stands with the kitchen's name, in the table and on the card, and
+ *  is a mark of its own and not a state: the sent and hidden badges say what the kitchen is, this one says it has moved. */
+function ChangedBadge() {
+  const changes = useStaffChangesCopy();
+  return (
+    <span
+      className={styles.badge}
+      data-kind="changed"
+      data-testid="staff-kitchen-changed-badge"
+    >
+      {changes.badge}
+    </span>
+  );
+}
+
+function StatusCell({ row }: { readonly row: StaffListedKitchenMarkedWire }) {
   const copy = useStaffKitchensCopy();
   if (!row.isSent || row.requestStatus === null) return <>{copy.noValue}</>;
   return <StatusBadges status={row.requestStatus} />;
