@@ -1,9 +1,7 @@
-import {
-  isSameItem,
-  type ItemKind,
-  type ItemRef,
-} from "../pricing/catalogue-availability.js";
+import { isSameItem } from "../pricing/catalogue-availability.js";
+import type { ItemKind, ItemRef } from "../pricing/catalogue-availability.js";
 
+import { ITEM_KINDS } from "./book-field-address.js";
 import type { BookFieldAddress, DraftChange } from "./book-field-address.js";
 
 // How many prices a draft holds, as the person counts them: one for each price they set, and one for each row they
@@ -11,26 +9,33 @@ import type { BookFieldAddress, DraftChange } from "./book-field-address.js";
 // row as its deletion beside any price set on it; the person did one thing to that row, so everything the draft says
 // about it counts once. The same number is shown while the draft waits and stored with the version it becomes.
 
-export function countPendingPrices(changes: readonly DraftChange[]): number {
-  const rows = changedRowsOf(changes);
-  const ownCount = changes.filter(
-    (change) => changedRowOf(change, rows) === undefined,
-  ).length;
-  return ownCount + rows.length;
+/** Takes unknown entries because a stored summary is JSON: it never throws and never exceeds `changes.length`. */
+export function countPendingPrices(changes: readonly unknown[]): number {
+  const changedRowKeys = new Set<string>();
+  for (const change of changes) {
+    const key = rowKeyOf(createdOrDeletedRow(addressOf(change)));
+    if (key !== undefined) changedRowKeys.add(key);
+  }
+  const ownCount = changes.filter((change) => {
+    const key = rowKeyOf(rowNamedBy(addressOf(change)));
+    return key === undefined || !changedRowKeys.has(key);
+  }).length;
+  return ownCount + changedRowKeys.size;
 }
 
 /** The rows the draft creates or deletes, each once, in the order the draft first says something of them. */
 export function changedRowsOf(
   changes: readonly DraftChange[],
 ): readonly ItemRef[] {
-  const rows: ItemRef[] = [];
+  const rows = new Map<string, ItemRef>();
   for (const change of changes) {
     const row = createdOrDeletedRow(addressOf(change));
-    if (row !== undefined && !rows.some((held) => isSameItem(held, row))) {
-      rows.push(row);
+    const key = rowKeyOf(row);
+    if (row !== undefined && key !== undefined && !rows.has(key)) {
+      rows.set(key, row);
     }
   }
-  return rows;
+  return [...rows.values()];
 }
 
 /**
@@ -47,27 +52,45 @@ export function changedRowOf(
 }
 
 /**
- * A stored change is JSON, so anything can be in it. An entry that names no address, or a row that is no item, belongs
- * to no row and counts as a price of its own: the count never throws and never exceeds the number of entries.
+ * A stored change is JSON, so anything can be in it. An entry whose address is no object, or whose row is no item (a
+ * known kind with its id as a string), belongs to no row and counts as a price of its own.
  */
-function addressOf(change: DraftChange): BookFieldAddress | undefined {
+function addressOf(change: unknown): BookFieldAddress | undefined {
   if (!isObject(change)) return undefined;
-  const address: unknown = (change as { readonly address?: unknown }).address;
-  return isObject(address) ? (address as BookFieldAddress) : undefined;
+  const address = change["address"];
+  return isObject(address)
+    ? (address as unknown as BookFieldAddress)
+    : undefined;
 }
 
-const ITEM_KINDS: ReadonlySet<unknown> = new Set<ItemKind>([
-  "material",
-  "hardware",
-  "finish",
-  "handle",
-  "accessory",
-]);
-
 function itemOf(candidate: unknown): ItemRef | undefined {
-  return isObject(candidate) && ITEM_KINDS.has(candidate["kind"])
+  if (!isObject(candidate)) return undefined;
+  const kind = candidate["kind"];
+  const isKnownKind = ITEM_KINDS.some((known) => known === kind);
+  return isKnownKind && typeof idOf(candidate, kind as ItemKind) === "string"
     ? (candidate as unknown as ItemRef)
     : undefined;
+}
+
+function idOf(item: Record<string, unknown>, kind: ItemKind): unknown {
+  switch (kind) {
+    case "material":
+    case "hardware":
+      return item["tierId"];
+    case "finish":
+      return item["finishId"];
+    case "handle":
+      return item["handle"];
+    case "accessory":
+      return item["accessoryId"];
+  }
+}
+
+/** An item's identity as text, for a lookup that does not rescan the rows: the kind has no colon, so it splits. */
+function rowKeyOf(item: ItemRef | undefined): string | undefined {
+  return item === undefined
+    ? undefined
+    : `${item.kind}:${String(idOf(item as unknown as Record<string, unknown>, item.kind))}`;
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -79,9 +102,9 @@ function createdOrDeletedRow(
 ): ItemRef | undefined {
   switch (address?.kind) {
     case "hardware-tier-created":
-      return { kind: "hardware", tierId: address.tierId };
+      return itemOf({ kind: "hardware", tierId: address.tierId });
     case "accessory-created":
-      return { kind: "accessory", accessoryId: address.accessoryId };
+      return itemOf({ kind: "accessory", accessoryId: address.accessoryId });
     case "item-deleted":
       return itemOf(address.item);
     default:
@@ -96,9 +119,9 @@ function rowNamedBy(
   switch (address?.kind) {
     case "hardware":
     case "material":
-      return { kind: address.kind, tierId: address.tierId };
+      return itemOf({ kind: address.kind, tierId: address.tierId });
     case "accessory":
-      return { kind: "accessory", accessoryId: address.accessoryId };
+      return itemOf({ kind: "accessory", accessoryId: address.accessoryId });
     case "created-row-text":
       return itemOf(address.item);
     default:

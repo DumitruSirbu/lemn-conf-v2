@@ -148,18 +148,19 @@ export interface PublishStatementInput {
   /** The created items, in order, as two lists of one length: the kind of each, then its id. */
   readonly createdItemKinds: readonly string[];
   readonly createdItemIds: readonly string[];
-  /** The audit detail's members the caller supplies; `sequenceNumber` and `changeCount` are stamped in the statement. */
+  /** The audit detail's members the caller supplies; the statement stamps `sequenceNumber` and `changeCount`. */
   readonly detailJson: string;
   readonly audit: PreparedStaffAuditRecord;
 }
 
 /**
  * The publish, in one statement whose branches depend on one another in this order: `draft_row` locks the draft at the
- * revision read (two publishes meet here first); `moved_head` moves the availability head by `greatest(k, 1)` only while
- * it is still at the revision read, and a head that moved changes no row and then nothing else is written; `reset_draft`,
- * `inserted_version`, `logged` and `audited` follow. The audit row's `sequenceNumber` and `changeCount` are read from the
- * inserted version row's columns. The book is stored with its `version` set to the version's id. The last select reports each
- * branch, and raises `PUBLISH_RACED` for the one state it must not leave. A sequence number taken raises 23505.
+ * revision read (two publishes meet here first); `moved_head` moves the availability head by `greatest(k, 1)` only
+ * while it is still at the revision read, and a head that moved changes no row and then nothing else is written;
+ * `reset_draft`, `inserted_version`, `logged` and `audited` follow. The audit row's `sequenceNumber` and `changeCount`
+ * are read from the inserted version row's columns. The book is stored with its `version` set to the version's id. The
+ * last select reports each branch, and raises `PUBLISH_RACED` for the one state it must not leave. A sequence number
+ * taken raises 23505.
  */
 export function publishStatement<Statement>(
   sql: StatementTag<Statement>,

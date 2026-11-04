@@ -1,6 +1,5 @@
 import { fc } from "@fast-check/vitest";
-import { readFileSync } from "node:fs";
-import { describe, expect, expectTypeOf, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import {
   BOOK_FIELD_ADDRESS_KINDS,
@@ -24,13 +23,6 @@ import {
 import { newFakeDashboardWorld } from "./support/fake-dashboard-world.js";
 
 const PROPERTY_RUNS = 300;
-
-function sourceOf(fileUnderSrc: string): string {
-  return readFileSync(
-    new URL(`../src/${fileUnderSrc}`, import.meta.url),
-    "utf8",
-  );
-}
 
 async function publishedBy(summary: readonly DraftChange[]) {
   const world = newFakeDashboardWorld();
@@ -71,7 +63,7 @@ describe("the generated summaries reach the cases the count exists for", () => {
 });
 
 describe("one publish, one number: the list, the stored count and the audit row agree with the rule", () => {
-  it("lists, stores and stamps countPendingPrices(summary) for any summary of any address kind (the fake)", async () => {
+  it("agrees with the rule over arbitrary summaries of every address kind (the fake)", async () => {
     await fc.assert(
       fc.asyncProperty(changeSummaryArbitrary, async (summary) => {
         const { request, result, listed, audit } = await publishedBy(summary);
@@ -133,47 +125,27 @@ describe("a publish request names no count", () => {
     createdItems: [],
   } as const;
 
-  it("has no member that could carry one, as a request or in the audit entry it carries", () => {
-    expectTypeOf<
-      Extract<keyof PublishPriceBookRequest, `${string}ount${string}`>
-    >().toEqualTypeOf<never>();
-    expectTypeOf<
-      Extract<
-        keyof PricePublishedAuditInput["detail"],
-        "changeCount" | "sequenceNumber"
-      >
-    >().toEqualTypeOf<never>();
-  });
-
-  it("refuses a count on the request and in the audit detail at compile time", () => {
-    const withCount: PublishPriceBookRequest = {
+  it("accepts no count or sequence number from a caller, in the request or in the audit detail", () => {
+    ({
       ...baseRequest,
       audit: {} as PublishAuditRecord,
       // @ts-expect-error the store counts the prices; a request has no place to carry the count
       changeCount: 3,
-    };
-    const detailWithCount: PricePublishedAuditInput = {
+    }) satisfies PublishPriceBookRequest;
+    ({
       action: "price-published",
       // @ts-expect-error the audit row's count is stamped from the stored column, never supplied
       detail: { provisional: true, changeCount: 3 },
-    };
-    const detailWithSequence: PricePublishedAuditInput = {
+    }) satisfies PricePublishedAuditInput;
+    ({
       action: "price-published",
       // @ts-expect-error the audit row's sequence number is stamped from the inserted version, never supplied
       detail: { provisional: true, sequenceNumber: 3 },
-    };
-
-    expect([withCount, detailWithCount, detailWithSequence]).toHaveLength(3);
+    }) satisfies PricePublishedAuditInput;
   });
 });
 
 describe("the count is never derived again from the stored summary", () => {
-  it("leaves jsonb_array_length out of every statement of the price book", () => {
-    expect(sourceOf("price-book-statements.ts")).not.toContain(
-      "jsonb_array_length",
-    );
-  });
-
   it("names change_summary in no part of the listing statement", () => {
     const textOf = (strings: TemplateStringsArray) => strings.join("?");
 

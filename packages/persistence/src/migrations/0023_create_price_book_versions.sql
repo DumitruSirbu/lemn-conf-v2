@@ -2,11 +2,12 @@
 -- 2026-10-27: where the manufacturer's published price books are kept, one row per version, append-only.
 --
 -- A version is the whole book as it was published (`book`, a JSON object, stored whole and never edited) and the changes
--- that produced it (`change_summary`, a JSON array of the published draft changes). `change_count` is the count of
--- prices the publisher confirmed, computed by the application at publish and stored with the version, so a later change
--- to the counting rule never rewrites what a past publish said. It has no default: every insert names it. A published
--- version never changes: the application role has no `UPDATE`, no `DELETE` and no `TRUNCATE` on this table, so a
--- restore or a correction is a new version, never an edit of an old one.
+-- that produced it (`change_summary`, a JSON array of the published draft changes). `change_count` is the number of
+-- prices in `change_summary` (`countPendingPrices`), computed by the application at publish: the count the publisher
+-- was shown. It has no default, so every insert names it. Nothing in the database ties it to `change_summary`; the
+-- runbook's cross-check against the audit row's `changeCount` is what detects a mismatch. A published version never
+-- changes: the application role has no `UPDATE`, no `DELETE` and no `TRUNCATE` on this table, so a restore or a
+-- correction is a new version, never an edit of an old one.
 --
 -- **There is no `state` column.** The active version is the row with the greatest `sequence_number` (F7); an archived
 -- version is any other. `sequence_number` starts at 1 and the application inserts the next number only when the one it

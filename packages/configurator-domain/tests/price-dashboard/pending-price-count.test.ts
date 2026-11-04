@@ -127,6 +127,27 @@ describe("the count of prices a draft holds", () => {
       expect(counted).toBeLessThanOrEqual(summary.length);
     });
 
+    it("counts two deletions of an item with no id as two prices", () => {
+      const summary = [
+        deletionOf({ kind: "material" }),
+        deletionOf({ kind: "material" }),
+      ];
+
+      expect(countPendingPrices(summary)).toBe(2);
+    });
+
+    it("does not absorb a price set on a tier with no id into the deletion of an item with no id", () => {
+      const summary = [
+        deletionOf({ kind: "hardware" }),
+        change(
+          { kind: "hardware", tierId: undefined, field: "perHingeMinor" },
+          1_000,
+        ),
+      ];
+
+      expect(countPendingPrices(summary)).toBe(2);
+    });
+
     it("counts each entry it cannot address as one price of its own, joining no row", () => {
       const summary = [
         null,

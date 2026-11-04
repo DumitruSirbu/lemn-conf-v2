@@ -2,7 +2,7 @@ import {
   HandleSchema,
   countPendingPrices,
 } from "@lemnaria/configurator-domain";
-import type { DraftChange, ItemRef } from "@lemnaria/configurator-domain";
+import type { ItemRef } from "@lemnaria/configurator-domain";
 
 import type { PublishPriceBookRequest } from "./m10-ports.js";
 
@@ -288,7 +288,7 @@ export function storablePublishOf(
     expectedActiveSequence,
     bookJson,
     changeSummaryJson,
-    changeCount: countPendingPrices(changeSummary as readonly DraftChange[]),
+    changeCount: countPendingPrices(changeSummary),
     createdItems: Array.from<ItemRef>(createdItems),
   };
 }

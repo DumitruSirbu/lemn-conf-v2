@@ -887,7 +887,7 @@ describe("a publish", () => {
 
   it.each([
     ["a book", { book: { text: "x".repeat(2_097_152) } }],
-    ["a change summary", { changeSummary: ["x".repeat(2_097_152)] }],
+    ["a change summary", { changeSummary: [{ text: "x".repeat(2_097_152) }] }],
   ])(
     "refuses %s longer than a table takes before it sends anything, without quoting it",
     async (_name, overrides) => {
