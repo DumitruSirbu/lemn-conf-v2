@@ -37,10 +37,10 @@ export interface StaffWorld {
   readonly audit: FakeStaffAuditStore;
   readonly readerPort: StaffKitchenReader;
   readonly auditPort: StaffAuditStore;
-  /** Every port method the route called, in order, as `reader.listPage`, `reader.readOne` or `audit.record`. */
+  /** Every port method the route called, in order, as `reader.listPage`, `reader.countChanged`, `reader.readOne` or `audit.record`. */
   readonly calls: string[];
   auditBehaviour: AuditBehaviour;
-  /** Makes the reader's two methods reject with `DRIVER_FAILURE_MARKER`. */
+  /** Makes the reader's three methods reject with `DRIVER_FAILURE_MARKER`. */
   failReader: boolean;
   /** The account whose sessions `lose-session` ends. */
   signedOutAccountId: string | undefined;
@@ -71,6 +71,10 @@ export function freshStaffWorld(): StaffWorld {
       listPage: (query) => {
         calls.push("reader.listPage");
         return world.failReader ? failure() : reader.listPage(query);
+      },
+      countChanged: () => {
+        calls.push("reader.countChanged");
+        return world.failReader ? failure() : reader.countChanged();
       },
       readOne: (designId) => {
         calls.push("reader.readOne");

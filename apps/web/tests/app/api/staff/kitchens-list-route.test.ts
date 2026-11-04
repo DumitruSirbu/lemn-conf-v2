@@ -299,7 +299,7 @@ describe("the kitchens listed", () => {
 });
 
 describe("what a page holds", () => {
-  it("answers private, no-store, with a body of exactly total, page, pageSize and kitchens", async () => {
+  it("answers private, no-store, with a body of exactly total, changedCount, page, pageSize and kitchens", async () => {
     const { session } = await signedInOperator();
 
     const answer = await GET(listRequest({ cookie: session.cookie }));
@@ -307,6 +307,7 @@ describe("what a page holds", () => {
     expect(answer.status).toBe(200);
     expect(answer.headers.get("cache-control")).toBe("private, no-store");
     expect(Object.keys((await jsonOf(answer)) as object).sort()).toEqual([
+      "changedCount",
       "kitchens",
       "page",
       "pageSize",
@@ -325,6 +326,7 @@ describe("what a page holds", () => {
     };
 
     expect(Object.keys(kitchens[0] ?? {}).sort()).toEqual([
+      "changedAfterSeen",
       "client",
       "design",
       "id",
@@ -388,6 +390,7 @@ describe("every list view is audited before the page is sent", () => {
           page: 1,
           rowCount: 3,
           hasSearch: false,
+          onlyChanged: false,
         },
       }),
     ]);
@@ -552,5 +555,119 @@ describe("the account's page limit fails closed", () => {
       STAFF_LIST_POLICY_NAME,
     ]);
     expect(staffWorld.calls).toEqual(["reader.listPage", "audit.record"]);
+  });
+});
+
+describe("the kitchens changed after staff saw them", () => {
+  /** A kitchen sent at revision 1 and saved since, so the store judges it changed. */
+  function plantChanged(minute: number): string {
+    const sentAt = new Date(Date.UTC(2026, 9, 1, 0, minute));
+    const { id } = plantKitchen({ sentAt, updatedAt: sentAt, revision: "2" });
+    staffWorld.reader.plantRequest({
+      clientRequestId: id,
+      designId: id,
+      reference: `REF-${id.slice(0, 6)}`,
+      createdAt: sentAt,
+      designRevision: "1",
+    });
+    return id;
+  }
+
+  interface ListedBody {
+    readonly total: number;
+    readonly changedCount: number;
+    readonly kitchens: { id: string; changedAfterSeen: boolean }[];
+  }
+
+  async function listed(cookie: string, search = ""): Promise<ListedBody> {
+    const answer = await GET(listRequest({ cookie, search }));
+    expect(answer.status).toBe(200);
+    return (await jsonOf(answer)) as ListedBody;
+  }
+
+  it("marks each row from the store's judgement and lists the changed ones first", async () => {
+    const { session } = await signedInOperator();
+    const unchanged = plantKitchen().id;
+    const changed = plantChanged(5);
+
+    const body = await listed(session.cookie);
+
+    expect(body.kitchens.map(({ id }) => id)).toEqual([changed, unchanged]);
+    expect(body.kitchens.map((row) => row.changedAfterSeen)).toEqual([
+      true,
+      false,
+    ]);
+  });
+
+  it("returns only the changed kitchens for onlyChanged=true, and counts exactly them over every page", async () => {
+    const { session } = await signedInOperator();
+    plantKitchens(PAGE_SIZE + 3);
+    const changed = Array.from({ length: PAGE_SIZE + 2 }, (_unused, minute) =>
+      plantChanged(minute),
+    );
+
+    const first = await listed(session.cookie, "?onlyChanged=true");
+    const second = await listed(session.cookie, "?onlyChanged=true&page=2");
+
+    const rows = [...first.kitchens, ...second.kitchens];
+    expect(rows.every((row) => row.changedAfterSeen)).toBe(true);
+    expect(rows.map(({ id }) => id).sort()).toEqual([...changed].sort());
+    expect(first.changedCount).toBe(rows.length);
+    expect(second.changedCount).toBe(rows.length);
+  });
+
+  it("counts every changed kitchen whatever the query narrows to", async () => {
+    const { session } = await signedInOperator();
+    plantChanged(1);
+    plantChanged(2);
+    plantKitchen();
+
+    const drafts = await listed(session.cookie, "?segment=drafts");
+    const searched = await listed(
+      session.cookie,
+      `?q=${A_SEARCH_NO_ONE_ELSE_TYPES}`,
+    );
+
+    expect([drafts.total, searched.total]).toEqual([0, 0]);
+    expect([drafts.changedCount, searched.changedCount]).toEqual([2, 2]);
+  });
+
+  it.each([
+    ["false", "UNKNOWN_VALUE"],
+    ["1", "UNKNOWN_VALUE"],
+    ["TRUE", "UNKNOWN_VALUE"],
+  ])(
+    "refuses onlyChanged=%s as %s, before the bucket and the reader",
+    async (value, code) => {
+      const { session } = await signedInOperator();
+
+      const answer = await GET(
+        listRequest({
+          cookie: session.cookie,
+          search: `?onlyChanged=${value}`,
+        }),
+      );
+
+      expect(answer.status).toBe(400);
+      expect(await jsonOf(answer)).toEqual({
+        status: "invalid-input",
+        issues: [{ field: "onlyChanged", code }],
+      });
+      expect(staffWorld.calls).toEqual([]);
+    },
+  );
+
+  it("writes a kitchens-listed row that says it asked for the changed ones alone, and one that says it did not", async () => {
+    const { session } = await signedInOperator();
+    plantChanged(1);
+
+    await listed(session.cookie, "?onlyChanged=true");
+    await listed(session.cookie);
+
+    expect(
+      heldRows().map(
+        ({ detail }) => (detail as { onlyChanged: boolean }).onlyChanged,
+      ),
+    ).toEqual([true, false]);
   });
 });

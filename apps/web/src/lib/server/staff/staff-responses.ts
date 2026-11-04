@@ -37,16 +37,20 @@ import type {
   StaffConflictWire,
   StaffInvalidInputWire,
   StaffInvalidQueryWire,
-  StaffKitchenListWire,
+  StaffChangedCountWire,
+  StaffKitchenEstimatesWire,
+  StaffKitchenMarkedListWire,
   StaffKitchenNoteWire,
+  StaffKitchenOpenedWire,
   StaffKitchenRequestWire,
   StaffKitchenStatusWire,
   StaffKitchenWire,
-  StaffListedKitchenWire,
+  StaffListedKitchenMarkedWire,
   StaffNoteAddedWire,
   StaffPersonWire,
   StaffSeenConflictWire,
   StaffSeenInvalidWire,
+  StaffSeenMarkedWire,
   StaffSeenRefusalCode,
   StaffStatusSavedWire,
   StaffThumbnailDesign,
@@ -146,10 +150,13 @@ export function staffSeenInvalidResponse(
   return jsonResponse(body, 400);
 }
 
-/** `200`: the mark is stored, or an equal or later one already was. It carries no member: whether the kitchen still
- *  shows as changed is for SQL to say, and the mark's store answers only that it was admitted. */
-export function staffSeenMarkedResponse(): NextResponse {
-  return jsonResponse({}, 200);
+/** `200`: the mark is stored, or an equal or later one already was. It carries the store's own answer to whether the
+ *  kitchen still shows as changed, so a save that landed between the page's load and its mark is not read as seen. */
+export function staffSeenMarkedResponse(
+  changedAfterSeen: boolean,
+): NextResponse {
+  const body: StaffSeenMarkedWire = { changedAfterSeen };
+  return jsonResponse(body, 200);
 }
 
 /** `409`: the page claims to have shown a revision ahead of the kitchen's own. Nothing was written. */
@@ -163,12 +170,19 @@ export function staffKitchenListResponse(page: StaffKitchenPage): NextResponse {
   return jsonResponse(staffKitchenListWireOf(page), 200);
 }
 
-/** `200`: one kitchen with its client, request, status and notes. Built before the audit row is written and sent only
- *  after it commits. */
+/** `200`: one kitchen with its client, request, status and notes, its mark and revision, and its two estimates. Built
+ *  before the audit row is written and sent only after it commits. */
 export function staffKitchenResponse(
   kitchen: StaffKitchenDetail,
+  estimates: StaffKitchenEstimatesWire,
 ): NextResponse {
-  return jsonResponse(staffKitchenWireOf(kitchen), 200);
+  return jsonResponse(staffKitchenOpenedWireOf(kitchen, estimates), 200);
+}
+
+/** `200`: how many sent kitchens changed after staff saw them, and nothing else. It writes no audit row. */
+export function staffChangedCountResponse(count: number): NextResponse {
+  const body: StaffChangedCountWire = { count };
+  return jsonResponse(body, 200);
 }
 
 /** `200`: one page of the audit log. Built before the audit row is written and sent only after it commits. */
@@ -184,11 +198,12 @@ type StaffWireBody =
   | StaffNoteAddedWire
   | StaffStatusSavedWire
   | StaffConflictWire
-  | StaffKitchenListWire
-  | StaffKitchenWire
+  | StaffKitchenMarkedListWire
+  | StaffKitchenOpenedWire
   | StaffSeenInvalidWire
   | StaffSeenConflictWire
-  | Readonly<Record<string, never>>;
+  | StaffSeenMarkedWire
+  | StaffChangedCountWire;
 
 function jsonResponse(body: StaffWireBody, status: number): NextResponse {
   return NextResponse.json(body, {
@@ -210,9 +225,12 @@ function statusSavedWireOf(
   };
 }
 
-function staffKitchenListWireOf(page: StaffKitchenPage): StaffKitchenListWire {
+function staffKitchenListWireOf(
+  page: StaffKitchenPage,
+): StaffKitchenMarkedListWire {
   return {
     total: page.total,
+    changedCount: page.changedCount,
     page: page.page,
     pageSize: page.pageSize,
     kitchens: page.kitchens.map(listedKitchenWireOf),
@@ -221,8 +239,9 @@ function staffKitchenListWireOf(page: StaffKitchenPage): StaffKitchenListWire {
 
 function listedKitchenWireOf(
   kitchen: StaffListedKitchen,
-): StaffListedKitchenWire {
+): StaffListedKitchenMarkedWire {
   return {
+    changedAfterSeen: kitchen.isChangedSinceSeen,
     id: kitchen.id,
     name: kitchen.name,
     design: kitchen.design === null ? null : thumbnailDesignOf(kitchen.design),
@@ -245,6 +264,19 @@ function thumbnailDesignOf(
     ...(emptyColumns === undefined ? {} : { emptyColumns }),
     ...(columnExtents === undefined ? {} : { columnExtents }),
     ...(settings === undefined ? {} : { settings }),
+  };
+}
+
+function staffKitchenOpenedWireOf(
+  kitchen: StaffKitchenDetail,
+  estimates: StaffKitchenEstimatesWire,
+): StaffKitchenOpenedWire {
+  return {
+    ...staffKitchenWireOf(kitchen),
+    changedAfterSeen: kitchen.isChangedSinceSeen,
+    displayedRevision: kitchen.revision,
+    sentEstimate: estimates.sentEstimate,
+    currentEstimate: estimates.currentEstimate,
   };
 }
 
@@ -313,6 +345,9 @@ function auditEntryWireOf(reading: StaffAuditReading): StaffAuditEntryWire {
           page: entry.detail.page,
           rowCount: entry.detail.rowCount,
           hasSearch: entry.detail.hasSearch,
+          ...(entry.detail.onlyChanged === undefined
+            ? {}
+            : { onlyChanged: entry.detail.onlyChanged }),
         },
       };
     case "audit-viewed":

@@ -33,6 +33,7 @@ import {
   type StaffAdmission,
 } from "@/lib/server/staff/staff-admission";
 import { commitAuditRow } from "@/lib/server/staff/staff-audit-commit";
+import { estimatesOfKitchen } from "@/lib/server/staff/staff-kitchen-estimates";
 import { getStaffKitchenReader } from "@/lib/server/staff/staff-kitchen-reader-instance";
 import {
   staffInvalidQueryResponse,
@@ -65,7 +66,7 @@ const ONE_EVENT = "staff-kitchen" as const satisfies AccountEvent;
 /**
  * One page of the list. The network's read limit comes first (it fails open), then the session, `design.read.any` and
  * the query, then the account's page bucket, which **fails closed**; only then is the reader asked. The audit row
- * names the query's codes and counts, never the search text.
+ * names the query's codes, counts and whether it asked for the changed kitchens alone, never the search text.
  */
 export async function listKitchensForStaff(
   request: StaffListRequest,
@@ -87,7 +88,8 @@ export async function listKitchensForStaff(
  * One kitchen. An id that is not a design id's shape, an unknown id, a kitchen its client deleted and a visitor's
  * unsent draft get one answer, `designNotFoundResponse`, and write no row. A kitchen its client hid is read. The
  * account's opening bucket, which also **fails closed**, is counted after the id's shape and before the reader, so a
- * malformed id costs nothing. The row names the kitchen and, when it has one, the client's account.
+ * malformed id costs nothing. The answer carries both estimates, priced before the row is written. The row names the
+ * kitchen and, when it has one, the client's account.
  */
 export async function openKitchenForStaff(
   request: StaffOpenRequest,
@@ -125,7 +127,10 @@ async function serveKitchen(
   cookies: SessionCookieReader,
   kitchen: StaffKitchenDetail,
 ): Promise<NextResponse> {
-  const response = staffKitchenResponse(kitchen);
+  const response = staffKitchenResponse(
+    kitchen,
+    await estimatesOfKitchen(kitchen),
+  );
   await commitAuditRow(cookies, {
     entry: { action: "kitchen-opened", detail: null },
     designId: kitchen.id,
@@ -153,6 +158,7 @@ function queryMembersOf(
     status: searchParams.get("status") ?? undefined,
     q: searchParams.get("q") ?? undefined,
     page: searchParams.get("page") ?? undefined,
+    onlyChanged: searchParams.get("onlyChanged") ?? undefined,
   };
 }
 
@@ -184,6 +190,7 @@ function kitchensListedEntryOf(
       page: query.page,
       rowCount: page.kitchens.length,
       hasSearch: query.search !== null,
+      onlyChanged: query.onlyChanged === true,
     },
   };
 }

@@ -1781,6 +1781,59 @@ function describeChangedAfterSeen(
       }
     });
 
+    it("counts the changed kitchens without a page, as the list's count of any query is, and over all the pages that asking for the changed ones alone returns", async () => {
+      const world = await newWorld();
+      const client = await world.aClient();
+      const era = world.nextEra();
+      const changed = await aSentKitchen(world, client, at(era, 1));
+      await aSentKitchen(world, client, at(era, 2));
+      await world.saveKitchen(changed);
+
+      const counted = await world.reader.countChanged();
+      const unfiltered = await world.reader.listPage(queryOf());
+      const narrowed = await world.reader.listPage(
+        queryOf({ search: `${world.marker}-no-such-client` }),
+      );
+      const changedAlone = await world.reader.listPage(
+        queryOf({ onlyChanged: true }),
+      );
+
+      expect(counted).toBe(unfiltered.changedCount);
+      expect(counted).toBe(narrowed.changedCount);
+      expect(counted).toBe(changedAlone.total);
+      expect(counted).toBeGreaterThanOrEqual(1);
+    });
+
+    it("moves the count with a save and with a mark of the displayed revision, and counts neither a deleted kitchen nor a draft", async () => {
+      const world = await newWorld();
+      const client = await world.aClient();
+      const era = world.nextEra();
+      const kitchen = await aSentKitchen(world, client, at(era, 1));
+      const deleted = await world.aKitchen({
+        client,
+        sentAt: at(era, 2),
+        updatedAt: at(era, 2),
+        isDeletedByClient: true,
+      });
+      await world.aRequest({ designId: deleted, createdAt: at(era, 2) });
+      const draft = await world.aKitchen({ client, updatedAt: at(era, 3) });
+      const baseline = await world.reader.countChanged();
+
+      const saved = await world.saveKitchen(kitchen);
+      const afterSave = await world.reader.countChanged();
+      await world.markSeen(kitchen, saved);
+      const afterMark = await world.reader.countChanged();
+      await world.saveKitchen(deleted);
+      await world.saveKitchen(draft);
+      const afterOthers = await world.reader.countChanged();
+
+      expect([afterSave, afterMark, afterOthers]).toEqual([
+        baseline + 1,
+        baseline,
+        baseline,
+      ]);
+    });
+
     it("refuses a flag that is not a boolean before any statement", async () => {
       const world = await newWorld();
 

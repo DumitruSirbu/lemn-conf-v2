@@ -18,6 +18,7 @@ import type { StaffAuditAccountRef } from "./staff-audit-store.js";
 
 export type StaffKitchenReaderOperation =
   | "list staff kitchens"
+  | "count changed staff kitchens"
   | "read a staff kitchen";
 
 /**
@@ -204,6 +205,12 @@ export interface StaffKitchenReader {
    * Romanian cedilla letters to their comma-below forms (`foldRomanianSearchText`) and nothing else.
    */
   listPage(query: StaffKitchenQuery): Promise<StaffKitchenPage>;
+  /**
+   * Throws `StaffKitchenReaderError`. How many sent, visible kitchens changed after staff saw them: the number
+   * `listPage` returns as `changedCount` for any query, without reading a page. It ranks every submission on each call,
+   * so a poll bounds its own rate.
+   */
+  countChanged(): Promise<number>;
   /** Throws `StaffKitchenReaderError`. */
   readOne(designId: string): Promise<StaffKitchenReading>;
 }

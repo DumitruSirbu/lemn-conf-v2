@@ -6,6 +6,7 @@ import type { StaffKitchenDetail } from "@lemnaria/persistence";
 import { describe, expect, it } from "vitest";
 
 import { staffKitchenResponse } from "@/lib/server/staff/staff-responses";
+import type { StaffKitchenEstimatesWire } from "@/staff/staff-kitchens-wire-contract";
 import { staffKitchenFrom } from "@/staff/use-staff-kitchen";
 
 const KITCHEN_ID = "kitchenid000000000001";
@@ -13,6 +14,10 @@ const SENT = new Date("2026-10-17T11:08:00.000Z");
 const UPDATED = new Date("2026-10-19T09:00:00.000Z");
 const CHANGED = new Date("2026-10-18T11:22:00.000Z");
 const NOTES_AT_THE_LIMIT = 100;
+const ESTIMATES: StaffKitchenEstimatesWire = {
+  sentEstimate: null,
+  currentEstimate: { refused: "INVALID_PRICE_BOOK" },
+};
 
 const STAFF = {
   id: "staff-account-id-0001",
@@ -95,7 +100,7 @@ function detailWith(overrides: Partial<Detail>): Detail {
 }
 
 async function wireOf(detail: Detail): Promise<unknown> {
-  const response = staffKitchenResponse(detail);
+  const response = staffKitchenResponse(detail, ESTIMATES);
   expect(response.status).toBe(200);
   return response.json();
 }

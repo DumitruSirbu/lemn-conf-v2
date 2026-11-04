@@ -5,6 +5,8 @@ import type {
   Design,
   KitchensListedDetail,
   NoteTextRefusalCode,
+  PriceBookCurrency,
+  PricingFailureCode,
   RequestStatus,
   RequestStatusRefusalCode,
   StaffAuditAction,
@@ -302,7 +304,7 @@ export interface StaffSeenRequestWire {
   readonly displayedRevision: string;
 }
 
-/** `200` of a seen mark: the kitchen's mark afterwards. The request status is untouched. */
+/** `200` of a seen mark: the kitchen's mark afterwards, from the statement that wrote it. The request status is untouched. */
 export type StaffSeenMarkedWire = StaffChangedMarkWire;
 
 /** `MISSING_VALUE` is absent or not text; `NOT_A_REVISION` is text that is not a digit string of the revision's shape
@@ -323,6 +325,38 @@ export interface StaffSeenInvalidWire {
     readonly code: StaffSeenRefusalCode;
   }[];
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+// The two estimates the kitchen page shows
+//
+// A standalone type beside the frozen shapes, for the same reason as the marks above. A page that shows both reads
+// `StaffKitchenOpenedWire`, the kitchen with its mark and its estimates.
+
+/** A total in minor units, a whole number, with the currency it is in. */
+export interface StaffEstimateWire {
+  readonly totalMinor: number;
+  readonly currency: PriceBookCurrency;
+}
+
+/** The kitchen could not be priced now, for the pricing's own reason. No total, and never a zero. */
+export interface StaffEstimateRefusedWire {
+  readonly refused: PricingFailureCode;
+}
+
+export interface StaffKitchenEstimatesWire {
+  /**
+   * The total the shop's notice carried, read from what was stored with the request and never priced again, so a later
+   * publish does not move it. `null` for a kitchen with no request, and for a request that stored no total this build
+   * reads.
+   */
+  readonly sentEstimate: StaffEstimateWire | null;
+  /** The kitchen as it stands, priced now with the active book and the availability current at the read. */
+  readonly currentEstimate: StaffEstimateWire | StaffEstimateRefusedWire;
+}
+
+/** `200` of the kitchen read: the kitchen, its mark and revision, and both estimates. */
+export type StaffKitchenOpenedWire = StaffKitchenMarkedWire &
+  StaffKitchenEstimatesWire;
 
 /** `200` of the changed-kitchens count behind the menu badge. */
 export interface StaffChangedCountWire {

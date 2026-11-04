@@ -136,7 +136,7 @@ export function priceFloorOf(
  * refuses such a depth on the wire, so these are defence in depth; any other throw is a defect and propagates, which
  * on the card means the render fails loudly rather than the price silently going missing.
  */
-function buildCatalogAtDepthOf(design: Design): BodyCatalog | undefined {
+export function buildCatalogAtDepthOf(design: Design): BodyCatalog | undefined {
   try {
     return buildKitchenLBodyCatalog(cabinetDepthMmOf(design));
   } catch (error) {

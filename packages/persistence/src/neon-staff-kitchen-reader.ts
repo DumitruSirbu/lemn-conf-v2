@@ -43,6 +43,7 @@ import type {
   StaffListedKitchen,
 } from "./staff-kitchen-reader.js";
 import {
+  staffChangedCountStatement,
   staffKitchenListStatement,
   staffKitchenNotesStatement,
   staffKitchenStatement,
@@ -51,6 +52,7 @@ import {
 type ApplicationSql = NeonQueryFunction<false, false>;
 
 const LIST_OPERATION = "list staff kitchens";
+const COUNT_OPERATION = "count changed staff kitchens";
 const READ_OPERATION = "read a staff kitchen";
 
 /** The text of a stored total: a whole number, no sign and no fraction, as `jsonb` prints an integer. */
@@ -83,6 +85,13 @@ export class NeonStaffKitchenReader implements StaffKitchenReader {
       retryOnTransientFailure(() => staffKitchenListStatement(this.sql, query)),
     );
     return pageFrom(rows, query.page);
+  }
+
+  async countChanged(): Promise<number> {
+    const rows = await queryRows(COUNT_OPERATION, () =>
+      retryOnTransientFailure(() => staffChangedCountStatement(this.sql)),
+    );
+    return changedCountFrom(rows);
   }
 
   /**
@@ -170,6 +179,15 @@ function pageFrom(rows: readonly Row[], page: number): StaffKitchenPage {
     pageSize: STAFF_KITCHEN_PAGE_SIZE,
     kitchens: paged.found.map(listedKitchenFrom),
   };
+}
+
+function changedCountFrom(rows: readonly Row[]): number {
+  const [row, ...others] = rows;
+  const changedCount = row?.["changed_count"];
+  if (others.length > 0 || !isCount(changedCount)) {
+    throw unexpectedAnswer(COUNT_OPERATION);
+  }
+  return changedCount;
 }
 
 function listedKitchenFrom(row: Row): StaffListedKitchen {

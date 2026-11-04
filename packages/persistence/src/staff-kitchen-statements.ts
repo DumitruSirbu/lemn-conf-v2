@@ -134,6 +134,33 @@ export function staffKitchenListStatement<Statement>(
 }
 
 /**
+ * The number of sent kitchens changed after staff last saw them, and nothing else: the menu counter's poll. It states
+ * the list's `latest_submission` and `changed` CTEs word for word and stops at the count, so it joins no account, no
+ * status row and no document. The CTE ranks every submission once per call, so the caller bounds how often it asks.
+ */
+export function staffChangedCountStatement<Statement>(
+  sql: StatementTag<Statement>,
+): Statement {
+  return sql`
+    with latest_submission as (
+      select distinct on (cs.design_id) cs.design_id, cs.design_revision
+      from contact_submissions cs
+      where cs.design_id is not null
+      order by cs.design_id, cs.created_at desc, cs.client_request_id desc
+    ),
+    changed as (
+      select d.id
+      from designs d
+      left join design_staff_seen seen on seen.design_id = d.id
+      left join latest_submission latest on latest.design_id = d.id
+      where d.deleted_by_client_at is null and d.sent_at is not null
+        and d.revision <> greatest(case when seen.seen_revision <= d.revision then seen.seen_revision end, latest.design_revision)
+    )
+    select count(*)::int as changed_count from changed
+  `;
+}
+
+/**
  * A kitchen is readable unless its client deleted it, and unless it is a visitor's unsent draft, which no list shows
  * (the same two tests as the list's `all` segment). `contact_submissions` is read through `cs` for the columns the
  * application role may select, and its newest row for the design is the latest request. The as-sent copy is the newest

@@ -111,7 +111,7 @@ function answerOfSeen(
   switch (result.kind) {
     case "ok":
       reportAccountEvent({ event: STAFF_SEEN_EVENT, outcome: "succeeded" });
-      return staffSeenMarkedResponse();
+      return staffSeenMarkedResponse(result.changedAfterSeen);
     case "not-found":
       return notFound(designId);
     case "displayed-revision-ahead":

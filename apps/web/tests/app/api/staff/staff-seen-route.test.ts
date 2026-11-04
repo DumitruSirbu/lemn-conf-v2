@@ -180,11 +180,32 @@ describe("a mark that is admitted", () => {
     const answer = await mark(designId, "7", await operatorCookie());
 
     expect(answer.status).toBe(200);
-    expect(await jsonOf(answer)).toEqual({});
+    expect(await jsonOf(answer)).toEqual({ changedAfterSeen: false });
     expect(seen.store.heldSeenRevision(designId)).toBe("7");
     expect(seen.ledger.heldEvents()).toMatchObject([
       { action: "kitchen-seen", designId, detail: {} },
     ]);
+  });
+
+  it("answers that the kitchen is still changed when a save landed between the page's load and its mark, and stays so for a stale mark", async () => {
+    const { designId } = plantSeenKitchen({ revision: "9" });
+    const cookie = await operatorCookie();
+
+    const savedMeanwhile = await mark(designId, "7", cookie);
+    const stale = await mark(designId, "3", cookie);
+    const current = await mark(designId, "9", cookie);
+
+    expect(await jsonOf(savedMeanwhile)).toEqual({ changedAfterSeen: true });
+    expect(await jsonOf(stale)).toEqual({ changedAfterSeen: true });
+    expect(await jsonOf(current)).toEqual({ changedAfterSeen: false });
+  });
+
+  it("answers that a kitchen never sent is not changed, whatever revision was marked", async () => {
+    const { designId } = plantSeenKitchen({ isSent: false, revision: "9" });
+
+    const answer = await mark(designId, "7", await operatorCookie());
+
+    expect(await jsonOf(answer)).toEqual({ changedAfterSeen: false });
   });
 
   it("never lowers the stored revision, and still writes a row for the stale mark", async () => {
