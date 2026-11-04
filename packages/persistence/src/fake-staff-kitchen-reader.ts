@@ -6,7 +6,10 @@ import {
 import type { Design, StaffKitchenQuery } from "@lemnaria/configurator-domain";
 
 import type { DesignRevision } from "./design-revision.js";
-import { isChangedAfterSeen } from "./fake-dashboard-support.js";
+import {
+  isChangedAfterSeen,
+  revisionUnlessAhead,
+} from "./fake-dashboard-support.js";
 import type { StaffAuditAccountRef } from "./staff-audit-store.js";
 import {
   NOTES_READ_LIMIT,
@@ -70,6 +73,8 @@ export interface PlantedStaffRequest {
 /** What the reader needs of the seen marks: `FakeKitchenChangeStore` holds them. */
 export interface SeenRevisionSource {
   heldSeenRevision(designId: string): DesignRevision | undefined;
+  /** When the mark held for the design was last raised. */
+  heldSeenAt(designId: string): Date | undefined;
 }
 
 export interface FakeStaffKitchenReaderOptions {
@@ -261,7 +266,17 @@ export class FakeStaffKitchenReader implements StaffKitchenReader {
         storedStatus: this.statuses.get(kitchen.id)?.status ?? null,
       }),
       isChangedSinceSeen: this.isChangedAfterSeen(kitchen),
+      seenAt: this.seenAtOf(kitchen),
     };
+  }
+
+  /** The mark's instant, unless the mark is above the kitchen's own revision, which is judged as no mark. */
+  private seenAtOf(kitchen: PlantedStaffKitchen): Date | null {
+    const held = this.seen?.heldSeenRevision(kitchen.id);
+    const counts =
+      revisionUnlessAhead(held, kitchen.revision ?? FIRST_REVISION) !==
+      undefined;
+    return counts ? (this.seen?.heldSeenAt(kitchen.id) ?? null) : null;
   }
 
   private detailOf(kitchen: PlantedStaffKitchen): StaffKitchenDetail {

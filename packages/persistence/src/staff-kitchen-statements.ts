@@ -87,10 +87,12 @@ export function staffKitchenListStatement<Statement>(
       select d.id, d.name, d.sent_at, d.updated_at, d.hidden_by_client_at,
         case when ${segment}::text = 'sent' then d.sent_at else d.updated_at end as sorted_at,
         a.id as client_id, a.email as client_email, a.name as client_name, a.phone as client_phone,
-        s.status as stored_status, (c.id is not null) as is_changed
+        s.status as stored_status, (c.id is not null) as is_changed,
+        case when seen.seen_revision <= d.revision then seen.seen_at end as seen_at
       from designs d
       left join accounts a on a.id = d.account_id
       left join design_request_states s on s.design_id = d.id
+      left join design_staff_seen seen on seen.design_id = d.id
       left join changed c on c.id = d.id
       where d.deleted_by_client_at is null
         and (case ${segment}::text
@@ -106,13 +108,18 @@ export function staffKitchenListStatement<Statement>(
         and (not ${isOnlyChanged}::boolean or c.id is not null)
     )
     select t.total, (select count(*)::int from changed) as changed_count, p.id, p.name, p.is_sent, p.is_hidden,
-      p.is_changed, p.sent_ms, p.updated_ms, p.sorted_at,
+      p.is_changed, p.seen_ms, p.sent_ms, p.updated_ms, p.sorted_at,
       p.client_id, p.client_email, p.client_name, p.client_phone, p.stored_status,
       p.schema_version, p.document
     from (select count(*)::int as total from matching) t
     left join lateral (
       select m.id, m.name, (m.sent_at is not null) as is_sent, (m.hidden_by_client_at is not null) as is_hidden,
         m.is_changed,
+        case when m.seen_at is null then null
+          else floor(least(
+            greatest(extract(epoch from m.seen_at) * 1000, -8640000000000000),
+            8640000000000000
+          ))::bigint::text end as seen_ms,
         case when m.sent_at is null then null
           else floor(least(
             greatest(extract(epoch from m.sent_at) * 1000, -8640000000000000),

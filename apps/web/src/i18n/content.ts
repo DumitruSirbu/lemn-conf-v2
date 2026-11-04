@@ -1700,6 +1700,8 @@ export function resolveStaffChangesCopy(translate: ContentTranslator) {
       sentNoAccountModified: (details: { date: string; when: string }) =>
         translate("staffChanges.subSentNoAccountModified", details),
     },
+    seenAndChangedAgain: (details: { seen: string; changed: string }) =>
+      translate("staffChanges.seenAndChangedAgain", details),
     markedSeen: translate("staffChanges.markedSeen"),
     changedWhileOpen: translate("staffChanges.changedWhileOpen"),
     markSeenFailed: translate("staffChanges.markSeenFailed"),

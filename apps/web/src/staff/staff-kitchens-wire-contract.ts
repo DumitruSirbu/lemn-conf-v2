@@ -285,8 +285,16 @@ export interface StaffChangedMarkWire {
   readonly changedAfterSeen: boolean;
 }
 
+/** When staff last saw the kitchen, as the mark that counts records it: ISO 8601, UTC, milliseconds. `null` when no mark
+ *  counts (none was made, or the one held is above the kitchen's own revision, which nothing judges by). Only the
+ *  list's rows carry it, beside the mark, so the row can say when the kitchen was seen and when it changed again. */
+export interface StaffSeenAtWire {
+  readonly seenAt: string | null;
+}
+
 export type StaffListedKitchenMarkedWire = StaffListedKitchenWire &
-  StaffChangedMarkWire;
+  StaffChangedMarkWire &
+  StaffSeenAtWire;
 
 /** The list with its marked rows, and the number of changed kitchens the menu counter shows. */
 export interface StaffKitchenMarkedListWire

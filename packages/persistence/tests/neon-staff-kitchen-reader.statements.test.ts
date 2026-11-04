@@ -146,6 +146,7 @@ function aListedRow(overrides: Record<string, unknown> = {}) {
     is_sent: true,
     is_hidden: false,
     is_changed: false,
+    seen_ms: null,
     sent_ms: "1790000000000",
     updated_ms: "1790000000000",
     client_id: null,
@@ -238,6 +239,20 @@ describe("the list statement", () => {
       text.indexOf("from matching m"),
     );
     expect(text).toContain("(c.id is not null) as is_changed");
+  });
+
+  it("reads when staff last saw each kitchen from the seen row, unless the mark is above the kitchen's own revision, and joins it once", async () => {
+    const text = normalised(await sentByList(aQuery()));
+
+    expect(text).toContain(
+      "case when seen.seen_revision <= d.revision then seen.seen_at end as seen_at",
+    );
+    expect(text).toContain(
+      "left join design_staff_seen seen on seen.design_id = d.id left join changed c on c.id = d.id",
+    );
+    expect(text).toContain("case when m.seen_at is null then null");
+    expect(text).toContain("as seen_ms");
+    expect(text).toContain("p.is_changed, p.seen_ms,");
   });
 
   it("judges changed after seen once, in SQL, over sent kitchens its client has not deleted: the revision against the seen mark, else the latest submission's", async () => {
@@ -1069,6 +1084,35 @@ describe("what a kitchen changed after seen reads as (ADR 0178 A-12)", () => {
     "refuses a listed flag that is %s as an unexpected answer",
     async (_label, isChanged) => {
       answerQueryWith([aListedRow({ is_changed: isChanged })]);
+
+      const failure = await failureOf(() => newReader().listPage(aQuery()));
+
+      expect(failure.failure).toBe("unexpected-answer");
+    },
+  );
+
+  it("reads when staff last saw a listed kitchen as an instant, and null where no mark counts", async () => {
+    answerQueryWith([
+      aListedRow({ id: "A".repeat(21), seen_ms: "1790000123456" }),
+      aListedRow({ id: "B".repeat(21), seen_ms: null }),
+    ]);
+
+    const page = await newReader().listPage(aQuery());
+
+    expect(page.kitchens.map((kitchen) => kitchen.seenAt)).toEqual([
+      new Date(1_790_000_123_456),
+      null,
+    ]);
+  });
+
+  it.each([
+    ["absent", undefined],
+    ["text that is not an instant", "yesterday"],
+    ["a number", 1790000123456],
+  ])(
+    "refuses a seen instant that is %s as an unexpected answer",
+    async (_label, seenMs) => {
+      answerQueryWith([aListedRow({ seen_ms: seenMs })]);
 
       const failure = await failureOf(() => newReader().listPage(aQuery()));
 

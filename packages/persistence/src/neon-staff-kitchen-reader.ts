@@ -207,6 +207,7 @@ function listedKitchenFrom(row: Row): StaffListedKitchen {
       storedStatus: optionalText(row["stored_status"], operation),
     }),
     isChangedSinceSeen: requiredBoolean(row["is_changed"], operation),
+    seenAt: optionalInstant(row["seen_ms"], operation),
   };
 }
 

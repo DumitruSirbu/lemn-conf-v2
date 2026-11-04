@@ -242,6 +242,7 @@ function listedKitchenWireOf(
 ): StaffListedKitchenMarkedWire {
   return {
     changedAfterSeen: kitchen.isChangedSinceSeen,
+    seenAt: isoOrNull(kitchen.seenAt),
     id: kitchen.id,
     name: kitchen.name,
     design: kitchen.design === null ? null : thumbnailDesignOf(kitchen.design),

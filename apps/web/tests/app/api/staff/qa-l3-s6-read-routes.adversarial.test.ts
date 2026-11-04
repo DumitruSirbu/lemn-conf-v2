@@ -1112,6 +1112,7 @@ describe("the wire contract's key sets against a hostile reader", () => {
         updatedAt: UPDATED_AT,
         requestStatus: "new",
         isChangedSinceSeen: true,
+        seenAt: SENT_AT,
       },
       touched,
       "row",
@@ -1154,6 +1155,7 @@ describe("the wire contract's key sets against a hostile reader", () => {
       "isSent",
       "name",
       "requestStatus",
+      "seenAt",
       "sentAt",
       "updatedAt",
     ]);

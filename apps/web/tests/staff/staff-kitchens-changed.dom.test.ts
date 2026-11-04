@@ -181,6 +181,42 @@ describe.each(LOCALES)("the list of changed kitchens in %s", (locale) => {
       }
     });
 
+    it("says when a kitchen was seen and when it changed again, only for one that was seen before it changed", async () => {
+      const seenYesterday = {
+        seenAt: "2026-10-20T07:05:00.000Z",
+        updatedAt: "2026-10-21T06:40:00.000Z",
+      };
+      listAnswers(() => ({
+        body: wireList(
+          [
+            wireRow(1, { changedAfterSeen: true, ...seenYesterday }),
+            wireRow(2, { changedAfterSeen: true, seenAt: null }),
+            wireRow(3, { changedAfterSeen: false, ...seenYesterday }),
+          ],
+          { changedCount: 2 },
+        ),
+      }));
+
+      await mount({ locale, width });
+
+      const [changedAfterSeen, neverSeen, unchanged] = rows();
+      const [yesterday, today] =
+        locale === "ro" ? ["ieri", "azi"] : ["вчера", "сегодня"];
+      expect(changedAfterSeen?.textContent).toContain(
+        sayOfChanges("seenAndChangedAgain", {
+          seen: `${yesterday}, 10:05`,
+          changed: `${today}, 09:40`,
+        }),
+      );
+      const lead =
+        sayOfChanges("seenAndChangedAgain", {
+          seen: "",
+          changed: "",
+        }).split(" ")[0] ?? "";
+      expect(neverSeen?.textContent).not.toContain(lead);
+      expect(unchanged?.textContent).not.toContain(lead);
+    });
+
     it("draws no badge when no row reads as changed", async () => {
       listAnswers(() => ({ body: wireList([wireRow(1), wireRow(2)]) }));
 

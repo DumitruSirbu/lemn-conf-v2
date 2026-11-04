@@ -7,11 +7,15 @@ import {
 } from "@lemnaria/configurator-domain";
 
 import { formatRelativeAge } from "@/account/kitchens/relative-age";
-import type { StaffKitchensCopy } from "@/i18n/content";
+import type { StaffChangesCopy, StaffKitchensCopy } from "@/i18n/content";
 import type { AppLocale } from "@/i18n/routing";
 import { useStaffChangesCopy, useStaffKitchensCopy } from "@/i18n/use-content";
 
-import { dayOf, shopRelativeAgeOf } from "./staff-kitchen-dates";
+import {
+  dayOf,
+  recentDayAndTimeOf,
+  shopRelativeAgeOf,
+} from "./staff-kitchen-dates";
 import styles from "./staff-kitchens.module.css";
 import type {
   StaffListedKitchenMarkedWire,
@@ -33,17 +37,21 @@ interface RowFacts {
   readonly sentDate: string | undefined;
   readonly modifiedAgo: string;
   readonly modifiedAtIso: string;
+  /** When it was seen and when it changed again, for a kitchen that was seen before it changed; else nothing. */
+  readonly seenAndChangedAgain: string | undefined;
 }
 
 function factsOf({
   row,
   locale,
   copy,
+  changes,
   readAtMs,
 }: {
   readonly row: StaffListedKitchenMarkedWire;
   readonly locale: AppLocale;
   readonly copy: StaffKitchensCopy;
+  readonly changes: StaffChangesCopy;
   readonly readAtMs: number;
 }): RowFacts {
   const age = shopRelativeAgeOf(Date.parse(row.updatedAt), readAtMs);
@@ -54,6 +62,13 @@ function factsOf({
     sentDate: row.sentAt === null ? undefined : dayOf(row.sentAt, locale),
     modifiedAgo: formatRelativeAge(locale, age),
     modifiedAtIso: row.updatedAt,
+    seenAndChangedAgain:
+      row.changedAfterSeen && row.seenAt !== null
+        ? changes.seenAndChangedAgain({
+            seen: recentDayAndTimeOf(row.seenAt, readAtMs, locale),
+            changed: recentDayAndTimeOf(row.updatedAt, readAtMs, locale),
+          })
+        : undefined,
   };
 }
 
@@ -88,6 +103,7 @@ export function KitchensTable({
   readonly listing: StaffKitchensListing;
 }) {
   const copy = useStaffKitchensCopy();
+  const changes = useStaffChangesCopy();
   return (
     <div
       className={styles.tableScroll}
@@ -117,7 +133,13 @@ export function KitchensTable({
           {listing.rows.map((row) => (
             <TableRow
               key={row.id}
-              facts={factsOf({ row, locale, copy, readAtMs: listing.readAtMs })}
+              facts={factsOf({
+                row,
+                locale,
+                copy,
+                changes,
+                readAtMs: listing.readAtMs,
+              })}
             />
           ))}
         </tbody>
@@ -139,6 +161,9 @@ function TableRow({ facts }: { readonly facts: RowFacts }) {
           {facts.name}
         </span>
         {row.changedAfterSeen ? <ChangedBadge /> : null}
+        {facts.seenAndChangedAgain === undefined ? null : (
+          <span className={styles.sub}>{facts.seenAndChangedAgain}</span>
+        )}
       </th>
       <td>
         <ClientCell client={row.client} />
@@ -171,12 +196,19 @@ export function KitchenCards({
   readonly listing: StaffKitchensListing;
 }) {
   const copy = useStaffKitchensCopy();
+  const changes = useStaffChangesCopy();
   return (
     <ul className={styles.cards} data-testid="staff-kitchens-cards">
       {listing.rows.map((row) => (
         <KitchenCard
           key={row.id}
-          facts={factsOf({ row, locale, copy, readAtMs: listing.readAtMs })}
+          facts={factsOf({
+            row,
+            locale,
+            copy,
+            changes,
+            readAtMs: listing.readAtMs,
+          })}
         />
       ))}
     </ul>
@@ -204,6 +236,9 @@ function KitchenCard({ facts }: { readonly facts: RowFacts }) {
           <span className={styles.clamped} title={facts.name}>
             {facts.name}
           </span>
+          {facts.seenAndChangedAgain === undefined ? null : (
+            <span className={styles.line}>{facts.seenAndChangedAgain}</span>
+          )}
           <ClientLine client={row.client} />
           <span className={styles.line}>
             {phone === null ? (

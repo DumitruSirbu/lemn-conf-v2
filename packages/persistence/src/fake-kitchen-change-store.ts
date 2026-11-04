@@ -125,6 +125,10 @@ export class FakeKitchenChangeStore implements KitchenChangeStore {
     return this.marks.get(designId)?.seenRevision;
   }
 
+  heldSeenAt(designId: string): Date | undefined {
+    return this.marks.get(designId)?.seenAt;
+  }
+
   heldSeenMark(designId: string): HeldSeenMark | undefined {
     const mark = this.marks.get(designId);
     return mark === undefined ? undefined : { ...mark };

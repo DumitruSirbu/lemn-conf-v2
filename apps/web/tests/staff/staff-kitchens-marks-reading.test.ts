@@ -49,6 +49,41 @@ describe("the list's marks and count", () => {
     ]);
   });
 
+  it("gives every row the instant staff last saw it, or null", () => {
+    const list = listFrom(
+      wireList([
+        wireRow(1, { seenAt: "2026-10-20T07:05:00.000Z" }),
+        wireRow(2, { seenAt: null }),
+      ]),
+    );
+
+    expect(list?.kitchens.map((row) => row.seenAt)).toEqual([
+      "2026-10-20T07:05:00.000Z",
+      null,
+    ]);
+  });
+
+  it.each([
+    [
+      "a row without a seen instant",
+      wireList([wireRow(1, { seenAt: undefined })]),
+    ],
+    [
+      "a seen instant that is not an instant",
+      wireList([wireRow(1, { seenAt: "yesterday" })]),
+    ],
+    [
+      "a seen instant with an offset",
+      wireList([wireRow(1, { seenAt: "2026-10-20T07:05:00+03:00" })]),
+    ],
+    [
+      "a seen instant that is a number",
+      wireList([wireRow(1, { seenAt: 1790000000000 })]),
+    ],
+  ])("refuses %s", (_name, body) => {
+    expect(listFrom(body)).toBeUndefined();
+  });
+
   it("reads an empty list with its count", () => {
     expect(listFrom(wireList([], { changedCount: 3 }))).toMatchObject({
       total: 0,

@@ -334,6 +334,7 @@ describe("what a page holds", () => {
       "isSent",
       "name",
       "requestStatus",
+      "seenAt",
       "sentAt",
       "updatedAt",
     ]);

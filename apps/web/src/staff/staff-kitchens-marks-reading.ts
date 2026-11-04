@@ -15,7 +15,7 @@ import type {
   StaffListedKitchenWire,
   StaffSeenMarkedWire,
 } from "./staff-kitchens-wire-contract";
-import { isCount, ownValueOf } from "./staff-kitchens-wire-reading";
+import { isCount, isInstant, ownValueOf } from "./staff-kitchens-wire-reading";
 
 // What the staff list and the kitchen page answer beyond the shapes they had before the changed-after-seen mark: the
 // mark itself, the revision the page displayed, and the two estimates. Each reader takes the body the older reader
@@ -54,25 +54,39 @@ export function withMarksOfList(
   return { ...list, changedCount, kitchens };
 }
 
-function marksById(rawKitchens: readonly unknown[]): Map<string, unknown> {
-  const marks = new Map<string, unknown>();
+/** What a raw row says of the mark, by the row's id: the first row naming an id is the one the older reader kept. */
+function marksById(rawKitchens: readonly unknown[]): Map<string, RawMark> {
+  const marks = new Map<string, RawMark>();
   for (const raw of rawKitchens) {
     const id = ownValueOf(raw, "id");
     if (typeof id === "string" && !marks.has(id)) {
-      marks.set(id, ownValueOf(raw, "changedAfterSeen"));
+      marks.set(id, {
+        changedAfterSeen: ownValueOf(raw, "changedAfterSeen"),
+        seenAt: ownValueOf(raw, "seenAt"),
+      });
     }
   }
   return marks;
 }
 
+interface RawMark {
+  readonly changedAfterSeen: unknown;
+  readonly seenAt: unknown;
+}
+
+/** A row needs its mark and its seen instant, `null` or in the one form the server writes: a body that forgot either is
+ *  refused, so a row never says "seen" from a member it did not read. */
 function markedRowOf(
   kitchen: StaffListedKitchenWire,
-  markById: ReadonlyMap<string, unknown>,
+  markById: ReadonlyMap<string, RawMark>,
 ): StaffListedKitchenMarkedWire | undefined {
   const mark = markById.get(kitchen.id);
-  return typeof mark === "boolean"
-    ? { ...kitchen, changedAfterSeen: mark }
-    : undefined;
+  if (mark === undefined || typeof mark.changedAfterSeen !== "boolean") {
+    return undefined;
+  }
+  const { seenAt } = mark;
+  if (seenAt !== null && !isInstant(seenAt)) return undefined;
+  return { ...kitchen, changedAfterSeen: mark.changedAfterSeen, seenAt };
 }
 
 function isMarkedRow(

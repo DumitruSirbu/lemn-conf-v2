@@ -25,6 +25,7 @@ export interface WireRowOverrides {
   readonly updatedAt?: unknown;
   readonly requestStatus?: unknown;
   readonly changedAfterSeen?: unknown;
+  readonly seenAt?: unknown;
 }
 
 const THUMBNAIL_DESIGN = (() => {
@@ -54,6 +55,7 @@ export function wireRow(
     updatedAt: new Date(FIRST_UPDATED_AT_MS - serial * 1000).toISOString(),
     requestStatus: "new",
     changedAfterSeen: false,
+    seenAt: null,
     ...overrides,
   };
   return withoutUndefinedMembers(row);

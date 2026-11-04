@@ -60,6 +60,7 @@ const LISTED = leaky({
   updatedAt: WHEN,
   requestStatus: "new" as const,
   isChangedSinceSeen: false,
+  seenAt: null,
 });
 
 const DETAIL: StaffKitchenDetail = leaky({
@@ -147,6 +148,7 @@ describe("the list answer", () => {
       "isSent",
       "name",
       "requestStatus",
+      "seenAt",
       "sentAt",
       "updatedAt",
     ]);
@@ -168,6 +170,19 @@ describe("the list answer", () => {
         (row) => row.changedAfterSeen,
       ),
     ).toEqual([false, true]);
+  });
+
+  it("sends when staff last saw each row as ISO text, and null where no mark counts", async () => {
+    const body = await bodyOf(
+      staffKitchenListResponse({
+        ...page,
+        kitchens: [LISTED, { ...LISTED, seenAt: WHEN }],
+      }),
+    );
+
+    expect(
+      (body.kitchens as { seenAt: unknown }[]).map((row) => row.seenAt),
+    ).toEqual([null, WHEN.toISOString()]);
   });
 
   it("sends the thumbnail the room, the cabinets and the colour of the document, and not its identity or timestamps", async () => {

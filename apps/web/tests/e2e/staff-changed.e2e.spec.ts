@@ -37,6 +37,14 @@ const sentChoiceName = new RegExp(
   "u",
 );
 
+/** The sub-line of a kitchen seen before it changed, up to the first time it names and between the two. */
+const [SEEN_LEAD, CHANGED_AGAIN_LEAD] = romanian(
+  "staffChanges.seenAndChangedAgain",
+  { seen: "", changed: "" },
+).split(" · ");
+
+const SEEN_ROUTE_COMPILE_TIMEOUT_MS = 20_000;
+
 let scenario: ChangedWorld;
 
 test.beforeAll(async () => {
@@ -67,6 +75,10 @@ function badgeOf(page: Page, name: string) {
   return kitchenRows(page)
     .filter({ hasText: name })
     .getByTestId("staff-kitchen-changed-badge");
+}
+
+function changedRow(page: Page) {
+  return kitchenRows(page).filter({ hasText: scenario.changed.name });
 }
 
 function estimate(page: Page, which: "sent" | "current") {
@@ -139,12 +151,18 @@ test("opening the changed kitchen marks it seen once and the badge is gone; save
   });
   await searchForThisRun(page);
   await expect(badgeOf(page, scenario.changed.name)).toBeVisible();
+  await expect(
+    changedRow(page),
+    "never seen: no word of when",
+  ).not.toContainText(SEEN_LEAD ?? "");
   const statesBefore = (await countOf(scenario.world)).designRequestStates;
 
   await openLinkOf(page, scenario.changed.name).click();
 
+  // The dev server compiles the seen route on its first request, which can take longer than the default wait.
   await expect(page.getByTestId("staff-kitchen-seen-notice")).toHaveText(
     romanian("staffChanges.markedSeen"),
+    { timeout: SEEN_ROUTE_COMPILE_TIMEOUT_MS },
   );
   expect(marks).toHaveLength(1);
   expect(marks[0]?.url).toContain(scenario.changed.id);
@@ -167,6 +185,11 @@ test("opening the changed kitchen marks it seen once and the badge is gone; save
 
   await expect(badgeOf(page, scenario.changed.name)).toBeVisible();
   await expect(kitchenRows(page).first()).toContainText(scenario.changed.name);
+  await expect(changedRow(page)).toContainText(SEEN_LEAD ?? "");
+  await expect(changedRow(page)).toContainText(
+    CHANGED_AGAIN_LEAD?.trim() ?? "",
+  );
+  await shootForReview(page, "mobile-changed-seen-again");
 });
 
 test("the version switch opens on the current copy, shows the other on press, marks the bodies that differ, and states both estimates", async ({

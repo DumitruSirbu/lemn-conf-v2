@@ -19,10 +19,15 @@ export function SeenNotice({ mark }: { readonly mark: SeenMark }) {
     <div
       role="status"
       className={mark.kind === "idle" ? styles.liveRegion : styles.announcement}
-      data-tone={mark.kind === "marked" ? undefined : "warning"}
+      data-tone={isWarning(mark) ? "warning" : undefined}
       data-testid="staff-kitchen-seen-notice"
     >
       {mark.kind === "idle" ? null : sentences[mark.kind]}
     </div>
   );
+}
+
+/** The mark was not made, or the kitchen moved on meanwhile: a notice to read, not the plain confirmation. */
+function isWarning(mark: SeenMark): boolean {
+  return mark.kind === "changed-again" || mark.kind === "failed";
 }

@@ -1623,6 +1623,30 @@ function describeChangedAfterSeen(
       expect(afterTheNextSave).toEqual({ listed: true, detail: true });
     });
 
+    it("tells when staff last saw a kitchen: nothing before a mark, an instant once one counts, the same instant after an older mark, and nothing for a mark above the kitchen's revision", async () => {
+      const world = await newWorld();
+      const client = await world.aClient();
+      const kitchen = await aSentKitchen(world, client, at(world.nextEra(), 1));
+      const ahead = await aSentKitchen(world, client, at(world.nextEra(), 2));
+      const scope = queryOf({ search: world.marker });
+      const seenAt = async (designId: string) =>
+        listedOf(await world.reader.listPage(scope), designId).seenAt;
+      const second = await world.saveKitchen(kitchen);
+
+      const beforeAnyMark = await seenAt(kitchen);
+      await world.markSeen(kitchen, second);
+      const afterTheMark = await seenAt(kitchen);
+      await world.markSeen(kitchen, "1");
+      const afterAnOlderMark = await seenAt(kitchen);
+      await world.plantSeenMark(ahead, await world.aRevisionAfter("1", 1));
+      const aboveTheRevision = await seenAt(ahead);
+
+      expect(beforeAnyMark).toBeNull();
+      expect(afterTheMark).toBeInstanceOf(Date);
+      expect(afterAnOlderMark?.getTime()).toBe(afterTheMark?.getTime());
+      expect(aboveTheRevision).toBeNull();
+    });
+
     it("never shows a draft an account holds as changed, however often it is saved or opened", async () => {
       const world = await newWorld();
       const client = await world.aClient();
