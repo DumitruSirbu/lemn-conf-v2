@@ -722,6 +722,9 @@ the stated default and needs only a yes or a correction.
 | OQ-29 | E2E shards moved: mobile 9 → 10 (U4b), desktop 6 → 7 (P6b). If `main`'s branch protection lists shard check names (`e2e (desktop, i, 6)` …) rather than the summary job, it needs the new names; `gh` here has no valid token, so it was not checked | Nothing changed on GitHub | U4b, P6b |
 | OQ-21b | A rename shows no success notice; the heading and the pending chip change | As built | P6b |
 | OQ-30 | How many changes a draft holds, as shown everywhere (chip, badge, publish button, confirm dialog, history row): one per price set; a bulk change counts each of its prices; a created class or accessory counts once with all it holds; a deleted row once | As built (U5c), one rule in the domain, also used for the history's count | U5c |
+| OQ-31 | The sink cover: ADR 0070 d4 says it "is never toggled off"; D6A/D6C draw both built-in accessories as switchable | **The cover's switch is off with a reason** (the dated ADR wins); the rack stays switchable | U4c |
+| OQ-32 | A created accessory priced at 0 | Accepted, as the domain allows; the form requires a typed amount | U4c |
+| OQ-11c | U4c's 17 new Romanian lines (`accessories.*`, `lifecycle.*` accessory variants) | Built as drafted | U4c |
 | OQ-28c | P6 leaves the seeded default kitchen's hardware total unchanged (its push fronts are top-row doors, no drawers); only push-to-open drawers move | Recorded, no question | P6 |
 
 ---
@@ -1414,6 +1417,7 @@ pushed [coordinator's brief, relayed].
   width (330, ADR 0135) priced under the round-up key, no "preț ca" note; customer rows must be evaluable and free;
   seeded variants are judged with their own door leaves; duplicate build ids are refused.
 - Flaky browser test, not from M10's recent waves (2026-11-03): `u-gate-journeys.ts:374` "wall C: deleting a base body frees a void…" on desktop under `CI=1`. It failed the gate once at `7baa8ef3`, then 1 run of 5 alone there, and 8 of 15 alone at `849016d2`, a commit whose full gate passed. The tap lands on a placement, not the freed void (`u-gate.ts:457`). Cause not investigated; inference: the tap point is read before the scene settles after the sheet closes.
+- Flaky unit test (2026-11-04): `tests/proxy-staff-catalog-pages.adversarial.test.ts`'s fast-check property failed once with counterexample `/ro/staff/kitchens/catalog` (seed -1452579348); 20 of 20 alone, no change to `proxy.ts` or the test since `a7c357d0`. Inference: the model does not treat a kitchen id spelled `catalog` as a staff page. Not investigated.
 - Second flaky browser test (2026-11-03): `staff-kitchen.desktop.e2e.spec.ts:145` failed the gate at `bec834ba` waiting 5 s for "Status salvat" while the save was still out; 5 of 5 alone there, and no staff code changed since `849016d2`. Inference: a slow database answer. Not investigated.
 - U4b record (2026-11-03), merged `b6507afa`:
   - Browser specs `materials.e2e.spec.ts`, `materials.desktop.e2e.spec.ts`: 22 passed, 2 skipped under `next dev` (the implementer's run, after the fix); not yet run under `CI=1` outside `ci:local`. The first coordinator run found one production defect: the row menu closed on the press, so the cards slid under a lifting finger and the tap opened another material; it now closes on the click, attached after the opening click's dispatch (WebKit's coarse event clock made the timestamp guard unsafe).
