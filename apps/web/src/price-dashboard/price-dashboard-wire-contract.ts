@@ -166,6 +166,9 @@ export interface DashboardInvalidInputWire<Code extends string> {
  * - `item-not-in-active-book`: availability of a row only the draft knows (A-17).
  * - `item-is-default`: the D9 default cannot be switched off, nor deleted by a publish; the body names the item
  *   (`DashboardItemIsDefaultWire`, M5).
+ * - `item-is-fixed-default`: a fixed default (the book's fallback tiers, a material's default colour, the handles a
+ *   kitchen follows) cannot be switched off, and no save of the defaults releases it.
+ * - `item-always-present`: the accessory every kitchen carries cannot be switched off.
  * - `last-active-option`: the last active option of a group cannot be switched off (D5G).
  * - `candidate-refused`: the book the draft would produce did not pass the domain's judgement. A publish names the
  *   reasons (`DashboardCandidateRefusedWire`); the draft writes and a restore answer the word alone.
@@ -184,6 +187,8 @@ export const DASHBOARD_CONFLICTS = Object.freeze([
   "nothing-differs",
   "item-not-in-active-book",
   "item-is-default",
+  "item-is-fixed-default",
+  "item-always-present",
   "last-active-option",
   "candidate-refused",
   "displayed-revision-ahead",

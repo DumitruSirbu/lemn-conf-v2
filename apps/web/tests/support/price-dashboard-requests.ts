@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 
 import { POST as BULK } from "@/app/api/staff/prices/bulk/route";
+import { POST as AVAILABILITY } from "@/app/api/staff/prices/availability/route";
 import { DELETE, PUT } from "@/app/api/staff/prices/draft/route";
 import { POST as PUBLISH } from "@/app/api/staff/prices/publish/route";
 import { GET } from "@/app/api/staff/prices/route";
@@ -43,6 +44,10 @@ export function bulkRequest(init: Init = {}): NextRequest {
   return request("/api/staff/prices/bulk", "POST", init);
 }
 
+export function availabilityRequest(init: Init = {}): NextRequest {
+  return request("/api/staff/prices/availability", "POST", init);
+}
+
 export function publishRequest(init: Init = {}): NextRequest {
   return request("/api/staff/prices/publish", "POST", init);
 }
@@ -78,6 +83,8 @@ export const readState = (init: Init = {}) => GET(readRequest(init));
 export const changeDraft = (init: Init = {}) => PUT(changeRequest(init));
 export const revertDraft = (init: Init = {}) => DELETE(revertRequest(init));
 export const bulkDraft = (init: Init = {}) => BULK(bulkRequest(init));
+export const setAvailability = (init: Init = {}) =>
+  AVAILABILITY(availabilityRequest(init));
 export const publishDraft = (init: Init = {}) => PUBLISH(publishRequest(init));
 export const readVersions = (init: Init = {}) =>
   VERSIONS(versionsRequest(init));
@@ -210,6 +217,23 @@ export const DASHBOARD_ROUTES: readonly DashboardRoute[] = [
       restoreVersion(seededVersionId(), {
         ...WITH_COOKIE(cookie),
         json: { expectedDraftRevision: await currentDraftRevision() },
+      }),
+  },
+  {
+    name: "POST /api/staff/prices/availability",
+    event: "staff-price-draft",
+    capability: "price.edit",
+    admittedStatus: 200,
+    ask: async (cookie) =>
+      setAvailability({
+        ...WITH_COOKIE(cookie),
+        json: {
+          expectedRevision: (
+            await currentPriceDashboardWorld().stores.availability.readCurrent()
+          ).revision,
+          item: { kind: "hardware", tierId: "hardware.soft-close" },
+          active: false,
+        },
       }),
   },
   {
