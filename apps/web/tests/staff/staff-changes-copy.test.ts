@@ -41,13 +41,14 @@ describe.each(CATALOGUES)("the estimate refusals in %s", (locale, messages) => {
     expect(sentence).not.toMatch(/MDL/u);
   });
 
-  it("tells an outage, a part with no price and an option taken away apart", () => {
+  it("tells an outage, a kitchen that cannot be read, a part with no price and an option taken away apart", () => {
     expect(
       new Set([
         refusals.INVALID_PRICE_BOOK,
         refusals.UNKNOWN_BODY,
+        refusals.NO_RULE_FOR_BODY,
         refusals.REPLACEMENT_REQUIRED,
       ]).size,
-    ).toBe(3);
+    ).toBe(4);
   });
 });

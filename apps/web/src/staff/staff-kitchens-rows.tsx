@@ -138,6 +138,7 @@ function TableRow({ facts }: { readonly facts: RowFacts }) {
         <span className={styles.clamped} title={facts.name}>
           {facts.name}
         </span>
+        {row.changedAfterSeen ? <ChangedBadge /> : null}
       </th>
       <td>
         <ClientCell client={row.client} />
@@ -196,6 +197,7 @@ function KitchenCard({ facts }: { readonly facts: RowFacts }) {
         <span className={styles.thumb} aria-hidden="true" />
         <div className={styles.cardInfo}>
           <div className={styles.badgeRow}>
+            {row.changedAfterSeen ? <ChangedBadge /> : null}
             <KitchenBadges row={row} />
             <StatusBadges status={row.isSent ? row.requestStatus : null} />
           </div>
@@ -273,24 +275,10 @@ function PhoneCell({ phone }: { readonly phone: string | null }) {
 }
 
 /** Sent or draft, and whether the client hid it. Each is a word; the colour and the mark only agree with it. */
-function KitchenBadges({
-  row,
-}: {
-  readonly row: StaffListedKitchenMarkedWire;
-}) {
+function KitchenBadges({ row }: { readonly row: StaffListedKitchenWire }) {
   const copy = useStaffKitchensCopy();
-  const changes = useStaffChangesCopy();
   return (
     <span className={styles.badges}>
-      {row.changedAfterSeen ? (
-        <span
-          className={styles.badge}
-          data-kind="changed"
-          data-testid="staff-kitchen-changed-badge"
-        >
-          {changes.badge}
-        </span>
-      ) : null}
       <span className={styles.badge} data-kind={row.isSent ? "sent" : "draft"}>
         {row.isSent ? copy.badges.sent : copy.badges.draft}
       </span>
@@ -299,6 +287,21 @@ function KitchenBadges({
           {copy.badges.hidden}
         </span>
       ) : null}
+    </span>
+  );
+}
+
+/** The client changed the kitchen after staff saw it. It stands with the kitchen's name, in the table and on the card, and
+ *  is a mark of its own and not a state: the sent and hidden badges say what the kitchen is, this one says it has moved. */
+function ChangedBadge() {
+  const changes = useStaffChangesCopy();
+  return (
+    <span
+      className={styles.badge}
+      data-kind="changed"
+      data-testid="staff-kitchen-changed-badge"
+    >
+      {changes.badge}
     </span>
   );
 }

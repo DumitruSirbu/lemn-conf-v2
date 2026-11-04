@@ -366,7 +366,13 @@
 }
 
 /* A kitchen the client changed after staff saw it: the amber of a new request, and a mark that is not a status. */
+.table .nameCell .badge[data-kind="changed"] {
+  margin-top: 6px;
+}
+
+/* The words are long and a column may be narrow: a pill of three lines is an oval, so the corners are kept small. */
 .badge[data-kind="changed"] {
+  border-radius: 10px;
   color: var(--warm-ink);
   background: var(--warm-surface);
   border-color: var(--warm-edge);

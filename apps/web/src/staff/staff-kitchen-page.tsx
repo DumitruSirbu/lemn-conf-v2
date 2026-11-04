@@ -289,6 +289,17 @@ function ReadyKitchen({
               }
               noValue={lists.noValue}
               omitsPrice={wire.request !== null}
+              {...(versions === undefined
+                ? {}
+                : {
+                    comparison: {
+                      design:
+                        shownVersion === "current"
+                          ? versions.sent
+                          : versions.current,
+                      isShownCurrent: shownVersion === "current",
+                    },
+                  })}
             />
           )}
         </div>

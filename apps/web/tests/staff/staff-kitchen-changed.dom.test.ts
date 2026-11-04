@@ -220,6 +220,20 @@ describe.each(LOCALES)(
         expect(textOf("staff-kitchen-seen-notice")).toBe(changes.markedSeen);
       });
 
+      it("changes no status: opening the page asks for the kitchen, marks it seen and makes no other request of it", async () => {
+        answers(changedKitchen());
+
+        await mount(locale);
+
+        const paths = server.requests
+          .map(({ url }) => url.pathname)
+          .filter((path) => path.startsWith(KITCHEN_ADDRESS));
+        expect(paths.sort()).toEqual([KITCHEN_ADDRESS, SEEN_ADDRESS].sort());
+        expect(
+          server.requests.filter(({ init }) => init.method === "PUT"),
+        ).toHaveLength(0);
+      });
+
       it("sends no mark for a kitchen that does not read as changed, and says nothing", async () => {
         answers(wireKitchen({ changedAfterSeen: false }));
 
@@ -312,7 +326,8 @@ describe.each(LOCALES)(
       });
 
       it.each([
-        ["UNKNOWN_BODY", changes.estimateRefusedNotPriceable],
+        ["UNKNOWN_BODY", changes.estimateRefusedUnreadable],
+        ["NO_RULE_FOR_BODY", changes.estimateRefusedNotPriceable],
         ["REPLACEMENT_REQUIRED", changes.estimateRefusedReplacement],
       ])("words %s as its own sentence", async (code, sentence) => {
         answers(changedKitchen({ currentEstimate: { refused: code } }));
@@ -460,6 +475,61 @@ describe.each(LOCALES)(
 
         expect(has("staff-kitchen-versions")).toBe(false);
         expect(has("staff-kitchen-cabinets")).toBe(false);
+      });
+
+      it("marks a setting that differs between the copies, and says what the sent copy had only beside the current one", async () => {
+        const room = (WIRE_DESIGN as { room: { widthMm: number } }).room;
+        const widerRoom = {
+          ...(WIRE_DESIGN as object),
+          room: { ...room, widthMm: room.widthMm + 100 },
+        };
+        answers(
+          changedKitchen({
+            kitchen: { design: widerRoom, asSent: WIRE_DESIGN },
+          }),
+        );
+        await mount(locale);
+        const differing = () =>
+          allIn(
+            container(),
+            '[data-testid="staff-kitchen-summary"] [data-differs]',
+          );
+
+        expect(differing().map((fact) => fact.dataset.fact)).toEqual(["walls"]);
+        expect(differing()[0]?.textContent).toContain(changes.rowDiffers);
+        expect(differing()[0]?.textContent).toContain(
+          sayOfChanges("rowWasInSent", { value: "" }).split(":")[0] ?? "",
+        );
+        expect(cabinetChanges().every((change) => change === "same")).toBe(
+          true,
+        );
+
+        click(
+          requireIn(
+            container(),
+            '[data-testid="staff-kitchen-versions"] input[value="sent"]',
+          ),
+        );
+        await settle();
+
+        expect(differing().map((fact) => fact.dataset.fact)).toEqual(["walls"]);
+        expect(differing()[0]?.textContent).toContain(changes.rowDiffers);
+        expect(differing()[0]?.textContent).not.toContain(
+          sayOfChanges("rowWasInSent", { value: "" }).split(":")[0] ?? "",
+        );
+      });
+
+      it("marks no setting when the copies share them", async () => {
+        answers(changedKitchen());
+
+        await mount(locale);
+
+        expect(
+          allIn(
+            container(),
+            '[data-testid="staff-kitchen-summary"] [data-differs]',
+          ),
+        ).toHaveLength(0);
       });
 
       it("says the cabinet list cannot be shown, and keeps the rest, when a body of the current copy is one no catalogue holds", async () => {

@@ -13,7 +13,11 @@ import {
 
 import { describeKitchenPrice } from "@/account/kitchens/kitchen-summary";
 import type { Content, StaffKitchenCopy } from "@/i18n/content";
-import { useContent, useStaffKitchenCopy } from "@/i18n/use-content";
+import {
+  useContent,
+  useStaffChangesCopy,
+  useStaffKitchenCopy,
+} from "@/i18n/use-content";
 import { usePriceBookRoot } from "@/price/price-book-provider";
 import { priceFloorOf, type PriceBookRoot } from "@/price/price-book-root";
 import { KitchenPicture } from "@/review/review-scene";
@@ -271,6 +275,22 @@ function finishNameOf(
     : content.globalSettings.pillColourValue(finish.value);
 }
 
+/** The facts of the summary that are settings of the whole kitchen, which a change of the cabinets does not show. */
+const COMPARED_FACTS: readonly StaffSummaryRow["key"][] = [
+  "shape",
+  "walls",
+  "material",
+  "hardware",
+  "finish",
+];
+
+/** The other copy of the kitchen, so the facts that differ between the two are marked. `isShownCurrent` says the copy on
+ *  screen is the one as it stands now, which is the one that tells what the sent copy had. */
+export interface SummaryComparison {
+  readonly design: Design;
+  readonly isShownCurrent: boolean;
+}
+
 /** The card under the picture. `title` says which copy of the kitchen it describes. A page that states the kitchen's two
  *  estimates itself leaves the card's own starting price out (`omitsPrice`): it prices the copy on screen with today's
  *  book, which the sent copy was not priced with, so beside the estimates it would be a third figure to contradict them. */
@@ -279,13 +299,16 @@ export function StaffKitchenSummary({
   title,
   noValue,
   omitsPrice = false,
+  comparison,
 }: {
   readonly design: Design;
   readonly title: string;
   readonly noValue: string;
   readonly omitsPrice?: boolean;
+  readonly comparison?: SummaryComparison;
 }) {
   const copy = useStaffKitchenCopy();
+  const changes = useStaffChangesCopy().cabinets;
   const content = useContent();
   const priceBook = usePriceBookRoot();
   const rows = useMemo(
@@ -299,6 +322,31 @@ export function StaffKitchenSummary({
       }).filter((row) => !(omitsPrice && row.key === "price")),
     [design, priceBook, copy, content, noValue, omitsPrice],
   );
+  const otherDesign = comparison?.design;
+  const otherValues = useMemo(
+    () =>
+      otherDesign === undefined
+        ? undefined
+        : new Map(
+            describeStaffSummaryRows({
+              design: otherDesign,
+              priceBook,
+              copy,
+              content,
+              noValue,
+            }).map((row) => [row.key, row.value]),
+          ),
+    [otherDesign, priceBook, copy, content, noValue],
+  );
+  const otherValueOf = (row: StaffSummaryRow): string | undefined => {
+    const other = otherValues?.get(row.key);
+    const isComparable =
+      COMPARED_FACTS.includes(row.key) &&
+      row.value !== noValue &&
+      other !== undefined &&
+      other !== noValue;
+    return isComparable && other !== row.value ? other : undefined;
+  };
   return (
     <section
       className={styles.card}
@@ -309,17 +357,35 @@ export function StaffKitchenSummary({
         {title}
       </h2>
       <dl className={styles.facts}>
-        {rows.map((row) => (
-          <div key={row.key} className={styles.fact} data-fact={row.key}>
-            <dt className={styles.factLabel}>{row.label}</dt>
-            <dd className={styles.factValue}>
-              {row.value}
-              {row.sub === undefined ? null : (
-                <span className={styles.factSub}>{row.sub}</span>
-              )}
-            </dd>
-          </div>
-        ))}
+        {rows.map((row) => {
+          const other = otherValueOf(row);
+          return (
+            <div
+              key={row.key}
+              className={styles.fact}
+              data-fact={row.key}
+              data-differs={other === undefined ? undefined : "true"}
+            >
+              <dt className={styles.factLabel}>{row.label}</dt>
+              <dd className={styles.factValue}>
+                {row.value}
+                {row.sub === undefined ? null : (
+                  <span className={styles.factSub}>{row.sub}</span>
+                )}
+                {other === undefined ? null : (
+                  <>
+                    <span className={styles.factMark}>{changes.differs}</span>
+                    {comparison?.isShownCurrent === true ? (
+                      <span className={styles.factSub}>
+                        {changes.wasInSent(other)}
+                      </span>
+                    ) : null}
+                  </>
+                )}
+              </dd>
+            </div>
+          );
+        })}
       </dl>
       {omitsPrice ? null : (
         <p className={styles.cardNote}>{copy.summary.priceNote}</p>

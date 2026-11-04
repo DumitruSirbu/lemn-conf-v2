@@ -1662,11 +1662,14 @@ function resolveEstimateRefusals(
 ): Readonly<Record<PricingFailureCode, string>> {
   const unavailable = translate("staffChanges.estimateRefusedUnavailable");
   const notPriceable = translate("staffChanges.estimateRefusedNotPriceable");
+  // The same code answers a body the price list does not hold, a document this build cannot read and a depth its
+  // catalogue cannot build: the sentence is true of all three.
+  const unreadable = translate("staffChanges.estimateRefusedUnreadable");
   return {
     INVALID_PRICE_BOOK: unavailable,
     PRICING_VERSION_MISMATCH: unavailable,
     INVALID_AMOUNT: unavailable,
-    UNKNOWN_BODY: notPriceable,
+    UNKNOWN_BODY: unreadable,
     NO_RULE_FOR_BODY: notPriceable,
     UNKNOWN_FORMULA_SHAPE: notPriceable,
     NO_PRICE_FOR_SIZE: notPriceable,

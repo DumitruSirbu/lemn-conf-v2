@@ -302,6 +302,24 @@
   unicode-bidi: isolate;
 }
 
+/* A setting of the kitchen that differs between its two copies: the warm surface of a changed row, and a word. */
+.fact[data-differs="true"] {
+  padding: 8px 10px;
+  margin: -8px -10px;
+  background: var(--warm-surface);
+  border-radius: 8px;
+}
+
+.factMark {
+  align-self: flex-start;
+  padding: 3px 8px;
+  font: 700 11.5px/1.2 var(--font-ui);
+  color: var(--warm-ink);
+  background: var(--paper);
+  border: 1px solid var(--warm-edge);
+  border-radius: 999px;
+}
+
 .factSub {
   font: 400 12px/1.35 var(--font-ui);
   color: var(--ink-muted);

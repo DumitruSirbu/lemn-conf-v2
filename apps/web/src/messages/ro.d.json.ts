@@ -1888,6 +1888,7 @@ declare const messages: {
     "estimateSentMissing": "Nu avem estimarea trimisă",
     "estimateRefusedUnavailable": "Prețurile nu pot fi folosite acum, deci estimarea lipsește. Încearcă din nou mai târziu.",
     "estimateRefusedNotPriceable": "Bucătăria actuală are o componentă fără preț în lista de prețuri, deci nu are estimare.",
+    "estimateRefusedUnreadable": "Bucătăria actuală nu poate fi citită sau are un corp pe care lista de prețuri nu îl cunoaște, deci nu are estimare.",
     "estimateRefusedReplacement": "Bucătăria actuală folosește o opțiune care nu mai este disponibilă, deci nu are estimare până o schimbă clientul.",
     "digest": {
       "title": "{count, plural, one {O bucătărie modificată după ce ai văzut-o} few {{count, number, ::group-off} bucătării modificate după ce le-ai văzut} other {{count, number, ::group-off} de bucătării modificate după ce le-ai văzut}}",

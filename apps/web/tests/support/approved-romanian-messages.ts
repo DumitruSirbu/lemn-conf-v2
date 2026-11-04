@@ -2506,6 +2506,8 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       "Prețurile nu pot fi folosite acum, deci estimarea lipsește. Încearcă din nou mai târziu.",
     estimateRefusedNotPriceable:
       "Bucătăria actuală are o componentă fără preț în lista de prețuri, deci nu are estimare.",
+    estimateRefusedUnreadable:
+      "Bucătăria actuală nu poate fi citită sau are un corp pe care lista de prețuri nu îl cunoaște, deci nu are estimare.",
     estimateRefusedReplacement:
       "Bucătăria actuală folosește o opțiune care nu mai este disponibilă, deci nu are estimare până o schimbă clientul.",
     digest: {

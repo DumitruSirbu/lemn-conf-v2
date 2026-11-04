@@ -139,6 +139,7 @@ test("opening the changed kitchen marks it seen once and the badge is gone; save
   });
   await searchForThisRun(page);
   await expect(badgeOf(page, scenario.changed.name)).toBeVisible();
+  const statesBefore = (await countOf(scenario.world)).designRequestStates;
 
   await openLinkOf(page, scenario.changed.name).click();
 
@@ -152,6 +153,10 @@ test("opening the changed kitchen marks it seen once and the badge is gone; save
   };
   expect(sent.displayedRevision).toMatch(/^[1-9][0-9]*$/u);
   expect((await countOf(scenario.world)).designStaffSeen, "one mark").toBe(1);
+  expect(
+    (await countOf(scenario.world)).designRequestStates,
+    "opening a kitchen leaves its request status alone",
+  ).toBe(statesBefore);
   await shootForReview(page, "mobile-changed-opened");
 
   await searchForThisRun(page);
@@ -218,7 +223,7 @@ test("a kitchen the price list cannot price says why, draws no figure for it, an
   await expect(page.getByTestId("staff-kitchen-estimates")).toBeVisible();
 
   await expect(estimate(page, "current")).toContainText(
-    romanian("staffChanges.estimateRefusedNotPriceable"),
+    romanian("staffChanges.estimateRefusedUnreadable"),
   );
   await expect(estimate(page, "current")).not.toContainText(/MDL|\d/u);
   await expect(estimate(page, "sent")).toContainText(/De la 59\s000 MDL/u);

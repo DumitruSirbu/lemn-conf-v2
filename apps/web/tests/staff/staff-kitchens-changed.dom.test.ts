@@ -165,6 +165,22 @@ describe.each(LOCALES)("the list of changed kitchens in %s", (locale) => {
       expect(second?.dataset.changed).toBe("false");
     });
 
+    it("stands the badge with the kitchen's name, in the table's name cell and on the card, and not in the state column", async () => {
+      listAnswers(() => ({ body: oneChangedAmongThree() }));
+
+      await mount({ locale, width });
+
+      const [first] = rows();
+      const badge = first?.querySelector(BADGE);
+      expect(badge).not.toBeNull();
+      if (width === "desktop") {
+        expect(badge?.closest("th")).not.toBeNull();
+        expect(badge?.closest("td")).toBeNull();
+      } else {
+        expect(badge?.closest("li")).toBe(first);
+      }
+    });
+
     it("draws no badge when no row reads as changed", async () => {
       listAnswers(() => ({ body: wireList([wireRow(1), wireRow(2)]) }));
 
