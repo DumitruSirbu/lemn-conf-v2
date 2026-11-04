@@ -971,6 +971,68 @@ describe("what a row holds", () => {
   });
 });
 
+describe("a kitchens-listed row and the filter for changed kitchens", () => {
+  const LEGACY_DETAIL = {
+    segment: "sent",
+    status: null,
+    page: 1,
+    rowCount: 3,
+    hasSearch: false,
+  };
+
+  async function listedDetails(
+    details: readonly Record<string, unknown>[],
+  ): Promise<unknown[]> {
+    const { session, account } = await signedInAdministrator();
+    details.forEach((detail, index) => {
+      plantEvent(auditWorld, {
+        actorAccountId: account.id,
+        action: "kitchens-listed",
+        detail,
+        occurredAt: new Date(Date.UTC(2026, 9, 19, 9, index)),
+      });
+    });
+
+    const body = await pageOf(
+      await route.GET(
+        auditRequest({
+          cookie: session.cookie,
+          search: "?action=kitchens-listed",
+        }),
+      ),
+    );
+
+    return body.events.map(({ entry }) =>
+      entry.kind === "recognised" ? entry.detail : entry,
+    );
+  }
+
+  it("carries onlyChanged on a row that names it", async () => {
+    const details = await listedDetails([
+      { ...LEGACY_DETAIL, onlyChanged: true },
+    ]);
+
+    expect(details).toEqual([{ ...LEGACY_DETAIL, onlyChanged: true }]);
+  });
+
+  it("reads a row written before the filter existed as recognised, with no onlyChanged member invented for it", async () => {
+    const details = await listedDetails([LEGACY_DETAIL]);
+
+    expect(details).toEqual([LEGACY_DETAIL]);
+    expect(Object.keys(details[0] as object)).not.toContain("onlyChanged");
+  });
+
+  it("refuses a row whose onlyChanged is not a boolean, as unrecognised and without its stored detail", async () => {
+    const details = await listedDetails([
+      { ...LEGACY_DETAIL, onlyChanged: "true" },
+    ]);
+
+    expect(details).toEqual([
+      { kind: "unrecognised", action: "kitchens-listed" },
+    ]);
+  });
+});
+
 describe("reading the log is itself audited", () => {
   function heldViews() {
     return auditWorld.store

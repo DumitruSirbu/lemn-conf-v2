@@ -615,18 +615,20 @@ describe("the statements for one kitchen", () => {
 });
 
 describe("every statement is a read", () => {
-  it("sends only selects, in no transaction, for both operations", async () => {
+  it("sends only selects, in no transaction, for every operation", async () => {
     resetQueryDriver();
     answerQueryWith(NOTHING_FOUND);
+    answerQueryWith([{ changed_count: 0 }]);
     answerQueryWith([aKitchenRow()]);
     answerQueryWith([]);
 
     await newReader().listPage(aQuery());
+    await newReader().countChanged();
     await newReader().readOne(DESIGN_ID);
 
     expect(queryDriver.transactions).toHaveLength(0);
     const statements = everySentQuery();
-    expect(statements).toHaveLength(3);
+    expect(statements).toHaveLength(4);
     for (const statement of statements) {
       const text = normalised(statement);
       expect(text).toMatch(/^(with .*)?select /);
@@ -851,6 +853,19 @@ describe("the changed count a poll reads", () => {
 
     expect(countedCtes).toContain(squashedEffectiveSeenRevision());
     expect(countedCtes).toBe(listedCtes);
+  });
+
+  it("names only columns of contact_submissions that the application role may select", async () => {
+    const text = normalised((await sentByCount()).statement);
+
+    const referenced = columnsReferencedThrough("cs", text);
+    expect(referenced.size).toBeGreaterThan(0);
+    for (const column of referenced) {
+      expect([
+        ...readableSubmissionColumns(),
+        ...COLUMNS_ADDED_BY_0026,
+      ]).toContain(column);
+    }
   });
 
   it("reads no account, no status row, no kitchen document and no page", async () => {
