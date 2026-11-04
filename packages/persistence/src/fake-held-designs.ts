@@ -1,3 +1,4 @@
+import { isBuiltInAccessoryId } from "@lemnaria/configurator-domain";
 import type { ItemRef } from "@lemnaria/configurator-domain";
 
 import { itemKeyOf } from "./fake-dashboard-support.js";
@@ -24,13 +25,18 @@ export class FakeHeldDesigns {
     this.designs.set(design.designId, structuredClone(design));
   }
 
-  /** How many designs their client has not deleted use the item; one the product cannot read uses none. */
+  /**
+   * How many designs their client has not deleted use the item. A tier or a linked accessory is read from the stored
+   * document as written, so a design the product cannot open still counts; any other item is read by opening each
+   * design, which leaves out one it cannot.
+   */
   countUsing(item: ItemRef): number {
     const key = itemKeyOf(item);
+    const isReadAsWritten = isReadFromTheStoredDocument(item);
     return [...this.designs.values()].filter(
       (design) =>
         !design.isDeletedByClient &&
-        design.isUnreadable !== true &&
+        (isReadAsWritten || design.isUnreadable !== true) &&
         design.uses.some((used) => itemKeyOf(used) === key),
     ).length;
   }
@@ -40,4 +46,9 @@ export class FakeHeldDesigns {
       (design) => !design.isDeletedByClient && design.isUnreadable === true,
     ).length;
   }
+}
+
+function isReadFromTheStoredDocument(item: ItemRef): boolean {
+  if (item.kind === "accessory") return !isBuiltInAccessoryId(item.accessoryId);
+  return item.kind === "material" || item.kind === "hardware";
 }

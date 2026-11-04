@@ -185,9 +185,14 @@ export function deletedItemsJsonOf(
         deleted.item.kind === "accessory"
           ? null
           : tierSettingKeyOf(deleted.item.kind),
-      build_ids: "buildIds" in deleted ? deleted.buildIds : [],
+      build_ids: deleted.item.kind === "accessory" ? buildIdsOf(deleted) : [],
     })),
   );
+}
+
+function buildIdsOf(deleted: DeletedItem): readonly string[] {
+  const { buildIds } = deleted as { readonly buildIds?: readonly string[] };
+  return buildIds ?? [];
 }
 
 /** The designs that use a deleted item, over `designs d`, in the words the usage reader's counts use (`kitchen-usage-statements.ts`). */

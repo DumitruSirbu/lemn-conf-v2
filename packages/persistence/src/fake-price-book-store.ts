@@ -307,14 +307,16 @@ export class FakePriceBookStore implements PriceBookStore {
 
 /** Whether a deleted linked accessory's build ids hold the `linkedBuildId` of its rule in the book; a tier carries none. */
 function hasItsLinkedBuildId(deleted: DeletedItem, book: unknown): boolean {
-  if (!("buildIds" in deleted)) return true;
+  if (deleted.item.kind !== "accessory") return true;
+  const { accessoryId } = deleted.item;
+  const buildIds = (deleted as { readonly buildIds?: unknown }).buildIds;
   const rules = isJsonObject(book) ? book["linkedAccessories"] : undefined;
-  if (!Array.isArray(rules)) return false;
+  if (!Array.isArray(rules) || !Array.isArray(buildIds)) return false;
   return (rules as unknown[]).some(
     (rule) =>
       isJsonObject(rule) &&
-      rule["accessoryId"] === deleted.item.accessoryId &&
+      rule["accessoryId"] === accessoryId &&
       typeof rule["linkedBuildId"] === "string" &&
-      deleted.buildIds.includes(rule["linkedBuildId"]),
+      (buildIds as unknown[]).includes(rule["linkedBuildId"]),
   );
 }

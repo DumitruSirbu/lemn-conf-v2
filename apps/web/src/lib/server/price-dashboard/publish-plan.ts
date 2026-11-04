@@ -92,7 +92,7 @@ function deletedItemFor(
     ? undefined
     : {
         item,
-        buildIds: buildIdsPricedAs(shippedCatalogue(), rule.linkedBuildId),
+        buildIds: withTheRulesOwnRow(rule.linkedBuildId),
       };
 }
 
@@ -118,4 +118,10 @@ function refused(
   word: Parameters<typeof dashboardConflictResponse>[0],
 ): PublishPlan {
   return { kind: "refused", response: dashboardConflictResponse(word) };
+}
+
+/** The rows priced as the one an accessory is linked to, then that row itself where the catalogue no longer holds it. */
+function withTheRulesOwnRow(linkedBuildId: string): readonly string[] {
+  const priced = buildIdsPricedAs(shippedCatalogue(), linkedBuildId);
+  return priced.includes(linkedBuildId) ? priced : [...priced, linkedBuildId];
 }
