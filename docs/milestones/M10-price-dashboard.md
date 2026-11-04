@@ -2046,7 +2046,7 @@ reach publish until R4a turns deletion on.
    **R3 is merged (`ce9f685b`) and is not re-dispatched.** R4a holds R3's publish route and service for those items.
 5. **R4c, deletion on** (a gated step of its own, Full plus security), turns `item-deleted` on in the draft route only
    once S2c and Q3 are both merged. Its files are the draft route's readers (`draft-requests.ts`, `draft-address.ts`,
-   `web/stored-draft.ts`) and the fetching client's delete; the U5b and M4 hand-offs on deletion are its scope.
+   `web/stored-draft.ts`) and the fetching client's delete; the U5b and M4 hand-offs on deletion are its scope. **(Amended 2026-11-04 by *R4a split*, Lane R: the stored reader and `draft-address.ts` read `item-deleted` from R4a3; R4c removes R4a3's named refusal in `draft-requests.ts` and turns R4a5's delete gate on.)**
 
 *S2c's items* (`m10-price-dashboard`; Full plus security):
 1. **One predicate, two users.** Move S3's tier predicate (`countDesignsChoosingTierStatement`) and body predicate
@@ -2353,8 +2353,8 @@ reviewers of each wave: the same as their implementer, plus the wave's criteria 
 | **R2** dashboard read and draft API | `GET /api/staff/prices` (active, draft, catalogue facts, usage-free); `PUT …/draft` (changes, expected revision; **the input wire omits `groupId` and `bulk` at compile time only, so R2's runtime request parser strips or refuses both, and a crafted body cannot reach `judgeGroups`, 2026-10-27**); `DELETE …/draft/{change}` (↺); `POST …/bulk` (**acceptance, added 2026-10-26: a bulk percentage that rounds to `-0`, e.g. `Math.round(-0.4)`, becomes 0, or a 0 % bulk change is refused, before the audit entry is built; the audit reader refuses `-0` because jsonb would read it back as 0, so otherwise the write fails closed as a 503**). **The bulk route writes each group's `bulk` metadata (`percent`, scope, `groupCode`) on every change it mints, and R2 adds `bulk` to `DraftChangeWire` in the wire contract (ruling M1-Q1, 2026-10-27). The input wire never carries it, as with `groupId` (m1).** Every one checks `price.edit`, writes its audit row in the same transaction, refuses cross-site and non-JSON, and answers codes from §8.4(d). **The cabinet-list seam (U1 review ruling, 2026-10-26):** when the database read replaces the sample, `apps/web/src/price-dashboard/cabinet-list-source.ts` gets `import "server-only"`; the wire shape sent to the client screen stays minimal (no author e-mails, no internal ids in draft entries); and an unmodified row's pending amount must equal its active one, which the seam asserts  **R2's rulings of 2026-10-27 (Q1 to Q9) are listed under the R table.** | 4 route files, `lib/server/price-dashboard/price-dashboard-service.ts`, `price-dashboard/cabinet-list-source.ts` (mod); R1's seeding helper (Q1) | R1, M1, X2 | M1's `apply-changes.ts`; `app/api/staff/kitchens/[id]/status/route.ts` (the guarded-body and `from` precedent); `lib/server/read-body-with-limit.ts`, `cross-site-request.ts`; ADR 0156 (limiter subjects) |
 | **R2b** one revision shape (added 2026-10-27, ruling R2-Q9; Light) | One domain module, `configurator-domain/src/revision-shape.ts`, exports `isRevisionShape`: digits, no leading zero, and at 19 digits `≤ 9223372036854775807` by string comparison, never parsed (m6). The four copies delegate to it: persistence `design-revision.ts`, the seen route's validator (K2a), the dashboard wire validator (R2), and the availability revision shape. A sweep proves the old copies and the new module agree on every boundary (`0`, `1`, 19 nines, `9223372036854775807`, `…808`, 20 digits, a leading zero, a sign, a space) **before** each copy is replaced | the new module, plus four one-line delegations in files whose lanes have merged (windows: S after S4, K after K2b, R) | R2, K2b, S4 | m6; S-18; `design-revision.ts`; §8.4(d) |
 | **R3** publish, history, restore | `POST …/publish` (expected draft revision, label, note, provisional flag; the domain judges the candidate book whole first, `judgeBookAgainstCatalog`); `GET …/versions`, `GET …/versions/{id}`; `POST …/versions/{id}/restore`. **Restore acceptance (2026-10-27, M1 logic review):** `restoreChanges(archived, active)` is exact only relative to its second argument. If the draft already edits a field (active 100, draft 120, archived 100) it emits nothing for it and the candidate keeps 120. R3 therefore passes the candidate `apply(active, draft)` and adds reverts where archived equals active, or replaces the draft wholesale; D8C "puts the old prices in the draft" must reproduce archived. **Confirmed 2026-10-27 (ruling U5-Q6):** R3 implements this restore-against-candidate rule **server-side**. U5 did it client-side for its in-memory client only, which is not an authority. Restored values replace pending ones for the same address, as REST's copy says ("dacă unul e deja acolo, valoarea din 2026-10 o înlocuiește"). **Label and note:** the label is required (non-empty after trim, ≤ 80, **counted in code points via `countCharacters`, not UTF-16 units; ruling from U5's QA, 2026-10-27**); **the publish route's version-name rule is the domain text rule: NFC-compose, strip `\p{Cf}`, refuse control, line-separator and lone-surrogate characters (the contact fields' rule, `input-checks.ts` `readTypedText`). U5's in-memory sample client is not an authority: it counts units and neither strips nor composes**; **the note is optional**, and an empty note is accepted (≤ 240), because the frame draws no note field. R3 refuses an empty **label**, never an empty note. **The store stamps `book.version = versionId` on publish (the id is minted inside `publish()`; S2 ruling F1, 2026-10-27); R3 does not stamp** (R-a) | 3 route files, service (mod) | R2, M2 | A-15; M2's `judge-book.ts`; frames D7A–G, D8A–C [mock L871-880]. **Acceptance for R2 and R3 (2026-10-27):** a required test that a non-administrator is refused `price.edit` on **every** dashboard route (the store's actor check is defence in depth only); the route applies the domain text rule (NFC, control and bidi-override characters refused; ADR 0178 F5) to the version label and note, because the store checks only length and NUL; stored drafts and books are untrusted and parsed before use |
-| **R4a** availability and the creation and deletion guards (amended 2026-10-26) | (1) `POST /api/staff/prices/availability`: **immediate** (A-17), judged by M3's `judgeAvailabilityChange`, written through `CatalogueAvailabilityStore` with its `catalogue-item-active-changed` audit row, `price.edit`, expected revision, `409 changed-meanwhile`; (2) `GET` usage counts (`KitchenUsageReader`); (3) creation and deletion arrive as draft changes through R2's endpoint; R4a adds their server judgements (M4's `judgeBookAgainstCatalog` link check, and a usage pre-check on delete with its `409`); (4) publish (R3) calls `judgeDeletionsAtPublish` with fresh counts. **R2 review (2026-10-27):** re-putting a change moves it to the end of the draft (X0-4), so once the creation kinds apply, dependants of a moved creation would be refused at older indexes; R4a replaces in place or treats the dependants as new. **Amended 2026-11-04 (ADR 0178, Amendment on a deletion that gains a user):** item (4) counts inside the publish request, never from a page load or the body; R4a holds R3's merged publish route and service for it. R4a merges with `item-deleted` still refused; a gated step, **R4c**, turns it on once S2c and Q3 are merged. Items and criteria R-i and R-j are in Lane S, *Publish and a deletion that gains a user* | 2 route files, `lib/server/catalogue-availability.ts`, service (mod) | R3, M3, M4, S2 (availability, ex-S2b), S3 | A-17, A-18, A-19; frames D4E/F, D5C/D/G, D6C [mock L779-781]; ADR 0062 Amendment 3 and the 2026-10-26 Amendment |
-| **R4b** defaults and stamping new kitchens | `GET`/`PUT` defaults (immediate, audited `kitchen-defaults-saved`); the mint and generation pass the saved defaults into H2's request. **U6-a is carried here (ruling 2026-10-27):** after a defaults save, the customer's next **new** kitchen starts with the saved values and an already-saved kitchen is unchanged; U6 cannot meet this alone, since production answers "unavailable" until the defaults route exists. **Ruling 2026-10-27 (H2):** a preset "use a copy" and the seeded mint are creations of a new design, so they are stamped with the new-kitchen defaults too (A-9). They do not go through `generateKitchen`, so R4b reuses the domain's exported `stampedSettingsOf` on those paths. **R4b also judges availability itself** (a disabled tier): the domain checks shape only. **Two criteria (H2 logic review, 2026-10-27):** (a) the depth of a preset copy or the seeded mint changes **only** through `setCabinetDepth`, never by spreading `stampedSettingsOf`'s `cabinetDepthMm` over 600-built geometry (ADR 0089's 80 mm and 31 mm corner intersections, which the validator does not report); test: a preset copy stamped at 700 equals `setCabinetDepth(copy, 700)`. (b) Every design created through the mint, generation, a preset copy or the seeded mint carries **all six** settings keys (material, hardware, depth, colour, handle, top-row handle): `NewKitchenSettings` makes them optional while `KitchenDefaultsWire` requires them | 1 route file, service (mod), the mint path | R4a, H2, S3 | A-9; ADR 0111 (the mint path); `generation/shell-design.ts` (H2's request type, read only); frames D9A–C |
+| **R4a** availability and the creation and deletion guards (amended 2026-10-26) | (1) `POST /api/staff/prices/availability`: **immediate** (A-17), judged by M3's `judgeAvailabilityChange`, written through `CatalogueAvailabilityStore` with its `catalogue-item-active-changed` audit row, `price.edit`, expected revision, `409 changed-meanwhile`; (2) `GET` usage counts (`KitchenUsageReader`); (3) creation and deletion arrive as draft changes through R2's endpoint; R4a adds their server judgements (M4's `judgeBookAgainstCatalog` link check, and a usage pre-check on delete with its `409`); (4) publish (R3) calls `judgeDeletionsAtPublish` with fresh counts. **R2 review (2026-10-27):** re-putting a change moves it to the end of the draft (X0-4), so once the creation kinds apply, dependants of a moved creation would be refused at older indexes; R4a replaces in place or treats the dependants as new. **Amended 2026-11-04 (ADR 0178, Amendment on a deletion that gains a user):** item (4) counts inside the publish request, never from a page load or the body; R4a holds R3's merged publish route and service for it. R4a merges with `item-deleted` still refused; a gated step, **R4c**, turns it on once S2c and Q3 are merged. Items and criteria R-i and R-j are in Lane S, *Publish and a deletion that gains a user*. **Split 2026-11-04 into R4a1–R4a6 (architect): dispatch the sub-waves, never this row whole. Items, files, order, tiers and criteria are in *R4a split*, below R acceptance** | 2 route files, `lib/server/catalogue-availability.ts`, service (mod); per sub-wave in *R4a split* | R3, M3, M4, S2 (availability, ex-S2b), S3; R4a6 also S2c | A-17, A-18, A-19; frames D4E/F, D5C/D/G, D6C [mock L779-781]; ADR 0062 Amendment 3 and the 2026-10-26 Amendment |
+| **R4b** defaults and stamping new kitchens | `GET`/`PUT` defaults (immediate, audited `kitchen-defaults-saved`); the mint and generation pass the saved defaults into H2's request. **U6-a is carried here (ruling 2026-10-27):** after a defaults save, the customer's next **new** kitchen starts with the saved values and an already-saved kitchen is unchanged; U6 cannot meet this alone, since production answers "unavailable" until the defaults route exists. **Ruling 2026-10-27 (H2):** a preset "use a copy" and the seeded mint are creations of a new design, so they are stamped with the new-kitchen defaults too (A-9). They do not go through `generateKitchen`, so R4b reuses the domain's exported `stampedSettingsOf` on those paths. **R4b also judges availability itself** (a disabled tier): the domain checks shape only. **Two criteria (H2 logic review, 2026-10-27):** (a) the depth of a preset copy or the seeded mint changes **only** through `setCabinetDepth`, never by spreading `stampedSettingsOf`'s `cabinetDepthMm` over 600-built geometry (ADR 0089's 80 mm and 31 mm corner intersections, which the validator does not report); test: a preset copy stamped at 700 equals `setCabinetDepth(copy, 700)`. (b) Every design created through the mint, generation, a preset copy or the seeded mint carries **all six** settings keys (material, hardware, depth, colour, handle, top-row handle): `NewKitchenSettings` makes them optional while `KitchenDefaultsWire` requires them | 1 route file, service (mod), the mint path | R4a (R4a1 only, per *R4a split*, 2026-11-04), H2, S3 | A-9; ADR 0111 (the mint path); `generation/shell-design.ts` (H2's request type, read only); frames D9A–C |
 | **R5** customer notice and sent state | `GET /api/designs/{id}/price-notice` (whether to show C1, removed accessories since the acknowledged availability revision, `isSent`); `POST …/price-notice/acknowledge`, authorised exactly like a save (write token or owning account), never moving `revision` | 2 route files, `lib/server/price-notice.ts` | R1, P4b, S5 | A-11 (the version and availability pair), A-17; P4b's `price-change-notice.ts`, P4a's `replacements.ts`; ADR 0114 (visitor cookie), ADR 0172 D8 (a claimed design on any device); `lib/server/load-owned-design.ts`, `write-token.ts` |
 
 **Rulings of 2026-10-27 on R2's questions:**
@@ -2473,6 +2473,240 @@ reviewers of each wave: the same as their implementer, plus the wave's criteria 
 
 **QA reading:** the base reading plus `apps/web/tests/api/staff/**` and `tests/price/**`. **Review reading:** logic:
 §5 and the routes; security: ADR 0019, 0153, 0156, 0161, 0172 D7, 0173; clean-code: the diff.
+
+**R4a split** (architect, 2026-11-04; plan step for R4a at `m10-price-dashboard` @ `41a43566`; nothing run, nothing
+built). R4a's row has gathered more than twenty hand-offs. Under `docs/WORKFLOW.md`'s limit (5 items, about 5
+production files) it splits into six sub-waves, R4a1 to R4a6. Each one merges alone, and `item-deleted` stays
+refused by the draft route through all six. Deletion turns on only at **R4c**, as the block *Publish and a deletion
+that gains a user* orders (Lane S, item 5). The row's own items, its R2-review note and its 2026-11-04 Amendment all
+stand. This block says which sub-wave delivers each one.
+
+*Evidence.* Where a claim cites source, it was read at `41a43566` (source-verified). The S3 hand-offs (the
+`countEach`/`usageProbesFor` port, and the usage route's security bounds) have no line in this plan before this block:
+they are the coordinator's relay of S3's reviews in the R4a planning dispatch (2026-11-04). They are checked here
+against `m10-ports.ts:331-387`, `item-usage-probes.ts:28-86` and `neon-kitchen-usage-reader.ts:79-146`. Two kinds of
+claim are marked **[inf]**: the bucket and deadline figures, and anything about S2c's final diff.
+
+*Where each hand-off lands.* A plan line is cited as L-number at `41a43566`. This block was inserted below them all, so
+it does not shift them.
+
+| Hand-off (source) | Lands in |
+| --- | --- |
+| Row item (1), the availability route; U4b "real switch writes and availability route" (L1471); U4c "judges through `judgeAvailabilityChange`" (L1499); M3 "real signatures" (L1561) | R4a1 |
+| "More R4a": `DASHBOARD_CONFLICTS` gains `item-is-fixed-default` and `item-always-present` (L1500); U4a, the same for `item-is-fixed-default` (L1508); M3, the wire gains it (L1561-1563) | R4a1 |
+| U4a "R4a reads the defaults itself" (L1508) | R4a1 (server); client side, R4b |
+| Row item (2), the usage counts; U4b "the usage reader" (L1471); the S3 port, S3 security (relayed) | R4a2 |
+| U4b "batching it: today one read per counted material per view" (L1471); S3 security "batching" (relayed); U4c, `409 item-always-present` read as refused (L1499) | R4a5 |
+| M4 "the stored-draft reader and draft wire carry the four structural kinds" (L1533); U5b, the revert reader (L1515); U5c, "a created … row is one line without ↺ until R4a" (L1482; its ↺ is a revert target the route refuses today); P6b (a)–(c), renaming (L1503); R2 review X0-4 and M4 `planChange` appends (row L2356, L1536) | R4a3 |
+| U4a, creation routes of their own, `createHardwareClass`, the `DraftChangeCreatedWire` reader, the retry after a lost `200` (L1508); U4c `createAccessory`, ids never `new` (L1499); P6, through `applyChanges` (L1504); M4, rates are `hardwareRatesOf(activeBook)`, one id namespace (L1534-1537); row item (3), the link check; R-h (L2450) | R4a4 |
+| Row item (4) as amended; the block's R4a items 1–4 (L2076-2083); U5c security, `planPublish` judges deletions (L1501); M4 "publish calls `judgeDeletionsAtPublish`" (L1533-1534); "More R4a", `readPublishPage` given `deletionFacts` (L1500); the S3 port, `deletionFacts` from `usageProbesFor`, `countEach` and the parsed defaults (relayed); R-i (L2126) | R4a6 |
+| U4a, the delete refused for use as `400 ITEM_IN_USE`, and `deletionSettlementOf`'s conflict case (L1508); U4a's deletion `it.fails` (`qa-m10-u4a-wire…:104`, pin `:119`); M4, restore with a pending deletion, and reverting a deletion past the 50-accessory cap (L1537-1538); U5c, the `item-is-fixed-default` deletion wording at publish (L1503); U5b, ↺ on an `item-deleted` row (L1515), and U5c's "deleted row … without ↺" (L1482); R-d (M5), the end-to-end "draft deletes X → defaults save names X → publish" (L2441-2442), which also needs R4b | **R4c**, not R4a (deletion is off until then) |
+| S5's hand-off | R5, not R4a |
+
+*Which reader takes which structural kind, and from when.* `draft-address.ts` serves the stored-draft reader and the
+request readers alike (`stored-draft.ts:36`, `draft-requests.ts:319`). So the stored draft and the draft route are
+widened separately, with a named refusal at the request boundary rather than a narrower shared reader:
+
+| Kind | Stored draft (`stored-draft.ts`) | Change (`PUT …/draft`) | Revert (`DELETE …/draft`) | Creation routes |
+| --- | --- | --- | --- | --- |
+| `hardware-tier-created` | R4a3 | refused, always (the pin at `qa-m10-u4a-wire…:146`) | R4a3 | R4a4 |
+| `accessory-created` | R4a3 | refused, always | R4a3 | R4a4 |
+| `created-row-text` | R4a3 | R4a3 | R4a3 | — |
+| `item-deleted` | R4a3 | refused until R4c | refused until R4c | — |
+
+**Dated amendment (2026-11-04) to item 5 of *Order* in the deletion-race block (L2047-2049).** That item lists
+`draft-address.ts` and `web/stored-draft.ts` among R4c's files. They move to R4a3, for two reasons:
+- **The first creation would make the draft unreadable.** `stored-draft.ts:36-38` refuses every kind that
+  `readAppliedAddress` answers `not-applied`. `isStoredValue` (`:44-46`) refuses a creation's object value and a
+  rename's string. So the first creation R4a4 writes would make every later read `draft-unreadable`.
+- **R-i could not be met at R4a6.** R-i's arms seed a stored draft holding `item-deleted` while the route still refuses
+  one. If the stored reader refused it, publish would answer `draft-unreadable` before judging anything.
+
+What R-j guards is unchanged. The *draft route* accepts no `item-deleted` until S2c and Q3 are both merged. ADR 0178's
+decision 3 says "the draft route", so the ADR needs no amendment. R4c's files become `draft-requests.ts`, where it
+removes R4a3's named refusal, plus R4a5's client delete gate.
+
+*Sub-waves.* Review tiers follow Lane R's header (Full + security), except R4a5. R4a5 changes no server file, route or
+auth path, so it is Full + visual with **no security review** (a recorded downgrade).
+
+A "live in production" in the column below holds only once the Z gate has applied `0023`–`0029` in that environment.
+Before that, the Neon stores answer `unavailable`, and every control stays `cannot-judge`.
+
+| Sub-wave | Items (≤ 5) | Production files | Depends on | Tier | Off in production until | Reading |
+| --- | --- | --- | --- | --- | --- | --- |
+| **R4a1** the stores and the availability write | (1) `PriceStores` gains `defaults: KitchenDefaultsStore` and `usage: KitchenUsageReader`. Production uses `NeonKitchenDefaultsStore` and `NeonKitchenUsageReader`, made on first use as W1 makes its own. Without `DATABASE_URL` it uses stores that answer `unavailable` (OQ-36). The seeded world uses one `FakeKitchenDefaultsStore` over the seed's ledger and availability head, which serves both (it implements both ports). (2) The saved-defaults read: `NONE_SAVED` is `{}`; a saved row is parsed with the domain; a row that does not parse is a `503`, never `{}`. The domain has no parser of stored defaults today: `new-kitchen-settings.ts` exports `stampedSettingsOf` and `copyOfNewKitchenSettings` only (`:64, :74`). So R4a1 adds one beside them, and R4b reuses it, never a second. (3) `POST /api/staff/prices/availability` (row item 1). The order of checks is the draft routes': origin, JSON, body bound, session and `price.edit`, members, the `staff-price-draft-by-account` bucket (shared, ADR 0178 2026-10-27). It then reads the head first and the defaults second, judges with `judgeAvailabilityChange`, and writes through `setActive` with the `catalogue-item-active-changed` row. (4) `DASHBOARD_CONFLICTS` gains `item-is-fixed-default` and `item-always-present`. The pin at `qa-m10-u4a-wire…:358-365` changes with it. (5) The answers: `409` with the domain's word, `409 changed-meanwhile`, `200 AvailabilitySetWire` | `price-stores.ts`, `unavailable-price-stores.ts`, `price-book-test-seed.ts`, `lib/server/catalogue-availability.ts` (new; holds items 2, 3 and 5), the availability route (new), `price-dashboard-wire-contract.ts` (two words), and the domain's `generation/new-kitchen-settings.ts` (the parser). That file is H2's merged file, held for one function as R2b held its files. Seven, stated, with a mini-review per WORKFLOW's rule for going over the limit: the sixth is a two-word edit, the seventh one function | merged only (S3 `869fee4f`, W1 `41a43566`) | Full + security | The switch, everywhere: `UNAVAILABLE_ITEM_LIFECYCLE_CLIENT` stays production's client (`default-item-lifecycle-client.ts:14-16`) until R4a5 | This block; the R4a row; R-c, R-f, R-g; ADR 0178 (A-17, F1, M1, M4; Amendment 2026-10-27, buckets); ADR 0062 Amendment 3; `m10-ports.ts:278-326, 484-528`; `price-stores.ts`; `price-book-test-seed.ts`; domain `item-lifecycle.ts`, `defaults-judgement.ts`; `price-dashboard-service.ts:394-423` (the order of checks); wire contract `:159-245, :430-448` |
+| **R4a3** the draft readers and renaming (runs beside R4a1) | (1) The address reader rebuilds the four structural kinds member by member, and the stored-draft reader reads their values: a creation's object, a rename's string. (2) The request boundary keeps a named refusal of `item-deleted` for change and revert (`400 NOT_EDITABLE`, as today), and the change route keeps refusing both creation kinds. (3) `created-row-text` is accepted for change and revert, and judged by `applyChanges` (M4's text rule; R-h's third bullet). (4) `planChange` replaces a creation and its dependants in place, never appending a re-put creation behind them (X0-4). Reverting a creation also removes its dependants (its rates and its text changes), so the draft never holds a rate or a name for a row it no longer creates. (5) `FETCHING_PRICE_DRAFT_CLIENT` sets `acceptsCreatedRowText: true`. Flip `qa-m10-u4a-wire…:178, :262, :275, :297` to `it` and delete the pin at `:305` | `draft-address.ts`, `stored-draft.ts`, `draft-requests.ts`, `draft-plans.ts`, `price-draft-client.ts` | merged only | Full + security | The rename is declared, but nothing in production can reach it: no created row can exist there until R4a4 | This block (both tables); the U5b, P6b, M4 and R2-review hand-offs above; M4's `apply-changes.ts`, `structural-changes.ts`, `draft-structure.ts`; ADR 0178 F5; `0021_create_design_notes.sql:15` (the text rule); `qa-m10-u4a-wire.adversarial.test.ts` |
+| **R4a2** the usage read | (1) `POST /api/staff/prices/usage` with `UsageRequestWire` (row item 2). It is a read, and it answers `UsageCountsWire`. It is **not a `GET`**: it carries up to 50 structured refs, which belong in a body, as R2's ruling Q4 accepted for a body-based `DELETE` (a recorded departure from the row). (2) The bounds S3's security review asked for. Every probe is built on the server by `usageProbesFor(items, {catalog: shippedCatalogue(), book: active})`, never from the body; a member other than `items` is `400`. One catalogue built at the default depth serves kitchens of either depth. S3's QA shows the key set and `buildIdsPricedAs` are the same at 600 and 700 (`item-usage-probes.adversarial.test.ts:189-199`), so a 700-deep kitchen is not dropped as unreadable. At most `MAX_USAGE_ITEMS` (50, wire `:451`) distinct items, deduplicated, or `400` naming `items`. The cap bounds the SQL fan-out (`countEach` runs every SQL probe at once, `neon-kitchen-usage-reader.ts:88-95`). It does not bound the walk, which runs once per call over every design (`:125-137`). (3) Its own bucket, `staff-price-usage-by-account`, **fail closed**. It is per account, not per session as relayed: per account is the tighter bound, since one account can open several sessions, and it matches ADR 0178's buckets. Proposed figure: 120 per hour, provisional, the owner's to retune **[inf]**. The scribe records it in ADR 0178. (4) A deadline. Proposed: 10 s **[inf]**, within the platform's function limit. Past it the route answers `503` with no partial counts. (5) No audit row per read (wire `:453-456`). `unreadableDesigns` is logged as a bare count when above 0, and not sent (the wire has no member for it) | the usage route (new), `lib/server/price-dashboard/item-usage-read.ts` (new; items 2 and 4, and reused by R4a6), `limit-policy.ts`, `judge-account-request.ts`, `account-log.ts` (the event) | R4a1 (`PriceStores.usage`) | Full + security | Counts, everywhere: nothing in production calls the route until R4a5 | This block; S3's port and security hand-offs (relayed) with `m10-ports.ts:331-387`, `item-usage-probes.ts`, `neon-kitchen-usage-reader.ts`; ADR 0156 (subjects); ADR 0178 (2026-10-27 buckets; OQ-34); `judge-account-request.ts:82, 209-211`; `limit-policy.ts:575, 666, 785`; wire `:450-469` |
+| **R4a4** creation (runs beside R4a2) | (1) `POST /api/staff/prices/draft/hardware-class` with `CreateHardwareClassRequestWire`. In one draft write it puts the creation and a rate change for exactly the fields `hardwareRatesOf(activeBook)` returns, through `applyChanges` (P6: `ZERO`, `CREATED_TIER_RATES_MISSING`), never re-judged by hand. It writes one `price-draft-changed` row with the creation's `changeKind`. (2) `POST /api/staff/prices/draft/accessory` with `CreateAccessoryRequestWire` (A-19). The link is judged by `judgeBookAgainstCatalog` over the candidate (row item 3). (3) The server mints the id (R-h). A request naming one is `400`. Ids come from one namespace across kinds, of the shape `identifier-shape.ts` accepts, never `new`, and unique against every built-in and keyed id, the active book and the draft. They come from a random source, never from the name or a counter, so an id a past version held is not issued again **[inf: falsified by a minted id equal to one an earlier stored version's book states]**. (4) A lost `200` cannot create a second row. The request names `expectedDraftRevision`, so replaying it after a success is `409 changed-meanwhile`; the client never resends a creation by itself. (5) `createHardwareClass` and `createAccessory` on `FETCHING_PRICE_DRAFT_CLIENT`, with a reader for `DraftChangeCreatedWire`. Flip `qa-m10-u4a-wire…:137` | two route files (new), `lib/server/price-dashboard/created-ids.ts` (new), `price-dashboard-service.ts` (the two writes, inside `runDraftWrite`), `price-draft-client.ts`, `price-dashboard-wire-reading.ts`. Six, stated, with a mini-review | R4a3 | Full + security + visual (the first browser creation: U4c, L1492) | Create goes live in production at this merge, and the rename with it. A created row starts switched off (A-17), and its switch stays off until R4a5. Publishing a created class blanks the deltas until Q3 (M4, L1539): a recorded interim, since nothing deploys mid-milestone | This block; the U4a, U4c, P6 and M4 hand-offs above; R-h; ADR 0178 F5; wire `:250-304`; M4's `structural-changes.ts:82` (`hardwareRatesOf`); `identifier-shape.ts`; `price-dashboard-service.ts:304-423` |
+| **R4a5** the lifecycle client: switches and counts in production | (1) A fetching `ItemLifecycleClient`. `setActive` goes to R4a1's route: `409` with an `AvailabilityRefusalCode` (`item-always-present` included) is `refused`, `409 changed-meanwhile` is `conflict`, `401` is `session-ended`, anything else is `failed`. `readUsage` goes to R4a2's route. `readAvailability` comes from the dashboard state's `availability`. (2) `defaultItemLifecycleClient` gives production the fetching client. (3) **The delete gate is separated from `canWrite`.** Today `deleteStandOf` opens Delete wherever `canWrite` holds (`item-lifecycle-model.ts:127-136`). So until R4c, Delete of a row the active book states stays off with `cannot-judge` in production, **whatever R4b later makes readable**. Delete of a draft-created row (a revert of its creation) is on. (4) Batching: `use-material-usage.ts` and `use-item-availability.ts` ask once per view for every item they count, in chunks of at most 50. This reverses U4b's one-material-at-a-time choice (its header, `:16-19`), as S3's security review asked. One failed read now leaves every count of that request unknown | `fetching-item-lifecycle-client.ts` (new), `default-item-lifecycle-client.ts`, `item-lifecycle-model.ts`, `use-material-usage.ts`, `use-item-availability.ts` | R4a1, R4a2 | Full + visual (no security: recorded above) | Switch-on is live in production. Switch-off stays `cannot-judge` until R4b's `GET` defaults makes the client's `defaults` known (`item-lifecycle-model.ts:97`). Delete of a stated row stays off until R4c | This block; the U4a, U4b, U4c records (L1466-1471, L1487-1493, L1505-1511); RK-18; frames D4E/F, D5C/D/G, D6C; `item-lifecycle-client.ts`; `item-lifecycle-model.ts`; `browser-and-visual-qa.md` |
+| **R4a6** publish judges deletions in the request (runs beside R4a5, once S2c is merged) | (1) The publish handler reads the stored draft and takes the deleted items of the active book (S2c's `deletedBookItemsOf`). It counts them in that request through R4a2's `item-usage-read.ts`. The probes' basis is the **active** book, never the candidate: in the candidate, a deleted linked accessory has no rule, so `accessoryProbe` answers `buildIds: []` and the count reads 0 (`item-usage-probes.ts:64-73`). (2) `judgeDeletionsAtPublish({changes, usage, book: active, defaults})`, with R4a1's defaults read (unparseable means `503`). A default code (fixed or saved) answers `409 item-is-default {item}`, wire `:234-238`, and use answers `409 item-in-use {items}`. Any other refusal is never an allowance: the publish writes nothing. (3) `deletedItems` goes to the store, with each linked accessory's build ids taken from the same probes. The store's `item-in-use` maps to the same `409`. Whichever of S2c and R4a6 merges second keeps the mapping single. (4) `readPublishPage` is given `deletionFacts`, built by the same module (counts and defaults, no audit row, no bucket), so the page's `blocked` is reachable. A page's counts are for display only (R-i). A render may not write, so it spends no bucket. Its bound is what it asks: only the draft's deleted items that are deletable and that the book states, with SQL probes only (never the walk), under R4a2's deadline. That this read is unbucketed is an accepted residual. (5) The draft route still refuses `item-deleted`: R-i's last bullet, asserted at this merge | `publish-plan.ts`, `price-dashboard-service.ts` (`performPublish`, `answerOfPublish`), `lib/server/price-dashboard/deletion-facts.ts` (new), `price-dashboard/publish-source.ts` | R4a1, R4a2, R4a3; R4a4 (it holds the service file first); **S2c merged** | Full + security | Nothing becomes reachable: no draft in production can hold a deletion until R4c | The deletion-race block (all of it); ADR 0178 Amendment on a deletion that gains a user; R-d, R-i; U5c's security hand-off; `publish-plan.ts`; `publish-deletions.ts` (web and domain); `publish-source.ts`; S2c's merged `m10-ports.ts` and `draft-structure.ts` |
+
+*Order and parallelism (at most two at once).* Each pair below has disjoint production files.
+1. **R4a1 ∥ R4a3.**
+2. **R4a2 ∥ R4a4.**
+3. **R4a5 ∥ R4a6.** If S2c is late, R4a5 runs alone and R4a6 follows. R4b may take the freed slot: R4b's dependency
+   on R4a is R4a1, which wires the defaults store and the server-side availability judgement. The rest is not R4b's
+   need, so this split does not lengthen R4b's path (the deletion-race block, *Order*, item 4).
+
+One test file is shared: `qa-m10-u4a-wire.adversarial.test.ts`. R4a1 owns its `:358-365` block, R4a3 the
+`:163-313` blocks and R4a4 the `:135-161` block. The second merge of a pair resolves the file. The `:102-133`
+block stays R4c's.
+
+*S2c's relation.*
+- **Only R4a6 waits for S2c.** `deletedItems`, the `item-in-use` outcome and `deletedBookItemsOf` are S2c's port and
+  domain changes. They are in its worktree, uncommitted, at the time of writing (`m10-ports.ts` and `draft-structure.ts`
+  in `.claude/worktrees/m10-s2c`). R-i's second arm, the store refusing after a stubbed count of 0, needs S2c's guard.
+- **No other sub-wave waits.**
+- **One coordination point.** `deletedItems` is a required member. So S2c's merge cannot compile the web app unless
+  `performPublish` passes it and `answerOfPublish` maps `item-in-use`. `answerOfPublish` passes `result.kind` to
+  `dashboardConflictResponse`, and `item-in-use` is not a conflict word (`price-dashboard-service.ts:556-568`). S2c's
+  file list (L1913) names no web file. **[inf]** Its merge will therefore touch `price-dashboard-service.ts`, which
+  R4a4 also holds.
+- Recommendation: S2c makes that minimal edit (pass the deletions the domain computes, and map `item-in-use` to the
+  existing `409`) and merges **before or after R4a4, never while R4a4 is in QA or review**. R4a6 keeps the in-request
+  count and the domain judgement in either case.
+
+*Migrations.* **None, and no owner approval is needed.**
+- Audit actions are only shape-checked (`0020_create_staff_audit_events.sql:63`).
+- Every new audit row reuses an existing action: `catalogue-item-active-changed`, and `price-draft-changed` with a
+  structural `changeKind`. The `changeKind` lives in the `detail` jsonb (`dashboard-audit-action.ts:118`).
+- Limiter bucket keys are stored as SHA-256 digests (`0007_create_rate_limit_counters.sql:22`).
+- No sub-wave adds a table, column, index or grant.
+- If a sub-wave finds it needs one, it stops and returns to planning.
+
+*Contradictions among the hand-offs, and how each is settled.*
+- **A creation through R2's endpoint (row item 3, 2026-10-26) or its own route (U4a, 2026-11-03).** Own routes. The
+  wire contract already gives the creations requests of their own (`:250-253, :283-298`). U4a recorded the same ruling.
+- **The delete pre-check: `409` (row item 3) or `400 ITEM_IN_USE` (U4a, later).** A draft write answers
+  `400 ITEM_IN_USE`, the wire's code (`:96`), which the client maps (`item-flows.ts:189`). A publish answers
+  `409 item-in-use {items}`. The pre-check is R4c's, since deletion is off.
+- **"Three deferred tests go red when R4a delivers" (U4a, L1508) and "the three `it.fails` flip" (P6b, L1503).** They
+  name different tests, and the deletion-race block keeps deletion off. Each one now has an owner:
+  - `:137`, R4a4;
+  - `:178`, R4a3;
+  - `:262`, `:275` and `:297`, R4a3, which also deletes the pin at `:305`;
+  - `:104` and its pin `:119`, R4c.
+- **The R4c files listed at L2048 against what R4a6's criteria need.** Settled by the dated amendment above.
+- **"Usage counts by `GET`" (row item 2) against a body-shaped `UsageRequestWire`.** `POST`, as a recorded departure
+  (R4a2, item 1).
+- **"Asked one material at a time" (U4b, `use-material-usage.ts:16-19`) against "batching" (S3 security).**
+  Batching. The bound on the walk outranks keeping the other counts when one fails, and a failed count is still never
+  a number.
+- **A per-session limit (S3 security, relayed) against per-account buckets (ADR 0178, 2026-10-27).** Per account,
+  which is the tighter of the two (R4a2, item 3).
+- **"The wire gains `item-is-fixed-default` in … `m10-ports.ts`" (M3, L1562-1563).** No port change. The availability
+  store never answers a domain word: the domain judges before the call (`m10-ports.ts:518-522`). The word goes in the
+  wire contract only.
+- **R-g's "refused (`REPLACEMENT_REQUIRED`)" against P4a's ruling (L1448).** Both hold. The pricing refusal is
+  `REPLACEMENT_REQUIRED`, and the route's answer is `409 CONTACT_DESIGN_NOT_CURRENT`.
+
+*Acceptance.* R-c, R-f, R-g, R-h and R-i apply as listed, with these bullets added.
+- **R4a1 (R-c, R-f, R-g):**
+  - R-f in full: the next customer evaluation sees an availability change with no publish; the draft and the active
+    version are byte-identical; disabling the D9 default or the last option answers `409` with M3's code; enabling a
+    row the active book does not hold answers `409 item-not-in-active-book`;
+  - **must-not:** the D9 default is switched off when the stored defaults do not parse. It is `503`, never judged
+    against `{}`;
+  - **must-not:** a defaults save landing between the route's reads lets the newly saved default be switched off.
+    Tested by saving between the head read and the defaults read;
+  - **R-g, end to end:** load a design, switch off an item it uses through this route, then send. The send is refused
+    with the existing `409`, and no snapshot is stored;
+  - **R-c:** one audit row per write, in the same transaction. An audit failure gives `503` and the change is absent.
+    An operator session gets `403`;
+  - `CI=1` production wiring: with no `DATABASE_URL` both new members are the unavailable stores. With one, they are
+    made once per process. `selectPriceStores`' existing matrix holds;
+  - QA's property (the `javascript-testing-expert` skill applies): for any availability state and any item,
+    the route's answer word equals `judgeAvailabilityChange`'s verdict.
+- **R4a2:**
+  - **must-not:** the body supplies any probe fact (`buildIds`, `isFallback`, a predicate). The only member is
+    `items`;
+  - 51 distinct items is `400`. 50 is answered. A duplicate item is counted once and answered once;
+  - **must-not:** a count is answered as `0` past the deadline or after a failed walk. It is `503` with no counts.
+    Sabotage: let the reader resolve after the deadline, and the suite must go red if any count is sent;
+  - the bucket fails closed when the limiter store is down. No audit row is written per read;
+  - a `price.edit`-less session gets `403` and spends nothing.
+- **R4a3:**
+  - every row of the kind × reader table holds as written, each cell by its own test;
+  - after the merge the change route still refuses `item-deleted` and both creation kinds (pins `:119` and `:146`
+    green);
+  - **property (fast-check):** for any draft holding a creation with its rates and text, re-putting the creation
+    leaves every dependant applicable. `applyChanges` accepts the draft, and the creation's index stays before every
+    dependant's;
+  - reverting a creation leaves no change naming its id;
+  - created-row text that fails the `0021` text rule is `400` with M4's code (R-h).
+- **R4a4:**
+  - R-h's first two bullets;
+  - a minted id is never `new`, never an id of another kind's namespace, and never a built-in or keyed id. A
+    property over many mints shows no repeats;
+  - **must-not:** a replay of a creation request after its `200` creates a second row. It is `409 changed-meanwhile`,
+    and the draft holds exactly one creation;
+  - a created class's rates are exactly `hardwareRatesOf(activeBook)`, and a zero push-runner rate is refused
+    `ZERO`;
+  - in a browser under `next dev` and `CI=1`, a class and an accessory are created and renamed. The spec takes the
+    draft lock (`support/price-draft-lock.ts`) and publishes nothing.
+- **R4a5:**
+  - **must-not:** in a production build, Delete of a row the active book states is offered before R4c. Asserted
+    with defaults made readable, so R4b's merge cannot open it;
+  - **must-not:** a failed or late usage read shows as `0` kitchens. The dialog says nothing of a number it lacks
+    (RK-18);
+  - one usage request per view: a screen that counts *k* ≤ 50 items sends exactly one request;
+  - `409 item-always-present` reads as `refused` (U4c);
+  - browser: switch-on round trip, a switch surviving a reload (never reached before, U4a record, L1506), and the
+    D5E/D5F counts on a seeded world. That world's fake usage reader counts
+    only planted designs, so the browser shows 0 for every item. Non-zero counts are proved by DOM tests over
+    planted designs, and in the browser at the Z gate (recorded residual).
+- **R4a6:** R-i in full, plus:
+  - **must-not:** the usage basis is the candidate book. Sabotage: pass the candidate, and a deleted linked
+    accessory's arm goes red;
+  - publish asks only `settings-tier` and `placed-bodies` probes, and never starts the walk. A test fails if a
+    `migrated-design` probe reaches the reader at publish;
+  - a draft that creates and deletes the same row asks no count for it;
+  - the M5 arm of R-d: a draft deleting the saved D9 default answers `409 item-is-default {item}`, with defaults
+    seeded in the store. The end-to-end sequence through a defaults save is R4c's, after R4b.
+
+*R4c's scope, as this split leaves it.*
+1. `draft-requests.ts` accepts `item-deleted`, as a change and as a revert, with a draft-write pre-check: defaults,
+   then `400 ITEM_IN_USE` on a count from R4a2's module.
+2. R4a5's delete gate turns on, and `deletionSettlementOf`'s conflict case keeps the dialog open on its old facts.
+3. M4's two deletion edges: restore with a pending deletion, and a revert of a deletion that passes the
+   50-accessory cap.
+4. U5c's `item-is-fixed-default` wording at publish (new copy under OQ-11).
+5. The `:104` flip and the `:119` pin deletion, with R-j and R-d's end-to-end sequence (after R4b).
+
+That is the 5-item limit. R4c's own plan may split it.
+
+*Risks and residuals.*
+- **The walk keeps running after the deadline.** `countEach` takes no cancellation signal (`m10-ports.ts:376-378`),
+  so a `503` at the deadline frees the request but not the database work. The per-account bucket bounds how often
+  this can happen.
+- **Recommended follow-up for that.** An S-lane change adds an optional `AbortSignal` to `countEach`, checked between
+  pages (`neon-kitchen-usage-reader.ts:130-136`). It touches persistence files, so it is not R's. It is the
+  coordinator's to queue.
+- **Usage counts silently leave some designs out.** They are of the designs the walk could read, and the screens do
+  not say so (`unreadableDesigns` is logged only). Deletions are never judged by such a count. Copy for it would be
+  new copy under OQ-11.
+- **RK-18 becomes reachable at R4a5.** An accidental switch-off reaches customers at once. The mitigations are
+  RK-18's own.
+- **S2c's merge touches the service** (*S2c's relation* above). It must not merge mid-QA of R4a4.
+
+*Verification, per sub-wave.*
+- Route tests over the fake world (`tests/support/price-dashboard-world`).
+- The `qa-m10-u4a-wire` flips, each in the commit that keeps its promise.
+- `pnpm check` on the merge, and `pnpm ci:local` before any push.
+- Browser runs for R4a4 and R4a5 under `next dev` and `CI=1`. None publishes (the U5c record).
+- Live Postgres arms only where a Neon store is new to a route (R4a1's production wiring). S3's live suites already
+  hold the reader and the defaults store.
+
+*Reading, QA and reviewers.*
+- **QA of each sub-wave:** its row's Reading, plus that sub-wave's acceptance bullets above, `apps/web/tests/api/staff/**`,
+  and `tests/app/api/staff/qa-m10-u4a-wire.adversarial.test.ts`. R4a5's QA adds `tests/e2e/hardware*.spec.ts`,
+  `materials*.spec.ts` and `accessories*.spec.ts`.
+- **Logic review:** the row's Reading, plus §5 A-17 to A-19. No DEVELOPMENT-SPEC section applies (no geometry).
+- **Security review (not R4a5):** the row's Reading, plus ADR 0019, 0156, 0172 D7, 0173, and S3's security hand-off
+  (relayed).
+- **Clean-code review:** the diff, `engineering-conventions.md`, and `price-dashboard-service.ts`'s header (the order of
+  checks every route keeps).
+- **Visual review (R4a4, R4a5):** the frames named in R4a5's row, and `browser-and-visual-qa.md`.
 
 ### Lane U — Dashboard UI D1–D9 (Light + visual; U5 Full, because it publishes)
 
