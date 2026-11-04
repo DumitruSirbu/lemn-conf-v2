@@ -1,8 +1,9 @@
-/* The hardware screens: the list of classes and one class's page. One markup, two layouts: a card until 1440 px, and the
- * table from there. The table's eight columns (the class, five rates, the state, the actions) beside the staff frame's
- * 264 px navigation leave the state column 88 px for its widest Russian chips only from 1434 px. A price is changed on
- * the class's own page, never in the card. Every interactive box is at least `--touch-target` tall and wide, and every
- * cell may shrink (`min-width: 0`) so no width makes a page scroll sideways. */
+/* The hardware screens: the list of classes and one class's page. One markup, two layouts: a card until 1440 px, and
+ * the table from there. Beside the staff frame's 264 px navigation the state column holds its widest Russian chip only
+ * from a layout width of 1434 px, so it has a minimum of its own, and the table holds at 1420 px, which is what a
+ * classic scrollbar leaves of a 1440 px window. A price is changed on the class's own page, never in the card. Every
+ * interactive box is at least `--touch-target` tall and wide, and every cell may shrink (`min-width: 0`) so no width
+ * makes a page scroll sideways. */
 .heading {
   composes: heading from "./item-screen.module.css";
 }
@@ -150,9 +151,10 @@
 .page {
   composes: page from "./item-screen.module.css";
   --rate-count: 5;
-  /* The widest title word of a rate column at 11 px uppercase with its letter-spacing ("Направляющие", 113 px) plus a few
-   * pixels: no title runs into the next one. */
+  /* The widest title word of a rate column at 11 px uppercase ("Направляющие", 113 px) plus a few pixels. */
   --rate-column-min: 118px;
+  /* The widest chip of the state column ("По умолчанию", 88 px) plus a few pixels. */
+  --state-column-min: 96px;
 
   display: flex;
   flex: 1;
@@ -264,7 +266,7 @@
   .page {
     --table-columns: minmax(0, 1.7fr)
       repeat(var(--rate-count), minmax(var(--rate-column-min), 1fr))
-      minmax(0, 1.2fr) minmax(0, 1.6fr);
+      minmax(var(--state-column-min), 1.2fr) minmax(0, 1.6fr);
   }
 
   .columns {

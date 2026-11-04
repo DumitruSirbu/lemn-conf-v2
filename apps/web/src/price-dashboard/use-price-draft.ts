@@ -254,7 +254,7 @@ export function usePriceDraft({
       wanted: WantedAmount | WantedText,
       activeValue: number | string,
     ): Promise<FieldWriteResult> => {
-      // The address of a field with a value of its kind is a change of that field: the route judges which address takes one.
+      // A field's address with a value of its kind is a change of that field: the route judges which address takes one.
       if (wanted.value !== activeValue) {
         return change({
           address: wanted.address,

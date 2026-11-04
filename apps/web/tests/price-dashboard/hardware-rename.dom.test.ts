@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   HARDWARE_RATE_FIELDS,
   SAMPLE_PRICE_BOOK,
+  type DraftChange,
   type HardwareTier,
 } from "@lemnaria/configurator-domain";
 
@@ -21,6 +22,9 @@ import {
   CREATED_CLASS,
   rowOf,
   mountHardwareList,
+  menuEntry,
+  openDialog,
+  openMenuOf,
   HETTICH,
   hardwarePageOf,
   mountHardwareEdit,
@@ -138,6 +142,23 @@ describe("a class the catalogue does not key", () => {
   });
 });
 
+describe("a rename that fails and is tried again", () => {
+  it("shows no error once the retry is written", async () => {
+    const container = await mountCreated();
+    typeInField(container, NAME, "GTV Premium");
+    mounted?.draftServer.answerNextWriteWith({ kind: "failed" });
+    await press(buttonNamed(container, RENAME));
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe(
+      roCopy("priceDashboard.errors.saveFailed"),
+    );
+
+    await press(buttonNamed(container, RENAME));
+
+    expect(container.querySelector('[role="alert"]')).toBeNull();
+    expect(headingOf(container)).toBe("GTV Premium");
+  });
+});
+
 describe("a class whose words are the catalogue's", () => {
   it("shows its name as text and offers no field for it", async () => {
     mounted = await mountHardwareEdit(HETTICH, hardwarePageOf());
@@ -182,8 +203,8 @@ describe("a class the active version holds and the catalogue does not key", () =
     ...Object.fromEntries(HARDWARE_RATE_FIELDS.map((field) => [field, 2_000])),
   } as unknown as HardwareTier;
 
-  function pageWithThePublishedClass() {
-    const page = hardwarePageOf();
+  function pageWithThePublishedClass(changes: readonly DraftChange[] = []) {
+    const page = hardwarePageOf({ changes });
     const book = {
       ...SAMPLE_PRICE_BOOK,
       hardware: {
@@ -217,5 +238,39 @@ describe("a class the active version holds and the catalogue does not key", () =
     expect(rowOf(mounted.container, PUBLISHED).textContent).not.toContain(
       PUBLISHED_NAME,
     );
+  });
+
+  it("is named by its published name in the question that switches it off, though the list shows the draft's rename", async () => {
+    const page = pageWithThePublishedClass([
+      {
+        address: {
+          kind: "created-row-text",
+          item: { kind: "hardware", tierId: PUBLISHED },
+          field: "name",
+        },
+        value: "GTV Premium",
+      },
+    ]);
+    mounted = await mountHardwareList(page);
+    expect(rowOf(mounted.container, PUBLISHED).textContent).toContain(
+      "GTV Premium",
+    );
+
+    await openMenuOf(mounted.container, PUBLISHED, "GTV Premium");
+    await press(
+      menuEntry(
+        mounted.container,
+        PUBLISHED,
+        roCopy("priceDashboard.common.deactivate"),
+      ),
+    );
+
+    const text = openDialog()?.textContent ?? "";
+    expect(text).toContain(
+      roCopy("priceDashboard.lifecycle.deactivateTitle", {
+        name: PUBLISHED_NAME,
+      }),
+    );
+    expect(text).not.toContain("GTV Premium");
   });
 });

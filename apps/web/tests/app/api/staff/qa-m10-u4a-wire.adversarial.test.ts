@@ -215,10 +215,21 @@ describe("the write that renames a class the draft created (the class page's ren
     ),
   ];
 
-  async function storeCreatedClass(): Promise<void> {
+  const RENAME: DraftChange = {
+    address: {
+      kind: "created-row-text",
+      item: { kind: "hardware", tierId: CREATED_TIER },
+      field: "name",
+    },
+    value: "GTV Premium",
+  };
+
+  async function storeCreatedClass(
+    changes: readonly DraftChange[] = CREATION,
+  ): Promise<void> {
     const written = await prices.priceBook.writeDraft({
       expectedDraftRevision: await currentDraftRevision(),
-      changes: CREATION,
+      changes,
       audit: {
         session: {
           sessionTokenHash,
@@ -256,6 +267,29 @@ describe("the write that renames a class the draft created (the class page's ren
       const outcome = await renameTheClass();
 
       expect(outcome.kind).toBe("changed");
+    },
+  );
+
+  // R4a teaches the revert reader the address of a created row's words and owes the flip to `it`. Naming the published
+  // name again sends a revert, not a change.
+  it.fails(
+    "a revert of a created-row-text change is taken by the route, so a name typed back leaves nothing in the draft",
+    async () => {
+      await storeCreatedClass([...CREATION, RENAME]);
+
+      const answer = await DELETE(
+        accountRequest("/api/staff/prices/draft", {
+          method: "DELETE",
+          cookie,
+          headers: NETWORK,
+          json: {
+            expectedDraftRevision: await currentDraftRevision(),
+            target: { kind: "change", address: RENAME.address },
+          },
+        }),
+      );
+
+      expect(answer.status).toBe(200);
     },
   );
 

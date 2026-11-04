@@ -41,6 +41,7 @@ import {
   openClass,
   openHardwareList,
   openNewClass,
+  overflowingBoxes,
   rateCellOf,
   RATE_COLUMN_KEY,
   RATE_FIELDS,
@@ -769,26 +770,6 @@ function insideDialog(page: Page): Promise<boolean> {
   return page.evaluate(
     () => document.activeElement?.closest('[role="alertdialog"]') != null,
   );
-}
-
-/** The elements of the list, outside the table's titles, whose text is wider than their own box, named. */
-function overflowingBoxes(page: Page): Promise<string[]> {
-  return page.evaluate(() => {
-    const found: string[] = [];
-    const scope = document.querySelector('[data-testid="hardware-list"]');
-    for (const element of scope?.querySelectorAll("*") ?? []) {
-      if (!(element instanceof HTMLElement)) continue;
-      if (element.closest('[aria-hidden="true"]') !== null) continue;
-      // The visually hidden labels are one pixel wide on purpose.
-      if (element.clientWidth <= 1) continue;
-      if (element.scrollWidth > element.clientWidth + 1) {
-        found.push(
-          `${element.tagName.toLowerCase()} "${element.textContent.trim().slice(0, 30)}" ${String(element.scrollWidth)} > ${String(element.clientWidth)}`,
-        );
-      }
-    }
-    return found.slice(0, 8);
-  });
 }
 
 /** How far the second row's top lies below the first's: unchanged by scrolling, changed by a row growing. */

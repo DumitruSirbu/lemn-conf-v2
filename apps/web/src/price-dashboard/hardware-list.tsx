@@ -29,7 +29,11 @@ import styles from "./hardware.module.css";
 import { formatLei, formatLeiAmount } from "./format-lei";
 import { ItemDeskNotice, ItemDialogs } from "./item-dialogs";
 import type { ItemLifecycleClient } from "./item-lifecycle-client";
-import { ItemRowMenu, type ItemRowMenuClasses } from "./item-row-menu";
+import {
+  ItemRowMenu,
+  lifecycleEntriesOf,
+  menuClassesOf,
+} from "./item-row-menu";
 import { isItemOn, type LifecycleContext } from "./item-lifecycle-model";
 import type { PriceDraftClient } from "./price-draft-client";
 import { useHardwareDesk, type HardwareDesk } from "./use-hardware-desk";
@@ -38,14 +42,7 @@ import { useHardwareDesk, type HardwareDesk } from "./use-hardware-desk";
 // state and the actions "⋯" opens. A rate is changed on the class's own page, so a card never holds a field. Disabling and
 // enabling apply at once and are asked of the dialogs; deleting waits for publication.
 
-const MENU_CLASSES: ItemRowMenuClasses = {
-  rowMenu: styles.rowMenu,
-  more: styles.more,
-  menu: styles.menu,
-  menuItem: styles.menuItem,
-  menuEntry: styles.menuEntry,
-  menuReason: styles.menuReason,
-};
+const MENU_CLASSES = menuClassesOf(styles);
 
 export interface HardwareListScreenProps {
   readonly locale: AppLocale;
@@ -280,28 +277,18 @@ function RowMenu({
       name={name}
       isAsking={availability.flow.kind !== "closed"}
       classes={MENU_CLASSES}
-      entries={[
-        {
-          id: "switch",
-          label: translate(
-            isItemOn(item, context)
-              ? "priceDashboard.common.deactivate"
-              : "priceDashboard.common.activate",
-          ),
-          reason: switchReason,
-          onPress: () => {
-            availability.requestSwitch(item);
-          },
+      entries={lifecycleEntriesOf({
+        translate,
+        isOn: isItemOn(item, context),
+        switchReason,
+        deleteReason,
+        onSwitch: () => {
+          availability.requestSwitch(item);
         },
-        {
-          id: "delete",
-          label: translate("priceDashboard.common.delete"),
-          reason: deleteReason,
-          onPress: () => {
-            availability.requestDeletion(item);
-          },
+        onDelete: () => {
+          availability.requestDeletion(item);
         },
-      ]}
+      })}
     />
   );
 }

@@ -15,6 +15,7 @@ const POINTER_WIDTH = "@media (min-width: 900px)";
 const TABLE = "@media (min-width: 1440px)";
 const EDIT_COLUMNS = "@media (min-width: 1200px)";
 const RATE_TITLE_WORD_PX = 113;
+const WIDEST_STATE_CHIP_PX = 88;
 
 describe("what a thumb must hit", () => {
   it.each([
@@ -102,6 +103,18 @@ describe("one markup, two layouts", () => {
     );
     expect(Number.parseFloat(minimum ?? "")).toBeGreaterThan(
       RATE_TITLE_WORD_PX,
+    );
+  });
+
+  it("keeps the state column at least as wide as its widest chip, so a window a scrollbar narrows still holds it", () => {
+    const [template] = valuesFor(css, "page", "--table-columns");
+    const [minimum] = valuesFor(css, "page", "--state-column-min");
+
+    expect(template?.replaceAll(/\s+/g, " ")).toContain(
+      "minmax(var(--state-column-min), 1.2fr)",
+    );
+    expect(Number.parseFloat(minimum ?? "")).toBeGreaterThan(
+      WIDEST_STATE_CHIP_PX,
     );
   });
 

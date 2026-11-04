@@ -20,6 +20,7 @@ import {
   openClass,
   openHardwareList,
   openNewClass,
+  overflowingBoxes,
   rateCellOf,
   RATE_FIELDS,
   rateField,
@@ -47,6 +48,8 @@ const HEIGHT = 900;
 const NARROW_WIDTHS = [320, 360, 375, 390, 414, 600, 768, 899] as const;
 const EDGE_WIDTHS = [1438, 1439, 1440, 1441] as const;
 const TABLE_FROM_PX = 1440;
+/** What a classic vertical scrollbar leaves of a 1440 px window: the media query still reads 1440, the layout is narrower. */
+const LAYOUT_WIDTH_WITH_SCROLLBAR_PX = 1420;
 const FILES_TAKE_TURNS_MS = 600_000;
 const SUBPIXEL_PX = 1;
 
@@ -284,4 +287,30 @@ test.describe("the row menu from the keyboard", () => {
 
     await expect(menuOf(rowOf(page, HETTICH))).toHaveCount(0);
   });
+});
+
+test.describe("the table in a window whose classic scrollbar takes layout width", () => {
+  for (const locale of LOCALES) {
+    test(`${locale}: at a viewport of ${String(TABLE_FROM_PX)} px but a layout of ${String(LAYOUT_WIDTH_WITH_SCROLLBAR_PX)} px, the table holds every word and chip in its own box`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: TABLE_FROM_PX, height: HEIGHT });
+      await openHardwareList(page, locale);
+      // A scrollbar narrows the page, not the viewport the media query reads; the headless browser draws none.
+      await page.addStyleTag({
+        content: `html { width: ${String(LAYOUT_WIDTH_WITH_SCROLLBAR_PX)}px; }`,
+      });
+
+      await expect(columnTitlesOf(page)).toBeVisible();
+      expect(await overflowingBoxes(page)).toEqual([]);
+      expect(await wordsBrokenInTheList(page)).toEqual([]);
+      for (const tierId of [STANDARD, HETTICH]) {
+        const row = rowOf(page, tierId);
+        const rowBox = await boxOf(row);
+        expect(rowBox.x + rowBox.width).toBeLessThanOrEqual(
+          LAYOUT_WIDTH_WITH_SCROLLBAR_PX + SUBPIXEL_PX,
+        );
+      }
+    });
+  }
 });

@@ -1,6 +1,6 @@
-/* What the hardware and the materials screens draw alike: the page's heading, a row as a card, the "⋯" menu, the switch
- * and the fields of an item's own page. A screen takes a class with `composes` and adds only what is its own, so the two
- * lists cannot drift apart. The look of the warm tone for a changed row lives on `.page`, which every screen composes. */
+/* What the hardware and the materials screens draw alike: the heading, a row as a card, the "⋯" menu, the switch and
+ * the fields of an item's own page. A screen takes a class with `composes` and adds only what is its own. The warm tone
+ * of a changed row lives on `.page`, which every screen composes. */
 .page {
   --warm-surface: #f7ecdc;
   --warm-row: #fbf5ea;

@@ -9,7 +9,7 @@ import {
 } from "./item-page-read";
 import { deriveMaterials, type MaterialPageInput } from "./material-model";
 
-// The one place the materials screens' facts come from; the read itself is `item-page-read.ts`, shared with the hardware.
+// The materials screens' facts: the read itself is `item-page-read.ts`, shared with the hardware.
 
 export type MaterialsRead = ItemListRead<MaterialPageInput>;
 

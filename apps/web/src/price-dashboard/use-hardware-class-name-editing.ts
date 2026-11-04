@@ -11,11 +11,9 @@ import type { FailedFieldWrite } from "./price-input-words";
 import { useLateAnswerGuard } from "./use-late-answer-guard";
 import type { PriceDraft } from "./use-price-draft";
 
-// Typing and saving the Romanian name of a class the catalogue does not key. The name is read as the draft would judge it
-// before anything is sent; a save sends one change of the class's words, and the name shown afterwards is the draft's, not
-// the typed text, and a name typed back to the published one takes the change out of the draft. Where the client takes no change of a created row's words, nothing can be saved.
+// A name typed back to the published one takes its change out of the draft instead of adding a no-op change.
 
-export interface CreatedNameEditing {
+export interface HardwareClassNameEditing {
   readonly text: string;
   readonly judgement: CreatedRowTextJudgement;
   /** The person has typed in it, so a refusal of it is shown. */
@@ -44,12 +42,12 @@ interface EditingInput {
   >;
 }
 
-export function useCreatedNameEditing({
+export function useHardwareClassNameEditing({
   tierId,
   currentName,
   publishedName,
   draft,
-}: EditingInput): CreatedNameEditing {
+}: EditingInput): HardwareClassNameEditing {
   const [typed, setTyped] = useState<string | undefined>(undefined);
   const [failure, setFailure] = useState<FailedFieldWrite | undefined>(
     undefined,
@@ -80,6 +78,7 @@ export function useCreatedNameEditing({
   const save = useCallback(async () => {
     if (!canSave) return;
     const hasMoved = begin();
+    setFailure(undefined);
     setIsSaving(true);
     try {
       const address = {

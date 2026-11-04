@@ -14,11 +14,8 @@ import type {
 } from "./price-dashboard-wire-contract";
 import { readDashboardStateWire } from "./price-dashboard-wire-reading";
 
-// The read every item screen (hardware, materials) takes its page from: the dashboard's state, read for a page whose staff
-// gate (`price.edit`) has already admitted the reader, and the saved new-kitchen defaults, which judging a switch-off needs.
-// A render reads and never writes: no session, no limiter bucket, no audit row. A state that cannot be read is
-// `unavailable` and no price is claimed. Defaults that cannot be read leave the page drawn with none judged; a production
-// build has no usage reader yet, so it hands the page no count, and a count is never made up.
+// A render reads and never writes (no session, no limiter bucket, no audit row). A production build has no usage
+// reader, so it is handed no count: a count is never made up.
 
 /** What a screen of one kind of item is given. */
 export interface ItemPageInput {
@@ -75,7 +72,7 @@ async function pageOf(
   };
 }
 
-/** The saved defaults as the lifecycle reads them; none saved reads as `{}`, and the kitchen starts from the fixed fallbacks. */
+/** The saved defaults as the lifecycle reads them; none saved reads as `{}`, the kitchen's own fallbacks. */
 function settingsOf({
   saved,
   defaults,

@@ -9,7 +9,7 @@ import {
   type ItemRead,
 } from "./item-page-read";
 
-// The one place the hardware screens' facts come from; the read itself is `item-page-read.ts`, shared with the materials.
+// The hardware screens' facts: the read itself is `item-page-read.ts`, shared with the materials.
 
 export type HardwareRead = ItemListRead<HardwarePageInput>;
 

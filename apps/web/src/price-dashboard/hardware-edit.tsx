@@ -42,9 +42,9 @@ import editStyles from "./price-edit.module.css";
 import { PriceUnitField } from "./price-unit-field";
 import { publishPathOf } from "./publish-paths";
 import {
-  useCreatedNameEditing,
-  type CreatedNameEditing,
-} from "./use-created-name-editing";
+  useHardwareClassNameEditing,
+  type HardwareClassNameEditing,
+} from "./use-hardware-class-name-editing";
 import { useFocusAfterCancel } from "./use-focus-after-cancel";
 import { useHardwareDesk, type HardwareDesk } from "./use-hardware-desk";
 import {
@@ -145,7 +145,7 @@ function HardwareEdit({
     rates: facts.rates,
     draft: desk.draft,
   });
-  const renaming = useCreatedNameEditing({
+  const renaming = useHardwareClassNameEditing({
     tierId: facts.tierId,
     currentName: facts.name.authored,
     publishedName: facts.activeName,
@@ -189,8 +189,8 @@ function HardwareEdit({
   );
 }
 
-/** The class's name and description. A catalogue row's are the catalogue's and read-only; a created row's name is authored
- *  Romanian and can be reworded here, its description is shown only. */
+/** The class's name and description. A catalogue row's are the catalogue's and read-only; a created row's name is
+ *  authored Romanian and can be reworded here, its description is shown only. */
 function ClassWords({
   facts,
   name,
@@ -198,7 +198,7 @@ function ClassWords({
 }: {
   readonly facts: HardwareClassFacts;
   readonly name: string;
-  readonly renaming: CreatedNameEditing;
+  readonly renaming: HardwareClassNameEditing;
 }) {
   const translate = useTranslations();
   const content = useContent();
@@ -236,8 +236,13 @@ function ClassWords({
   );
 }
 
-/** The name of a created class as a field with its Save; where the client cannot take it, the name is shown with the reason. */
-function CreatedName({ renaming }: { readonly renaming: CreatedNameEditing }) {
+/** The name of a created class as a field with its button; where the client cannot take it, the name is text with the
+ *  reason. */
+function CreatedName({
+  renaming,
+}: {
+  readonly renaming: HardwareClassNameEditing;
+}) {
   const translate = useTranslations();
   if (!renaming.canWrite) {
     return (
@@ -285,7 +290,7 @@ function CreatedName({ renaming }: { readonly renaming: CreatedNameEditing }) {
 /** What the typed name reads as, then what the server's answer to its Save says. */
 function nameErrorProps(
   translate: ContentTranslator,
-  { judgement, isTouched, failure }: CreatedNameEditing,
+  { judgement, isTouched, failure }: HardwareClassNameEditing,
 ): { readonly error?: string } {
   if (isTouched && !judgement.ok) {
     return { error: createdTextRefusalWords(translate, judgement.code) };
