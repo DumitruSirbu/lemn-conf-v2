@@ -65,6 +65,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllEnvs();
   vi.restoreAllMocks();
 });
@@ -106,6 +107,9 @@ describe("the order of the checks", () => {
     const { session } = await signedInOperator();
     limiterLedger.refusing.set(READ_POLICY_NAME, 120);
     world.calls.length = 0;
+    // The two answers are compared byte for byte, and `retry-after` counts whole seconds from now: a second boundary
+    // between the two requests made them differ by one.
+    vi.useFakeTimers({ toFake: ["Date"], now: Date.now() });
 
     const signedIn = await GET(listRequest({ cookie: session.cookie }));
     const anonymous = await GET(listRequest());
