@@ -131,8 +131,8 @@ function differingFacts(): (string | undefined)[] {
 }
 
 const CASES: readonly (readonly [string, unknown, unknown])[] = [
-  ["a colour added", undefined, paletteFinish("pal.alb")],
-  ["a colour taken away", paletteFinish("pal.alb"), undefined],
+  ["a colour added", undefined, paletteFinish("pal.antracit")],
+  ["a colour taken away", paletteFinish("pal.antracit"), undefined],
   [
     "one decor for another",
     paletteFinish("pal.alb"),
@@ -176,6 +176,15 @@ describe("a whole-kitchen colour between the copy as sent and the copy as it sta
       expect(differingFacts()).toContain("finish");
     },
   );
+
+  it("is marked nowhere when one copy states the colour the material gives the other", async () => {
+    await mountWith(
+      withFinish(paletteFinish("pal.alb")),
+      withFinish(undefined),
+    );
+
+    expect(differingFacts()).not.toContain("finish");
+  });
 
   it("is marked nowhere when it is the same", async () => {
     await mountWith(

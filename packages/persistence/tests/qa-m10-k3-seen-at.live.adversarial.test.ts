@@ -32,7 +32,7 @@ const SUITE_NAME = "the seen instant of the staff list (live test database)";
 if (!isLiveTestDatabaseConfigured) announceSkippedLiveSuite(SUITE_NAME);
 
 const PASSWORD_HASH = `$argon2id$v=19$m=19456,t=2,p=1$${"A".repeat(22)}$${"B".repeat(43)}`;
-const ERA_START = Date.UTC(3500, 0, 1);
+const ERA_START = Date.UTC(2020, 0, 1);
 const ONE_DAY_MS = 86_400_000;
 const ONE_MINUTE_MS = 60_000;
 const SETTLE_MS = 30;
