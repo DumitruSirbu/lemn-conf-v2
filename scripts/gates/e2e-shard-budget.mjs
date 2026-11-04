@@ -49,7 +49,7 @@ export const TARGET_MINUTES_PER_SHARD = 30;
  * room-desktop-line specs; four still left a shard over; five put 63 on its largest, and the M10 dashboard
  * specs have since needed a sixth.
  */
-export const SHARDS_PER_PROJECT = { desktop: 6, mobile: 10 };
+export const SHARDS_PER_PROJECT = { desktop: 7, mobile: 10 };
 
 /**
  * A ceiling above the derived budget, for a project whose shards cannot all fit under it.

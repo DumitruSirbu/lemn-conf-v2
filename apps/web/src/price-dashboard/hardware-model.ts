@@ -32,6 +32,8 @@ export interface HardwareClassFacts {
   readonly tierId: string;
   readonly name: BookText;
   readonly description: BookText;
+  /** The active version's name; absent for a class only the draft knows. */
+  readonly activeName: string | undefined;
   /** In the order the rates are charged, one for each rate the book states. */
   readonly rates: readonly HardwareRateFacts[];
   /** Created in the draft: the active version has no such class, so it cannot yet be switched on. */
@@ -120,6 +122,7 @@ function factsOf({
       authored: pendingTier.description,
       key: pendingTier.descriptionKey,
     },
+    activeName: activeTier?.name,
     rates: rates.map((field) => ({
       field,
       activeMinor: activeTier?.[field],

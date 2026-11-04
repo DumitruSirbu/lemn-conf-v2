@@ -13,7 +13,7 @@ import type { PriceDraft } from "./use-price-draft";
 
 // Typing and saving the Romanian name of a class the catalogue does not key. The name is read as the draft would judge it
 // before anything is sent; a save sends one change of the class's words, and the name shown afterwards is the draft's, not
-// the typed text. Where the client takes no change of a created row's words, nothing can be saved.
+// the typed text, and a name typed back to the published one takes the change out of the draft. Where the client takes no change of a created row's words, nothing can be saved.
 
 export interface CreatedNameEditing {
   readonly text: string;
@@ -36,15 +36,18 @@ interface EditingInput {
   readonly tierId: string;
   /** The name once the draft is applied. */
   readonly currentName: string;
+  /** The active version's name; absent for a class only the draft knows. */
+  readonly publishedName: string | undefined;
   readonly draft: Pick<
     PriceDraft,
-    "change" | "isBusy" | "canChangeCreatedText"
+    "change" | "changeOrRevert" | "isBusy" | "canChangeCreatedText"
   >;
 }
 
 export function useCreatedNameEditing({
   tierId,
   currentName,
+  publishedName,
   draft,
 }: EditingInput): CreatedNameEditing {
   const [typed, setTyped] = useState<string | undefined>(undefined);
@@ -53,7 +56,12 @@ export function useCreatedNameEditing({
   );
   const [isSaving, setIsSaving] = useState(false);
   const { moveOn, begin } = useLateAnswerGuard();
-  const { change, isBusy, canChangeCreatedText: canWrite } = draft;
+  const {
+    change,
+    changeOrRevert,
+    isBusy,
+    canChangeCreatedText: canWrite,
+  } = draft;
 
   const text = typed ?? currentName;
   const judgement = useMemo(() => judgeCreatedRowText(text, "name"), [text]);
@@ -74,14 +82,16 @@ export function useCreatedNameEditing({
     const hasMoved = begin();
     setIsSaving(true);
     try {
-      const result = await change({
-        address: {
-          kind: "created-row-text",
-          item: { kind: "hardware", tierId },
-          field: "name",
-        },
-        value: judgement.text,
-      });
+      const address = {
+        kind: "created-row-text",
+        item: { kind: "hardware", tierId },
+        field: "name",
+      } as const;
+      const wanted = { address, value: judgement.text };
+      const result =
+        publishedName === undefined
+          ? await change(wanted)
+          : await changeOrRevert(wanted, publishedName);
       if (hasMoved() || result.kind === "busy") return;
       if (result.kind === "saved" || result.kind === "unchanged") {
         setTyped(undefined);
@@ -91,7 +101,15 @@ export function useCreatedNameEditing({
     } finally {
       setIsSaving(false);
     }
-  }, [canSave, judgement, begin, change, tierId]);
+  }, [
+    canSave,
+    judgement,
+    begin,
+    change,
+    changeOrRevert,
+    publishedName,
+    tierId,
+  ]);
 
   return {
     text,

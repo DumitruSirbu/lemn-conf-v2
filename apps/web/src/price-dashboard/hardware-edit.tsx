@@ -148,6 +148,7 @@ function HardwareEdit({
   const renaming = useCreatedNameEditing({
     tierId: facts.tierId,
     currentName: facts.name.authored,
+    publishedName: facts.activeName,
     draft: desk.draft,
   });
   return (
