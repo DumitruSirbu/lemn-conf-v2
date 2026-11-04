@@ -35,6 +35,7 @@ import {
   judgePendingDeletions,
   type DeletionJudgement,
 } from "./publish-deletions";
+import { countPendingPrices } from "./pending-price-count";
 import { staleChangesOf, type StaleChangeView } from "./stale-draft";
 import { useUnsentAmounts, type ReportUnsentAmount } from "./unsent-amounts";
 import { useDiscardDraft, type DiscardControl } from "./use-discard-draft";
@@ -262,7 +263,7 @@ export function usePublishDesk({
         label,
         state: "active",
         publishedAt: ownVersion?.active.publishedAt ?? new Date().toISOString(),
-        changeCount: state.draft.changes.length,
+        changeCount: countPendingPrices(state.draft.changes),
       });
       setNotice({
         kind: "published",

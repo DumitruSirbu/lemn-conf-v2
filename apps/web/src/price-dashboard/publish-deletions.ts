@@ -1,5 +1,6 @@
 import {
   deletedItemsOf,
+  isItemStated,
   judgeDeletionsAtPublish,
   UsageNotCountedError,
   type DraftChange,
@@ -39,10 +40,24 @@ export function judgePendingDeletions({
   changes,
   facts,
 }: PendingDeletions): DeletionJudgement {
-  if (deletedItemsOf(changes).length === 0) return { kind: "none" };
-  if (facts === undefined) return { kind: "cannot-judge" };
-  const refusals = refusalsOf({ book, changes, ...facts });
+  const deleted = deletedItemsOf(changes);
+  if (deleted.length === 0) return { kind: "none" };
+  const judged = facts ?? factsWithoutCounts(deleted, book);
+  if (judged === undefined) return { kind: "cannot-judge" };
+  const refusals = refusalsOf({ book, changes, ...judged });
   return refusals === undefined ? { kind: "cannot-judge" } : blockOf(refusals);
+}
+
+/**
+ * What a draft that deletes only rows the book does not state is judged by: such a row, one the draft created, has no user
+ * and needs no count. `undefined` when a deleted row is one the book states, whose use only a count can tell.
+ */
+function factsWithoutCounts(
+  deleted: readonly ItemRef[],
+  book: PriceBook,
+): DeletionFacts | undefined {
+  const needsCount = deleted.some((item) => isItemStated(item, book));
+  return needsCount ? undefined : { usage: [], defaults: {} };
 }
 
 /** `undefined` when a deleted row has no count: the judgement throws rather than read it as unused. */

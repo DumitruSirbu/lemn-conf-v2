@@ -1,0 +1,68 @@
+// The number of prices a draft holds, which the screens show while it waits and the store keeps with the version it becomes.
+import { describe, expect, it } from "vitest";
+
+import { countPendingPrices, type DraftChange } from "../../src/index.js";
+
+function change(address: object, value: unknown): DraftChange {
+  return { address, value } as DraftChange;
+}
+
+const ANCHOR = change(
+  { kind: "cabinet", ruleId: "cabinet.base-cabinet", field: "anchorMinor" },
+  400_000,
+);
+const CREATED_CLASS: readonly DraftChange[] = [
+  change(
+    { kind: "hardware-tier-created", tierId: "created" },
+    { name: "N", description: "D" },
+  ),
+  ...["perHingeMinor", "perDrawerMinor", "perLiftMinor"].map((field) =>
+    change({ kind: "hardware", tierId: "created", field }, 1_000),
+  ),
+];
+const deletes = (tierId: string) =>
+  change({ kind: "item-deleted", item: { kind: "hardware", tierId } }, true);
+
+describe("the count of prices a draft holds", () => {
+  it("is zero for an empty draft and one for each price set", () => {
+    expect(countPendingPrices([])).toBe(0);
+    expect(
+      countPendingPrices([ANCHOR, change({ kind: "depth-rule" }, 18)]),
+    ).toBe(2);
+  });
+
+  it("counts a bulk action's every price", () => {
+    const bulk = [1, 2, 3].map(
+      (n) =>
+        ({
+          address: {
+            kind: "cabinet",
+            ruleId: `cabinet.r${String(n)}`,
+            field: "anchorMinor",
+          },
+          value: 1_000,
+          groupId: "g",
+          bulk: { percent: 5, scope: "all" },
+        }) as DraftChange,
+    );
+
+    expect(countPendingPrices(bulk)).toBe(3);
+  });
+
+  it("counts a created class with its rates once, beside the prices around it", () => {
+    expect(CREATED_CLASS.length).toBeGreaterThan(1);
+    expect(countPendingPrices(CREATED_CLASS)).toBe(1);
+    expect(countPendingPrices([ANCHOR, ...CREATED_CLASS])).toBe(2);
+  });
+
+  it("counts a row created and deleted again once, and a deleted row of the book once", () => {
+    expect(countPendingPrices([...CREATED_CLASS, deletes("created")])).toBe(1);
+    expect(countPendingPrices([deletes("hardware.soft-close")])).toBe(1);
+  });
+
+  it("counts a change whose address is no object as a price of its own, so a summary read from storage never throws", () => {
+    expect(
+      countPendingPrices([{ value: 1 } as unknown as DraftChange, ANCHOR]),
+    ).toBe(2);
+  });
+});

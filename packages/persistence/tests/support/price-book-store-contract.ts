@@ -938,6 +938,32 @@ function describeHistory(
       ).toMatchObject({ changeCount: 3 });
     });
 
+    it("counts a created class and its rates as one price, as the screens that asked for the publish counted them", async () => {
+      const world = await newWorld();
+      const staff = await world.aStaffMember();
+      const rate = (field: string, value: number) => ({
+        address: { kind: "hardware", tierId: "created-class", field },
+        value,
+      });
+      const summary = [
+        ANCHOR_TO_5000,
+        {
+          address: { kind: "hardware-tier-created", tierId: "created-class" },
+          value: { name: "Clasa noua", description: "O clasa." },
+        },
+        rate("perHingeMinor", 1_000),
+        rate("perDrawerMinor", 2_000),
+        rate("perLiftMinor", 3_000),
+      ];
+
+      const result = await publish(world, staff, { changeSummary: summary });
+      if (result.kind !== "ok") throw new Error("the publish was refused");
+
+      expect(
+        (await world.store.listVersions({ page: 1 })).versions[0],
+      ).toMatchObject({ changeCount: 2 });
+    });
+
     it("lists a page past the last as no versions, with the same total", async () => {
       const world = await newWorld();
       await publishNextVersion(

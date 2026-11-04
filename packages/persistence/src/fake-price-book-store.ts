@@ -1,4 +1,8 @@
-import type { ItemRef } from "@lemnaria/configurator-domain";
+import {
+  countPendingPrices,
+  type DraftChange,
+  type ItemRef,
+} from "@lemnaria/configurator-domain";
 import { nanoid } from "nanoid";
 
 import type { FakeCatalogueAvailabilityStore } from "./fake-catalogue-availability-store.js";
@@ -136,7 +140,7 @@ export class FakePriceBookStore implements PriceBookStore {
           label: held.label,
           state: this.stateOf(held),
           publishedAt: new Date(held.publishedAt),
-          changeCount: held.changeSummary.length,
+          changeCount: changeCountOf(held.changeSummary),
         })),
       };
     });
@@ -177,7 +181,7 @@ export class FakePriceBookStore implements PriceBookStore {
       accepts: ["price-published"],
       provisional: {
         sequenceNumber: request.expectedActiveSequence + 1,
-        changeCount: (request.changeSummary as readonly unknown[]).length,
+        changeCount: changeCountOf(request.changeSummary as readonly unknown[]),
       },
     });
     const newestSequence = this.versions.at(-1)?.sequenceNumber ?? 0;
@@ -209,7 +213,7 @@ export class FakePriceBookStore implements PriceBookStore {
     this.draftRevision.advance();
     staged.commit({
       sequenceNumber: held.sequenceNumber,
-      changeCount: held.changeSummary.length,
+      changeCount: changeCountOf(held.changeSummary),
     });
     return {
       kind: "ok",
@@ -262,4 +266,9 @@ function requirePublishable(request: PublishPriceBookRequest): void {
   if (!isWellFormed) {
     throw new DashboardStoreError("publish the price book", "invalid-request");
   }
+}
+
+/** The prices a change summary holds, as the screens count them: a created class and its rates are one. */
+function changeCountOf(changeSummary: readonly unknown[]): number {
+  return countPendingPrices(changeSummary as readonly DraftChange[]);
 }
