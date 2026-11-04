@@ -68,6 +68,11 @@ export function createNeonDashboardStaffWorld(
     aStaffMember: () => signedIn(),
     aStaffMemberWhoIsNotAnAdministrator: () => signedIn("operator"),
     aClientWithALiveSession: () => signedIn("client"),
+    async aStaffMemberDemotedAfterSigningIn() {
+      const member = await signedIn();
+      await sql()`update accounts set role = 'operator' where id = ${member.accountId}`;
+      return member;
+    },
     async aStaffMemberWhoseSessionIsRevoked() {
       const member = await signedIn();
       await sql()`update account_sessions set revoked_at = now() where token_hash = ${member.session.sessionTokenHash}`;

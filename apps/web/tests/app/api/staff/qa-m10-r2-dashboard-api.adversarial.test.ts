@@ -1446,8 +1446,7 @@ describe("an administrator demoted after the route admitted the request and befo
     return session.cookie;
   }
 
-  // The store's admin-only actor arrives with S2 (unmerged until the Z gate).
-  it.skip("has a draft write that is refused and leaves no row: a person who no longer holds price.edit changes no price", async () => {
+  it("has a draft write that is refused and leaves no row: a person who no longer holds price.edit changes no price", async () => {
     const cookie = await demotedDuringTheRead();
 
     const answer = await changeDraft({

@@ -1238,5 +1238,21 @@ function describeWhoMayWrite(
       expect(await stateOf(world, admin)).toEqual(before);
       expect(await world.auditEventsOf(operator.accountId)).toEqual([]);
     });
+
+    it("records nothing for a draft write or publish whose session was opened by an administrator who has since been demoted", async () => {
+      const world = await newWorld();
+      const admin = await world.aStaffMember();
+      const demoted = await world.aStaffMemberDemotedAfterSigningIn();
+      const before = await stateOf(world, admin);
+
+      await dashboardFailureOf(
+        writeDraft(world, demoted, [DEPTH_TO_40]),
+        "not-recorded",
+      );
+      await dashboardFailureOf(publish(world, demoted), "not-recorded");
+
+      expect(await stateOf(world, admin)).toEqual(before);
+      expect(await world.auditEventsOf(demoted.accountId)).toEqual([]);
+    });
   });
 }

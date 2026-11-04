@@ -107,6 +107,11 @@ export function newFakeDashboardWorld(): FakeDashboardWorld {
     aStaffMember: () => signedIn(),
     aStaffMemberWhoIsNotAnAdministrator: () => signedIn("operator"),
     aClientWithALiveSession: () => signedIn("client"),
+    async aStaffMemberDemotedAfterSigningIn() {
+      const member = await signedIn();
+      roleByAccountId.set(member.accountId, "operator");
+      return member;
+    },
     async aStaffMemberWhoseSessionIsRevoked() {
       const member = await signedIn();
       await sessions.revoke(member.session.sessionTokenHash);
