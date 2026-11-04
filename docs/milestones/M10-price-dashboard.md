@@ -719,6 +719,8 @@ the stated default and needs only a yes or a correction.
 | OQ-11b | New P6 copy: `priceDashboard.errors.aboveZero` and the creation note's push-runner exception, marked drafted | Built as drafted | P6 |
 | OQ-24a | The hardware table now starts at 1440 px, not the 1360 OQ-24 kept: with five rates the Russian state chips ("По умолчанию", "Активно") overflow their column until about 1434 | 1440 (the desktop tests' width) | P6b |
 | OQ-21a | Renaming a created class uses its own "Redenumește" button beside the name, not the page's Save | As built | P6b |
+| OQ-29 | E2E shards moved: mobile 9 → 10 (U4b), desktop 6 → 7 (P6b). If `main`'s branch protection lists shard check names (`e2e (desktop, i, 6)` …) rather than the summary job, it needs the new names; `gh` here has no valid token, so it was not checked | Nothing changed on GitHub | U4b, P6b |
+| OQ-21b | A rename shows no success notice; the heading and the pending chip change | As built | P6b |
 | OQ-28c | P6 leaves the seeded default kitchen's hardware total unchanged (its push fronts are top-row doors, no drawers); only push-to-open drawers move | Recorded, no question | P6 |
 
 ---
