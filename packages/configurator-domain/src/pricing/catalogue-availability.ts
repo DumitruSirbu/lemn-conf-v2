@@ -86,14 +86,17 @@ function compareItems(one: ItemRef, other: ItemRef): number {
   const byKind =
     ITEM_KINDS_IN_ORDER.indexOf(one.kind) -
     ITEM_KINDS_IN_ORDER.indexOf(other.kind);
-  return byKind === 0 ? compareByCodeUnit(idOf(one), idOf(other)) : byKind;
+  return byKind === 0
+    ? compareByCodeUnit(itemIdOf(one), itemIdOf(other))
+    : byKind;
 }
 
 function compareByCodeUnit(one: string, other: string): number {
   return Number(one > other) - Number(one < other);
 }
 
-function idOf(item: ItemRef): string {
+/** The one id an item is named by: its tier, colour, handle or accessory. */
+export function itemIdOf(item: ItemRef): string {
   switch (item.kind) {
     case "material":
     case "hardware":

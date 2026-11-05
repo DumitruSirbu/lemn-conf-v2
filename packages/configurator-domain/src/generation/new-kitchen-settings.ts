@@ -69,6 +69,47 @@ export function stampedSettingsOf(
   return containerOf(request, finishTheMaterialOffers(request));
 }
 
+/** What a stored row of defaults is read as: the settings it holds, or a row that is not settings at all. */
+export type StoredSettingsReading =
+  | { readonly ok: true; readonly defaults: NewKitchenSettings }
+  | { readonly ok: false };
+
+const UNREADABLE_SETTINGS: StoredSettingsReading = Object.freeze({
+  ok: false,
+} as const);
+
+/**
+ * Reads a row of saved defaults the store holds as `unknown`. Its shape is judged, nothing more: whether the items it
+ * names are offered is `judgeKitchenDefaults`'s question. A row that is not an object, names a key a new kitchen does
+ * not take, or holds a value the design's settings refuse (a `null` included) is `ok: false`, and is never read as `{}`:
+ * a reader that took it for "nothing saved" would judge against fallbacks the saved row had replaced. The settings
+ * returned share nothing with the row.
+ */
+export function readStoredNewKitchenSettings(
+  stored: unknown,
+): StoredSettingsReading {
+  if (!isKeyedByKnownKeysOnly(stored)) return UNREADABLE_SETTINGS;
+  const parsed = DesignSettingsSchema.safeParse(stored);
+  if (!parsed.success) return UNREADABLE_SETTINGS;
+  return {
+    ok: true,
+    defaults: copyOfNewKitchenSettings(
+      pickDefined(parsed.data, NEW_KITCHEN_KEYS),
+    ),
+  };
+}
+
+/** A key the schema would admit but a new kitchen does not take is refused here, so a seventh design setting never
+ *  reads as a default it cannot be. */
+function isKeyedByKnownKeysOnly(stored: unknown): boolean {
+  return (
+    typeof stored === "object" &&
+    stored !== null &&
+    !Array.isArray(stored) &&
+    Object.keys(stored).every((key) => KNOWN_KEYS.has(key))
+  );
+}
+
 /** A copy that shares nothing with the caller's request, for the log: a later edit of the request must not change
  *  what replay stamps. */
 export function copyOfNewKitchenSettings(

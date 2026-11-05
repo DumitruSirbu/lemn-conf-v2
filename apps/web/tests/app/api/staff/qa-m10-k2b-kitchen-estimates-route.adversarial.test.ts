@@ -131,6 +131,8 @@ function pricesStoresThat(failWith: () => Error): PriceStores {
       readAt: never("readAt"),
       setActive: never("setActive"),
     },
+    defaults: { read: never("read"), save: never("save") },
+    usage: { countEach: never("countEach") },
   };
 }
 
@@ -180,8 +182,8 @@ describe("a price store that cannot answer", () => {
         ),
     );
     holdPriceStores({
+      ...unavailable,
       priceBook: seeded.priceBook,
-      availability: unavailable.availability,
     });
     const cookie = await signedInOperator();
     const id = plantSentKitchen();

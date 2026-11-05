@@ -36,7 +36,7 @@ export type DashboardStateReading =
   | { readonly kind: "draft-unreadable"; readonly draftRevision: string };
 
 export class DashboardStateUnreadableError extends Error {
-  constructor(what: "book" | "draft" | "availability") {
+  constructor(what: "book" | "draft" | "availability" | "defaults") {
     super(`The stored ${what} is not what the store declares it to be.`);
     this.name = "DashboardStateUnreadableError";
   }

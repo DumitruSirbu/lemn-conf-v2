@@ -7,6 +7,7 @@ import {
   distinctItemsInOrder,
   isItemDisabled,
   isSameItem,
+  itemIdOf,
   type ItemRef,
 } from "../../src/pricing/catalogue-availability.js";
 import {
@@ -51,6 +52,18 @@ describe("two items are the same when they are of one kind and name one thing", 
     expect(
       isItemDisabled(availabilityOf([handle("black")]), handle("push")),
     ).toBe(false);
+  });
+});
+
+describe("an item is named by its one id", () => {
+  it.each([
+    [material("m"), "m"],
+    [hardware("h"), "h"],
+    [colour("pal.alb"), "pal.alb"],
+    [handle("black"), "black"],
+    [accessory("rack"), "rack"],
+  ] as const)("gives the id of %j", (item, id) => {
+    expect(itemIdOf(item)).toBe(id);
   });
 });
 

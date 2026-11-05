@@ -545,6 +545,9 @@ describe("a draft or an archive reaches no customer (R-d)", () => {
       /^app\/api\/staff\/prices\//,
       /^lib\/server\/price-dashboard\//,
       /^lib\/server\/price-book-test-seed\.ts$/,
+      // The availability route's module: it reads the active version and the availability head, never the draft or the
+      // archive, and it takes the dashboard's request readers and answers from the directory above.
+      /^lib\/server\/catalogue-availability\.ts$/,
       // The one read the staff cabinets and hardware sources share: the dashboard's state in process, after each page's
       // own `price.edit` gate, with no audit row. It is named by those two sources and by nothing a customer reaches
       // (`qa-m10-u4a-sources`).

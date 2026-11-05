@@ -4,6 +4,8 @@ import {
   DashboardStoreError,
   type CatalogueAvailabilityStore,
   type DashboardStoreOperation,
+  type KitchenDefaultsStore,
+  type KitchenUsageReader,
   type PriceBookStore,
 } from "@lemnaria/persistence";
 
@@ -29,4 +31,15 @@ export const UNAVAILABLE_CATALOGUE_AVAILABILITY_STORE: CatalogueAvailabilityStor
     readCurrent: () => unavailable("read the catalogue availability"),
     readAt: () => unavailable("read the catalogue availability"),
     setActive: () => unavailable("set an item's availability"),
+  });
+
+export const UNAVAILABLE_KITCHEN_DEFAULTS_STORE: KitchenDefaultsStore =
+  Object.freeze({
+    read: () => unavailable("read the kitchen defaults"),
+    save: () => unavailable("save the kitchen defaults"),
+  });
+
+export const UNAVAILABLE_KITCHEN_USAGE_READER: KitchenUsageReader =
+  Object.freeze({
+    countEach: () => unavailable("count the kitchens using an item"),
   });

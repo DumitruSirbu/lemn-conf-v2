@@ -6,6 +6,7 @@ import { SAMPLE_PRICE_BOOK } from "@lemnaria/configurator-domain";
 import {
   FakeCatalogueAvailabilityStore,
   FakeDashboardAuditLedger,
+  FakeKitchenDefaultsStore,
   FakeHeldDesigns,
   FakePriceBookStore,
   FakeRevisionHead,
@@ -38,7 +39,8 @@ const INITIAL_REVISION = "0";
 const FIRST_SEQUENCE_EXPECTED = 0;
 
 /**
- * Fake stores holding the sample book as published version 1. A publisher is a fake administrator with a live fake
+ * Fake stores holding the sample book as published version 1. One defaults fake serves both the defaults and the usage
+ * ports, over the ledger and the availability head the seed holds. A publisher is a fake administrator with a live fake
  * session, because the fake store, like the real one, takes the actor of a write from a live session.
  */
 export async function seedFakePriceStores(): Promise<PriceStores> {
@@ -71,10 +73,12 @@ export async function seedFakePriceStores(): Promise<PriceStores> {
     head: new FakeRevisionHead(),
     ledger,
   });
-  const priceBook = new FakePriceBookStore({
+  const designs = new FakeHeldDesigns();
+  const priceBook = new FakePriceBookStore({ ledger, availability, designs });
+  const defaults = new FakeKitchenDefaultsStore({
     ledger,
     availability,
-    designs: new FakeHeldDesigns(),
+    designs,
   });
   const published = await priceBook.publish({
     expectedDraftRevision: INITIAL_REVISION,
@@ -100,7 +104,12 @@ export async function seedFakePriceStores(): Promise<PriceStores> {
   if (published.kind !== "ok") {
     throw new Error(`The sample book could not be seeded: ${published.kind}`);
   }
-  return { priceBook: stampedWithItsVersionId(priceBook), availability };
+  return {
+    priceBook: stampedWithItsVersionId(priceBook),
+    availability,
+    defaults,
+    usage: defaults,
+  };
 }
 
 /**
