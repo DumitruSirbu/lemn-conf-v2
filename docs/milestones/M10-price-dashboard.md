@@ -2839,6 +2839,19 @@ R4a4 hands to R4c:
 - **Turn the deleted row's ↺ back on** in D7 and in the stale-draft list once the revert route accepts `item-deleted`. QA's `it.fails` will mark when.
 - **One book for a creation's rates.** `ratesOf` and `incompleteCreationIndexes` take the rate list from the active book. `prepareTierCreation` takes the starting rates from the running candidate. Once deletions are accepted, a draft that deletes every class carrying some rate could make creation impossible.
 
+R4a6 hands to R4c (its logic and security reviews, 2026-11-05):
+- **The word for a fixed default.**
+  - Today the route answers `candidate-refused`, because the candidate judgement runs first and `refuseTierDeletion` gives `ITEM_IS_DEFAULT`. So `answerOfRefusals`' `item-is-fixed-default` branch is dead at the route, while the page's `blockOf` shows is-default.
+  - Settle the word with U5c's `item-is-fixed-default`.
+  - Once the draft route accepts deletions, `applyChanges` refuses it at the change, so no stored draft can hold it.
+- **Precedence of a stale `expectedAvailabilityRevision`.**
+  - A deleting draft with a stale availability revision and an item now in use answers `item-in-use`, not `availability-changed-meanwhile`. Nothing is written either way.
+  - Record the precedence, or add a pre-check. This is the same refinement left open at the store.
+- **The publish page's count has no bucket.**
+  - A page render runs up to 88 SQL counts, 50 at a time.
+  - Before deletions can enter a draft, lower the page read's concurrency or reuse one count per draft revision.
+- **R-j end to end.** Rerun R-i's arms through the real draft route once it accepts `item-deleted`.
+
 R4a4 hands to Q3: an end-to-end arm showing that publishing a created class blanks the deltas, written when Q3 flips `qa-p4a-tier-offer-switched-off…:56`.
 
 *R4a5: record amendment (2026-11-05).* The R4a5 row said "R4a5 changes no server file, route or auth path". That
@@ -2875,6 +2888,228 @@ The revision of R4a2's rule, recorded at R4a5: The usage *route* omits a tier or
 What still blocks `pnpm ci:local` is the preview database. The two `priced` arms of
 `application-role-privileges.test.ts` pass only once preview holds `0023`–`0029` and their grants. The owner runs those
 steps.
+
+**R4b split** (architect, 2026-11-05; plan step for R4b at `m10-price-dashboard` @ `cee64a6a`; nothing run, nothing
+built). The R4b row, its hand-offs and R4a5's hand-offs come to about twenty items. Under `docs/WORKFLOW.md`'s limit
+(5 items, about 5 production files) they split into four sub-waves, R4b1 to R4b4, each merging alone. The row's
+rulings (U6-a, the stamped preset copy and seeded mint, availability judged by R4b, criteria (a) and (b)) all stand.
+This block says which sub-wave delivers each, and settles what the code shows the row did not foresee.
+
+*Evidence.* Every claim citing source was read at `cee64a6a` (source-verified). R4a6's footprint is from
+`git diff --stat m10-price-dashboard...m10/r4a6` at `587d4e48`: **six** production files, not the four named in the
+R4b dispatch. They are `publish-plan.ts`, `price-dashboard-service.ts`, `deletion-facts.ts` (new), `publish-source.ts`,
+`dashboard-responses.ts` and `price-dashboard/admitted-state-read.ts` (one line). Claims marked **[inf]** are inference.
+
+*What the code says, which shapes the split* (source-verified).
+- **Switch-off is one source away from production.** Item screens take their defaults from `readKitchenDefaults()`
+  (`item-page-read.ts:66-70`), which answers `unavailable` in a production build (`kitchen-defaults-source.ts:14`). The
+  guard that then holds switch-off at `cannot-judge` is `item-lifecycle-model.ts:101` at this HEAD (the R4a5 row's `:97`
+  and the dispatch's `:99` are older numbers). Making that source read the stores turns switch-off on for all three item
+  screens; `item-lifecycle-model.ts` does not change.
+- **D9 has no production client.** `defaultKitchenDefaultsClient` gives a production build
+  `UNAVAILABLE_KITCHEN_DEFAULTS_CLIENT` (`default-kitchen-defaults-client.ts:14-16`).
+- **The server pieces to reuse.** `readSavedDefaults` (`lib/server/price-dashboard/saved-defaults.ts:28-36`) returns
+  `{revision, defaults}`, parses with R4a1's `readStoredNewKitchenSettings` (domain `new-kitchen-settings.ts:88-100`),
+  and throws for a row that does not parse. The write pipeline is exported (`runStaffWrite`, `changedMeanwhile`,
+  `refused`, `succeeded`: `price-dashboard-service.ts:455, :551, :733, :741`) and `catalogue-availability.ts` already
+  builds a write on it. The **read** pipeline (`admitReader`, `refusalOfReadBucket`, `serveAudited`, `:250-294`) is
+  module-private.
+- **A design is created in the browser.** Generation (`room/use-generation.ts:397`, which passes no
+  `newKitchenSettings` today) and the preset copy (`:315-330`) build the document. `POST /api/designs` takes no body and
+  mints `KITCHEN_L_DESIGN` (`app/api/designs/route.ts:85-94`; ADR 0111 decision 1), and the attempt's first `PUT`
+  replaces it (`persistence/fetch-configuration-repository.ts:236-241`). So the seeded mint is the row a creation holds
+  until its first `PUT` lands, and all a row keeps if that `PUT` never does.
+- **Only the browser can change a depth.** `setCabinetDepth` needs a body probe (`commands/set-cabinet-depth.ts:48-56`),
+  and only `loadProbeFactory` makes one (`use-generation.ts:445-450`, importing `three-adapter`). No server module
+  imports `three-adapter`.
+- **Only the command resets a cabinet's own colour.** `setMaterialTier` rewrites every cabinet finish the new material
+  does not offer (`commands/set-whole-kitchen-settings.ts:95-110`, ADR 0057). A spread of stamped settings over a
+  design with cabinet finishes leaves them unoffered.
+- **`stampedSettingsOf` stamps what it is given.** It writes only the keys defined, plus the depth
+  (`new-kitchen-settings.ts:64-70`), so `{}` (nothing saved) stamps one key, not six. The fixed tier fallbacks are the
+  active book's `defaultTierId`s (`defaults-judgement.ts:42-50`); no domain constant names them.
+- **The audit action is ready.** `kitchen-defaults-saved` has its closed detail reader
+  (`dashboard-audit-action.ts:268, :525-535`), and §8.4(e) gives its detail (L1129).
+
+*Rulings this split records* (architect, **[inf] until the coordinator accepts them**; the owner may overturn any).
+1. **The defaults are completed in one place.** One server function fills every key a saved row lacks from the fixed
+   fallbacks: the book's material and hardware `defaultTierId`, the reference depth, `DEFAULT_HANDLE`,
+   `TOP_ROW_HANDLE`, and the stamped material's `defaultFinish`. It runs through `stampedSettingsOf`, so the colour
+   reset applies. It serves the `GET`'s `saved: false` answer (wire: "`defaults` is then the fixed fallbacks") and every
+   stamp. The sample's written-out values (`kitchen-defaults-sample.ts:17-24`) are not copied.
+2. **"R4b judges availability itself" means this:** when a new design is stamped, a saved key whose item the active book
+   and the availability head do not offer (`judgeKitchenDefaults` says `unavailable`) is replaced by its fixed
+   fallback, which is never off. The colour is judged after the material. The `GET` and D9 show the saved value as
+   stored, since D9 already marks an unoffered row (`unofferedMembers`).
+3. **A failed customer read never blocks a creation.** A store that is unavailable, or a saved row that does not parse,
+   stamps the fixed fallbacks and writes one log line with no value in it. With **no active book** (A-10) there is no
+   tier id to stamp, so the two tier keys stay absent and the other four are stamped. That is the one exception to
+   criterion (b).
+4. **The seeded mint keeps its fixture's depth.** The mint route stamps the other five keys by the commands' rules and
+   keeps `cabinetDepthMm` from `KITCHEN_L_DESIGN`. Criterion (a) forbids spreading a depth, and the server has no
+   probe. The row is replaced by the same attempt's first `PUT`, which carries the browser's design stamped at the
+   saved depth. Only an orphaned row (one whose `PUT` never lands) keeps the fixture depth: a recorded residual.
+   *Rejected:* bundling `three-adapter` into the unauthenticated mint route (SEC-001's route, ADR 0111) to rebuild
+   every body on every mint. **The scribe records this as a dated amendment to the 2026-10-27 ruling on the R4b row**,
+   whose "seeded mint" half it narrows.
+5. **A preset copy that `setCabinetDepth` refuses keeps the preset's depth**, with the other five keys stamped. A copy is
+   never refused for its depth: that would be a dead end (DEVELOPMENT-SPEC §2/§4, the H2 ruling (7)). **[inf]** Step 1's
+   offers are not evaluated at the saved depth (`use-presets.ts` was not traced that far). **Owner question, proposed
+   for §6.4 (OQ-R4b-1):** should Step 1 offer only presets that fit at the saved depth? It blocks nothing.
+6. **The browser receives the defaults as a prop of the room page, never from a public route.** That adds no
+   unauthenticated surface and no bucket. Only the six values travel: no revision, no save time, no staff fact. They
+   are as of the page load, so a save made while a customer sits on Step 1 reaches that customer's next load (a
+   residual).
+7. **A save that changes nothing writes nothing.** When the whole defaults sent equal the saved whole, the answer is
+   `200` with the current revisions and no audit row, whatever the expected revisions say, with the bucket spent first.
+   This matches R4a1's no-op ruling (L2622-2627). Otherwise `changedFields` lists the members whose value differs from
+   the saved whole (on the first save, from rule 1's completion of `{}`), and is never empty.
+8. **A duplicate is not a new kitchen.** `app/api/account/kitchens/[id]/duplicate` copies its source's settings, and
+   no defaults are stamped on it (A-9: a saved kitchen never reads them).
+9. **The `GET` reuses the read pipeline.** R4b2 exports the service's admission, read bucket and audited serve as one
+   function, so `GET …/defaults` is admitted, limited and audited exactly like `GET /api/staff/prices`, with no second
+   copy. This is why R4b2 waits for R4a6, which holds the service.
+
+*Sub-waves.* Lane R's header tier is Full + security; R4b4 changes no server file and gets a lighter tier, recorded.
+A "live in production" below holds only once the Z gate has applied `0023`–`0029` there. Before that the Neon stores
+answer `unavailable`: the staff routes answer `503`, D9 shows its unavailable screen, switch-off stays `cannot-judge`,
+and new kitchens get rule 3's fixed fallbacks.
+
+| Sub-wave | Items (≤ 5) | Production files | Depends on | Tier | Off in production until | Reading |
+| --- | --- | --- | --- | --- | --- | --- |
+| **R4b1** the defaults write and the server reads (runs beside R4a6) | (1) `PUT /api/staff/prices/defaults` with `KitchenDefaultsSaveRequestWire`, through `runStaffWrite`: session and `price.edit`, then the members, then the shared `staff-price-draft-by-account` bucket (ADR 0178, 2026-10-27), then the stores. Exactly three members, and `defaults` exactly six. A missing one is `400 MISSING_VALUE`, an undeclared depth or handle `400 UNKNOWN_VALUE`, each naming its field, all **before** `stampedSettingsOf` (which throws `NewKitchenSettingsError`). (2) The judgement, reading the head first, then the book, then the saved defaults (R4a1's order): no book is `409 no-active-version`; a stale head `409 availability-changed-meanwhile`; a stale saved revision `409 changed-meanwhile`; `judgeKitchenDefaults(defaults, {book, availability})` answers `409 item-unavailable {item}` or `400 FINISH_NOT_IN_PALETTE`. Then `stampedSettingsOf` (M3 hand-off, L1567), and `save` with the stamped whole; the store's two CAS refusals map to the same `409`s. (3) The `kitchen-defaults-saved {changedFields}` row, committed with the save (R-c), and rule 7. (4) Rule 1's completion, and the read for an admitted page: the state wire (revision, head, `saved`, the whole defaults) with the tier offers and `disabled`, all from **one** head read. It takes no session, bucket or audit row, because a render must not write. (5) The customer read: the whole six, judged by rule 2, failing by rule 3 | the defaults route (new; `PUT` only), `lib/server/price-dashboard/kitchen-defaults-save.ts` (new; items 1–3), `lib/server/price-dashboard/new-kitchen-defaults.ts` (new; items 4–5, over `readSavedDefaults`), `dashboard-audit-entries.ts` (one builder). Four. Its responses live in its own module: `dashboard-responses.ts` is R4a6's | merged only (R4a1) | Full + security | The route answers a `price.edit` session from this merge, but no production client sends it until R4b2. The two reads have no caller until R4b2 and R4b3 | This block; the R4b row; R-c; ADR 0178 (A-17, F1, m2, m3; 2026-10-27 buckets); §8.4(c) `KitchenDefaultsStore` (L1051), (d) X0-5 (L1068-1069), (e) L1129; A-9 (L362-369); M3 hand-offs (L1564-1573); `saved-defaults.ts`; `catalogue-availability.ts` (the pattern); `price-dashboard-service.ts:317-498, :551, :733-747`; domain `new-kitchen-settings.ts`, `defaults-judgement.ts`; `m10-ports.ts:324-374`; wire `:113-122, :482-540`; `kitchen-defaults-stand-in-client.ts` (the judgement the route must equal); `dashboard-audit-action.ts:180, 268, 525` |
+| **R4b2** D9 and switch-off live in production (after R4a6 merges) | (1) `GET /api/staff/prices/defaults` answers `KitchenDefaultsStateWire` from R4b1's read, audited `price-catalogue-viewed {section: "defaults"}` under the `staff-prices-read-by-account` bucket, through the read pipeline the service now exports (rule 9; no behaviour change to the other reads). (2) `fetching-kitchen-defaults-client.ts`: `save` goes to the `PUT` and its answers map as `kitchen-defaults-client.ts:12-16` lists; a `401` is `failed`, since the client's outcomes have no session state. `readAgain` reads the defaults, then `GET /api/staff/prices` for the tier offers and `disabled`. When the two heads differ it answers `undefined` and never joins them. (3) `defaultKitchenDefaultsClient` gives a production build the fetching client, keeping the literal `NODE_ENV` test (`is-production-build.ts:1-7` says why). (4) `readKitchenDefaults()` in a production build reads R4b1's admitted-page read through `readAdmitted`; any failure is `unavailable`. D9 and every item screen's `defaults` become known, so switch-off leaves `cannot-judge`. (5) The carried checks: U6's failed and refused-save states (§13.3, L3165), and the linked-accessory switch-off with a real count (R4a5 residual, L2863) | the defaults route (adds `GET`), `price-dashboard-service.ts` (one export), `fetching-kitchen-defaults-client.ts` (new), `default-kitchen-defaults-client.ts`, `kitchen-defaults-source.ts`. Five | R4b1; **R4a6 merged** (it holds the service) | Full + security + visual | Live at this merge: D9's save and switch-off. Delete of a stated row stays off until R4c (R4a5's gate). OQ-11f's "Switch off (until R4b)" ends here; the wording stays for Delete | This block; rules 7 and 9; the R4a5 row and *R4a5 merged* (L2544, L2849-2865); U6 row and U6-a (L2893, L2924-2926); frames D9A–C [mock L752-756, L881]; OQ-11f (L769); RK-18; `kitchen-defaults-client.ts`, `kitchen-defaults-stand-in-client.ts`, `use-kitchen-defaults.ts`, `kitchen-defaults-model.ts:36-47, :285-296`; `item-page-read.ts`; `item-lifecycle-model.ts:81-108`; `admitted-state-read.ts`; `price-dashboard-service.ts:129-311`; `browser-and-visual-qa.md` |
+| **R4b3** stamping new kitchens (beside R4b2, after R4b1) | (1) A domain function that stamps a whole design with the six settings **by the commands' rules**: material through `setMaterialTier`'s rule (ADR 0057, cabinets' own finishes reset), hardware, the kitchen colour and handle by their commands, the top-row handle as H-3's stamped key. **It never writes the depth.** It is added to `new-kitchen-settings.ts`, held for one function as R4a1 held it, and named in `generation/index.ts`. (2) The room page reads R4b1's customer read and hands the six values to `RoomScreen`, which hands them to the run. The page keeps its shell rules (`page.tsx:16-29`, M7 criterion 17). (3) Generation passes them to `generateKitchen` as `newKitchenSettings`; H2 already threads the depth natively. (4) The preset copy is stamped by item 1, then moved by `setCabinetDepth` with the run's probe when the depths differ (rule 5 when it refuses). No new attempt site (`use-generation.ts:10-11`). (5) The seeded mint: `POST /api/designs` writes `KITCHEN_L_DESIGN` stamped by item 1 at the fixture's depth (rule 4). It keeps ADR 0111 decision 1 (no body), and reads the defaults only after its cross-site guard and limiter (`route.ts:36-46`) | domain `generation/new-kitchen-settings.ts` and `generation/index.ts` (one name), `app/[locale]/configurator/room/page.tsx`, `room/room-screen.tsx`, `room/use-generation.ts`, `app/api/designs/route.ts`. Six, stated, with a mini-review: the index is one name. `room/**` has no lane in §8.1; R4b3 holds the three room files | R4b1; H2 merged | Full + security + visual | Live at this merge: every new kitchen is stamped | This block; rules 2–6 and 8; the R4b row (criteria (a), (b)); H2 row, H-3, H-5 (L1742, L1750-1762); H2-a, H2-b (L1807-1815); A-9; RK-7; ADR 0111 (decision 1, A3); ADR 0057; ADR 0099 decision 10; ADR 0071 Amendment; DEVELOPMENT-SPEC §2 and §4 (dead ends); `docs/best-practices/product-invariants.md` (depth); `new-kitchen-settings.ts`; `generate-kitchen.ts:149-172, :281-284`; `commands/set-cabinet-depth.ts:48-80`; `commands/set-whole-kitchen-settings.ts`; `use-generation.ts`; `create-design.ts`; `fetch-configuration-repository.ts:200-260` |
+| **R4b4** R4a5's UI hand-offs (any free slot) | (1) A switch row that cannot be pressed has the disabled look, the treatment R4a5 gave the delete buttons. (2) On desktop, a created row's menu popover no longer covers its "De publicat" chip. (3) `openAfterCounting` aborts the controller it replaces. (4) `abortion(signal)` removes its listener once the read settles. (5) The comments: the two re-wraps that split `` `is-production-build.ts` `` and `` `POST /api/…` `` mid-token (`default-item-lifecycle-client.ts:9-10`, `fetching-item-lifecycle-client.ts:29-30`), and the `bookRef` comment (`use-item-availability.ts:130`) | `item-edit-parts.tsx`, `item-row-menu.tsx`, `item-screen.module.css` **[inf: where the switch row's and the popover's styles live]**, `use-item-availability.ts`, `fetching-item-lifecycle-client.ts`, `default-item-lifecycle-client.ts`. Six, stated, with a mini-review: two of them are comment-only | merged only | Light (combined logic and clean-code) + visual. Items 3 and 4 change behaviour, so they are not CSS-only | Nothing is gated | This block; *R4a5 merged* (L2849-2865); frames D4E/F, D5C/D/G, D6C; `item-edit-parts.tsx`; `item-row-menu.tsx`; `use-item-availability.ts:120-240`; `fetching-item-lifecycle-client.ts:120-160`; `engineering-conventions.md`; `browser-and-visual-qa.md` |
+
+*Order and parallelism (at most two R4b sub-waves at once).* Each pair below has disjoint production files, and none
+of them shares a file with R4a6's six.
+1. **R4b1 ∥ R4a6**, now. R4b1 touches neither the service nor `dashboard-responses.ts`.
+2. **R4b4** takes the next free slot. It shares no file with any other wave.
+3. **R4b2 ∥ R4b3**, once R4b1 and R4a6 have merged. R4b3 needs only R4b1, so it may start as soon as R4b1 merges.
+
+R4b1 creates the defaults route file and R4b2 adds its `GET`, in sequence, never at once. R4c's end-to-end arm of R-d
+("draft deletes X → defaults save names X → publish", L2444-2445) needs only R4b1's `PUT`.
+
+*Migrations.* **None, and no owner approval is needed.**
+- `0029_create_kitchen_defaults.sql` holds the table, and S3's store reads and writes it.
+- `kitchen-defaults-saved` and `price-catalogue-viewed {section: "defaults"}` are existing closed-list entries with
+  readers. Audit actions are only shape-checked (`0020`, per *R4a split*).
+- No new bucket: the `PUT` spends `staff-price-draft-by-account`, the `GET` `staff-prices-read-by-account`. No
+  `limit-policy.ts` change.
+- The customer read and the mint's read use the same application role and the stores R1 and S3 already wired
+  **[inf: the grants were not re-read; S3's live suites exercise the defaults store under that role]**.
+- If a sub-wave finds it needs a table, column, index or grant, it stops and returns to planning. A migration is asked
+  of the owner every time.
+
+*Contradictions settled.*
+- **"The mint and generation pass the saved defaults into H2's request" against the code.** Only generation takes
+  H2's request. The preset copy and the seeded mint do not go through `generateKitchen`, as the row's own 2026-10-27
+  ruling says; R4b3 item 1 is the stamp they share.
+- **Criterion (a) for the seeded mint against a server with no probe.** Settled by rule 4.
+- **Criterion (b) against `stampedSettingsOf` stamping only what it is given.** Settled by rule 1; with no active book,
+  rule 3's exception.
+- **"Reuse `stampedSettingsOf` on those paths" against ADR 0057's per-cabinet reset.** A spread of its output over a
+  preset copy keeps cabinet finishes the stamped material does not offer. R4b3 stamps by the commands' rules; criterion
+  (c) below holds it.
+- **The client half of U4a's "R4a reads the defaults itself" (L1508; *R4a split*, L2500: "client side, R4b")** is
+  R4b2 item 4. It is a server-side page read, not a browser fetch.
+- **The R4a5 row's `item-lifecycle-model.ts:97`** is `:101` at `cee64a6a`; the same guard.
+- **R4a6's file list in the dispatch (four)** against its diff (six). Ordering by the six keeps R4b1 clear of it.
+
+*Acceptance.* R-c applies to every R4b write as listed.
+- **R4b1:**
+  - **must-not:** a malformed body reaches `stampedSettingsOf` and answers `503`. A sweep over a missing member,
+    `null`, an extra member and a wrong type answers `400` naming the field, writes nothing and spends no bucket;
+  - property (the `javascript-testing-expert` skill applies): for any availability state and any whole defaults over
+    the book's tiers, the route's answer equals `judgeKitchenDefaults`' verdict (`unavailable` is
+    `409 item-unavailable` with that item, `colour-not-in-palette` is `400 FINISH_NOT_IN_PALETTE`, `acceptable` is
+    `200`), except rule 7's no-op. The same inputs give the same outcome kind from `inMemoryKitchenDefaultsClient`;
+  - **must-not:** an item switched off between the route's reads and its save is saved as a default. Tested by
+    switching between the head read and the save: the store answers `availability-changed-meanwhile`;
+  - a `200` answers the store's new revision and the head after the save, which moved exactly once (m3);
+  - round trip: what is saved reads back through `readSavedDefaults` as the stamped whole, all six keys;
+  - R-c: one row per save, in its transaction; `changedFields` equals the differing members and is never empty; an audit
+    failure is `503` with nothing saved; an operator session gets `403`;
+  - property: for every partial saved row (`{}` included), rule 1's completion carries all six keys, keeps each key
+    present (after the colour reset) and takes every absent key from the fixed fallbacks;
+  - **must-not:** the customer read returns an item the head has off. Property over availability states: no key names
+    an item `isItemOffered` refuses, and with every saved item on, it equals the completion;
+  - the customer read with an unavailable store or an unparseable row returns the fixed fallbacks, logs one line with no
+    value, and does not throw;
+  - the admitted-page read writes no audit row and spends no bucket, and its `availabilityRevision` and `disabled` come
+    from the same head;
+  - `CI=1` production wiring with no `DATABASE_URL`: the `PUT` is `503`, the customer read gives the fixed fallbacks.
+- **R4b2:**
+  - in a production build, an item that is not a default and leaves another option on offers its switch-off dialog
+    (D4E, D5C, D6C), while a saved default, a fixed default and the last option keep their refusals;
+  - **must-not:** a saved row that does not parse turns switch-off on. D9 shows its unavailable screen, and every item
+    screen keeps `cannot-judge`;
+  - R4a5's must-not stays green: Delete of a stated row is off in a production build with the defaults now readable;
+  - the linked-accessory switch-off is pressed in a `CI=1` build. A DOM test over planted designs shows its non-zero
+    count in the dialog; the browser shows the seeded world's 0, R4a5's recorded residual;
+  - a table over `200`, each `400` code, `409 item-unavailable`, both `409` CAS words, `401`, `403`, `429`, `503` and a
+    network failure gives the fetching client the stand-in's outcome kinds;
+  - **must-not:** `readAgain` joins two heads. With a moved head between its two reads it answers `undefined`, and the
+    page shows its failed notice, never a mixed state;
+  - the `GET` writes one `price-catalogue-viewed {section: "defaults"}` row per read, gives an operator `403`, and with
+    nothing saved answers `saved: false` with R4b1's completion;
+  - visual, at 390 × 844 and 1440 × 900 in a `CI=1` build: D9A–C, the failed and refused-save states (§13.3), and a
+    save that survives a reload.
+- **R4b3:**
+  - **(a), property:** for any preset copy and any saved depth *d*, the stamped copy equals
+    `setCabinetDepth(stamp(copy), d)`. Sabotage: spreading `cabinetDepthMm` over the copy's settings turns it red;
+  - **(b), property:** every design created through generation, a preset copy or the seeded mint carries all six keys,
+    over saved rows from `{}` to whole (rule 3's no-book exception aside);
+  - **(c), new, property:** for any design whose cabinets carry their own finishes and any stamped material, no cabinet
+    keeps a finish the material does not offer, and the result equals the commands applied in order;
+  - **U6-a, end to end:** after a `PUT`, the next Step 1 load creates a generated kitchen and a preset copy carrying the
+    saved six, and a kitchen saved before the `PUT` is byte-identical after it (H2-a at the route level; RK-7);
+  - **must-not:** a duplicate is stamped. A duplicated kitchen keeps its source's settings under any saved defaults
+    (rule 8);
+  - **must-not:** a mint refused by its cross-site guard or its limiter reads the defaults;
+  - with nothing saved, the seeded mint and a generated kitchen price and render exactly as at `cee64a6a` (golden). The
+    documents differ only by explicit keys, each equal to what the reader resolved before;
+  - a preset whose `setCabinetDepth` refuses is copied at its own depth with the other five keys stamped, and never
+    shows "failed" for its depth (rule 5);
+  - browser, `CI=1`: from Step 1 the editor opens with the saved material, colour, handle and depth in the settings
+    sheet; visual at 390 and 1440.
+- **R4b4:**
+  - a switch row that cannot be pressed draws disabled, and one that can draws as before (visual at 390 and 1440);
+  - at 1100 and 1440 the open popover's box and the "De publicat" chip's box do not intersect (a browser assertion);
+  - a second count entry aborts the first one's signal, and the first answer opens no dialog;
+  - after a read settles, `abortion`'s listener is gone.
+
+*Risks and residuals.*
+- **Every seeded document changes shape.** The e2e fixture that mints the seeded design (ADR 0111 A3) gets the explicit
+  keys. A test that compares a minted document with `KITCHEN_L_DESIGN` goes red; R4b3's QA updates the comparison and
+  keeps the price and scene golden. It never loosens it **[inf: which tests compare was not searched]**.
+- **Step 1 waits on a database read.** The room page now reads the defaults, the head and the book per load. Rule 3
+  keeps a failure from blocking it; the latency is unmeasured **[inf]**. Customer pages already read the book per load
+  (`with-active-price-book.tsx`).
+- **An orphaned seeded row keeps the fixture depth** (rule 4).
+- **A preset copy can miss the saved depth** (rule 5; OQ-R4b-1).
+- **`readAgain` writes two read-audit rows** (`catalogue` and `defaults`). Accepted: each is a real read.
+- **RK-18 widens at R4b2.** Every non-default item's switch-off reaches customers at once. The mitigations are RK-18's.
+
+*Verification, per sub-wave.*
+- Route tests over the fake world (`tests/support/price-dashboard-world`), and the properties above with `fast-check`.
+- `pnpm check` on each merge, and `pnpm ci:local` before any push.
+- Browser runs under `next dev` and `CI=1` for R4b2, R4b3 and R4b4. None publishes (the U5c record).
+- No live Postgres arm is new: S3's live suites hold the defaults store.
+
+*Reading, QA and reviewers.*
+- **QA of each sub-wave:** its row's Reading, that sub-wave's acceptance bullets above, and
+  `apps/web/tests/api/staff/**`. R4b2 adds `tests/staff/**` and the D9 and item e2e specs (`tests/e2e/hardware*`,
+  `materials*`, `accessories*`, and the defaults spec). R4b3 adds `tests/room/**`, `tests/generation/**` and the
+  Step 1 e2e specs.
+- **Logic review:** the row's Reading, plus §5 A-9 and A-17, and rules 1–9 above. R4b3's reviewer also reads
+  DEVELOPMENT-SPEC §2 and §4, and the `lemnaria-3d-reference` skill for the depth rebuild.
+- **Security review (R4b1, R4b2, R4b3):** the row's Reading, plus ADR 0019, 0156, 0172 D7 and 0173. R4b3's reviewer
+  also reads ADR 0111 and ADR 0114 (the mint and the visitor), and SEC-001's line in `docs/backlog/open.md`.
+- **Clean-code review:** the diff, `engineering-conventions.md`, and `price-dashboard-service.ts`'s header (the order
+  of checks every route keeps).
+- **Visual review (R4b2, R4b3, R4b4):** the frames in each row, and `browser-and-visual-qa.md`.
 
 ### Lane U — Dashboard UI D1–D9 (Light + visual; U5 Full, because it publishes)
 
