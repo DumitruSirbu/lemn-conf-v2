@@ -343,6 +343,28 @@ describe("the detail of a draft change and of a revert (m7)", () => {
     }
   });
 
+  it("reports a created row's revert as the count of changes that left, which only a creation's kind may exceed one", () => {
+    for (const changeKind of ["hardware-tier-created", "accessory-created"]) {
+      const detail = { changeKind, itemKind: "hardware", itemId: "t" };
+
+      expect(
+        refusalOf("price-draft-reverted", { ...detail, revertedCount: 7 }),
+      ).toBeUndefined();
+      expect(
+        refusalOf("price-draft-reverted", { ...detail, revertedCount: 0 }),
+      ).toBe("INVALID_DETAIL");
+    }
+    expect(
+      refusalOf("price-draft-reverted", {
+        changeKind: "created-row-text",
+        itemKind: "hardware",
+        itemId: "t",
+        field: "name",
+        revertedCount: 7,
+      }),
+    ).toBe("INVALID_DETAIL");
+  });
+
   it("reports a single revert as one, and a group revert as the bulk-group kind with its count and no item keys", () => {
     expect(
       refusalOf("price-draft-reverted", { ...REVERTED, revertedCount: 2 }),

@@ -104,6 +104,7 @@ export const FETCHING_PRICE_DRAFT_CLIENT: PriceDraftClient = {
   change: (request) => write("PUT", DRAFT_ADDRESS, request, DRAFT_ANSWERS),
   revert: (request) => write("DELETE", DRAFT_ADDRESS, request, DRAFT_ANSWERS),
   bulk: (request) => write("POST", BULK_ADDRESS, request, BULK_ANSWERS),
+  acceptsCreatedRowText: true,
 };
 
 /** How a route's `200` is read and which closed codes its `400` may name; any other code is not the route's own. */

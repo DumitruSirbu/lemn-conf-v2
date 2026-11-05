@@ -20,29 +20,31 @@ export type DraftJudgement =
   | { readonly kind: "refused-new-change"; readonly code: ChangeRefusalCode }
   | { readonly kind: "candidate-refused" };
 
-export interface DraftToJudge {
+/** Which changes of the draft after the write are the judged write's: the ones from an index on, or exactly these. */
+export type NewChanges =
+  | {
+      /** Where the changes the judged write added begin; the changes before it were already stored. */
+      readonly firstNewIndex: number;
+    }
+  | { readonly newIndexes: ReadonlySet<number> };
+
+export type DraftToJudge = NewChanges & {
   readonly book: PriceBook;
   /** The draft after the write. */
   readonly changes: readonly DraftChange[];
-  /** Where the changes the judged write added begin; the changes before it were already stored. */
-  readonly firstNewIndex: number;
   /** The draft as stored, when a write that adds no refusal is to be allowed on a draft that already has some. */
   readonly stored?: readonly DraftChange[];
-}
+};
 
-export function judgeDraft({
-  book,
-  changes,
-  firstNewIndex,
-  stored,
-}: DraftToJudge): DraftJudgement {
+export function judgeDraft(toJudge: DraftToJudge): DraftJudgement {
+  const { book, changes, stored } = toJudge;
   const applied = applyChanges(book, changes);
   if (applied.ok) return { kind: "applies" };
   if (applied.reason === "candidate-refused") {
     return { kind: "candidate-refused" };
   }
-  const newRefusal = applied.refusals.find(
-    ({ index }) => index >= firstNewIndex,
+  const newRefusal = applied.refusals.find(({ index }) =>
+    isNewIndex(toJudge, index),
   );
   if (newRefusal !== undefined) {
     return { kind: "refused-new-change", code: newRefusal.code };
@@ -54,6 +56,12 @@ export function judgeDraft({
     ),
   );
   return addsNoRefusal ? { kind: "applies" } : { kind: "candidate-refused" };
+}
+
+function isNewIndex(newChanges: NewChanges, index: number): boolean {
+  return "newIndexes" in newChanges
+    ? newChanges.newIndexes.has(index)
+    : index >= newChanges.firstNewIndex;
 }
 
 /** The addresses of the stored changes that were refused already; none when there is no stored draft to heal. */
