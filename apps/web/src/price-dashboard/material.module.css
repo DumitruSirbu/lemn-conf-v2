@@ -364,7 +364,18 @@
     clip-path: inset(50%);
   }
 
+  .rowActions {
+    position: relative;
+    align-content: center;
+    align-self: stretch;
+  }
+
+  .rowMenu {
+    position: static;
+  }
+
   .menu {
+    top: calc(100% + 4px);
     right: calc(100% + 8px);
     left: auto;
   }

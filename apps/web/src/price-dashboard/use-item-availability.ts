@@ -126,7 +126,8 @@ export function useItemAvailability({
       isDraftOnly,
     ],
   );
-  // The book as it stands when a count answers, which the callback that asked for it was made too early to see.
+  // A count is asked by a callback that closed over the book of its own render. The ref holds the latest book, so the
+  // answer is judged against the book of the moment it arrives.
   const bookRef = useRef(book);
   useEffect(() => {
     bookRef.current = book;
@@ -186,6 +187,7 @@ export function useItemAvailability({
   const openAfterCounting = useCallback(
     async (item: ItemRef, flowOf: (read: UsageRead) => ItemFlow) => {
       const hasMoved = begin();
+      countingRef.current?.abort();
       const unwanted = new AbortController();
       countingRef.current = unwanted;
       setReadingItem(item);

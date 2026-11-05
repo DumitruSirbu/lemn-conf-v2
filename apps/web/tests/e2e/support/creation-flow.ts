@@ -72,7 +72,8 @@ function creationOf(
   return creation;
 }
 
-export async function createAndRenameAClass(run: CreationRun): Promise<void> {
+/** Fills the new class form and creates it; answers the id the server minted, with the page still on the form. */
+export async function createAClass(run: CreationRun): Promise<string> {
   const { page, context, press, shoot } = run;
   const words = wordsOf("ro");
   await openNewClass(page);
@@ -126,6 +127,14 @@ export async function createAndRenameAClass(run: CreationRun): Promise<void> {
   expect(
     changes.slice(1).every(({ address }) => address.tierId === tierId),
   ).toBe(true);
+  return tierId;
+}
+
+export async function createAndRenameAClass(run: CreationRun): Promise<void> {
+  const { page, context, press, shoot } = run;
+  const words = wordsOf("ro");
+  const tierId = await createAClass(run);
+  const form = page.getByTestId("hardware-create");
 
   await press(
     form.getByRole("link", { name: romanian("priceDashboard.common.edit") }),
@@ -162,9 +171,8 @@ export async function createAndRenameAClass(run: CreationRun): Promise<void> {
   await takeTheRowBackFromThePublishPage(run, "hardware-created", tierId);
 }
 
-export async function createAndRenameAnAccessory(
-  run: CreationRun,
-): Promise<void> {
+/** Fills the new accessory form and creates it; answers the id the server minted, with the page still on the form. */
+export async function createAnAccessory(run: CreationRun): Promise<string> {
   const { page, context, press, shoot } = run;
   const words = wordsOf("ro");
   await openNewAccessory(page);
@@ -202,6 +210,16 @@ export async function createAndRenameAnAccessory(
     name: ACCESSORY_NAME,
     perUnitMinor: Number(ACCESSORY_LEI) * BANI_PER_LEU,
   });
+  return accessoryId;
+}
+
+export async function createAndRenameAnAccessory(
+  run: CreationRun,
+): Promise<void> {
+  const { page, context, press, shoot } = run;
+  const words = wordsOf("ro");
+  const accessoryId = await createAnAccessory(run);
+  const form = createPageOf(page);
 
   await press(
     form.getByRole("link", { name: romanian("priceDashboard.common.edit") }),

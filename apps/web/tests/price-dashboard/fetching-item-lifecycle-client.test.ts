@@ -2,6 +2,8 @@
 // the origin the routes' guard reads, with every answer sorted into the closed outcomes. A count is believed only for an
 // item asked about, found by the item and never by its place in the answer; a read that cannot be had is `unavailable`,
 // never a zero. One count is on its way at a time, because the server allows one per account.
+import { getEventListeners } from "node:events";
+
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -533,6 +535,43 @@ describe("a count while another is on its way", () => {
     ]);
     expect((await first).kind).toBe("counted");
     expect(fetchStub).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves no listener on its signal once the one ahead has ended and it goes out itself", async () => {
+    const { fetchStub, releaseNext } = heldServer();
+    const client = createFetchingItemLifecycleClient();
+    const wanted = new AbortController();
+
+    const first = client.readUsage([HETTICH]);
+    const second = client.readUsage([RACK], wanted.signal);
+    expect(
+      getEventListeners(wanted.signal, "abort"),
+      "while it waits it listens for its own dismissal",
+    ).toHaveLength(1);
+    releaseNext();
+    await first;
+    await vi.waitFor(() => {
+      expect(fetchStub).toHaveBeenCalledTimes(2);
+    });
+
+    expect(getEventListeners(wanted.signal, "abort")).toHaveLength(0);
+    releaseNext();
+    await second;
+  });
+
+  it("leaves no listener on its signal once it was dismissed while it waited", async () => {
+    const { releaseNext } = heldServer();
+    const client = createFetchingItemLifecycleClient();
+    const dismissal = new AbortController();
+
+    const first = client.readUsage([HETTICH]);
+    const dismissed = client.readUsage([RACK], dismissal.signal);
+    dismissal.abort();
+    await dismissed;
+
+    expect(getEventListeners(dismissal.signal, "abort")).toHaveLength(0);
+    releaseNext();
+    await first;
   });
 
   it("sends nothing when its signal has aborted before it was asked", async () => {

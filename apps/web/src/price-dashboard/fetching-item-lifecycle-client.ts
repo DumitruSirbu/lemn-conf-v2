@@ -26,10 +26,11 @@ import type {
 import { MAX_USAGE_ITEMS } from "./price-dashboard-wire-contract";
 import { FETCHING_PRICE_DRAFT_CLIENT } from "./price-draft-client";
 
-// The lifecycle client of a build with a server behind the screen. A switch goes to `POST
-// /api/staff/prices/availability` and a count to `POST /api/staff/prices/usage`; what is switched off now comes from
-// the dashboard's state, read through the draft client's own `readState`. An answer that is not one of the routes' own
-// is `failed` for a switch and `unavailable` for a count: nothing it carries is believed, and no count is ever made up.
+// The lifecycle client of a build with a server behind the screen. A switch goes to
+// `POST /api/staff/prices/availability` and a count to `POST /api/staff/prices/usage`; what is switched off now comes
+// from the dashboard's state, read through the draft client's own `readState`. An answer that is not one of the routes'
+// own is `failed` for a switch and `unavailable` for a count: nothing it carries is believed, and no count is ever
+// made up.
 
 const AVAILABILITY_ADDRESS = "/api/staff/prices/availability";
 const USAGE_ADDRESS = "/api/staff/prices/usage";
@@ -126,10 +127,7 @@ function readsOneUsageAtATime(): ItemLifecycleClient["readUsage"] {
       if (names(current.items, items)) {
         return narrowedTo(items, await current.answer);
       }
-      await Promise.race([
-        current.answer.catch(() => undefined),
-        abortion(signal),
-      ]);
+      await untilEndedOrAborted(current.answer, signal);
     }
     const answer = readUsageInChunks(items);
     const own: UsageReadInFlight = { items, answer };
@@ -144,17 +142,41 @@ function readsOneUsageAtATime(): ItemLifecycleClient["readUsage"] {
   };
 }
 
-/** Settles when the signal aborts, and never if there is none. */
-function abortion(signal: AbortSignal | undefined): Promise<void> {
-  return new Promise((resolve) => {
-    signal?.addEventListener(
-      "abort",
-      () => {
-        resolve();
-      },
-      { once: true },
-    );
+/** Settles when the read ends or the signal aborts, whichever is first, and leaves no listener on the signal. */
+async function untilEndedOrAborted(
+  read: Promise<unknown>,
+  signal: AbortSignal | undefined,
+): Promise<void> {
+  const watch = abortion(signal);
+  try {
+    await Promise.race([read.catch(() => undefined), watch.aborted]);
+  } finally {
+    watch.stop();
+  }
+}
+
+interface Abortion {
+  /** Settles when the signal aborts, and never if there is none. */
+  readonly aborted: Promise<void>;
+  /** Takes the listener off the signal. */
+  readonly stop: () => void;
+}
+
+function abortion(signal: AbortSignal | undefined): Abortion {
+  if (signal === undefined) {
+    return { aborted: new Promise(() => undefined), stop: () => undefined };
+  }
+  let onAbort: () => void = () => undefined;
+  const aborted = new Promise<void>((resolve) => {
+    onAbort = resolve;
+    signal.addEventListener("abort", onAbort, { once: true });
   });
+  return {
+    aborted,
+    stop: () => {
+      signal.removeEventListener("abort", onAbort);
+    },
+  };
 }
 
 function names(held: readonly ItemRef[], wanted: readonly ItemRef[]): boolean {
