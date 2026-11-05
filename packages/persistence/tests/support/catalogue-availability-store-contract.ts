@@ -1,9 +1,11 @@
-import { CATALOGUE_ACTIVATION_AUDIT_ACTION } from "@lemnaria/configurator-domain";
+import {
+  CATALOGUE_ACTIVATION_AUDIT_ACTION,
+  itemIdOf,
+} from "@lemnaria/configurator-domain";
 import type { ItemRef } from "@lemnaria/configurator-domain";
 import { fc } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
-import { itemIdOf } from "../../src/fake-dashboard-support.js";
 import {
   AVAILABILITY_REVISION_NOT_FOUND,
   CHANGED_MEANWHILE,

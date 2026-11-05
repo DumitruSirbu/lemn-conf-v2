@@ -4,7 +4,6 @@ import { NextResponse } from "next/server";
 
 import {
   CATALOGUE_ACTIVATION_AUDIT_ACTION,
-  HandleSchema,
   isItemDisabled,
   isItemStated,
   itemIdOf,
@@ -19,12 +18,8 @@ import {
 
 import { ACCOUNT_RESPONSE_HEADERS } from "@/lib/server/account/account-responses";
 import type { SessionCookieReader } from "@/lib/server/account/session-cookie";
-import { readBookOf } from "@/lib/server/active-price-book";
 import { dashboardConflictResponse } from "@/lib/server/price-dashboard/dashboard-responses";
-import {
-  DashboardStateUnreadableError,
-  readDashboardAvailability,
-} from "@/lib/server/price-dashboard/dashboard-state";
+import { readDashboardAvailability } from "@/lib/server/price-dashboard/dashboard-state";
 import {
   accepted,
   MALFORMED,
@@ -32,10 +27,6 @@ import {
   ownMember,
   type RequestReading,
 } from "@/lib/server/price-dashboard/draft-requests";
-import {
-  isIdentifier,
-  isPlainRecord,
-} from "@/lib/server/price-dashboard/identifier-shape";
 import {
   PRICE_DRAFT_EVENT,
   changedMeanwhile,
@@ -45,6 +36,10 @@ import {
   type DashboardWriteRequest,
   type StaffWrite,
 } from "@/lib/server/price-dashboard/price-dashboard-service";
+import {
+  readActiveBook,
+  readItemRef,
+} from "@/lib/server/price-dashboard/item-ref-reading";
 import { isRevisionShape } from "@/lib/server/price-dashboard/revision-shape";
 import { readSavedDefaults } from "@/lib/server/price-dashboard/saved-defaults";
 import { getPriceStores, type PriceStores } from "@/lib/server/price-stores";
@@ -85,17 +80,6 @@ export function setItemActiveAsStaff(
 // ---------------------------------------------------------------------------------------------------------------------
 // The request
 
-/** The one member that names an item's id, for each kind of item the catalogue can switch off. */
-const ID_MEMBER_OF_KIND = {
-  material: "tierId",
-  hardware: "tierId",
-  finish: "finishId",
-  handle: "handle",
-  accessory: "accessoryId",
-} as const;
-
-type ItemKind = keyof typeof ID_MEMBER_OF_KIND;
-
 /** A body with a member beyond the three, or one of them not what it declares, is a request this route does not read. */
 function readAvailabilityRequest(
   bodyText: string,
@@ -103,7 +87,7 @@ function readAvailabilityRequest(
   const body = membersOf(bodyText, ["expectedRevision", "item", "active"]);
   if (body === undefined) return MALFORMED;
   const expectedRevision = ownMember(body, "expectedRevision");
-  const item = readItem(ownMember(body, "item"));
+  const item = readItemRef(ownMember(body, "item"));
   const active = ownMember(body, "active");
   if (
     typeof expectedRevision !== "string" ||
@@ -114,23 +98,6 @@ function readAvailabilityRequest(
     return MALFORMED;
   }
   return accepted({ expectedRevision, item, active });
-}
-
-/** An item as exactly its kind and its one id, rebuilt member by member: a member beyond them is not read. */
-function readItem(declared: unknown): ItemRef | undefined {
-  if (!isPlainRecord(declared)) return undefined;
-  const kind = ownMember(declared, "kind");
-  if (typeof kind !== "string" || !Object.hasOwn(ID_MEMBER_OF_KIND, kind)) {
-    return undefined;
-  }
-  const idMember = ID_MEMBER_OF_KIND[kind as ItemKind];
-  const id = ownMember(declared, idMember);
-  const namesOnlyKindAndId = Object.keys(declared).length === 2;
-  if (!namesOnlyKindAndId || !isIdentifier(id)) return undefined;
-  if (kind === "handle" && !HandleSchema.safeParse(id).success) {
-    return undefined;
-  }
-  return { kind, [idMember]: id } as ItemRef;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -232,17 +199,6 @@ async function defaultsToJudge(
 ): Promise<NewKitchenSettings> {
   if (active) return {};
   return (await readSavedDefaults(stores)).defaults;
-}
-
-/** The active version's book, or `undefined` before any version was published. A stored book that is not one is thrown. */
-async function readActiveBook(
-  stores: PriceStores,
-): Promise<PriceBook | undefined> {
-  const active = await stores.priceBook.readActive();
-  if (active.kind !== "found") return undefined;
-  const book = readBookOf(active.version);
-  if (book === undefined) throw new DashboardStateUnreadableError("book");
-  return book;
 }
 
 /** The activation as the audit row records it, by the item's kind and id and never a value. */

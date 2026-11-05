@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { readDashboardStateWire } from "@/price-dashboard/price-dashboard-wire-reading";
 import {
   readCandidateRefusals,
-  readItemRef,
+  readWireItemRef,
   readPublishedWire,
   readRestoredWire,
   readVersionListWire,
@@ -160,13 +160,15 @@ describe("the item a conflict names", () => {
       { kind: "accessory", accessoryId: "a-1" },
     ],
   ])("is read as an item: %j", (declared, item) => {
-    expect(readItemRef(declared)).toEqual(item);
+    expect(readWireItemRef(declared)).toEqual(item);
   });
 
   it("is no item without the id its kind names", () => {
-    expect(readItemRef({ kind: "hardware" })).toBeUndefined();
-    expect(readItemRef({ kind: "accessory", tierId: "t-1" })).toBeUndefined();
-    expect(readItemRef("hardware")).toBeUndefined();
+    expect(readWireItemRef({ kind: "hardware" })).toBeUndefined();
+    expect(
+      readWireItemRef({ kind: "accessory", tierId: "t-1" }),
+    ).toBeUndefined();
+    expect(readWireItemRef("hardware")).toBeUndefined();
   });
 });
 

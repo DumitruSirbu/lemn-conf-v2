@@ -39,7 +39,7 @@ import {
 } from "./publish-client";
 import {
   readCandidateRefusals,
-  readItemRef,
+  readWireItemRef,
   readPublishedWire,
   readRestoredWire,
   readVersionListWire,
@@ -187,7 +187,7 @@ function blockedInUseOf(body: unknown): PublishOutcome {
   const declared = ownValueOf(body, "items");
   const items = Array.isArray(declared)
     ? (declared as readonly unknown[]).flatMap(
-        (item) => readItemRef(item) ?? [],
+        (item) => readWireItemRef(item) ?? [],
       )
     : [];
   return items.length === 0
@@ -196,7 +196,7 @@ function blockedInUseOf(body: unknown): PublishOutcome {
 }
 
 function blockedIsDefaultOf(body: unknown): PublishOutcome {
-  const item = readItemRef(ownValueOf(body, "item"));
+  const item = readWireItemRef(ownValueOf(body, "item"));
   return item === undefined
     ? FAILED
     : { kind: "blocked", block: { kind: "is-default", item } };

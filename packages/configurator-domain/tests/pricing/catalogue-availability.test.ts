@@ -4,6 +4,7 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
 import {
+  ITEM_ID_MEMBER_OF_KIND,
   distinctItemsInOrder,
   isItemDisabled,
   isSameItem,
@@ -130,5 +131,29 @@ describe("distinctItemsInOrder gives one list whatever order its items arrive in
       accessory("a"),
       accessory("b"),
     ]);
+  });
+});
+
+describe("the member that names each kind's id", () => {
+  it("is the member itemIdOf reads, for every kind", () => {
+    fc.assert(
+      fc.property(anItem, (item) => {
+        const named = (item as unknown as Record<string, unknown>)[
+          ITEM_ID_MEMBER_OF_KIND[item.kind]
+        ];
+
+        expect(named).toBe(itemIdOf(item));
+      }),
+    );
+  });
+
+  it("names a member that every kind's item holds as its only id: nothing else is in the item beside its kind", () => {
+    fc.assert(
+      fc.property(anItem, (item) => {
+        expect(Object.keys(item).sort()).toEqual(
+          ["kind", ITEM_ID_MEMBER_OF_KIND[item.kind]].sort(),
+        );
+      }),
+    );
   });
 });

@@ -2,6 +2,7 @@ import "server-only";
 
 import {
   HandleSchema,
+  ITEM_ID_MEMBER_OF_KIND,
   MAX_IDENTIFIER_LENGTH,
   type CatalogueAvailability,
   type ItemRef,
@@ -20,17 +21,6 @@ export type AvailabilityRefusal = "too-large" | "unreadable";
 export type ProjectedAvailability =
   | { readonly ok: true; readonly availability: CatalogueAvailability }
   | { readonly ok: false; readonly refusal: AvailabilityRefusal };
-
-/** The one member that names an item's id, for each kind of item the catalogue can switch off. */
-const ID_MEMBER_OF_KIND = {
-  material: "tierId",
-  hardware: "tierId",
-  finish: "finishId",
-  handle: "handle",
-  accessory: "accessoryId",
-} as const;
-
-type ItemKind = keyof typeof ID_MEMBER_OF_KIND;
 
 /**
  * The availability answer as the catalogue declares it and nothing more: a revision, and a list of items each of a known
@@ -60,10 +50,14 @@ export function projectAvailability(answer: unknown): ProjectedAvailability {
 function projectItem(item: unknown): ItemRef | "too-large" | undefined {
   if (typeof item !== "object" || item === null) return undefined;
   const kind = ownMemberOf(item, "kind");
-  if (typeof kind !== "string" || !Object.hasOwn(ID_MEMBER_OF_KIND, kind)) {
+  if (
+    typeof kind !== "string" ||
+    !Object.hasOwn(ITEM_ID_MEMBER_OF_KIND, kind)
+  ) {
     return undefined;
   }
-  const member = ID_MEMBER_OF_KIND[kind as ItemKind];
+  const member =
+    ITEM_ID_MEMBER_OF_KIND[kind as keyof typeof ITEM_ID_MEMBER_OF_KIND];
   const id = ownMemberOf(item, member);
   if (typeof id !== "string" || id.length === 0) return undefined;
   if (id.length > MAX_IDENTIFIER_LENGTH) return "too-large";

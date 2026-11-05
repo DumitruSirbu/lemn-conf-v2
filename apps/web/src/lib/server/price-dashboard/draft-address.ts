@@ -4,6 +4,7 @@ import {
   CABINET_RULE_FIELDS,
   CREATED_ROW_TEXT_FIELDS,
   HARDWARE_RATE_FIELDS,
+  ITEM_ID_MEMBER_OF_KIND,
   MATERIAL_FIELDS,
   type AddressOfKind,
   type BookFieldAddressKind,
@@ -41,9 +42,9 @@ type CreatedRowItemKind = CreatedRowItemRef["kind"];
 const ITEM_ID_MEMBER: Readonly<
   Record<DeletableItemKind, "tierId" | "accessoryId">
 > = {
-  hardware: "tierId",
-  material: "tierId",
-  accessory: "accessoryId",
+  hardware: ITEM_ID_MEMBER_OF_KIND.hardware,
+  material: ITEM_ID_MEMBER_OF_KIND.material,
+  accessory: ITEM_ID_MEMBER_OF_KIND.accessory,
 };
 const DELETABLE_ITEM_KINDS = Object.keys(ITEM_ID_MEMBER) as DeletableItemKind[];
 const CREATED_ROW_ITEM_KINDS: readonly CreatedRowItemKind[] = [

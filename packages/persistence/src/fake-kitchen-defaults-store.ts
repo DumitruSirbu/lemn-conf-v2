@@ -110,8 +110,12 @@ export class FakeKitchenDefaultsStore
     return { kind: "ok", revision, availabilityRevision };
   }
 
-  countEach(probes: readonly ItemUsageProbe[]): Promise<KitchenUsageResult> {
+  countEach(
+    probes: readonly ItemUsageProbe[],
+    signal?: AbortSignal,
+  ): Promise<KitchenUsageResult> {
     return settle("count the kitchens using an item", () => {
+      signal?.throwIfAborted();
       if (!isCountableProbeSet(probes)) {
         throw new DashboardStoreError(
           "count the kitchens using an item",

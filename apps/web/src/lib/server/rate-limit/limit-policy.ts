@@ -235,6 +235,12 @@ export const STAFF_SEEN_PER_ACCOUNT_HOUR_FIGURE = 600;
  */
 export const STAFF_PRICES_READ_PER_ACCOUNT_HOUR_FIGURE = 300;
 export const STAFF_PRICE_DRAFT_PER_ACCOUNT_HOUR_FIGURE = 600;
+/**
+ * PROVISIONAL: how many usage questions one administrator may ask in an hour. A question names up to 50 items and walks
+ * every stored design once (`neon-kitchen-usage-reader.ts`), so the bucket **fails closed**; 120 is a fixed UTC hour's allowance, which a burst may spend at once.
+ * The owner's answer changes this constant and no code; see ADR 0178.
+ */
+export const STAFF_PRICE_USAGE_PER_ACCOUNT_HOUR_FIGURE = 120;
 /** How many kitchens an account may copy in a UTC day, on top of the mint's own per-network bucket (a copy is a mint,
  *  ADR 0147's intent). */
 export const DESIGN_DUPLICATE_PER_ACCOUNT_DAY_FIGURE = 20;
@@ -587,6 +593,14 @@ export const STAFF_PRICE_DRAFT_BY_ACCOUNT_POLICY = policyOf(
   },
 );
 
+export const STAFF_PRICE_USAGE_BY_ACCOUNT_POLICY = policyOf(
+  "staff-price-usage-by-account",
+  {
+    figure: STAFF_PRICE_USAGE_PER_ACCOUNT_HOUR_FIGURE,
+    window: utcMinutes(ACCOUNT_HOUR_MINUTES),
+  },
+);
+
 export const ACCOUNT_EXPORT_BY_ACCOUNT_POLICY = policyOf(
   "account-export-by-account",
   {
@@ -664,7 +678,8 @@ export type PolicyPurpose =
   | "staff-unhide-by-account"
   | "staff-seen-by-account"
   | "staff-prices-read-by-account"
-  | "staff-price-draft-by-account";
+  | "staff-price-draft-by-account"
+  | "staff-price-usage-by-account";
 
 interface Twins {
   readonly production: LimitPolicy;
@@ -787,6 +802,9 @@ const TWINS_OF_PURPOSE: Readonly<Record<PolicyPurpose, Twins>> = {
   ),
   "staff-price-draft-by-account": sameInProduction(
     STAFF_PRICE_DRAFT_BY_ACCOUNT_POLICY,
+  ),
+  "staff-price-usage-by-account": sameInProduction(
+    STAFF_PRICE_USAGE_BY_ACCOUNT_POLICY,
   ),
 };
 

@@ -142,7 +142,7 @@ function primitiveMembersOf(
 }
 
 /** The item a `409 item-is-default` names. */
-export function readItemRef(declared: unknown): ItemRef | undefined {
+export function readWireItemRef(declared: unknown): ItemRef | undefined {
   const kind = ownValueOf(declared, "kind");
   const tierId = ownValueOf(declared, "tierId");
   const accessoryId = ownValueOf(declared, "accessoryId");

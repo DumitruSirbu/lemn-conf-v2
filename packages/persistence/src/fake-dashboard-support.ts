@@ -25,7 +25,6 @@ export {
   isJsonObject,
   isNamedItem,
   isRevisionShape,
-  itemIdOf,
   itemKeyOf,
 } from "./dashboard-store-shapes.js";
 

@@ -420,9 +420,16 @@ export type ItemUsageProbe =
  * added to `unreadableDesigns`, so the caller can say that the count is of the designs that could be read. No deletion is
  * judged by such a count. A `settings-tier` or `placed-bodies` probe reads the stored document as written and leaves none
  * out. A predicate or a migration that fails any other way fails the call (`unexpected-answer`): it never reads as unused.
+ *
+ * An aborted `signal` stops the call: it rejects with the signal's reason, checked before the walk's first page, between
+ * its pages, before each count in SQL and before a repeat of a read that failed transiently. A call given up on issues
+ * at most the statements already issued.
  */
 export interface KitchenUsageReader {
-  countEach(probes: readonly ItemUsageProbe[]): Promise<KitchenUsageResult>;
+  countEach(
+    probes: readonly ItemUsageProbe[],
+    signal?: AbortSignal,
+  ): Promise<KitchenUsageResult>;
 }
 
 /**

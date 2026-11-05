@@ -85,7 +85,10 @@ import {
   versionWireOf,
 } from "@/lib/server/price-dashboard/version-wire";
 import { getPriceStores, type PriceStores } from "@/lib/server/price-stores";
-import { judgeAccountSubject } from "@/lib/server/rate-limit/judge-account-request";
+import {
+  judgeAccountSubject,
+  type AccountKeyedPurpose,
+} from "@/lib/server/rate-limit/judge-account-request";
 import { judgeReadRequest } from "@/lib/server/rate-limit/judge-read-request";
 import type { HeaderReader } from "@/lib/server/rate-limit/network-source";
 import { actingSessionOf } from "@/lib/server/staff/staff-acting-session";
@@ -302,12 +305,13 @@ function stateWireOf(
 // ---------------------------------------------------------------------------------------------------------------------
 // The writes
 
-/** What a staff write is made of: its body judged into an input, and what is done with an input once admitted. */
+/** What a staff request is made of: its body judged into an input, and what is done with an input once admitted. */
 export interface StaffWrite<Input> {
   readonly judge: (bodyText: string) => RequestReading<Input, string>;
   readonly perform: (
     input: Input,
     cookies: SessionCookieReader,
+    accountId: string,
   ) => Promise<NextResponse>;
 }
 
@@ -396,37 +400,63 @@ export function restoreAsStaff({
   );
 }
 
-/**
- * Every staff write's pipeline, in the order the header gives: the session and `price.edit`, the body's members, the
- * account's bucket (which fails closed), and only then the write itself. A store that finds no live session behind the
- * write is `401`; any other failure is thrown on to the route's wrapper.
- */
-export async function runStaffWrite<Input>(
+/** What a staff request is counted and logged under: the bucket's purpose, and the event its refusals are written as. */
+export interface StaffLane {
+  readonly event: AccountEvent;
+  readonly purpose: Extract<
+    AccountKeyedPurpose,
+    "staff-price-draft" | "staff-price-usage"
+  >;
+}
+
+const DRAFT_LANE: StaffLane = {
+  event: PRICE_DRAFT_EVENT,
+  purpose: "staff-price-draft",
+};
+
+/** Every draft write's pipeline: `runStaffRequest` in the draft's own lane. */
+export function runStaffWrite<Input>(
   write: StaffWrite<Input>,
   request: DashboardWriteRequest,
+): Promise<NextResponse> {
+  return runStaffRequest(write, request, DRAFT_LANE);
+}
+
+/**
+ * Every staff request's pipeline, in the order the header gives: the session and `price.edit`, the body's members, the
+ * account's bucket (which fails closed), and only then the work itself. A store that finds no live session behind the
+ * request is `401`; any other failure is thrown on to the route's wrapper.
+ */
+export async function runStaffRequest<Input>(
+  write: StaffWrite<Input>,
+  request: DashboardWriteRequest,
+  { event, purpose }: StaffLane,
 ): Promise<NextResponse> {
   const { cookies, headers, bodyText } = request;
   const admission = await admitStaff({
     cookies,
-    event: PRICE_DRAFT_EVENT,
+    event,
     capability: "price.edit",
   });
   if (admission.kind === "refused") return admission.response;
   const reading = write.judge(bodyText);
-  if (!reading.ok)
-    return refused(PRICE_DRAFT_EVENT, answerOfRefusal(reading.refusal));
+  if (!reading.ok) return refused(event, answerOfRefusal(reading.refusal));
   const limited = answerOfJudgement(
     await judgeAccountSubject({
-      purpose: "staff-price-draft",
+      purpose,
       headers,
       accountId: admission.session.accountId,
     }),
   );
   if (limited !== undefined) return limited;
   try {
-    return await write.perform(reading.value, cookies);
+    return await write.perform(
+      reading.value,
+      cookies,
+      admission.session.accountId,
+    );
   } catch (failure) {
-    return answerOfStoreFailure(failure);
+    return answerOfStoreFailure(failure, event);
   }
 }
 
@@ -650,12 +680,15 @@ function answerOfRefusal(refusal: RequestRefusal<string>): NextResponse {
  * What a thrown store error becomes: no live session behind the write is `401`, as for the other staff writes. Every other
  * failure, a store that is down included, is thrown on to the route's wrapper, which answers `503` with no detail.
  */
-function answerOfStoreFailure(failure: unknown): NextResponse {
+function answerOfStoreFailure(
+  failure: unknown,
+  event: AccountEvent,
+): NextResponse {
   if (
     failure instanceof DashboardStoreError &&
     failure.failure === "not-recorded"
   ) {
-    return refused(PRICE_DRAFT_EVENT, unauthenticatedResponse());
+    return refused(event, unauthenticatedResponse());
   }
   throw failure;
 }

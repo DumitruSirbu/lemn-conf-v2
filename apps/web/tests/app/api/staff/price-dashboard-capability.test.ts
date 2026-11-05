@@ -232,7 +232,7 @@ describe("a body member that names an account, a role or a capability", () => {
 describe("the audit rows of every route (R-c)", () => {
   const PUBLISHED_LABEL = "Version 1";
 
-  it("leaves exactly one row for each request that reads or writes, under its action's closed key list, and none holds a label, a note or a value", async () => {
+  it("leaves exactly one row for each request that reads or writes but a usage count, under its action's closed key list, and none holds a label, a note or a value", async () => {
     const { session } = await signedInAs({ role: "administrator" });
 
     for (const route of DASHBOARD_ROUTES) {
@@ -244,7 +244,8 @@ describe("the audit rows of every route (R-c)", () => {
       const ledgerRows = prices.ledger.heldEvents().length - ledgerBefore;
       const staffRows = staffWorld.audit.heldEvents().length - staffBefore;
       const isRead = route.event === "staff-prices";
-      const isWritten = !isRead && answer.status === 200;
+      const isCountOnly = route.event === "staff-price-usage";
+      const isWritten = !isRead && !isCountOnly && answer.status === 200;
       expect([route.name, ledgerRows, staffRows]).toEqual([
         route.name,
         isWritten ? 1 : 0,

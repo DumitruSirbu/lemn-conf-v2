@@ -95,6 +95,15 @@ function compareByCodeUnit(one: string, other: string): number {
   return Number(one > other) - Number(one < other);
 }
 
+/** The one member that names an item's id, for each kind: the member `itemIdOf` reads. */
+export const ITEM_ID_MEMBER_OF_KIND = {
+  material: "tierId",
+  hardware: "tierId",
+  finish: "finishId",
+  handle: "handle",
+  accessory: "accessoryId",
+} as const satisfies Record<ItemKind, string>;
+
 /** The one id an item is named by: its tier, colour, handle or accessory. */
 export function itemIdOf(item: ItemRef): string {
   switch (item.kind) {
