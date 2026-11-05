@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   SAMPLE_PRICE_BOOK,
   hardwareRatesOf,
+  readDashboardAuditEntry,
   type DraftChange,
 } from "@lemnaria/configurator-domain";
 
@@ -186,6 +187,28 @@ describe("a rename of a created row", () => {
     const plan = planChange(changeRequest(address, "Another"), stateWith([]));
 
     expect(await refusalOf(plan)).toEqual(issueOf("NOT_EDITABLE"));
+  });
+});
+
+describe("the audit rows of the structural writes", () => {
+  it("are rows the audit log accepts: a rename, and the revert of a class that removes its rates and words too", () => {
+    const rename = written(
+      planChange(requestOf(RENAME), stateWith(CREATED_CLASS)),
+    ).entry;
+    const reverted = written(
+      planRevert(
+        {
+          expectedDraftRevision: "1",
+          target: { kind: "change", address: addressOf(TIER_CREATION) },
+        },
+        stateWith([...CREATED_CLASS, RENAME]),
+      ),
+    ).entry;
+
+    expect(readDashboardAuditEntry(rename.action, rename.detail).ok).toBe(true);
+    expect(readDashboardAuditEntry(reverted.action, reverted.detail).ok).toBe(
+      true,
+    );
   });
 });
 

@@ -66,7 +66,7 @@ const CHANGE_KINDS: readonly ChangeKind[] = [
   "created-row-text",
 ];
 
-/** A revert takes back a creation too, which only a creation route puts there. A deletion is taken by neither route. */
+/** A revert takes back a creation too, which only a creation route puts there. */
 const REVERT_KINDS: readonly RevertKind[] = [
   ...CHANGE_KINDS,
   "hardware-tier-created",
@@ -76,6 +76,8 @@ const REVERT_KINDS: readonly RevertKind[] = [
 type ChangeKind = AppliedAddressKind | "created-row-text";
 type CreationKind = "hardware-tier-created" | "accessory-created";
 type RevertKind = ChangeKind | CreationKind;
+
+const DELETION_KIND = "item-deleted" satisfies BookFieldAddressKind;
 
 export type ChangeAddress = AddressOfKind<ChangeKind>;
 export type RevertAddress = AddressOfKind<RevertKind>;
@@ -333,6 +335,7 @@ function withAddress<Kind extends BookFieldAddressKind, Value>(
     address: AddressOfKind<Kind>,
   ) => RequestReading<Value, DraftChangeRefusalCode>,
 ): RequestReading<Value, DraftChangeRefusalCode> {
+  if (isDeletion(declared)) return refusedWith("address", "NOT_EDITABLE");
   const reading = readDraftAddress(declared, accepts);
   switch (reading.kind) {
     case "address":
@@ -344,4 +347,9 @@ function withAddress<Kind extends BookFieldAddressKind, Value>(
     case "extra-member":
       return MALFORMED;
   }
+}
+
+/** A deletion is refused on both routes by its kind, whatever else the address holds. */
+function isDeletion(declared: unknown): boolean {
+  return isPlainRecord(declared) && declared.kind === DELETION_KIND;
 }
