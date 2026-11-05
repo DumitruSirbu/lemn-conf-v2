@@ -16,6 +16,7 @@ import {
   createAccessoryInDraft,
   createHardwareClassInDraft,
   currentDraftRevision,
+  readState,
   revertDraft,
 } from "./price-dashboard-requests";
 import {
@@ -166,4 +167,8 @@ export async function mintedIdOf(answer: Response): Promise<string> {
   const id = body.created.tierId ?? body.created.accessoryId;
   if (id === undefined) throw new Error("the answer names no created row");
   return id;
+}
+
+export async function readStateAs(cookie: string): Promise<Response> {
+  return readState({ cookie });
 }
