@@ -2853,6 +2853,19 @@ R4a6 hands to R4c (its logic and security reviews, 2026-11-05):
   - Before deletions can enter a draft, lower the page read's concurrency or reuse one count per draft revision.
 - **R-j end to end.** Rerun R-i's arms through the real draft route once it accepts `item-deleted`.
 
+R4b1's reviews (2026-11-05) hand on the following.
+
+**To R4b2:**
+- **Make the repair of an unreadable saved row reachable.** The `PUT` repairs such a row, but nothing hands out its revision. The page read throws on it, D9 shows the unavailable screen, and the 409 bodies carry only `{status}`. Either give the revision out alongside the unreadable answer, or record that the repair has no UI.
+- **The page read is gated only by its caller.** `readKitchenDefaultsForAdmittedPage` has no gate of its own. Confirm that the `GET` and D9 call it under the staff gate.
+- `readKitchenDefaultsForAdmittedPage` and `readNewKitchenDefaults` have no production caller at R4b1. They are R4b2's and R4b3's inputs.
+
+**To R4b3:**
+- **The customer read has no bound.** If it runs on the public room page's render, every anonymous request costs three uncached database reads. During an outage, each such request also writes one log line. Read it behind the creation path's limiter, or memoise it per availability-head revision or with a short TTL, and rate-limit the log line.
+- **Rule 3's four-key result is wider than "no active book".** It is also what the read returns when the stores are unavailable or the book cannot be read, which is production's state until the Z gate. Criterion (b)'s property must allow for this.
+
+**Recorded:** an extra member in the defaults body answers `400 invalid-request` with no field, as every draft write does. This corrects the acceptance bullet's "naming the field".
+
 R4a4 hands to Q3: an end-to-end arm showing that publishing a created class blanks the deltas, written when Q3 flips `qa-p4a-tier-offer-switched-off…:56`.
 
 *R4a5: record amendment (2026-11-05).* The R4a5 row said "R4a5 changes no server file, route or auth path". That
