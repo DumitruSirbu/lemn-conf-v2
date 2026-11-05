@@ -37,7 +37,11 @@ const MAX_DRAWS_PER_ID = 8;
 
 export type RandomSource = (byteCount: number) => Uint8Array;
 
-/** The id of every row the active book states and every row the draft names, with every built-in or keyed id. */
+/**
+ * The ids a minted id is checked against: the active book's, the draft's, and every built-in and keyed id. Past those
+ * (the books of earlier versions, a draft discarded since) nothing is checked, and uniqueness rests on the draw: about
+ * 125 bits of it.
+ */
 export function takenIdsOf(
   book: PriceBook,
   draftChanges: readonly DraftChange[],

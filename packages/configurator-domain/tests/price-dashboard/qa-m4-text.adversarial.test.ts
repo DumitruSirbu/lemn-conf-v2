@@ -501,6 +501,15 @@ const anyText = fc
   )
   .map((units) => units.join(""));
 
+/** The parser tolerates a format character in text it holds; a judgement of new words refuses it, and refuses
+ *  nothing else for its characters that the parser accepts. */
+function expectForbiddenOnlyForAFormatCharacter(
+  code: string,
+  raw: string,
+): void {
+  if (code === "TEXT_FORBIDDEN_CHARACTER") expect(raw).toMatch(/\p{Cf}/u);
+}
+
 describe("what the judgement accepts, the parser accepts, and what the parser accepts the judgement does not refuse for its characters or bounds", () => {
   it.each(FIELDS)(
     "stores a judged %s that parses as a linked accessory's",
@@ -530,11 +539,9 @@ describe("what the judgement accepts, the parser accepts, and what the parser ac
       fc.property(anyText, (raw) => {
         fc.pre(parses(withLinkedName(raw)));
 
-        expect([
-          "TEXT_FORBIDDEN_CHARACTER",
-          "TEXT_TOO_LONG",
-          "TEXT_EMPTY",
-        ]).not.toContain(codeOf(raw));
+        const code = codeOf(raw);
+        expectForbiddenOnlyForAFormatCharacter(code, raw);
+        expect(["TEXT_TOO_LONG", "TEXT_EMPTY"]).not.toContain(code);
       }),
       { numRuns: 600, seed: SEED },
     );
@@ -545,9 +552,9 @@ describe("what the judgement accepts, the parser accepts, and what the parser ac
       fc.property(anyText, (raw) => {
         fc.pre(parses(withLinkedName("Nume", raw)));
 
-        expect(["TEXT_FORBIDDEN_CHARACTER", "TEXT_TOO_LONG"]).not.toContain(
-          codeOf(raw, "description"),
-        );
+        const code = codeOf(raw, "description");
+        expectForbiddenOnlyForAFormatCharacter(code, raw);
+        expect(code).not.toBe("TEXT_TOO_LONG");
       }),
       { numRuns: 600, seed: SEED },
     );

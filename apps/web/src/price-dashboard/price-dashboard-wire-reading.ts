@@ -2,7 +2,7 @@ import {
   readBulk,
   type DraftBulk,
   type DraftChange,
-  type ItemRef,
+  type CreatedRowItemRef,
 } from "@lemnaria/configurator-domain";
 
 import { ownValueOf } from "@/staff/staff-kitchens-wire-reading";
@@ -62,7 +62,7 @@ export function readDraftChangeCreatedWire(
 }
 
 /** The row a creation made, rebuilt from its kind and the one id that kind names; no other kind is a created row. */
-function readCreatedRow(declared: unknown): ItemRef | undefined {
+function readCreatedRow(declared: unknown): CreatedRowItemRef | undefined {
   const kind = ownValueOf(declared, "kind");
   if (kind === "hardware") {
     const tierId = ownValueOf(declared, "tierId");

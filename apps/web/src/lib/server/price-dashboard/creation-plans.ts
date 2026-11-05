@@ -8,7 +8,7 @@ import {
   judgeBookAgainstCatalog,
   type BookRefusal,
   type DraftChange,
-  type ItemRef,
+  type CreatedRowItemRef,
   type LinkTargetRefusalCode,
   type PriceBook,
 } from "@lemnaria/configurator-domain";
@@ -159,8 +159,12 @@ function hasRateOutsideTheBook(
 }
 
 /** The plan told as a creation: the draft it makes, and the row whose id the server minted. */
-function answeringWithCreated(plan: DraftPlan, created: ItemRef): DraftPlan {
-  if (plan.kind === "refused") return plan;
+type WrittenPlan = Extract<DraftPlan, { readonly kind: "write" }>;
+
+function answeringWithCreated(
+  plan: WrittenPlan,
+  created: CreatedRowItemRef,
+): DraftPlan {
   return {
     ...plan,
     answer: (draftRevision) =>

@@ -9,8 +9,6 @@ import {
   type DraftChange,
 } from "@lemnaria/configurator-domain";
 
-import { isMintedId } from "@/lib/server/price-dashboard/identifier-shape";
-
 import { jsonOf } from "../../../support/account-world";
 import {
   ACCESSORY_VALUE,
@@ -45,6 +43,8 @@ vi.mock("@/lib/server/price-stores", () =>
 // Whatever a client puts in a creation, the route answers 200, 400 or 409 and nothing else. A refusal leaves the draft and
 // the audit log as they were; an acceptance leaves a draft the domain still makes a book of, one new row under an id of the
 // shape a minted id has, no deletion, and a draft the dashboard reads back. The row is then taken back by its creation.
+
+const MINTED_ID = /^[A-Za-z0-9]{21}$/;
 
 let world: CreationWorld;
 
@@ -201,7 +201,7 @@ propertyTest.prop([classValue, classRates], { numRuns: RUNS })(
     expect(ANSWERS_OF_A_CREATION).toContain(answer.status);
     if (answer.status !== 200) return expectUntouched(before);
     const tierId = await mintedIdOf(answer);
-    expect(isMintedId(tierId)).toBe(true);
+    expect(tierId).toMatch(MINTED_ID);
     await expectCoherentAfterAccepting(before, 1 + HARDWARE_RATE_FIELDS.length);
     return takeBackByCreation({ kind: "hardware-tier-created", tierId });
   },
@@ -217,7 +217,7 @@ propertyTest.prop([accessoryValue], { numRuns: RUNS })(
     expect(ANSWERS_OF_A_CREATION).toContain(answer.status);
     if (answer.status !== 200) return expectUntouched(before);
     const accessoryId = await mintedIdOf(answer);
-    expect(isMintedId(accessoryId)).toBe(true);
+    expect(accessoryId).toMatch(MINTED_ID);
     await expectCoherentAfterAccepting(before, 1);
     return takeBackByCreation({ kind: "accessory-created", accessoryId });
   },

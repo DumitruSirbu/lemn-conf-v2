@@ -131,8 +131,8 @@ describe("the body of a hardware class creation", () => {
       readCreateHardwareClassRequest(
         classBody({
           value: {
-            name: "  GTV Economic \n",
-            description: "\tMecanisme  ",
+            name: "  GTV Economic ",
+            description: "  Mecanisme\u00a0",
             extra: " kept ",
           },
         }),
@@ -148,6 +148,25 @@ describe("the body of a hardware class creation", () => {
       },
     });
   });
+
+  it.each([
+    ["a line feed", "GTV\n"],
+    ["a carriage return", "GTV\r"],
+    ["a line separator", "GTV\u2028"],
+    ["a paragraph separator", "\u2029GTV"],
+    ["a byte-order mark", "GTV\ufeff"],
+    ["a zero-width space", "G\u200bTV"],
+    ["a soft hyphen", "GTV\u00ad"],
+  ])(
+    "judges the words as sent, so %s is not trimmed away: they go on unchanged for applyChanges to refuse",
+    (_, name) => {
+      expect(
+        readCreateHardwareClassRequest(
+          classBody({ value: { name, description: "" } }),
+        ),
+      ).toMatchObject({ ok: true, value: { value: { name } } });
+    },
+  );
 
   it("leaves a name that is not text for applyChanges to refuse", () => {
     expect(

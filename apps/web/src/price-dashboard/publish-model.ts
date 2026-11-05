@@ -1,12 +1,12 @@
 import {
   ACCESSORY_IDS,
   applyChanges,
-  changedRowOf,
   changedRowsOf,
   DIFF_SECTIONS,
   diffBooks,
   isCabinetAddress,
   isSameAddress,
+  isSameItem,
   readEditableFields,
   restoreChanges,
   type AbsentValue,
@@ -420,7 +420,23 @@ function isOfChangedRow(
   address: AppliedAddress,
   changedRows: readonly ItemRef[],
 ): boolean {
-  return changedRowOf({ address } as DraftChange, changedRows) !== undefined;
+  const row = rowOfField(address);
+  return (
+    row !== undefined && changedRows.some((changed) => isSameItem(changed, row))
+  );
+}
+
+/** The row a field is of: a class's rate or a tier's amount, an accessory's price; a cabinet's price is of none. */
+function rowOfField(address: AppliedAddress): ItemRef | undefined {
+  switch (address.kind) {
+    case "hardware":
+    case "material":
+      return { kind: address.kind, tierId: address.tierId };
+    case "accessory":
+      return { kind: "accessory", accessoryId: address.accessoryId };
+    default:
+      return undefined;
+  }
 }
 
 function subjectOf(row: FieldDiffRow, context: RowContext): RowSubject {

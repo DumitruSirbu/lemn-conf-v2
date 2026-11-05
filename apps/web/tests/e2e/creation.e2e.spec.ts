@@ -1,4 +1,4 @@
-// Wave R4a4 of M10 on a phone, 390 x 844 with real touch: a hardware class and a linked accessory are created through the
+// On a phone, 390 x 844 with real touch: a hardware class and a linked accessory are created through the
 // forms, found in the draft the server holds, renamed from their own pages and taken away by the arrow of their row on the
 // publish page (frames D4C, D6B, D7A).
 //

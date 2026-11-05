@@ -16,8 +16,8 @@ import {
   takenIdsOf,
   type RandomSource,
 } from "@/lib/server/price-dashboard/created-ids";
-import { isMintedId } from "@/lib/server/price-dashboard/identifier-shape";
 
+const MINTED_ID = /^[A-Za-z0-9]{21}$/;
 const NOTHING_TAKEN: ReadonlySet<string> = new Set();
 const ID_LENGTH = 21;
 const ALPHABET_SIZE = 62;
@@ -48,10 +48,8 @@ describe("a minted id", () => {
   it("has the shape every minted id has, whatever the source draws", () => {
     for (let start = 0; start < 256; start += 7) {
       expect(
-        isMintedId(
-          mintCreatedId(NOTHING_TAKEN, sourceAnswering(bytesFrom(start))),
-        ),
-      ).toBe(true);
+        mintCreatedId(NOTHING_TAKEN, sourceAnswering(bytesFrom(start))),
+      ).toMatch(MINTED_ID);
     }
   });
 

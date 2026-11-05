@@ -14,7 +14,6 @@ import {
   takenIdsOf,
   type RandomSource,
 } from "@/lib/server/price-dashboard/created-ids";
-import { isMintedId } from "@/lib/server/price-dashboard/identifier-shape";
 
 // The ids the dashboard mints, swept over the sources a hostile or broken machine could offer and the sets of ids that
 // are already spoken for. A mint answers an id that is free and of the right shape, or fails; it never answers a taken id.
@@ -53,7 +52,6 @@ describe("an id minted from any source", () => {
       if (id === undefined) return;
       expect(id).toMatch(/^[A-Za-z0-9]{21}$/);
       expect(id).toHaveLength(ID_LENGTH);
-      expect(isMintedId(id)).toBe(true);
       expect(id).not.toBe("new");
     },
   );
@@ -211,7 +209,7 @@ describe("many mints from the real source", () => {
     }
 
     expect(new Set(minted).size).toBe(MANY_MINTS);
-    expect(minted.every(isMintedId)).toBe(true);
+    expect(minted.every((id) => /^[A-Za-z0-9]{21}$/.test(id))).toBe(true);
   });
 
   it("does not reuse an id a book of an earlier version held, over the ids of a thousand earlier books", () => {

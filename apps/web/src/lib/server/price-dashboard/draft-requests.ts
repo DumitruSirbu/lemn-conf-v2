@@ -1,11 +1,14 @@
 import {
   APPLIED_ADDRESS_KINDS,
+  CREATED_ROW_TEXT_FIELDS,
   CREATION_ADDRESS_KINDS,
   HARDWARE_RATE_FIELDS,
+  judgeCreatedRowText,
   PRICE_GROUP_CODES,
   type AddressOfKind,
   type AppliedAddressKind,
   type BookFieldAddressKind,
+  type CreatedRowTextField,
   type CreationAddressKind,
   type PriceGroupCode,
   type StructuralAddressKind,
@@ -115,7 +118,13 @@ function readChangeMembers(
   if (!isPlainRecord(declared)) return refusedWith("change", "MISSING_VALUE");
   if (hasMemberOutside(declared, ["address", "value"])) return MALFORMED;
   return withAddress(declared.address, CHANGE_KINDS, (address) =>
-    accepted({ address, value: ownMember(declared, "value") }),
+    accepted({
+      address,
+      value:
+        address.kind === "created-row-text"
+          ? storedWords(ownMember(declared, "value"), address.field)
+          : ownMember(declared, "value"),
+    }),
   );
 }
 
@@ -220,9 +229,6 @@ const ROW_IDENTITY_MEMBERS = [
   "item",
 ] as const;
 
-/** The words of a created row, which the book holds trimmed: the draft holds them the same. */
-const TRIMMED_MEMBERS = ["name", "description"] as const;
-
 export interface CreateHardwareClassRequest {
   readonly expectedDraftRevision: string;
   /** As sent: `applyChanges` judges it, and only a judged value is ever stored. */
@@ -276,15 +282,26 @@ function readCreationValue(
   const namesAnIdentity = ROW_IDENTITY_MEMBERS.some((name) =>
     Object.hasOwn(declared, name),
   );
-  return namesAnIdentity ? MALFORMED : accepted(withTrimmedWords(declared));
+  return namesAnIdentity ? MALFORMED : accepted(withStoredWords(declared));
 }
 
-function withTrimmedWords(value: Members): Members {
-  const trimmed = TRIMMED_MEMBERS.flatMap((name) => {
-    const words = ownMember(value, name);
-    return typeof words === "string" ? [[name, words.trim()] as const] : [];
-  });
-  return { ...value, ...Object.fromEntries(trimmed) };
+function withStoredWords(value: Members): Members {
+  const stored = CREATED_ROW_TEXT_FIELDS.flatMap((field) =>
+    Object.hasOwn(value, field)
+      ? [[field, storedWords(value[field], field)] as const]
+      : [],
+  );
+  return { ...value, ...Object.fromEntries(stored) };
+}
+
+/**
+ * The words of a created row as the draft keeps them, the same for a creation and for a rename: judged as sent, so a
+ * character the rule refuses is refused whatever surrounds it, and kept without the spaces around them, as the book
+ * holds them. Words the rule refuses go on as sent, for `applyChanges` to refuse with the rule's own code.
+ */
+function storedWords(declared: unknown, field: CreatedRowTextField): unknown {
+  const judged = judgeCreatedRowText(declared, field);
+  return judged.ok ? judged.text : declared;
 }
 
 function readRates(

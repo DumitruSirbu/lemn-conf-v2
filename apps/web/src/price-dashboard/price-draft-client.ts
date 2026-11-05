@@ -1,3 +1,5 @@
+import type { CreatedRowItemRef } from "@lemnaria/configurator-domain";
+
 import { ownValueOf } from "@/staff/staff-kitchens-wire-reading";
 
 import {
@@ -136,7 +138,7 @@ const ACCESSORY_ANSWERS = createdAnswersOf("accessory");
 
 /** A creation's `200` is believed only when it names a row of the kind the route creates. */
 function createdAnswersOf(
-  kind: "hardware" | "accessory",
+  kind: CreatedRowItemRef["kind"],
 ): RouteAnswers<DraftChangeRefusalCode, DraftChangeCreatedWire> {
   return {
     readWritten: (body) => {

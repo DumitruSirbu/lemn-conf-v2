@@ -11,7 +11,6 @@ import {
 
 import { IDLE_LIFETIME_SECONDS_BY_ROLE } from "@/lib/server/account/session-lifetimes";
 import type * as CreatedIdsModule from "@/lib/server/price-dashboard/created-ids";
-import { isMintedId } from "@/lib/server/price-dashboard/identifier-shape";
 import { STAFF_PRICE_DRAFT_BY_ACCOUNT_POLICY } from "@/lib/server/rate-limit/limit-policy";
 import { CLIENT_NETWORK_SOURCE_VARIABLE } from "@/lib/server/rate-limit/network-source";
 
@@ -21,6 +20,7 @@ import {
   limiterLedger,
 } from "../../../support/account-world";
 import {
+  changeDraft,
   createAccessoryInDraft,
   createHardwareClassInDraft,
   currentDraftRevision,
@@ -63,6 +63,8 @@ const realMint = (
 // `POST /api/staff/prices/draft/hardware-class` and `…/accessory`: the order of checks the draft writes keep, the id the
 // server mints, the one write that puts a class and its rates in the draft, the link an accessory follows, and the repeat
 // of a request whose answer was lost.
+
+const MINTED_ID = /^[A-Za-z0-9]{21}$/;
 
 let prices: PriceDashboardWorld;
 let cookie: string;
@@ -392,7 +394,7 @@ describe("a created hardware class", () => {
     );
     const [id] = [...ids];
     expect(ids.size).toBe(1);
-    expect(isMintedId(id)).toBe(true);
+    expect(id).toMatch(MINTED_ID);
     expect(id).not.toBe("new");
   });
 
@@ -489,15 +491,6 @@ describe("a created hardware class", () => {
     expect(created.mintCreatedId).not.toHaveBeenCalled();
   });
 
-  it("stores the words trimmed, as the book will hold them", async () => {
-    await createClass({
-      value: { name: "  GTV Economic ", description: " Mecanisme simple\n" },
-    });
-
-    const [creation] = await storedChanges();
-    expect(creation?.value).toEqual(CLASS_WORDS);
-  });
-
   it.each(["ruleId", "nameKey", "descriptionKey"])(
     "is refused, before the bucket, when the value names a `%s`",
     async (member) => {
@@ -534,7 +527,7 @@ describe("a created accessory", () => {
     const changes = await storedChanges();
     expect(answer.status).toBe(200);
     expect(body.created.kind).toBe("accessory");
-    expect(isMintedId(body.created.accessoryId)).toBe(true);
+    expect(body.created.accessoryId).toMatch(MINTED_ID);
     expect(changes).toEqual([
       {
         address: {
@@ -720,6 +713,118 @@ describe("the id the server mints", () => {
     }
 
     expect(new Set(ids).size).toBe(12);
+  });
+});
+
+describe("the words of a created row, on creation and on rename", () => {
+  const REFUSED_WORDS = [
+    ["a line feed", "Blum\n"],
+    ["a carriage return", "Blum\r"],
+    ["a line separator", "Blum\u2028"],
+    ["a paragraph separator", "\u2029Blum"],
+    ["a byte-order mark", "Blum\ufeff"],
+    ["a zero-width space", "Bl\u200bum"],
+    ["a zero-width joiner", "Bl\u200dum"],
+    ["a soft hyphen", "Blum\u00ad"],
+    ["a word joiner", "Bl\u2060um"],
+  ] as const;
+  const FORBIDDEN = {
+    status: "invalid-input",
+    issues: [{ field: "change", code: "TEXT_FORBIDDEN_CHARACTER" }],
+  };
+
+  async function renameClassTo(tierId: string, words: unknown) {
+    return changeDraft({
+      cookie,
+      json: {
+        expectedDraftRevision: await currentDraftRevision(),
+        change: {
+          address: {
+            kind: "created-row-text",
+            item: { kind: "hardware", tierId },
+            field: "name",
+          },
+          value: words,
+        },
+      },
+    });
+  }
+
+  async function aCreatedClass(): Promise<string> {
+    const answer = await createClass();
+    const body = (await jsonOf(answer)) as { created: { tierId: string } };
+    return body.created.tierId;
+  }
+
+  it.each(REFUSED_WORDS)(
+    "refuses %s in the name of a class, as sent, and writes nothing",
+    async (_, name) => {
+      const answer = await createClass({
+        value: { name, description: "" },
+      });
+
+      expect({ status: answer.status, body: await jsonOf(answer) }).toEqual({
+        status: 400,
+        body: FORBIDDEN,
+      });
+      expect(await storedChanges()).toEqual([]);
+    },
+  );
+
+  it.each(REFUSED_WORDS)(
+    "refuses %s in the description of a class and in the name of an accessory",
+    async (_, words) => {
+      const described = await createClass({
+        value: { name: "Blum", description: words },
+      });
+      const named = await createAccessory({
+        value: { ...ACCESSORY_VALUE, name: words },
+      });
+
+      expect(await jsonOf(described)).toEqual(FORBIDDEN);
+      expect(await jsonOf(named)).toEqual(FORBIDDEN);
+      expect(await storedChanges()).toEqual([]);
+    },
+  );
+
+  it.each(REFUSED_WORDS)(
+    "refuses %s in a rename of a created class, as it refuses it on creation, and keeps the name it had",
+    async (_, name) => {
+      const tierId = await aCreatedClass();
+      const before = await storedChanges();
+
+      const answer = await renameClassTo(tierId, name);
+
+      expect({ status: answer.status, body: await jsonOf(answer) }).toEqual({
+        status: 400,
+        body: FORBIDDEN,
+      });
+      expect(await storedChanges()).toEqual(before);
+    },
+  );
+
+  it("stores a rename without the spaces around it, as a creation does", async () => {
+    const tierId = await aCreatedClass();
+
+    const answer = await renameClassTo(tierId, "  Blum\u00a0");
+
+    const renamed = (await storedChanges()).find(
+      ({ address }) => address.kind === "created-row-text",
+    );
+    expect(answer.status).toBe(200);
+    expect(renamed?.value).toBe("Blum");
+  });
+
+  it("stores the name and the description of a class without the spaces around them", async () => {
+    await createClass({
+      value: { name: "  Blum ", description: "\u00a0Mecanisme simple  " },
+    });
+
+    const [creation] = await storedChanges();
+    expect(creation?.value).toEqual({
+      name: "Blum",
+      description: "Mecanisme simple",
+    });
   });
 });
 

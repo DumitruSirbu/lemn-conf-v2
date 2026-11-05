@@ -74,7 +74,9 @@ function HardwareCreate({
           {translate("priceDashboard.hardware.title")}
         </a>
         <h1 className={styles.title}>
-          {translate("priceDashboard.hardware.newTitle")}
+          {creation.feedback.kind === "created"
+            ? creation.name.text.trim()
+            : translate("priceDashboard.hardware.newTitle")}
         </h1>
         <span className={styles.chips}>
           <span className={styles.chip} data-testid="hardware-chip">

@@ -20,14 +20,9 @@ const MINTED_ID_CHARACTERS = new RegExp(
   `^[A-Za-z0-9_-]{1,${String(MAX_IDENTIFIER_LENGTH)}}$`,
 );
 
-/** Whether `declared` is made only of what a minted id is made of, whatever it names: a version, a class or an accessory. */
-export function isMintedId(declared: unknown): declared is string {
-  return typeof declared === "string" && MINTED_ID_CHARACTERS.test(declared);
-}
-
 /** Unlike `isIdentifier`, a path segment must carry nothing a store could not hold: it is judged before any store. */
 export function isVersionId(declared: unknown): declared is string {
-  return isMintedId(declared);
+  return typeof declared === "string" && MINTED_ID_CHARACTERS.test(declared);
 }
 
 /** An object with members to read: not `null`, not a list. */
