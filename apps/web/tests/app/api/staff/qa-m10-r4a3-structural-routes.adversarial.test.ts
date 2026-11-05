@@ -553,7 +553,7 @@ describe("the revert of a creation", () => {
       changeKind: "hardware-tier-created",
       itemKind: "hardware",
       itemId: CLASS_ID,
-      revertedCount: 1,
+      revertedCount: CREATED_CLASS.length,
     });
   });
 

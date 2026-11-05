@@ -292,7 +292,7 @@ describe("a revert of a creation leaves no change naming its row", () => {
   );
 
   propertyTest.prop([arbitraryStoredDraft], { numRuns: 200 })(
-    "and the audit row it writes names the creation and counts one revert",
+    "and the audit row it writes names the creation and counts the changes that left",
     ({ row, changes }) => {
       const plan = written(
         planRevert(
@@ -309,7 +309,10 @@ describe("a revert of a creation leaves no change naming its row", () => {
 
       expect(plan.entry).toMatchObject({
         action: "price-draft-reverted",
-        detail: { changeKind: row.creation.address.kind, revertedCount: 1 },
+        detail: {
+          changeKind: row.creation.address.kind,
+          revertedCount: changes.length - plan.changes.length,
+        },
       });
     },
   );

@@ -445,12 +445,6 @@ describe("a change that is refused, with M1's code", () => {
       "UNKNOWN_ITEM",
     ],
     [
-      "a field name no rule has",
-      { kind: "hardware", tierId: "hardware.standard", field: "perNothing" },
-      1_000,
-      "UNKNOWN_ADDRESS",
-    ],
-    [
       "a depth percentage past its bound",
       { kind: "depth-rule" },
       101,
@@ -481,6 +475,27 @@ describe("a change that is refused, with M1's code", () => {
       await nothingWasWritten(before);
     },
   );
+
+  it("answers a field name no rule has as an address the reader does not know, writes nothing and echoes no value", async () => {
+    const { cookie } = await administrator();
+    const before = await currentDraftRevision();
+
+    const answer = await putChange(cookie, {
+      address: {
+        kind: "hardware",
+        tierId: "hardware.standard",
+        field: "perNothing",
+      },
+      value: 1_000,
+    });
+
+    expect(answer.status).toBe(400);
+    expect(await jsonOf(answer)).toEqual({
+      status: "invalid-input",
+      issues: [{ field: "address", code: "UNKNOWN_ADDRESS" }],
+    });
+    await nothingWasWritten(before);
+  });
 
   it("answers a value of -0 as a negative amount: it prints as nothing and signs as a reduction", async () => {
     const { cookie } = await administrator();

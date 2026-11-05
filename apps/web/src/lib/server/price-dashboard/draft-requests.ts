@@ -1,10 +1,13 @@
 import {
   APPLIED_ADDRESS_KINDS,
+  CREATION_ADDRESS_KINDS,
   PRICE_GROUP_CODES,
   type AddressOfKind,
   type AppliedAddressKind,
   type BookFieldAddressKind,
+  type CreationAddressKind,
   type PriceGroupCode,
+  type StructuralAddressKind,
 } from "@lemnaria/configurator-domain";
 
 import { parseJsonObject } from "@/lib/server/account/account-request";
@@ -61,6 +64,14 @@ function refusedWith<Code extends string>(
 // ---------------------------------------------------------------------------------------------------------------------
 // One change
 
+type DeletionKind = Extract<StructuralAddressKind, "item-deleted">;
+type ChangeKind =
+  | AppliedAddressKind
+  | Exclude<StructuralAddressKind, CreationAddressKind | DeletionKind>;
+type RevertKind = ChangeKind | CreationAddressKind;
+
+const DELETION_KIND: DeletionKind = "item-deleted";
+
 const CHANGE_KINDS: readonly ChangeKind[] = [
   ...APPLIED_ADDRESS_KINDS,
   "created-row-text",
@@ -69,15 +80,8 @@ const CHANGE_KINDS: readonly ChangeKind[] = [
 /** A revert takes back a creation too, which only a creation route puts there. */
 const REVERT_KINDS: readonly RevertKind[] = [
   ...CHANGE_KINDS,
-  "hardware-tier-created",
-  "accessory-created",
+  ...CREATION_ADDRESS_KINDS,
 ];
-
-type ChangeKind = AppliedAddressKind | "created-row-text";
-type CreationKind = "hardware-tier-created" | "accessory-created";
-type RevertKind = ChangeKind | CreationKind;
-
-const DELETION_KIND = "item-deleted" satisfies BookFieldAddressKind;
 
 export type ChangeAddress = AddressOfKind<ChangeKind>;
 export type RevertAddress = AddressOfKind<RevertKind>;

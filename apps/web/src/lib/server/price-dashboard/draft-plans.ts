@@ -7,11 +7,11 @@ import type { NextResponse } from "next/server";
 import {
   applyChanges,
   countPendingPrices,
+  isCreationAddress,
   isSameAddress,
   readEditableFields,
   revertChange,
   type AppliedAddress,
-  type BookFieldAddress,
   type PriceBook,
   type ChangeRefusalCode,
   type DashboardAuditEntry,
@@ -82,15 +82,26 @@ export interface PutRequest {
 }
 
 export function planChange(
-  { address, value }: PutRequest,
+  request: PutRequest,
+  state: ActiveDashboardState,
+): DraftPlan {
+  return planChanges([request], state);
+}
+
+/**
+ * Several changes in one write, judged once; the first is the one the audit row names. A change of an address the draft
+ * holds replaces it and goes last, except a creation, which is replaced where it stands.
+ */
+export function planChanges(
+  requests: readonly [PutRequest, ...PutRequest[]],
   { draft, book }: ActiveDashboardState,
 ): DraftPlan {
-  const put = putChange(draft.changes, { address, value } as DraftChange);
+  const put = putChanges(draft.changes, requests);
   const { changes } = put;
   const judgement = judgeDraft({
     book,
     changes,
-    firstNewIndex: put.index,
+    newIndexes: put.newIndexes,
     stored: draft.changes,
   });
   switch (judgement.kind) {
@@ -106,11 +117,55 @@ export function planChange(
       return {
         kind: "write",
         changes,
-        entry: draftChangedEntry(address),
+        entry: draftChangedEntry(requests[0].address),
         answer: (draftRevision) =>
           draftChangedResponse(draftWireOf(draftRevision, changes)),
       };
   }
+}
+
+interface PutChanges {
+  readonly changes: readonly DraftChange[];
+  /** Where the put changes stand. */
+  readonly newIndexes: ReadonlySet<number>;
+}
+
+interface Placed {
+  readonly change: DraftChange;
+  readonly isPut: boolean;
+}
+
+function putChanges(
+  stored: readonly DraftChange[],
+  requests: readonly PutRequest[],
+): PutChanges {
+  let placed: readonly Placed[] = stored.map((change) => ({
+    change,
+    isPut: false,
+  }));
+  for (const { address, value } of requests) {
+    placed = putChange(placed, { address, value } as DraftChange);
+  }
+  return {
+    changes: placed.map(({ change }) => change),
+    newIndexes: new Set(
+      placed.flatMap(({ isPut }, index) => (isPut ? [index] : [])),
+    ),
+  };
+}
+
+/** `change` last, in the place of any change of its address; a creation stays where it stands. */
+function putChange(
+  placed: readonly Placed[],
+  change: DraftChange,
+): readonly Placed[] {
+  const put: Placed = { change, isPut: true };
+  const isSame = (held: Placed) =>
+    isSameAddress(held.change.address, change.address);
+  if (isCreationAddress(change.address) && placed.some(isSame)) {
+    return placed.map((held) => (isSame(held) ? put : held));
+  }
+  return [...placed.filter((held) => !isSame(held)), put];
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -141,41 +196,6 @@ export function planRevert(
   };
 }
 
-interface PutChange {
-  readonly changes: readonly DraftChange[];
-  /** Where the put change stands. */
-  readonly index: number;
-}
-
-/** `change` in the draft: last, in the place of any change of its address; a creation stays where it stands. */
-function putChange(
-  stored: readonly DraftChange[],
-  change: DraftChange,
-): PutChange {
-  const storedIndex = stored.findIndex(({ address }) =>
-    isSameAddress(address, change.address),
-  );
-  if (storedIndex >= 0 && isCreation(change.address)) {
-    return {
-      changes: stored.map((held, index) =>
-        index === storedIndex ? change : held,
-      ),
-      index: storedIndex,
-    };
-  }
-  const kept = stored.filter(
-    ({ address }) => !isSameAddress(address, change.address),
-  );
-  return { changes: [...kept, change], index: kept.length };
-}
-
-function isCreation(address: BookFieldAddress): boolean {
-  return (
-    address.kind === "hardware-tier-created" ||
-    address.kind === "accessory-created"
-  );
-}
-
 type Removal =
   | {
       readonly kind: "removes";
@@ -186,7 +206,9 @@ type Removal =
 
 /**
  * A revert names a change the draft holds. The domain's `revertChange` takes a whole created row for a field it has no
- * change of, so an address the draft does not hold is refused here: it writes nothing, and no audit row either.
+ * change of, so an address the draft does not hold is refused here: it writes nothing, and no audit row either. A field
+ * of an item the draft deletes is not taken back by naming it, since what leaves is the deletion. The audit row names
+ * what left the draft: a created row's creation, with the count of changes that went with it.
  */
 function removalOfChange(
   changes: readonly DraftChange[],
@@ -195,7 +217,30 @@ function removalOfChange(
   const isHeld = changes.some((held) => isSameAddress(held.address, address));
   if (!isHeld) return nothingToRemove("address");
   const remaining = revertChange(changes, address);
-  return { kind: "removes", remaining, entry: draftRevertedEntry(address) };
+  const kept = new Set(remaining);
+  const removed = changes.filter((held) => !kept.has(held));
+  if (!isCreationAddress(address) && removed.some(isDeletion)) {
+    return notEditable("address");
+  }
+  return {
+    kind: "removes",
+    remaining,
+    entry: revertedEntryOf(address, removed),
+  };
+}
+
+function isDeletion({ address }: DraftChange): boolean {
+  return address.kind === "item-deleted";
+}
+
+function revertedEntryOf(
+  address: RevertAddress,
+  removed: readonly DraftChange[],
+): DashboardAuditEntry {
+  const creation = removed.find(({ address: gone }) => isCreationAddress(gone));
+  return creation === undefined
+    ? draftRevertedEntry(address, 1)
+    : draftRevertedEntry(creation.address, removed.length);
 }
 
 function removalOfGroup(
@@ -215,11 +260,20 @@ function removalOfGroup(
 }
 
 function nothingToRemove(field: "address" | "groupId"): Removal {
+  return refusedRemoval(field, "UNKNOWN_ADDRESS");
+}
+
+function notEditable(field: "address"): Removal {
+  return refusedRemoval(field, "NOT_EDITABLE");
+}
+
+function refusedRemoval(
+  field: "address" | "groupId",
+  code: "UNKNOWN_ADDRESS" | "NOT_EDITABLE",
+): Removal {
   return {
     kind: "nothing-to-remove",
-    response: dashboardInvalidInputResponse([
-      { field, code: "UNKNOWN_ADDRESS" },
-    ]),
+    response: dashboardInvalidInputResponse([{ field, code }]),
   };
 }
 

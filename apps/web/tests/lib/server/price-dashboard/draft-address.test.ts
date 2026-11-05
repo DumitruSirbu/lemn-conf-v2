@@ -109,6 +109,25 @@ describe("the four structural kinds, rebuilt member by member", () => {
 });
 
 describe("the field an address names", () => {
+  it.each([
+    ["a cabinet", { kind: "cabinet", ruleId: "r" }],
+    ["a class", { kind: "hardware", tierId: "hardware.economic" }],
+    ["a material", { kind: "material", tierId: "material.veneer" }],
+    ["an accessory", { kind: "accessory", accessoryId: "plinth-light" }],
+  ])(
+    "reads a word outside the closed list of %s as an address of no kind",
+    (_name, address) => {
+      for (const field of [
+        "bogus",
+        "\u202Ename",
+        "na\u0007me",
+        "f".repeat(64),
+      ]) {
+        expect(readAny({ ...address, field })).toEqual({ kind: "unknown" });
+      }
+    },
+  );
+
   it("reads a word outside the closed list of a created row's words as an address of no kind", () => {
     for (const field of ["bogus", "\u202Ename", "na\u0007me", "f".repeat(64)]) {
       const declared = { kind: "created-row-text", item: TIER, field };

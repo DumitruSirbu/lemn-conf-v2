@@ -1,8 +1,14 @@
 import {
+  ACCESSORY_FIELDS,
   BOOK_FIELD_ADDRESS_KINDS,
+  CABINET_RULE_FIELDS,
   CREATED_ROW_TEXT_FIELDS,
+  HARDWARE_RATE_FIELDS,
+  MATERIAL_FIELDS,
   type AddressOfKind,
   type BookFieldAddressKind,
+  type CreatedRowItemRef,
+  type DeletableItemRef,
 } from "@lemnaria/configurator-domain";
 
 import {
@@ -28,13 +34,22 @@ type MemberReading =
   | { readonly ok: true; readonly value: unknown }
   | { readonly ok: false; readonly reading: "unknown" | "extra-member" };
 
+type DeletableItemKind = DeletableItemRef["kind"];
+type CreatedRowItemKind = CreatedRowItemRef["kind"];
+
 /** The item kinds a row's words or deletion may name, and the member each names its id in. */
-const ITEM_ID_MEMBER: Readonly<Record<string, string>> = {
+const ITEM_ID_MEMBER: Readonly<
+  Record<DeletableItemKind, "tierId" | "accessoryId">
+> = {
   hardware: "tierId",
   material: "tierId",
   accessory: "accessoryId",
 };
-const CREATED_ROW_ITEM_KINDS: readonly string[] = ["hardware", "accessory"];
+const DELETABLE_ITEM_KINDS = Object.keys(ITEM_ID_MEMBER) as DeletableItemKind[];
+const CREATED_ROW_ITEM_KINDS: readonly CreatedRowItemKind[] = [
+  "hardware",
+  "accessory",
+];
 
 const MEMBERS_OF_KIND: Readonly<
   Record<BookFieldAddressKind, readonly string[]>
@@ -52,13 +67,14 @@ const MEMBERS_OF_KIND: Readonly<
   "item-deleted": ["item"],
 };
 
-/**
- * The kinds whose `field` is read against a closed list. The older kinds' fields are judged by `applyChanges`, which
- * answers a word outside its list as an unknown address of the change.
- */
+/** The `field` each kind that has one may name: the closed list of its row. A word outside it is no address. */
 const FIELDS_OF_KIND: Readonly<
   Partial<Record<BookFieldAddressKind, readonly string[]>>
 > = {
+  cabinet: CABINET_RULE_FIELDS,
+  hardware: HARDWARE_RATE_FIELDS,
+  material: MATERIAL_FIELDS,
+  accessory: ACCESSORY_FIELDS,
   "created-row-text": CREATED_ROW_TEXT_FIELDS,
 };
 
@@ -66,10 +82,10 @@ const NUMBER_MEMBERS: readonly string[] = ["widthMm"];
 
 /** The item kinds the member `item` of a kind may name; the kinds without an `item` member name none. */
 const ITEM_KINDS_OF_ADDRESS: Readonly<
-  Partial<Record<BookFieldAddressKind, readonly string[]>>
+  Partial<Record<BookFieldAddressKind, readonly DeletableItemKind[]>>
 > = {
   "created-row-text": CREATED_ROW_ITEM_KINDS,
-  "item-deleted": Object.keys(ITEM_ID_MEMBER),
+  "item-deleted": DELETABLE_ITEM_KINDS,
 };
 
 export function readDraftAddress<Kind extends BookFieldAddressKind>(
@@ -100,8 +116,9 @@ function readMember(
   name: string,
   member: unknown,
 ): MemberReading {
-  if (name === "item")
+  if (name === "item") {
     return readItem(ITEM_KINDS_OF_ADDRESS[kind] ?? [], member);
+  }
   const fields = FIELDS_OF_KIND[kind];
   const isRight =
     name === "field" && fields !== undefined
@@ -114,16 +131,13 @@ function readMember(
 
 /** An item reference rebuilt from its kind and the one id member that kind names. */
 function readItem(
-  itemKinds: readonly string[],
+  itemKinds: readonly DeletableItemKind[],
   declared: unknown,
 ): MemberReading {
   if (!isPlainRecord(declared)) return { ok: false, reading: "unknown" };
-  const itemKind = declared.kind;
-  if (typeof itemKind !== "string" || !itemKinds.includes(itemKind)) {
-    return { ok: false, reading: "unknown" };
-  }
+  const itemKind = itemKinds.find((known) => known === declared.kind);
+  if (itemKind === undefined) return { ok: false, reading: "unknown" };
   const idMember = ITEM_ID_MEMBER[itemKind];
-  if (idMember === undefined) return { ok: false, reading: "unknown" };
   if (hasMemberOutside(declared, ["kind", idMember])) {
     return { ok: false, reading: "extra-member" };
   }

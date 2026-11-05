@@ -1,10 +1,9 @@
 import {
   BULK_GROUP_CHANGE_KIND,
   DISCARD_ALL_CHANGE_KIND,
+  itemIdOf,
   type BookFieldAddress,
   type BulkChangeScope,
-  type CreatedRowItemRef,
-  type DeletableItemRef,
   type DashboardAuditEntry,
   type DraftChangeTarget,
   type PriceCatalogueSection,
@@ -30,15 +29,17 @@ export function draftChangedEntry(
   };
 }
 
+/** `revertedCount` is the changes that left the draft: more than one only for a created row's creation. */
 export function draftRevertedEntry(
   address: BookFieldAddress,
+  revertedCount: number,
 ): DashboardAuditEntry {
   return {
     action: "price-draft-reverted",
     detail: {
       changeKind: address.kind,
       ...targetOf(address),
-      revertedCount: 1,
+      revertedCount,
     },
   };
 }
@@ -158,8 +159,4 @@ function targetOf(address: BookFieldAddress): DraftChangeTarget {
     case "provisional":
       return {};
   }
-}
-
-function itemIdOf(item: CreatedRowItemRef | DeletableItemRef): string {
-  return item.kind === "accessory" ? item.accessoryId : item.tierId;
 }

@@ -10,6 +10,7 @@ import {
 import type { ActiveDashboardState } from "@/lib/server/price-dashboard/dashboard-state";
 import {
   planChange,
+  planChanges,
   planRevert,
   type DraftPlan,
 } from "@/lib/server/price-dashboard/draft-plans";
@@ -227,6 +228,129 @@ describe("the audit rows of the structural writes", () => {
   });
 });
 
+describe("a revert of a field of an item the draft deletes", () => {
+  const DELETION: DraftChange = {
+    address: { kind: "item-deleted", item: TIER },
+    value: true,
+  };
+  const HINGE: DraftChange = {
+    address: { kind: "hardware", tierId: TIER_ID, field: "perHingeMinor" },
+    value: 123,
+  };
+  const request = (change: DraftChange) =>
+    ({
+      expectedDraftRevision: "1",
+      target: { kind: "change", address: addressOf(change) },
+    }) as const;
+
+  it.each([
+    ["a rate", HINGE],
+    ["the words", RENAME],
+    ["the deletion itself", DELETION],
+  ])(
+    "refuses the revert of %s as not editable and plans no write",
+    async (_name, target) => {
+      const plan = planRevert(
+        request(target),
+        stateWith([HINGE, RENAME, DELETION]),
+      );
+
+      expect(await refusalOf(plan)).toEqual({
+        status: 400,
+        body: {
+          status: "invalid-input",
+          issues: [{ field: "address", code: "NOT_EDITABLE" }],
+        },
+      });
+    },
+  );
+
+  it("still takes the creation of a row the draft created and then deleted, with all that names it", () => {
+    const stored = [...CREATED_CLASS, DELETION];
+
+    const plan = planRevert(request(TIER_CREATION), stateWith(stored));
+
+    expect(written(plan).changes).toEqual([]);
+  });
+});
+
+describe("several changes put in one write", () => {
+  it("judges a creation with its rates together, so the class is not refused for rates it is about to have", () => {
+    const plan = planChanges(
+      [requestOf(TIER_CREATION), ...RATES.map(requestOf)],
+      stateWith([CABINET_PRICE]),
+    );
+
+    expect(written(plan).changes).toEqual([CABINET_PRICE, ...CREATED_CLASS]);
+    expect(written(plan).entry).toMatchObject({
+      action: "price-draft-changed",
+      detail: { changeKind: "hardware-tier-created", itemId: TIER_ID },
+    });
+  });
+
+  it("refuses the creation put without its rates, with the rates' code", async () => {
+    const plan = planChanges([requestOf(TIER_CREATION)], stateWith([]));
+
+    expect(await refusalOf(plan)).toEqual(
+      issueOf("CREATED_TIER_RATES_MISSING"),
+    );
+  });
+
+  it("blames the person for a refused change of the write, not for one it did not make", async () => {
+    const plan = planChanges(
+      [
+        requestOf(TIER_CREATION),
+        ...RATES.map(requestOf),
+        requestOf(RENAME),
+        {
+          address: NAME_ADDRESS,
+          value: "GTV 500 lei",
+        },
+      ],
+      stateWith([]),
+    );
+
+    expect(await refusalOf(plan)).toEqual(issueOf("TEXT_STATES_AN_AMOUNT"));
+  });
+});
+
+describe("a creation put again, and a draft that already held a refused change behind it", () => {
+  const STALE: DraftChange = {
+    address: {
+      kind: "hardware",
+      tierId: "hardware.nowhere",
+      field: "perHingeMinor",
+    },
+    value: 1_000,
+  };
+
+  it("is not refused for the stale change behind it", () => {
+    const stored = [...CREATED_CLASS, STALE];
+    const revised = {
+      ...TIER_CREATION,
+      value: { name: "GTV Plus", description: "" },
+    };
+
+    const plan = planChange(requestOf(revised), stateWith(stored));
+
+    expect(written(plan).changes).toEqual([revised, ...RATES, STALE]);
+  });
+
+  it("is still refused for a fault of its own", async () => {
+    const revised = {
+      ...TIER_CREATION,
+      value: { name: "GTV 500 lei", description: "" },
+    };
+
+    const plan = planChange(
+      requestOf(revised),
+      stateWith([...CREATED_CLASS, STALE]),
+    );
+
+    expect(await refusalOf(plan)).toEqual(issueOf("TEXT_STATES_AN_AMOUNT"));
+  });
+});
+
 describe("a creation put again", () => {
   const REVISED: DraftChange = {
     address: TIER_CREATION.address,
@@ -312,8 +436,39 @@ describe("a revert of a created row", () => {
         changeKind: "hardware-tier-created",
         itemKind: "hardware",
         itemId: TIER_ID,
-        revertedCount: 1,
+        revertedCount: CREATED_CLASS.length,
       },
+    });
+  });
+
+  it("audits a held rate of a created class as the creation that left, with every change that went", () => {
+    const stored = [CABINET_PRICE, ...CREATED_CLASS, RENAME];
+
+    const [firstRate] = RATES;
+    if (firstRate === undefined) throw new Error("the book states no rate");
+
+    const plan = written(revertOf(addressOf(firstRate), stored));
+
+    expect(plan.changes).toEqual([CABINET_PRICE]);
+    expect(plan.entry).toEqual({
+      action: "price-draft-reverted",
+      detail: {
+        changeKind: "hardware-tier-created",
+        itemKind: "hardware",
+        itemId: TIER_ID,
+        revertedCount: CREATED_CLASS.length + 1,
+      },
+    });
+    expect(
+      readDashboardAuditEntry(plan.entry.action, plan.entry.detail).ok,
+    ).toBe(true);
+  });
+
+  it("audits a price or words alone as the one change that left", () => {
+    const plan = written(revertOf(NAME_ADDRESS, [...CREATED_CLASS, RENAME]));
+
+    expect(plan.entry).toMatchObject({
+      detail: { changeKind: "created-row-text", revertedCount: 1 },
     });
   });
 

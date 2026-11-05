@@ -2,6 +2,7 @@ import {
   applyChanges,
   changedRowOf,
   changedRowsOf,
+  isCreationAddress,
   isStructuralAddress,
   type DraftChange,
   type ItemRef,
@@ -13,8 +14,7 @@ import { subjectOfAddress } from "./publish-refusals";
 
 // A draft that no longer makes a book is listed change by change, so a valid change beside a refused one is not lost to
 // giving the whole draft up. A bulk action is one line, since its changes stand or go together, and so is a row the
-// draft creates or deletes, with its rates, price and words: the revert route takes such a row away whole, so it is not
-// offered on one of its fields.
+// draft creates or deletes, with its rates, price and words: a row goes whole, so ↺ is not offered on one of its fields.
 
 export interface StaleChangeView {
   readonly key: string;
@@ -22,8 +22,7 @@ export interface StaleChangeView {
   /** The change cannot be applied: it is the one to take back. */
   readonly isRefused: boolean;
   /**
-   * What ↺ removes. Absent for a created or deleted row, which only the whole draft gives up: the revert route does not
-   * take them.
+   * What ↺ removes. Absent for a created or deleted row, which this view does not offer to take back on its own.
    */
   readonly revert: DraftRevertTargetWire | undefined;
 }
@@ -96,11 +95,8 @@ function revertOf(
 
 /** A row the draft creates is in no book yet, so it is named by the words its creation carries. */
 function createdRowSubjectOf(change: DraftChange): RowSubject | undefined {
-  const { kind } = change.address;
-  const isCreation =
-    kind === "hardware-tier-created" || kind === "accessory-created";
   const { name } = change.value as { readonly name?: unknown };
-  return isCreation && typeof name === "string"
+  return isCreationAddress(change.address) && typeof name === "string"
     ? { kind: "book-text", authored: name, key: undefined }
     : undefined;
 }

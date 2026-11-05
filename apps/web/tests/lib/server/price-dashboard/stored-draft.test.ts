@@ -146,6 +146,19 @@ describe("the values of the structural kinds", () => {
   });
 });
 
+describe("a field planted in a stored draft", () => {
+  it.each([
+    { kind: "hardware", tierId: "hardware.economic", field: "bogus" },
+    { kind: "accessory", accessoryId: "plinth-light", field: "bogus" },
+    { kind: "created-row-text", item: TIER, field: "bogus" },
+  ])(
+    "makes the draft unreadable, never a draft that fails later: %j",
+    (address) => {
+      expect(readStoredDraft([{ address, value: 1 }])).toEqual({ ok: false });
+    },
+  );
+});
+
 describe("what a stored draft read before still is", () => {
   it("reads a price and a flag", () => {
     const stored = [

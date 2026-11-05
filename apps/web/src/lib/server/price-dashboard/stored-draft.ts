@@ -68,7 +68,13 @@ function readStoredValue(
       return typeof value === "string" ? { ok: true, value } : UNREADABLE_VALUE;
     case "item-deleted":
       return value === true ? { ok: true, value } : UNREADABLE_VALUE;
-    default:
+    case "cabinet":
+    case "cabinet-size":
+    case "hardware":
+    case "material":
+    case "depth-rule":
+    case "accessory":
+    case "provisional":
       return isNumberOrFlag(value) ? { ok: true, value } : UNREADABLE_VALUE;
   }
 }
