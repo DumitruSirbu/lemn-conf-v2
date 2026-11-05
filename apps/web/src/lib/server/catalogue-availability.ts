@@ -7,24 +7,17 @@ import {
   HandleSchema,
   isItemDisabled,
   isItemStated,
+  itemIdOf,
   judgeAvailabilityChange,
-  readStoredNewKitchenSettings,
   type AvailabilityRefusalCode,
-  type CatalogueAvailability,
   type CatalogueActivationAuditInput,
+  type CatalogueAvailability,
   type ItemRef,
   type NewKitchenSettings,
   type PriceBook,
 } from "@lemnaria/configurator-domain";
-import { DashboardStoreError, NONE_SAVED } from "@lemnaria/persistence";
 
-import { reportAccountEvent } from "@/lib/server/account/account-log";
-import {
-  ACCOUNT_RESPONSE_HEADERS,
-  answerOfJudgement,
-  invalidRequestResponse,
-  unauthenticatedResponse,
-} from "@/lib/server/account/account-responses";
+import { ACCOUNT_RESPONSE_HEADERS } from "@/lib/server/account/account-responses";
 import type { SessionCookieReader } from "@/lib/server/account/session-cookie";
 import { readBookOf } from "@/lib/server/active-price-book";
 import { dashboardConflictResponse } from "@/lib/server/price-dashboard/dashboard-responses";
@@ -43,62 +36,54 @@ import {
   isIdentifier,
   isPlainRecord,
 } from "@/lib/server/price-dashboard/identifier-shape";
-import { isRevisionShape } from "@/lib/server/price-dashboard/revision-shape";
 import {
   PRICE_DRAFT_EVENT,
+  changedMeanwhile,
+  refused,
+  runStaffWrite,
+  succeeded,
   type DashboardWriteRequest,
+  type StaffWrite,
 } from "@/lib/server/price-dashboard/price-dashboard-service";
+import { isRevisionShape } from "@/lib/server/price-dashboard/revision-shape";
+import { readSavedDefaults } from "@/lib/server/price-dashboard/saved-defaults";
 import { getPriceStores, type PriceStores } from "@/lib/server/price-stores";
-import { judgeAccountSubject } from "@/lib/server/rate-limit/judge-account-request";
 import { actingSessionOf } from "@/lib/server/staff/staff-acting-session";
-import { admitStaff } from "@/lib/server/staff/staff-admission";
 import type {
   AvailabilitySetWire,
   DashboardItemIsDefaultWire,
 } from "@/price-dashboard/price-dashboard-wire-contract";
-
-// An item switched on or off by an administrator, immediately and outside the draft (A-17). The order of checks is the
-// draft writes': the route has checked the origin, the media type and the body's size; from there the session and
-// `price.edit`, the body's members, the account's bucket (the draft's own, shared, and failing closed), and only then the
-// stores. The availability head is read first and the saved defaults second, so a defaults save landing between the two is
-// judged against its new defaults, and one landing after both fails the write's compare-and-set on the head. The write
-// and its audit row commit in one transaction or not at all. A request that asks for the state an item is already in
-// writes nothing and is answered with the head as it is, whatever revision it names. Anything thrown that is not mapped here is a `503` that
-// carries no cause, from the route's `answerUnavailableOnFailure`.
-
-/** What a saved row of defaults is when none was ever saved: a new kitchen then starts from the fixed fallbacks. */
-const NO_SAVED_DEFAULTS: NewKitchenSettings = Object.freeze({});
-
-/** The saved defaults are stored as `unknown`, and a row that is not settings is a defect of the store, never "none". */
-export class SavedDefaultsUnreadableError extends Error {
-  constructor() {
-    super("The saved kitchen defaults are not settings a new kitchen takes.");
-    this.name = "SavedDefaultsUnreadableError";
-  }
-}
-
-/**
- * The defaults the dashboard has saved, parsed. `{}` when none were saved. A saved row that does not parse is thrown,
- * so every route that reads it answers `503` and none judges against `{}` (which would release the saved default).
- */
-export async function readSavedDefaults(
-  stores: Pick<PriceStores, "defaults">,
-): Promise<NewKitchenSettings> {
-  const read = await stores.defaults.read();
-  if (read.kind === NONE_SAVED.kind) return NO_SAVED_DEFAULTS;
-  const reading = readStoredNewKitchenSettings(read.saved.defaults);
-  if (!reading.ok) throw new SavedDefaultsUnreadableError();
-  return reading.defaults;
-}
-
-// ---------------------------------------------------------------------------------------------------------------------
-// The request
 
 interface AvailabilityRequest {
   readonly expectedRevision: string;
   readonly item: ItemRef;
   readonly active: boolean;
 }
+
+const AVAILABILITY_WRITE: StaffWrite<AvailabilityRequest> = {
+  judge: readAvailabilityRequest,
+  perform: performSetActive,
+};
+
+/**
+ * Switches one item on or off for every customer's next evaluation, against the availability revision the page read
+ * (ADR 0178, A-17). It is outside the draft and needs no publish.
+ *
+ * The pipeline is the draft writes': the session and `price.edit`, the body's members, the draft's own account bucket
+ * (shared, and failing closed), and only then the stores. The availability head is read first, then the book, and the
+ * saved defaults last, so a defaults save landing before the last read is judged against its new defaults, and one
+ * landing after it fails the write's compare-and-set on the head. The write and its audit row commit in one transaction
+ * or not at all. A request for the state an item is already in writes nothing and is answered with the head as it is,
+ * whatever revision it names.
+ */
+export function setItemActiveAsStaff(
+  request: DashboardWriteRequest,
+): Promise<NextResponse> {
+  return runStaffWrite(AVAILABILITY_WRITE, request);
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// The request
 
 /** The one member that names an item's id, for each kind of item the catalogue can switch off. */
 const ID_MEMBER_OF_KIND = {
@@ -151,35 +136,6 @@ function readItem(declared: unknown): ItemRef | undefined {
 // ---------------------------------------------------------------------------------------------------------------------
 // The write
 
-/** Switches one item on or off for every customer's next evaluation, against the availability revision the page read. */
-export async function setItemActiveAsStaff({
-  cookies,
-  headers,
-  bodyText,
-}: DashboardWriteRequest): Promise<NextResponse> {
-  const admission = await admitStaff({
-    cookies,
-    event: PRICE_DRAFT_EVENT,
-    capability: "price.edit",
-  });
-  if (admission.kind === "refused") return admission.response;
-  const reading = readAvailabilityRequest(bodyText);
-  if (!reading.ok) return refused(invalidRequestResponse());
-  const limited = answerOfJudgement(
-    await judgeAccountSubject({
-      purpose: "staff-price-draft",
-      headers,
-      accountId: admission.session.accountId,
-    }),
-  );
-  if (limited !== undefined) return limited;
-  try {
-    return await performSetActive(reading.value, cookies);
-  } catch (failure) {
-    return answerOfStoreFailure(failure);
-  }
-}
-
 async function performSetActive(
   request: AvailabilityRequest,
   cookies: SessionCookieReader,
@@ -188,23 +144,43 @@ async function performSetActive(
   const availability = await readDashboardAvailability(stores);
   const book = await readActiveBook(stores);
   if (book === undefined) {
-    return refused(dashboardConflictResponse("no-active-version"));
+    return refused(
+      PRICE_DRAFT_EVENT,
+      dashboardConflictResponse("no-active-version"),
+    );
   }
-  if (isAlreadyAsRequested(request, { availability, book })) {
-    return succeeded(setResponse({ revision: availability.revision }));
+  if (
+    isAlreadyAsRequested(request, { availability, book }) &&
+    (await isHeadStill(stores, availability))
+  ) {
+    return succeeded(
+      PRICE_DRAFT_EVENT,
+      setResponse({ revision: availability.revision }),
+    );
   }
   if (availability.revision !== request.expectedRevision) {
     return changedMeanwhile();
   }
-  const defaults = await readSavedDefaults(stores);
+  const defaults = await defaultsToJudge(stores, request);
   const verdict = judgeAvailabilityChange(request, {
     book,
     availability,
     defaults,
   });
   if (verdict.kind === "refused") {
-    return refused(refusalResponse(verdict.code, request.item));
+    return refused(
+      PRICE_DRAFT_EVENT,
+      refusalResponse(verdict.code, request.item),
+    );
   }
+  return writeActivation(stores, request, cookies);
+}
+
+async function writeActivation(
+  stores: PriceStores,
+  request: AvailabilityRequest,
+  cookies: SessionCookieReader,
+): Promise<NextResponse> {
   const result = await stores.availability.setActive({
     item: request.item,
     active: request.active,
@@ -215,13 +191,15 @@ async function performSetActive(
     },
   });
   if (result.kind === "changed-meanwhile") return changedMeanwhile();
-  return succeeded(setResponse({ revision: result.revision }));
+  return succeeded(
+    PRICE_DRAFT_EVENT,
+    setResponse({ revision: result.revision }),
+  );
 }
 
 /**
- * Whether the head already holds the item in the state asked for, so that nothing would change. Such a request writes
- * nothing and moves nothing, which is why it is answered whatever revision it names. An item the book does not state is
- * never "as requested": it goes on to be refused.
+ * Whether the head already holds the item in the state asked for, so that nothing would change. An item the book does not
+ * state is never "as requested": it goes on to be refused.
  */
 function isAlreadyAsRequested(
   { item, active }: AvailabilityRequest,
@@ -233,6 +211,27 @@ function isAlreadyAsRequested(
   return (
     isItemStated(item, book) && isItemDisabled(availability, item) === !active
   );
+}
+
+/**
+ * Whether the head is still the one read. A version published between the head's read and the book's creates its items
+ * switched off, so a head read before it would show them on.
+ */
+async function isHeadStill(
+  stores: PriceStores,
+  read: CatalogueAvailability,
+): Promise<boolean> {
+  const now = await readDashboardAvailability(stores);
+  return now.revision === read.revision;
+}
+
+/** A switch-on is judged by the book alone, so a saved row that cannot be read does not stop an item coming back on. */
+async function defaultsToJudge(
+  stores: PriceStores,
+  { active }: AvailabilityRequest,
+): Promise<NewKitchenSettings> {
+  if (active) return {};
+  return (await readSavedDefaults(stores)).defaults;
 }
 
 /** The active version's book, or `undefined` before any version was published. A stored book that is not one is thrown. */
@@ -253,28 +252,14 @@ function activationEntry({
 }: AvailabilityRequest): CatalogueActivationAuditInput {
   return {
     action: CATALOGUE_ACTIVATION_AUDIT_ACTION,
-    detail: { itemKind: item.kind, itemId: idOf(item), active },
+    detail: { itemKind: item.kind, itemId: itemIdOf(item), active },
   };
-}
-
-function idOf(item: ItemRef): string {
-  switch (item.kind) {
-    case "material":
-    case "hardware":
-      return item.tierId;
-    case "finish":
-      return item.finishId;
-    case "handle":
-      return item.handle;
-    case "accessory":
-      return item.accessoryId;
-  }
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
 // The answers
 
-/** `409` in the domain's own word. The D9 default is named, as the wire says (M5). */
+/** `409` in the domain's own word. The saved default is named, as the wire says. */
 function refusalResponse(
   code: AvailabilityRefusalCode,
   item: ItemRef,
@@ -287,35 +272,10 @@ function refusalResponse(
   });
 }
 
-/** `200`: the revision the change created. */
+/** `200`: the revision the change created, or the head as it is for a change that was none. */
 function setResponse(wire: AvailabilitySetWire): NextResponse {
   return NextResponse.json(
     { revision: wire.revision },
     { status: 200, headers: ACCOUNT_RESPONSE_HEADERS },
   );
-}
-
-function changedMeanwhile(): NextResponse {
-  return refused(dashboardConflictResponse("changed-meanwhile"));
-}
-
-/** No live session behind the write is `401`, as for the other staff writes; every other failure is thrown on. */
-function answerOfStoreFailure(failure: unknown): NextResponse {
-  if (
-    failure instanceof DashboardStoreError &&
-    failure.failure === "not-recorded"
-  ) {
-    return refused(unauthenticatedResponse());
-  }
-  throw failure;
-}
-
-function refused(response: NextResponse): NextResponse {
-  reportAccountEvent({ event: PRICE_DRAFT_EVENT, outcome: "refused" });
-  return response;
-}
-
-function succeeded(response: NextResponse): NextResponse {
-  reportAccountEvent({ event: PRICE_DRAFT_EVENT, outcome: "succeeded" });
-  return response;
 }

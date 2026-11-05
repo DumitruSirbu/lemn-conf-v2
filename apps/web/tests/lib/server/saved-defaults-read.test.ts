@@ -1,13 +1,16 @@
-import { NONE_SAVED, type KitchenDefaultsStore } from "@lemnaria/persistence";
+import {
+  INITIAL_REVISION,
+  NONE_SAVED,
+  type KitchenDefaultsStore,
+} from "@lemnaria/persistence";
 import { describe, expect, it } from "vitest";
 
-import {
-  SavedDefaultsUnreadableError,
-  readSavedDefaults,
-} from "@/lib/server/catalogue-availability";
+import { DashboardStateUnreadableError } from "@/lib/server/price-dashboard/dashboard-state";
+import { readSavedDefaults } from "@/lib/server/price-dashboard/saved-defaults";
 
-// The defaults the dashboard has saved, as a judgement reads them: `{}` when none were saved, the parsed settings when a
-// row is, and a thrown defect when a row is not settings. A row that does not parse is never `{}`.
+// The defaults the dashboard has saved, as a judgement reads them, with the revision a save is made against: `{}` at the
+// first revision when none were saved, the parsed settings at the row's revision when one is, and a thrown defect when a
+// row is not settings. A row that does not parse is never `{}`.
 
 function storeHolding(stored: unknown): { defaults: KitchenDefaultsStore } {
   return {
@@ -31,11 +34,17 @@ describe("reading the saved defaults", () => {
       },
     };
 
-    expect(await readSavedDefaults(stores)).toEqual({});
+    expect(await readSavedDefaults(stores)).toEqual({
+      revision: INITIAL_REVISION,
+      defaults: {},
+    });
   });
 
   it("is {} for a saved row that holds {}", async () => {
-    expect(await readSavedDefaults(storeHolding({}))).toEqual({});
+    expect(await readSavedDefaults(storeHolding({}))).toEqual({
+      revision: "1",
+      defaults: {},
+    });
   });
 
   it("is the settings a saved row holds", async () => {
@@ -45,7 +54,10 @@ describe("reading the saved defaults", () => {
       handle: "black",
     };
 
-    expect(await readSavedDefaults(storeHolding(stored))).toEqual(stored);
+    expect(await readSavedDefaults(storeHolding(stored))).toEqual({
+      revision: "1",
+      defaults: stored,
+    });
   });
 
   it.each([
@@ -59,7 +71,7 @@ describe("reading the saved defaults", () => {
     async (_description, stored) => {
       await expect(
         readSavedDefaults(storeHolding(stored)),
-      ).rejects.toBeInstanceOf(SavedDefaultsUnreadableError);
+      ).rejects.toBeInstanceOf(DashboardStateUnreadableError);
     },
   );
 

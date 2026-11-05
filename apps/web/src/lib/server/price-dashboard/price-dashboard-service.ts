@@ -302,13 +302,17 @@ function stateWireOf(
 // ---------------------------------------------------------------------------------------------------------------------
 // The writes
 
-interface DraftWrite<Input extends { readonly expectedDraftRevision: string }> {
+/** What a staff write is made of: its body judged into an input, and what is done with an input once admitted. */
+export interface StaffWrite<Input> {
   readonly judge: (bodyText: string) => RequestReading<Input, string>;
   readonly perform: (
     input: Input,
     cookies: SessionCookieReader,
   ) => Promise<NextResponse>;
 }
+
+type DraftWrite<Input extends { readonly expectedDraftRevision: string }> =
+  StaffWrite<Input>;
 
 type PlanOf<Input> = (input: Input, state: ActiveDashboardState) => DraftPlan;
 
@@ -342,7 +346,7 @@ const PUBLISH_WRITE: DraftWrite<PublishRequest> = {
 export function changeDraftAsStaff(
   request: DashboardWriteRequest,
 ): Promise<NextResponse> {
-  return runDraftWrite(CHANGE_WRITE, request);
+  return runStaffWrite(CHANGE_WRITE, request);
 }
 
 /**
@@ -352,14 +356,14 @@ export function changeDraftAsStaff(
 export function revertDraftAsStaff(
   request: DashboardWriteRequest,
 ): Promise<NextResponse> {
-  return runDraftWrite(REVERT_WRITE, request);
+  return runStaffWrite(REVERT_WRITE, request);
 }
 
 /** Scales cabinet prices by a whole percentage over a scope, as one group of changes. */
 export function bulkChangeDraftAsStaff(
   request: DashboardWriteRequest,
 ): Promise<NextResponse> {
-  return runDraftWrite(BULK_WRITE, request);
+  return runStaffWrite(BULK_WRITE, request);
 }
 
 export interface RestoreWriteRequest extends DashboardWriteRequest {
@@ -375,7 +379,7 @@ export interface RestoreWriteRequest extends DashboardWriteRequest {
 export function publishAsStaff(
   request: DashboardWriteRequest,
 ): Promise<NextResponse> {
-  return runDraftWrite(PUBLISH_WRITE, request);
+  return runStaffWrite(PUBLISH_WRITE, request);
 }
 
 /** Puts an archived version's prices in the draft, replacing the pending ones of the same fields. It publishes nothing. */
@@ -383,7 +387,7 @@ export function restoreAsStaff({
   versionId,
   ...request
 }: RestoreWriteRequest): Promise<NextResponse> {
-  return runDraftWrite(
+  return runStaffWrite(
     {
       judge: (bodyText) => readRestoreRequest(versionId, bodyText),
       perform: performRestore,
@@ -392,10 +396,13 @@ export function restoreAsStaff({
   );
 }
 
-async function runDraftWrite<
-  Input extends { readonly expectedDraftRevision: string },
->(
-  write: DraftWrite<Input>,
+/**
+ * Every staff write's pipeline, in the order the header gives: the session and `price.edit`, the body's members, the
+ * account's bucket (which fails closed), and only then the write itself. A store that finds no live session behind the
+ * write is `401`; any other failure is thrown on to the route's wrapper.
+ */
+export async function runStaffWrite<Input>(
+  write: StaffWrite<Input>,
   request: DashboardWriteRequest,
 ): Promise<NextResponse> {
   const { cookies, headers, bodyText } = request;
@@ -474,7 +481,7 @@ function refusalOfStaleRevision(
     : changedMeanwhile();
 }
 
-function changedMeanwhile(): NextResponse {
+export function changedMeanwhile(): NextResponse {
   return refused(
     PRICE_DRAFT_EVENT,
     dashboardConflictResponse("changed-meanwhile"),
@@ -653,12 +660,18 @@ function answerOfStoreFailure(failure: unknown): NextResponse {
   throw failure;
 }
 
-function refused(event: AccountEvent, response: NextResponse): NextResponse {
+export function refused(
+  event: AccountEvent,
+  response: NextResponse,
+): NextResponse {
   reportAccountEvent({ event, outcome: "refused" });
   return response;
 }
 
-function succeeded(event: AccountEvent, response: NextResponse): NextResponse {
+export function succeeded(
+  event: AccountEvent,
+  response: NextResponse,
+): NextResponse {
   reportAccountEvent({ event, outcome: "succeeded" });
   return response;
 }

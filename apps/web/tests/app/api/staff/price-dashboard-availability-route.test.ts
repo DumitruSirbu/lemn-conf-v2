@@ -5,6 +5,7 @@ import {
   judgeAvailabilityChange,
   type ItemRef,
   type NewKitchenSettings,
+  type PriceBook,
 } from "@lemnaria/configurator-domain";
 
 import {
@@ -22,6 +23,15 @@ import {
   limiterLedger,
   type AccountWorld,
 } from "../../../support/account-world";
+import {
+  activationRows,
+  administrator,
+  availabilityHead,
+  disabledNow,
+  publishNextVersion,
+  saveDefaults,
+  switchItem,
+} from "../../../support/availability-route-world";
 import {
   currentDraftRevision,
   setAvailability,
@@ -89,84 +99,14 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-async function administrator(email = "administrator@example.test") {
-  const { session, account } = await signedInAs(
-    { role: "administrator" },
-    email,
-  );
-  return {
-    cookie: session.cookie,
-    accountId: account.id,
-    tokenHash: session.tokenHash,
-  };
-}
-
-async function head(): Promise<string> {
-  return (await prices.stores.availability.readCurrent()).revision;
-}
-
-async function disabledNow(): Promise<readonly ItemRef[]> {
-  return (await prices.stores.availability.readCurrent()).disabled;
-}
-
-function activationRows() {
-  return prices.ledger
-    .heldEvents()
-    .filter(({ action }) => action === "catalogue-item-active-changed");
-}
-
 function rowsOtherThanTheSeed() {
   return prices.ledger
     .heldEvents()
     .filter(({ action }) => action !== "price-published");
 }
 
-async function switchItem(
-  cookie: string,
-  item: unknown,
-  active: boolean,
-  expectedRevision?: string,
-) {
-  return setAvailability({
-    cookie,
-    json: {
-      expectedRevision: expectedRevision ?? (await head()),
-      item,
-      active,
-    },
-  });
-}
-
-/** Saves defaults through the fake store as a staff member would, so the head and the defaults revision both move. */
-async function saveDefaults(
-  { tokenHash }: { readonly tokenHash: string },
-  defaults: NewKitchenSettings,
-): Promise<void> {
-  const saved = await prices.defaults.save({
-    expectedRevision: await defaultsRevision(),
-    expectedAvailabilityRevision: await head(),
-    defaults,
-    audit: {
-      session: {
-        sessionTokenHash: tokenHash,
-        idleLifetimeSeconds: { client: 60, operator: 60, administrator: 60 },
-      },
-      entry: {
-        action: "kitchen-defaults-saved",
-        detail: { changedFields: ["material"] },
-      },
-    },
-  });
-  if (saved.kind !== "ok") throw new Error("the test's defaults save refused");
-}
-
-async function defaultsRevision(): Promise<string> {
-  const read = await prices.defaults.read();
-  return read.kind === "saved" ? read.saved.revision : "0";
-}
-
 async function nothingWasWritten(headBefore: string): Promise<void> {
-  expect(await head()).toBe(headBefore);
+  expect(await availabilityHead()).toBe(headBefore);
   expect(await disabledNow()).toEqual([]);
   expect(rowsOtherThanTheSeed()).toEqual([]);
 }
@@ -174,13 +114,13 @@ async function nothingWasWritten(headBefore: string): Promise<void> {
 describe("a switch that is accepted", () => {
   it("is visible at once, answers the revision it created, and writes one audit row naming the item and no value", async () => {
     const { cookie, accountId } = await administrator();
-    const before = await head();
+    const before = await availabilityHead();
 
     const answer = await switchItem(cookie, PAINTED, false);
 
     expect(answer.status).toBe(200);
     expect(answer.headers.get("cache-control")).toBe("private, no-store");
-    const after = await head();
+    const after = await availabilityHead();
     expect(after).not.toBe(before);
     expect(await jsonOf(answer)).toEqual({ revision: after });
     expect(await disabledNow()).toEqual([PAINTED]);
@@ -267,7 +207,7 @@ describe("a switch that is refused with the domain's word", () => {
     await expectRefused(
       MELAMINE,
       { status: "item-is-fixed-default" },
-      await head(),
+      await availabilityHead(),
     );
   });
 
@@ -275,13 +215,13 @@ describe("a switch that is refused with the domain's word", () => {
     await expectRefused(
       SINK_COVER,
       { status: "item-always-present" },
-      await head(),
+      await availabilityHead(),
     );
   });
 
   it("refuses an item the active book does not state as item-not-in-active-book, switching on as well as off", async () => {
     const { cookie } = await administrator();
-    const headBefore = await head();
+    const headBefore = await availabilityHead();
 
     const off = await switchItem(cookie, NOT_IN_THE_BOOK, false);
     const on = await switchItem(cookie, NOT_IN_THE_BOOK, true);
@@ -296,19 +236,19 @@ describe("a switch that is refused with the domain's word", () => {
     const { cookie } = await administrator();
     await switchItem(cookie, PAINTED, false);
     await switchItem(cookie, VENEER, false);
-    const headBefore = await head();
+    const headBefore = await availabilityHead();
 
     const answer = await switchItem(cookie, MELAMINE, false);
 
     expect(answer.status).toBe(409);
     expect(await jsonOf(answer)).toEqual({ status: "last-active-option" });
-    expect(await head()).toBe(headBefore);
+    expect(await availabilityHead()).toBe(headBefore);
   });
 
   it("refuses the saved default as item-is-default, naming the item", async () => {
     const admin = await administrator();
     await saveDefaults(admin, { materialTierId: VENEER.tierId });
-    const headBefore = await head();
+    const headBefore = await availabilityHead();
 
     const answer = await switchItem(admin.cookie, VENEER, false);
 
@@ -317,7 +257,7 @@ describe("a switch that is refused with the domain's word", () => {
       status: "item-is-default",
       item: VENEER,
     });
-    expect(await head()).toBe(headBefore);
+    expect(await availabilityHead()).toBe(headBefore);
     expect(activationRows()).toEqual([]);
   });
 
@@ -404,9 +344,9 @@ describe("the route's answer is the domain's verdict", () => {
 describe("a switch that changes nothing", () => {
   it("is 200 with the current head, writes nothing and moves nothing, whatever revision it names", async () => {
     const { cookie } = await administrator();
-    const stale = await head();
+    const stale = await availabilityHead();
     await switchItem(cookie, SOFT_CLOSE, false);
-    const current = await head();
+    const current = await availabilityHead();
     const rowsBefore = activationRows().length;
     const write = vi.spyOn(prices.stores.availability, "setActive");
 
@@ -418,7 +358,7 @@ describe("a switch that changes nothing", () => {
     expect(await jsonOf(alreadyOn)).toEqual({ revision: current });
     expect(await jsonOf(alreadyOff)).toEqual({ revision: current });
     expect(write).not.toHaveBeenCalled();
-    expect(await head()).toBe(current);
+    expect(await availabilityHead()).toBe(current);
     expect(await disabledNow()).toEqual([SOFT_CLOSE]);
     expect(activationRows()).toHaveLength(rowsBefore);
   });
@@ -436,7 +376,7 @@ describe("a switch that changes nothing", () => {
 
   it("is not taken for one when the book does not state the item: a stale revision is then changed-meanwhile", async () => {
     const { cookie } = await administrator();
-    const stale = await head();
+    const stale = await availabilityHead();
     await switchItem(cookie, PAINTED, false);
 
     const answer = await switchItem(cookie, NOT_IN_THE_BOOK, true, stale);
@@ -446,12 +386,82 @@ describe("a switch that changes nothing", () => {
   });
 });
 
+describe("a switch on that needs no saved defaults", () => {
+  it("goes through though the saved defaults cannot be read, since a switch-on is judged by the book alone", async () => {
+    const admin = await administrator();
+    await switchItem(admin.cookie, PAINTED, false);
+    const readDefaults = vi.spyOn(prices.defaults, "read").mockResolvedValue({
+      kind: "saved",
+      saved: {
+        revision: "1",
+        defaults: { handle: "gold" },
+        savedAt: new Date(0),
+      },
+    });
+
+    const answer = await switchItem(admin.cookie, PAINTED, true);
+
+    expect(answer.status).toBe(200);
+    expect(readDefaults).not.toHaveBeenCalled();
+    expect(await disabledNow()).toEqual([]);
+  });
+});
+
+describe("a switch on of an item a publish creates while the route reads", () => {
+  const CREATED: ItemRef = { kind: "hardware", tierId: "hardware.created" };
+  const [firstTier] = ANCHORED_BOOK.hardware.tiers;
+
+  it("is not answered as a switch that changes nothing: the item is off from the publish, and the head has moved", async () => {
+    const admin = await administrator();
+    const pageRead = await availabilityHead();
+    const withCreated = {
+      ...ANCHORED_BOOK,
+      hardware: {
+        ...ANCHORED_BOOK.hardware,
+        tiers: [
+          ...ANCHORED_BOOK.hardware.tiers,
+          {
+            ...firstTier,
+            tierId: CREATED.tierId,
+            ruleId: CREATED.tierId,
+            name: "A class made in a draft",
+          },
+        ],
+      },
+    } as PriceBook;
+    const realReadActive = prices.stores.priceBook.readActive.bind(
+      prices.stores.priceBook,
+    );
+    let hasPublished = false;
+    vi.spyOn(prices.stores.priceBook, "readActive").mockImplementation(
+      async () => {
+        if (!hasPublished) {
+          hasPublished = true;
+          const published = await publishNextVersion(admin, withCreated, [
+            CREATED,
+          ]);
+          expect(published.kind).toBe("ok");
+        }
+        return realReadActive();
+      },
+    );
+
+    const answer = await switchItem(admin.cookie, CREATED, true, pageRead);
+
+    expect(hasPublished).toBe(true);
+    expect(answer.status).toBe(409);
+    expect(await jsonOf(answer)).toEqual({ status: "changed-meanwhile" });
+    expect(await disabledNow()).toEqual([CREATED]);
+    expect(activationRows()).toEqual([]);
+  });
+});
+
 describe("a switch against a head that moved", () => {
   it("is 409 changed-meanwhile, writes nothing, and reads no defaults: the head is read first", async () => {
     const { cookie } = await administrator();
-    const stale = await head();
+    const stale = await availabilityHead();
     await switchItem(cookie, PAINTED, false);
-    const headBefore = await head();
+    const headBefore = await availabilityHead();
     const readDefaults = vi.spyOn(prices.defaults, "read");
 
     const answer = await switchItem(cookie, VENEER, false, stale);
@@ -459,13 +469,13 @@ describe("a switch against a head that moved", () => {
     expect(answer.status).toBe(409);
     expect(await jsonOf(answer)).toEqual({ status: "changed-meanwhile" });
     expect(readDefaults).not.toHaveBeenCalled();
-    expect(await head()).toBe(headBefore);
+    expect(await availabilityHead()).toBe(headBefore);
     expect(await disabledNow()).toEqual([PAINTED]);
   });
 
   it("is 409 changed-meanwhile for the later of two requests made against one head", async () => {
     const { cookie } = await administrator();
-    const shared = await head();
+    const shared = await availabilityHead();
 
     const first = await switchItem(cookie, PAINTED, false, shared);
     const second = await switchItem(cookie, SOFT_CLOSE, false, shared);
@@ -510,7 +520,7 @@ describe("a defaults save landing between the route's two reads", () => {
       await saveDefaults(admin, { materialTierId: VENEER.tierId });
       return realRead();
     });
-    const headBefore = await head();
+    const headBefore = await availabilityHead();
 
     const answer = await switchItem(admin.cookie, VENEER, false, headBefore);
 
@@ -540,7 +550,7 @@ describe("saved defaults that cannot be read", () => {
         kind: "saved",
         saved: { revision: "1", defaults: stored, savedAt: new Date(0) },
       });
-      const headBefore = await head();
+      const headBefore = await availabilityHead();
 
       const answer = await switchItem(cookie, VENEER, false);
 
@@ -555,7 +565,7 @@ describe("saved defaults that cannot be read", () => {
     vi.spyOn(prices.defaults, "read").mockRejectedValue(
       new Error(DRIVER_FAILURE_MARKER),
     );
-    const headBefore = await head();
+    const headBefore = await availabilityHead();
 
     const answer = await switchItem(cookie, VENEER, false);
 
@@ -590,7 +600,7 @@ describe("no version was ever published", () => {
 describe("a write and its audit row are one thing", () => {
   it("answers 503 with no detail when the audit row cannot be staged, and the change is not visible", async () => {
     const { cookie } = await administrator();
-    const headBefore = await head();
+    const headBefore = await availabilityHead();
     vi.spyOn(prices.ledger, "stage").mockRejectedValue(
       new Error(DRIVER_FAILURE_MARKER),
     );
@@ -618,7 +628,7 @@ describe("a write and its audit row are one thing", () => {
 
   it("answers 401 when the session ended between the route's read and the store's write, and writes nothing", async () => {
     const { cookie, accountId } = await administrator();
-    const headBefore = await head();
+    const headBefore = await availabilityHead();
     const realStage = prices.ledger.stage.bind(prices.ledger);
     vi.spyOn(prices.ledger, "stage").mockImplementation(async (request) => {
       await world.sessions.revokeAllForAccount(accountId);
@@ -634,7 +644,7 @@ describe("a write and its audit row are one thing", () => {
 
 describe("the order of checks", () => {
   const VALID_BODY = async () => ({
-    expectedRevision: await head(),
+    expectedRevision: await availabilityHead(),
     item: PAINTED,
     active: false,
   });
@@ -753,7 +763,11 @@ describe("the bucket", () => {
 
     const answer = await setAvailability({
       cookie,
-      json: { expectedRevision: await head(), item: PAINTED, active: false },
+      json: {
+        expectedRevision: await availabilityHead(),
+        item: PAINTED,
+        active: false,
+      },
     });
 
     expect(answer.status).toBe(503);
@@ -884,7 +898,7 @@ describe("a body this route does not read", () => {
     ],
   ])("answers %s with 400, and writes nothing", async (_title, text) => {
     const { cookie } = await administrator();
-    const headBefore = await head();
+    const headBefore = await availabilityHead();
 
     const answer = await setAvailability({ cookie, json: text });
 
