@@ -73,7 +73,7 @@ const PENDING_CHIP = () => romanian("priceDashboard.chips.pending");
 export interface Viewport {
   readonly width: number;
   readonly height: number;
-  /** Names a screenshot: `r4b4-<label>-…`. */
+  /** Names a screenshot: `item-look-<label>-…`. */
   readonly label: string;
   /** The widths a row menu is opened at; none on a phone, where the menu is not a popover. */
   readonly popoverWidths: readonly number[];
@@ -164,7 +164,7 @@ export function describeItemLook(viewport: Viewport): void {
       const isOff = (await toggle.getAttribute("aria-disabled")) === "true";
       await shootForReview(
         page,
-        `r4b4-${viewport.label}-switch-${isOff ? "off" : "live"}-${name.replaceAll(/\W+/g, "-")}`,
+        `item-look-${viewport.label}-switch-${isOff ? "off" : "live"}-${name.replaceAll(/\W+/g, "-")}`,
       );
       if (isOff) {
         offCount += 1;
@@ -209,7 +209,7 @@ export function describeItemLook(viewport: Viewport): void {
         menuButtonOf: hardwareMenuButtonOf,
         menuOf: hardwareMenuOf,
         title: `hardware at ${String(width)}`,
-        shot: `r4b4-${String(width)}-menu-hardware-created`,
+        shot: `item-look-${String(width)}-menu-hardware-created`,
       });
     });
 
@@ -228,7 +228,7 @@ export function describeItemLook(viewport: Viewport): void {
         menuButtonOf: accessoryMenuButtonOf,
         menuOf: accessoryMenuOf,
         title: `accessories at ${String(width)}`,
-        shot: `r4b4-${String(width)}-menu-accessory-created`,
+        shot: `item-look-${String(width)}-menu-accessory-created`,
       });
     });
   }
