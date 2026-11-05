@@ -265,6 +265,7 @@ describe("importing what reads the stores", () => {
     /price-stores"|active-price-book"|with-active-price-book"/;
   const ENTRY_MODULES_OF_THE_BUILD = /^app\/.*\b(?:page|route|layout)\.tsx?$/;
 
+  // Loads every route, page and layout module with a fresh module registry: about 25 s alone, more under load.
   it("makes no store in any module that imports the price stores or the price root, nor in any page, route or layout, so a build opens no connection", async () => {
     // `VERCEL_ENV` is what makes this process production's: a production `NODE_ENV` would load React's runtime without
     // the development JSX the pages are compiled to.
@@ -298,5 +299,5 @@ describe("importing what reads the stores", () => {
     expect(
       (globalThis as Record<symbol, unknown>)[PRICE_STORES_GLOBAL_KEY],
     ).toBeUndefined();
-  });
+  }, 120_000);
 });

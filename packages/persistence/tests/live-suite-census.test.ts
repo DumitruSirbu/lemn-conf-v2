@@ -219,6 +219,12 @@ const EXPECTED_CLASSIFICATION: Readonly<
     reason:
       "adversarial QA of M10 wave S4: runs the seen mark, the digest list and record and the staff kitchen reader's additions inside a repeatable-read transaction it rolls back, writes nothing that survives (the rounds and entries it claims included), asserts no whole-table figure (a membership test looks at the kitchens it planted, a count is compared with one read in the same snapshot before planting) and needs the schema intact (M10 wave S4 QA)",
   },
+  "qa-m10-k3-seen-at.live.adversarial.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "adversarial QA of the staff list's seen instant: writes accounts, kitchens, seen marks and requests under random ids it mints, deletes them by those ids when it finishes, asserts no whole-table figure and needs the schema intact",
+  },
   "neon-staff-audit-store.live.test.ts": {
     gate: "live test database",
     lock: "shared",
