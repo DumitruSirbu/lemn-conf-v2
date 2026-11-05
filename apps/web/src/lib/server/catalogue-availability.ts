@@ -18,7 +18,10 @@ import {
 
 import { ACCOUNT_RESPONSE_HEADERS } from "@/lib/server/account/account-responses";
 import type { SessionCookieReader } from "@/lib/server/account/session-cookie";
-import { dashboardConflictResponse } from "@/lib/server/price-dashboard/dashboard-responses";
+import {
+  dashboardConflictResponse,
+  itemIsDefaultResponse,
+} from "@/lib/server/price-dashboard/dashboard-responses";
 import { readDashboardAvailability } from "@/lib/server/price-dashboard/dashboard-state";
 import {
   accepted,
@@ -44,10 +47,7 @@ import { isRevisionShape } from "@/lib/server/price-dashboard/revision-shape";
 import { readSavedDefaults } from "@/lib/server/price-dashboard/saved-defaults";
 import { getPriceStores, type PriceStores } from "@/lib/server/price-stores";
 import { actingSessionOf } from "@/lib/server/staff/staff-acting-session";
-import type {
-  AvailabilitySetWire,
-  DashboardItemIsDefaultWire,
-} from "@/price-dashboard/price-dashboard-wire-contract";
+import type { AvailabilitySetWire } from "@/price-dashboard/price-dashboard-wire-contract";
 
 interface AvailabilityRequest {
   readonly expectedRevision: string;
@@ -220,12 +220,9 @@ function refusalResponse(
   code: AvailabilityRefusalCode,
   item: ItemRef,
 ): NextResponse {
-  if (code !== "item-is-default") return dashboardConflictResponse(code);
-  const body: DashboardItemIsDefaultWire = { status: code, item };
-  return NextResponse.json(body, {
-    status: 409,
-    headers: ACCOUNT_RESPONSE_HEADERS,
-  });
+  return code === "item-is-default"
+    ? itemIsDefaultResponse(item)
+    : dashboardConflictResponse(code);
 }
 
 /** `200`: the revision the change created, or the head as it is for a change that was none. */

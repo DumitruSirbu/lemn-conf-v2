@@ -16,6 +16,7 @@ import type {
   DashboardInvalidInputWire,
   DashboardIssue,
   DashboardItemInUseWire,
+  DashboardItemIsDefaultWire,
   DashboardStateWire,
   DraftChangeCreatedWire,
   PriceVersionListWire,
@@ -39,6 +40,7 @@ type DashboardBody =
   | DashboardDraftUnreadableWire
   | DashboardInvalidInputWire<string>
   | DashboardItemInUseWire
+  | DashboardItemIsDefaultWire
   | PublishedWire
   | PriceVersionListWire
   | PriceVersionWire
@@ -117,6 +119,15 @@ export function itemInUseResponse(items: readonly ItemRef[]): NextResponse {
   const body: DashboardItemInUseWire = {
     status: "item-in-use",
     items: items.map((item) => ({ ...item })),
+  };
+  return jsonResponse(body, 409);
+}
+
+/** `409`: the draft deletes the item a kitchen starts from by default, and a deletion cannot release it. Nothing was written. */
+export function itemIsDefaultResponse(item: ItemRef): NextResponse {
+  const body: DashboardItemIsDefaultWire = {
+    status: "item-is-default",
+    item: { ...item },
   };
   return jsonResponse(body, 409);
 }

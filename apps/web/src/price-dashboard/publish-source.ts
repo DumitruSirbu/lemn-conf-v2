@@ -2,6 +2,7 @@ import "server-only";
 
 import {
   readAdmitted,
+  readDeletionFactsOfPage,
   readFirstVersionPage,
   readPredecessorOf,
   readStateReading,
@@ -13,6 +14,7 @@ import type {
   PriceVersionWire,
 } from "./price-dashboard-wire-contract";
 import { readDashboardStateWire } from "./price-dashboard-wire-reading";
+import type { DeletionFacts } from "./publish-deletions";
 import type { PublishPageInput, VersionDetailInput } from "./publish-model";
 import { romanianCabinetNamesOf } from "./romanian-cabinet-names";
 
@@ -51,8 +53,23 @@ export async function readPublishPage(): Promise<PublishPageRead> {
       state,
       versions: versions.value,
       cabinetNames: romanianCabinetNamesOf(state.active.book),
+      deletionFacts: await readDeletionFactsOrNothing(state),
     },
   };
+}
+
+/**
+ * What the draft's deletions are counted and defaulted by, for display only: the publish counts again in its own request.
+ * `undefined` where that cannot be had, so the page can judge nothing.
+ */
+async function readDeletionFactsOrNothing({
+  active,
+  draft,
+}: DashboardStateWire): Promise<DeletionFacts | undefined> {
+  const read = await readAdmitted(() =>
+    readDeletionFactsOfPage({ book: active.book, changes: draft.changes }),
+  );
+  return read.kind === "read" ? read.value : undefined;
 }
 
 export async function readVersionDetail(

@@ -33,6 +33,7 @@ import {
   publishAnchor,
   putChange,
 } from "../../../support/price-versions";
+import { saveDefaults } from "../../../support/availability-route-world";
 import { freshStaffWorld, signedInAs } from "../../../support/staff-world";
 
 vi.mock("@/lib/server/account/session-store-instance", () =>
@@ -596,4 +597,43 @@ describe("the draft routes and a deletion, until the stored-draft reader takes i
       });
     },
   );
+});
+
+describe("a publish that deletes a row the request's judgement refuses, read by the fetching client", () => {
+  const PREMIUM = { kind: "hardware", tierId: "hardware.premium" } as const;
+  const DELETES_PREMIUM = {
+    address: { kind: "item-deleted", item: PREMIUM },
+    value: true,
+  } as const;
+
+  async function publishDeletingPremium() {
+    const state = await stateRead();
+    const revision = await storeDraft([DELETES_PREMIUM]);
+    return FETCHING_PUBLISH_CLIENT.publish({
+      ...publishRequestOf(state),
+      expectedDraftRevision: revision,
+    });
+  }
+
+  it("reads the saved default the draft deletes as the page's own block, naming it", async () => {
+    await saveDefaults({ tokenHash }, { hardwareTierId: PREMIUM.tierId });
+
+    expect(await publishDeletingPremium()).toEqual({
+      kind: "blocked",
+      block: { kind: "is-default", item: PREMIUM },
+    });
+  });
+
+  it("reads the use the draft deletes as the page's own block, naming the item", async () => {
+    prices.designs.plant({
+      designId: "d-1",
+      uses: [PREMIUM],
+      isDeletedByClient: false,
+    });
+
+    expect(await publishDeletingPremium()).toEqual({
+      kind: "blocked",
+      block: { kind: "in-use", items: [PREMIUM] },
+    });
+  });
 });

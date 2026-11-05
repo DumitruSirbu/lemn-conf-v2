@@ -11,12 +11,10 @@ import {
 
 import {
   SAMPLE_PRICE_BOOK,
-  type DraftChange,
   type ItemRef,
   type PriceBook,
 } from "@lemnaria/configurator-domain";
 
-import { IDLE_LIFETIME_SECONDS_BY_ROLE } from "@/lib/server/account/session-lifetimes";
 import { CLIENT_NETWORK_SOURCE_VARIABLE } from "@/lib/server/rate-limit/network-source";
 
 import {
@@ -33,6 +31,7 @@ import {
   freshPriceDashboardWorld,
   type PriceDashboardWorld,
 } from "../../../support/price-dashboard-world";
+import { deleting, plantDraft } from "../../../support/planted-draft";
 import { freshStaffWorld, signedInAs } from "../../../support/staff-world";
 
 vi.mock("@/lib/server/account/session-store-instance", () =>
@@ -98,36 +97,12 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function deleting(...items: ItemRef[]): DraftChange[] {
-  return items.map(
-    (item) =>
-      ({
-        address: { kind: "item-deleted", item },
-        value: true,
-      }) as unknown as DraftChange,
-  );
-}
-
 async function administratorWhoDeletes(...items: ItemRef[]) {
   const { session } = await signedInAs(
     { role: "administrator" },
     "administrator@example.test",
   );
-  const written = await prices.priceBook.writeDraft({
-    expectedDraftRevision: await currentDraftRevision(),
-    changes: deleting(...items),
-    audit: {
-      session: {
-        sessionTokenHash: session.tokenHash,
-        idleLifetimeSeconds: IDLE_LIFETIME_SECONDS_BY_ROLE,
-      },
-      entry: {
-        action: "price-draft-changed",
-        detail: { changeKind: "provisional" },
-      },
-    },
-  });
-  if (written.kind !== "ok") throw new Error("seed: the draft was not written");
+  await plantDraft(session.tokenHash, deleting(...items));
   return session.cookie;
 }
 

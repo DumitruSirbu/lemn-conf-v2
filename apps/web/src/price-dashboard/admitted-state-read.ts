@@ -9,6 +9,7 @@ import {
 
 import type { DashboardStateWire } from "./price-dashboard-wire-contract";
 
+export { readDeletionFactsOfPage } from "@/lib/server/price-dashboard/deletion-facts";
 export {
   readFirstVersionPage,
   readPredecessorOf,
