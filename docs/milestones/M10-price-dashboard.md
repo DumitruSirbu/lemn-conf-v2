@@ -2841,6 +2841,11 @@ R4a4 hands to R4c:
 
 R4a4 hands to Q3: an end-to-end arm showing that publishing a created class blanks the deltas, written when Q3 flips `qa-p4a-tier-offer-switched-off…:56`.
 
+*R4a5: record amendment (2026-11-05).* The R4a5 row said "R4a5 changes no server file, route or auth path". That
+premise broke. R4a5 changed the usage route's answer (`staff-item-usage.ts`, `item-usage-read.ts`). It touches 11
+production files against the row's 5. The security downgrade was therefore re-checked: R4a2's security reviewer
+looked at the server change and the client's 429 retry and approved them as security-neutral.
+
 *R4a5* (in progress) revises R4a2's rule. The usage *route* omits a tier or linked accessory that the server's active book does not state, and does not answer `0`. The client reads an unmatched item as `unavailable`, so a stale screen shows no false `0`. `countItemUsage` and `countUsageProbes` keep answering `0` for in-process callers.
 
 *Before the next push:* the tests-only wave `m10/flake-fixes` (merged 2026-11-05) cleared the earlier blockers:
