@@ -23,6 +23,7 @@ import {
   defaultsRevision,
   disabledNow,
   publishNextVersion,
+  saveDefaults,
   trySaveDefaults,
   switchItem,
   writeWithoutJudgement,
@@ -433,6 +434,157 @@ describe("a switch that changes nothing asks for no more than it needs", () => {
     expect(real.status).toBe(200);
     const { revision } = (await jsonOf(noOp)) as { revision: string };
     expect([before, await availabilityHead()]).toContain(revision);
+  });
+});
+
+describe("a switch that changes nothing, when the head moves under it", () => {
+  /** Runs `change` in the instant between the route's read of the head and its read of the book. */
+  function changeBetweenTheHeadAndTheBook(
+    change: () => Promise<{ kind: string }>,
+  ): void {
+    const realReadActive = prices.stores.priceBook.readActive.bind(
+      prices.stores.priceBook,
+    );
+    vi.spyOn(prices.stores.priceBook, "readActive").mockImplementation(
+      async () => {
+        const changed = await change();
+        expect(changed.kind).toBe("ok");
+        return realReadActive();
+      },
+    );
+  }
+
+  it("is not answered 200 with the head it read when the item is switched off by another between the two reads", async () => {
+    const admin = await administrator();
+    const other = await administrator("other@example.test");
+    const headRead = await availabilityHead();
+    changeBetweenTheHeadAndTheBook(async () => {
+      await writeWithoutJudgement(other, PAINTED, false);
+      return { kind: "ok" } as never;
+    });
+
+    const answer = await switchItem(admin.cookie, PAINTED, true, headRead);
+
+    expect(answer.status).toBe(409);
+    expect(await jsonOf(answer)).toEqual({ status: "changed-meanwhile" });
+    expect(await disabledNow()).toEqual([PAINTED]);
+    expect(activationRows()).toHaveLength(1);
+  });
+
+  it.each([
+    ["fresh", false],
+    ["stale", true],
+  ])(
+    "answers changed-meanwhile, never the old head, to a %s no-op when a publish lands between the reads",
+    async (_description, isStale) => {
+      const admin = await administrator();
+      const headRead = await availabilityHead();
+      changeBetweenTheHeadAndTheBook(() =>
+        publishNextVersion(admin, ANCHORED_BOOK),
+      );
+
+      const answer = await switchItem(
+        admin.cookie,
+        PAINTED,
+        true,
+        isStale ? "0" : headRead,
+      );
+
+      expect(answer.status).toBe(409);
+      expect(await jsonOf(answer)).toEqual({ status: "changed-meanwhile" });
+      expect(await disabledNow()).toEqual([]);
+      expect(activationRows()).toEqual([]);
+    },
+  );
+
+  it("answers 503 and writes nothing when the head cannot be read again for the no-op", async () => {
+    const { cookie } = await administrator();
+    const realReadCurrent = prices.stores.availability.readCurrent.bind(
+      prices.stores.availability,
+    );
+    let reads = 0;
+    vi.spyOn(prices.stores.availability, "readCurrent").mockImplementation(
+      () => {
+        reads += 1;
+        return reads === 1
+          ? realReadCurrent()
+          : Promise.reject(new Error("the second read failed"));
+      },
+    );
+    const write = vi.spyOn(prices.stores.availability, "setActive");
+
+    const answer = await switchItem(cookie, PAINTED, true);
+
+    expect(answer.status).toBe(503);
+    expect(write).not.toHaveBeenCalled();
+    expect(activationRows()).toEqual([]);
+  });
+});
+
+describe("a switch on meets a saved row of defaults that cannot be read", () => {
+  const unreadableRow = {
+    kind: "saved",
+    saved: {
+      revision: "1",
+      defaults: { handle: "gold" },
+      savedAt: new Date(0),
+    },
+  } as const;
+
+  it("brings an item back on, since only a switch off is judged against the defaults", async () => {
+    const admin = await administrator();
+    await switchItem(admin.cookie, PAINTED, false);
+    vi.spyOn(prices.defaults, "read").mockResolvedValue(unreadableRow as never);
+
+    const answer = await switchItem(admin.cookie, PAINTED, true);
+
+    expect(answer.status).toBe(200);
+    expect(await disabledNow()).toEqual([]);
+    expect(activationRows()).toHaveLength(2);
+  });
+
+  it("still refuses a switch off with 503 and writes nothing, whichever item it names", async () => {
+    const { cookie } = await administrator();
+    vi.spyOn(prices.defaults, "read").mockResolvedValue(unreadableRow as never);
+    const headBefore = await availabilityHead();
+
+    const answers = await Promise.all(
+      [PAINTED, VENEER, SOFT_CLOSE].map((item) =>
+        switchItem(cookie, item, false, headBefore),
+      ),
+    );
+
+    expect(answers.map(({ status }) => status)).toEqual([503, 503, 503]);
+    expect(await availabilityHead()).toBe(headBefore);
+    expect(activationRows()).toEqual([]);
+  });
+
+  it("does not let a switch on of an item the book does not state through", async () => {
+    const { cookie } = await administrator();
+    vi.spyOn(prices.defaults, "read").mockResolvedValue(unreadableRow as never);
+
+    const answer = await switchItem(
+      cookie,
+      { kind: "material", tierId: "material.unheard-of" },
+      true,
+    );
+
+    expect(answer.status).toBe(409);
+    expect(await jsonOf(answer)).toEqual({ status: "item-not-in-active-book" });
+  });
+
+  it("still protects a saved default from a switch off once the row can be read", async () => {
+    const admin = await administrator();
+    await saveDefaults(admin, { materialTierId: VENEER.tierId });
+    await switchItem(admin.cookie, VENEER, true);
+
+    const answer = await switchItem(admin.cookie, VENEER, false);
+
+    expect(answer.status).toBe(409);
+    expect(await jsonOf(answer)).toEqual({
+      status: "item-is-default",
+      item: VENEER,
+    });
   });
 });
 

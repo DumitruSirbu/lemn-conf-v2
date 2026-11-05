@@ -141,11 +141,11 @@ export async function publishNextVersion(
   book: PriceBook,
   createdItems: readonly ItemRef[] = [],
 ) {
-  const { stores, priceBook } = currentPriceDashboardWorld();
-  const active = await stores.priceBook.readActive();
+  const { priceBook } = currentPriceDashboardWorld();
+  const active = await priceBook.readActive();
   if (active.kind !== "found") throw new Error("nothing to publish after");
   return priceBook.publish({
-    expectedDraftRevision: (await stores.priceBook.readDraft()).draftRevision,
+    expectedDraftRevision: (await priceBook.readDraft()).draftRevision,
     expectedActiveSequence: active.version.sequenceNumber,
     expectedAvailabilityRevision: await availabilityHead(),
     createdItems,
