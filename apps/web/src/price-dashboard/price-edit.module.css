@@ -222,7 +222,8 @@
   outline-offset: 2px;
 }
 
-.action:disabled {
+.action:disabled,
+.action[aria-disabled="true"] {
   color: var(--ink-muted);
   cursor: not-allowed;
   background: var(--surface);

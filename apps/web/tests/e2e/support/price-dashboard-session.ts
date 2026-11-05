@@ -8,6 +8,7 @@ import {
 import { ACCOUNT_KIND } from "../../../src/lib/server/rate-limit/bucket-subject";
 import {
   STAFF_PRICE_DRAFT_BY_ACCOUNT_POLICY,
+  STAFF_PRICE_USAGE_BY_ACCOUNT_POLICY,
   STAFF_PRICES_READ_BY_ACCOUNT_POLICY,
 } from "../../../src/lib/server/rate-limit/limit-policy";
 import { bucketKeyOfBlock, secretOfThisRun } from "./e2e-rate-limit-run";
@@ -57,6 +58,7 @@ export function priceRateLimitKeysOf(
   return [
     STAFF_PRICES_READ_BY_ACCOUNT_POLICY,
     STAFF_PRICE_DRAFT_BY_ACCOUNT_POLICY,
+    STAFF_PRICE_USAGE_BY_ACCOUNT_POLICY,
   ].map((policy) => bucketKeyOfBlock(secretOfThisRun(), policy.name, subject));
 }
 

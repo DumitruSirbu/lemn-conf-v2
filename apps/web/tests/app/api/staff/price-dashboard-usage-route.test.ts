@@ -198,16 +198,14 @@ describe("a count that is answered", () => {
     expect(asked.mock.calls[0]?.[0]).toHaveLength(2);
   });
 
-  it("answers 50 distinct items and a request whose 50 names are carried 3 times each", async () => {
+  it("accepts 50 distinct items and a request whose 50 names are carried 3 times each, though none is stated and so none is answered", async () => {
     const fifty = accessoryIds(MAX_USAGE_ITEMS);
 
     const once = await count(fifty);
     const repeated = await count([...fifty, ...fifty, ...fifty]);
 
     expect(once.status).toBe(200);
-    expect(((await jsonOf(once)) as { counts: unknown[] }).counts).toHaveLength(
-      MAX_USAGE_ITEMS,
-    );
+    expect(((await jsonOf(once)) as { counts: unknown[] }).counts).toEqual([]);
     expect(repeated.status).toBe(200);
   });
 
@@ -437,7 +435,7 @@ describe("the probes the reader is handed", () => {
 });
 
 describe("refs the active book does not state", () => {
-  it("cost no probe: 50 made-up tiers and linked accessories are answered 0 and the reader is never asked", async () => {
+  it("cost no probe: 50 made-up tiers and linked accessories are left out of the answer and the reader is never asked", async () => {
     plant("d1", [VENEER]);
     const madeUp: ItemRef[] = Array.from({ length: 25 }, (_, index) => ({
       kind: index % 2 === 0 ? "material" : "hardware",
@@ -452,12 +450,11 @@ describe("refs the active book does not state", () => {
     const { counts } = (await jsonOf(answer)) as {
       counts: { count: number }[];
     };
-    expect(counts).toHaveLength(MAX_USAGE_ITEMS);
-    expect(counts.every(({ count }) => count === 0)).toBe(true);
+    expect(counts).toEqual([]);
     expect(asked).not.toHaveBeenCalled();
   });
 
-  it("are answered 0 beside a stated item, which alone is handed to the reader", async () => {
+  it("are left out beside a stated item, which alone is answered and handed to the reader", async () => {
     plant("d1", [VENEER]);
     const unstated = { kind: "material", tierId: "tier.made-up" } as const;
     const asked = vi.spyOn(prices.defaults, "countEach");
@@ -465,10 +462,7 @@ describe("refs the active book does not state", () => {
     const answer = await count([unstated, VENEER]);
 
     expect(await jsonOf(answer)).toEqual({
-      counts: [
-        { item: VENEER, count: 1 },
-        { item: unstated, count: 0 },
-      ],
+      counts: [{ item: VENEER, count: 1 }],
     });
     expect(asked.mock.calls[0]?.[0].map(({ item }) => item)).toEqual([VENEER]);
   });

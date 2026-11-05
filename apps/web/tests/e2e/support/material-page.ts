@@ -19,10 +19,10 @@ import { signIn, type SignedInAdministrator } from "./staff-world";
 //
 // WHAT EACH SERVER GIVES THESE PAGES (read from the source): - The materials and the draft come from the dashboard's
 // state, which the e2e server holds in its fake price book under BOTH `next dev` and `next start`, so the list, the
-// material page, the surcharge Save and a reload are the same under both. - What differs is the lifecycle, which has no
-// server behind it yet. A production build (CI) hands the page no saved defaults, no usage counts and a lifecycle
-// client that cannot write, so every switch and deletion of a material the book states is drawn off with its reason,
-// and no count is claimed. `next dev` hands it the sample defaults (PAL is the saved default), the sample counts (PAL
+// material page, the surcharge Save and a reload are the same under both. - What differs is the lifecycle. A production
+// build (CI) hands the page no saved defaults and a lifecycle client that asks the server, so a switch-on is written to
+// it, a switch-off and a deletion of a material the book states are drawn off with their reason until the defaults can
+// be read, and a count is the server's. `next dev` hands it the sample defaults (PAL is the saved default), the sample counts (PAL
 // 31, MDF 23, veneer 0) and an in-memory client, so the dialogs can be driven; nothing it does reaches the server, and
 // each page starts from its own copy.
 

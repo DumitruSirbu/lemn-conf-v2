@@ -1,10 +1,11 @@
 // The lifecycle clients: the stand-in judges a write the way a server would and counts only what it was seeded with, the
-// default one is nothing at all in a production build, and the unavailable client claims no figure and writes nothing.
+// default one asks the server in a production build, and the unavailable client claims no figure and writes nothing.
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { SAMPLE_PRICE_BOOK, type ItemRef } from "@lemnaria/configurator-domain";
 
 import { defaultItemLifecycleClient } from "@/price-dashboard/default-item-lifecycle-client";
+import { FETCHING_ITEM_LIFECYCLE_CLIENT } from "@/price-dashboard/fetching-item-lifecycle-client";
 import { UNAVAILABLE_ITEM_LIFECYCLE_CLIENT } from "@/price-dashboard/item-lifecycle-client";
 import { inMemoryItemLifecycleClient } from "@/price-dashboard/item-lifecycle-stand-in-client";
 
@@ -96,21 +97,12 @@ describe("the stand-in", () => {
 });
 
 describe("the client a screen is given when none is handed in", () => {
-  it("is the unavailable one in a production build, which writes nothing and counts nothing", async () => {
+  it("is the one that asks the server in a production build, whatever the page was seeded with", () => {
     vi.stubEnv("NODE_ENV", "production");
 
-    const client = defaultItemLifecycleClient(SEED);
-
-    expect(client).toBe(UNAVAILABLE_ITEM_LIFECYCLE_CLIENT);
-    expect(
-      await client.setActive({
-        expectedRevision: "1",
-        item: HETTICH,
-        active: false,
-      }),
-    ).toEqual({ kind: "failed" });
-    expect(await client.readUsage([HETTICH])).toEqual({ kind: "unavailable" });
-    expect(await client.readAvailability()).toBeUndefined();
+    expect(defaultItemLifecycleClient(SEED)).toBe(
+      FETCHING_ITEM_LIFECYCLE_CLIENT,
+    );
   });
 
   it("is the stand-in over what the page showed in any other build, loaded when first used", async () => {
@@ -122,5 +114,23 @@ describe("the client a screen is given when none is handed in", () => {
       kind: "counted",
       counts: [{ item: HETTICH, designCount: 14 }],
     });
+  });
+});
+
+describe("the unavailable client", () => {
+  it("writes nothing and counts nothing, and can delete nothing", async () => {
+    const client = UNAVAILABLE_ITEM_LIFECYCLE_CLIENT;
+
+    expect(client.canWrite).toBe(false);
+    expect(client.canDeleteStatedItems).toBe(false);
+    expect(
+      await client.setActive({
+        expectedRevision: "1",
+        item: HETTICH,
+        active: false,
+      }),
+    ).toEqual({ kind: "failed" });
+    expect(await client.readUsage([HETTICH])).toEqual({ kind: "unavailable" });
+    expect(await client.readAvailability()).toBeUndefined();
   });
 });

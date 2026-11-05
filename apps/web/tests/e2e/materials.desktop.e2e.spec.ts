@@ -455,10 +455,10 @@ test.describe("the materials screens at desktop 1440", () => {
     });
   });
 
-  test.describe("a production build (CI): the lifecycle is drawn off, honestly", () => {
+  test.describe("a production build (CI): the switch-off and the deletion stay off until judged, and the counts come from the server", () => {
     test.skip(!SERVER_IS_PRODUCTION_BUILD, CI_ONLY_REASON);
 
-    test("MDF and veneer: every entry and the page's switch and deletion are off with the reason, no count is claimed, and pressing sends nothing", async ({
+    test("MDF and veneer: every entry and the page's switch and deletion are off with the reason, the page counts the material once, and pressing sends nothing", async ({
       page,
     }) => {
       const words = wordsOf("ro");
@@ -500,13 +500,25 @@ test.describe("the materials screens at desktop 1440", () => {
         "true",
       );
       await expect(editPageOf(page).getByText(cannotJudge)).toHaveCount(2);
+      await expect(
+        editPageOf(page)
+          .locator("dl > div")
+          .filter({
+            hasText: romanian("priceDashboard.materials.usedInKitchens"),
+          }),
+        "the server counted the material, and no saved kitchen uses it in this world",
+      ).toHaveText(
+        new RegExp(
+          `${romanian("priceDashboard.materials.usedInKitchens")}\\s*0$`,
+        ),
+      );
       await activeSwitch(page, words).click({ force: true });
       await deleteMaterialButton(page, words).click({ force: true });
       await expect(itemDialogOf(page)).toHaveCount(0);
       expect(
         requests,
-        "no request was made by pressing an off control",
-      ).toEqual([]);
+        "one count for the page, and no request from pressing an off control",
+      ).toEqual(["POST /api/staff/prices/usage"]);
       await shootForReview(page, "1440-d5b-production-off");
     });
   });

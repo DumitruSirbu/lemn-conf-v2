@@ -2,7 +2,7 @@
 //
 // Counterexamples to the materials screens' lifecycle: what a switch says in Russian as well as in Romanian, where focus
 // goes when the control that asked has gone, what Escape does in each dialog, what a draft deletion changes about the
-// switches beside it, and what a production page, which has no lifecycle client and no count, can be made to show.
+// switches beside it, and what a production page, whose lifecycle client asks the server, can be made to show.
 import { act, createElement } from "react";
 import { createTranslator } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -49,6 +49,10 @@ import {
 } from "./material-harness";
 import { inMemoryPriceDraftClient } from "./in-memory-price-draft-client";
 import { roCopy } from "./romanian-copy";
+import {
+  stubTheLifecycleServer,
+  type LifecycleServer,
+} from "./lifecycle-server-harness";
 import {
   contextOf,
   leaveTheStaffServer,
@@ -364,6 +368,10 @@ describe("a draft that deletes a material, beside the switches", () => {
 });
 
 describe("a production page", () => {
+  /** The kitchens the server counts for MDF: not one of the sample's counts, so a figure read off the page shows. */
+  const SERVER_COUNT_FOR_MDF = 7;
+  let server: LifecycleServer;
+
   /** What `readMaterials` hands a production build: the state, no defaults and no counts. */
   const productionPage = (
     options: Parameters<typeof materialPageOf>[0] = {},
@@ -377,8 +385,14 @@ describe("a production page", () => {
     screen: "list" | "edit",
     page: MaterialPageInput,
     tierId = MDF,
+    serverBook = page.state.active.book,
   ): Promise<HTMLElement> => {
     vi.stubEnv("NODE_ENV", "production");
+    server = stubTheLifecycleServer({
+      availability: page.state.active.availability,
+      book: serverBook,
+      usage: [{ item: materialItem(MDF), designCount: SERVER_COUNT_FOR_MDF }],
+    });
     const draftClient = inMemoryPriceDraftClient(page.state).client;
     const element =
       screen === "list"
@@ -400,7 +414,7 @@ describe("a production page", () => {
     return productionScreen.container;
   };
 
-  it("keeps every switch and every deletion of the list off with the reason that nothing can be checked, with no lifecycle client handed in", async () => {
+  it("keeps every deletion of the list off, and every switch-off, with the reason that nothing can be checked; the switch-on of what is off is offered", async () => {
     const container = await mountProduction(
       "list",
       productionPage({ disabled: [materialItem(MDF)] }),
@@ -417,18 +431,29 @@ describe("a production page", () => {
         "ul button",
       );
       expect(entries, tierId).toHaveLength(2);
-      for (const entry of entries) {
-        expect(entry.getAttribute("aria-disabled"), tierId).toBe("true");
-        expect(reasonOf(entry), tierId).toBe(
+      const [switchEntry, deleteEntry] = entries as [
+        HTMLButtonElement,
+        HTMLButtonElement,
+      ];
+      const isSwitchOffered = tierId === MDF;
+      expect(switchEntry.getAttribute("aria-disabled") === "true", tierId).toBe(
+        !isSwitchOffered,
+      );
+      if (!isSwitchOffered) {
+        expect(reasonOf(switchEntry), tierId).toBe(
           tierId === PAL ? FIXED_DEFAULT : CANNOT_JUDGE,
         );
-        await press(entry);
       }
+      expect(deleteEntry.getAttribute("aria-disabled"), tierId).toBe("true");
+      expect(reasonOf(deleteEntry), tierId).toBe(
+        tierId === PAL ? FIXED_DEFAULT : CANNOT_JUDGE,
+      );
+      await press(deleteEntry);
     }
     expect(openDialog()).toBeNull();
   });
 
-  it("states no count in the list, though the sample's counts exist in the tree", async () => {
+  it("states none of the sample's counts in the list, though they exist in the tree", async () => {
     const container = await mountProduction(
       "list",
       productionPage({ disabled: [materialItem(MDF)] }),
@@ -439,12 +464,23 @@ describe("a production page", () => {
         roCopy("priceDashboard.chips.inactiveInUse", { count: designCount }),
       );
     }
-    expect(container.textContent).not.toContain(
-      roCopy("priceDashboard.materials.usageDrift"),
+  });
+
+  it("asks the server once for the count of the switched-off materials, and says the figure it gave", async () => {
+    const container = await mountProduction(
+      "list",
+      productionPage({ disabled: [materialItem(MDF)] }),
+    );
+
+    expect(server.usageRequests).toEqual([[materialItem(MDF)]]);
+    expect(container.textContent).toContain(
+      roCopy("priceDashboard.chips.inactiveInUse", {
+        count: SERVER_COUNT_FOR_MDF,
+      }),
     );
   });
 
-  it("states no count and offers no switch-on on the page of a switched-off material, and its fact lines say nothing of use", async () => {
+  it("offers the switch-on on the page of a switched-off material, and its banner says the figure the server gave", async () => {
     const container = await mountProduction(
       "edit",
       productionPage({ disabled: [materialItem(MDF)] }),
@@ -452,12 +488,10 @@ describe("a production page", () => {
 
     const banner = container.querySelector('[data-testid="material-banner"]');
     expect(banner).not.toBeNull();
-    expect(banner?.textContent).toContain(
-      roCopy("priceDashboard.materials.inactiveBannerPlain"),
-    );
-    expect(allIn(banner as HTMLElement, "button")).toEqual([]);
-    expect(container.textContent).not.toContain(
-      roCopy("priceDashboard.materials.usedInKitchens"),
+    expect(container.textContent).toContain(
+      roCopy("priceDashboard.chips.inactiveInUse", {
+        count: SERVER_COUNT_FOR_MDF,
+      }),
     );
     for (const { designCount } of USAGE) {
       expect(container.textContent).not.toContain(
@@ -468,8 +502,44 @@ describe("a production page", () => {
       container,
       '[role="switch"]',
     )[0];
-    expect(switchButton?.getAttribute("aria-disabled")).toBe("true");
-    expect(reasonOf(switchButton as HTMLElement)).toBe(CANNOT_JUDGE);
+    expect(switchButton?.getAttribute("aria-disabled")).not.toBe("true");
+  });
+
+  it("says no count on the page of a material the server's book dropped while the page's book still states it: the fact line is absent, not 0", async () => {
+    const page = productionPage({ disabled: [materialItem(VENEER)] });
+    const serverBook = {
+      ...page.state.active.book,
+      material: {
+        ...page.state.active.book.material,
+        tiers: page.state.active.book.material.tiers.filter(
+          (tier) => tier.tierId !== VENEER,
+        ),
+      },
+    };
+
+    const container = await mountProduction("edit", page, VENEER, serverBook);
+
+    expect(server.usageRequests).toEqual([[materialItem(VENEER)]]);
+    expect(container.textContent).not.toContain(
+      roCopy("priceDashboard.materials.usedInKitchens"),
+    );
+  });
+
+  it("opens the switch-off question of MDF, once the saved defaults are read, with the figure the server gave", async () => {
+    const container = await mountProduction("list", {
+      ...productionPage(),
+      defaults: {},
+    });
+
+    await openMenuOf(container, MDF, MDF_NAME);
+    await press(menuEntry(container, MDF, DEACTIVATE));
+
+    expect(server.usageRequests).toEqual([[materialItem(MDF)]]);
+    expect(openDialog()?.textContent).toContain(
+      roCopy("priceDashboard.lifecycle.usedBy", {
+        count: SERVER_COUNT_FOR_MDF,
+      }),
+    );
   });
 
   it("keeps the deletion button of a material's page off with the same reason", async () => {

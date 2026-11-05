@@ -34,6 +34,10 @@ export interface LifecycleContext {
   readonly defaults: NewKitchenSettings | undefined;
   /** Whether a switch can be written at all; where it cannot, no switch-on is offered. */
   readonly canWrite: boolean;
+  /** Whether a row the book states may be deleted; a row only the draft created needs no such leave. */
+  readonly canDeleteStatedItems: boolean;
+  /** Whether the draft itself creates the item, so that deleting it only takes the creation back out of the draft. */
+  readonly isCreatedInDraft: (item: DeletableItemRef) => boolean;
 }
 
 /** Why a control is off: the sentence under it says which. */
@@ -122,7 +126,9 @@ export function isDefaultItem(
 
 /**
  * A default is refused before any use is counted, so a default needs no count; any other item does. Where nothing can
- * be written, no deletion is offered either, an item only the draft holds included: nothing could carry it out.
+ * be written, no deletion is offered either, an item only the draft holds included: nothing could carry it out. Any
+ * other row is offered only where `canDeleteStatedItems` says a deletion of it can be carried out, whatever the
+ * defaults make readable; a row the draft created is the one exception, since deleting it reverts its creation.
  */
 export function deleteStandOf(
   item: DeletableItemRef,
@@ -130,9 +136,16 @@ export function deleteStandOf(
 ): DeleteStand {
   const reason = deletionRefusalWithoutCount(item, context);
   if (reason !== undefined) return { kind: "off", reason };
-  return context.canWrite
+  return canCarryOutDeletion(item, context)
     ? { kind: "count-first" }
     : { kind: "off", reason: "cannot-judge" };
+}
+
+function canCarryOutDeletion(
+  item: DeletableItemRef,
+  { canWrite, canDeleteStatedItems, isCreatedInDraft }: LifecycleContext,
+): boolean {
+  return canWrite && (canDeleteStatedItems || isCreatedInDraft(item));
 }
 
 /** The verdict of the domain on a deletion, with the counts the usage reader answered. */

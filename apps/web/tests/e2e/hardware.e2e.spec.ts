@@ -3,11 +3,12 @@
 //
 // WHICH SERVER THIS FILE HOLDS ON (`playwright.config.ts` starts `next start` when `CI` is set, `next dev` otherwise).
 // Both serve these pages from the e2e server's fake price book, so the list, a rate's Save, a reload and the refusals run
-// under BOTH. What differs is the lifecycle, which has no server behind it yet (R4a, R4b, S3): a production build draws
-// every switch and deletion of a class the book states off with its reason and claims no count; `next dev` hands the
-// page the sample defaults, the sample counts (Standard 9, Hettich 14, Blum 0) and an in-memory switch, so the dialogs
-// can be driven. The tests of the dialogs skip themselves under `CI`, and the test of the off controls skips itself
-// without it. A switch never reaches the server, and each page starts from its own copy of it.
+// under BOTH. What differs is the lifecycle: a production build asks the server, and draws a switch-off and every deletion
+// of a class the book states off with their reason until the saved defaults can be read and the draft takes a deletion;
+// `next dev` hands the page the sample defaults, the sample counts (Standard 9, Hettich 14, Blum 0) and an in-memory
+// switch, so the dialogs can be driven. The tests of the dialogs skip themselves under `CI`, and the test of the off
+// controls skips itself without it. On `next dev` a switch never reaches the server, and each page starts from its own
+// copy of it; `lifecycle-server.e2e.spec.ts` drives the switch against the server on a production build.
 //
 // NOT ASSERTED here: creating a class, which `creation.e2e.spec.ts` drives; deleting a class into the draft
 // (the draft route reads no `item-deleted` until R4a, so the dialog's confirmation is refused with a 400, which the tests
