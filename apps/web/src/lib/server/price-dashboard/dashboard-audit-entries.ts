@@ -6,6 +6,7 @@ import {
   type BulkChangeScope,
   type DashboardAuditEntry,
   type DraftChangeTarget,
+  type KitchenDefaultsField,
   type PriceCatalogueSection,
   type PriceGroupCode,
 } from "@lemnaria/configurator-domain";
@@ -108,6 +109,13 @@ export function bulkChangedEntry(bulk: BulkAudited): DashboardAuditEntry {
       amountCount,
     },
   };
+}
+
+/** The rows of the new-kitchen defaults the save changed, by their codes. Never the values. */
+export function kitchenDefaultsSavedEntry(
+  changedFields: readonly KitchenDefaultsField[],
+): DashboardAuditEntry {
+  return { action: "kitchen-defaults-saved", detail: { changedFields } };
 }
 
 /** The row and field an address names, by id and code. The depth rule and the provisional switch name no item. */
