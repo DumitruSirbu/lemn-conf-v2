@@ -2846,7 +2846,23 @@ premise broke. R4a5 changed the usage route's answer (`staff-item-usage.ts`, `it
 production files against the row's 5. The security downgrade was therefore re-checked: R4a2's security reviewer
 looked at the server change and the client's 429 retry and approved them as security-neutral.
 
-*R4a5* (in progress) revises R4a2's rule. The usage *route* omits a tier or linked accessory that the server's active book does not state, and does not answer `0`. The client reads an unmatched item as `unavailable`, so a stale screen shows no false `0`. `countItemUsage` and `countUsageProbes` keep answering `0` for in-process callers.
+*R4a5 merged* (QA green; logic, clean-code and visual reviewed in two rounds; security re-checked).
+
+Hand-offs to R4b, the next wave on these screens:
+- The disabled "Activă/Activ în configurator" switch rows draw with dark text and a brown border, so they look live.
+  Give them the disabled look, as R4a5 gave the delete buttons.
+- On desktop, a created row's menu popover covers its "De publicat" chip.
+- Clean-code nits:
+  - The re-wrap split `` `is-production-build.ts` `` and `` `POST /api/…` `` mid-token in two comments.
+  - The `bookRef` comment in `use-item-availability.ts` is hard to read.
+  - `openAfterCounting` overwrites `countingRef` without aborting the old controller. It is safe today, but a second entry path should abort it.
+  - `abortion(signal)` never removes its listener. This is bounded.
+
+Residuals:
+- A read can hold the usage slot for about 65 s in the worst case: 15 s, then up to two busy retries.
+- A linked-accessory switch-off with a real count is not yet pressed in production. It becomes reachable at R4b.
+
+The revision of R4a2's rule, recorded at R4a5: The usage *route* omits a tier or linked accessory that the server's active book does not state, and does not answer `0`. The client reads an unmatched item as `unavailable`, so a stale screen shows no false `0`. `countItemUsage` and `countUsageProbes` keep answering `0` for in-process callers.
 
 *Before the next push:* the tests-only wave `m10/flake-fixes` (merged 2026-11-05) cleared the earlier blockers:
 - The census now lists the K3 live file.
