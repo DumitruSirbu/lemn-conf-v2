@@ -325,6 +325,7 @@ describe("a production build, as the server hands it its page", () => {
 
   it("offers no creation where the client has no route for one: Create is off with the same reason, whatever is typed", async () => {
     vi.stubEnv("NODE_ENV", "production");
+    const page = productionPageOf();
     const screenOf = mountInCatalogue(
       createElement(HardwareCreateScreen, {
         locale: "ro",
@@ -333,7 +334,11 @@ describe("a production build, as the server hands it its page", () => {
           "hardware",
           "publish",
         ]),
-        page: productionPageOf(),
+        page,
+        client: {
+          ...inMemoryPriceDraftClient(page.state).client,
+          createHardwareClass: undefined,
+        },
       }),
       "ro",
     );

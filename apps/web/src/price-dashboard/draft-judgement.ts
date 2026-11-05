@@ -1,6 +1,7 @@
 import {
   applyChanges,
   isSameAddress,
+  type ChangeRefusal,
   type ChangeRefusalCode,
   type DraftChange,
   type PriceBook,
@@ -43,8 +44,8 @@ export function judgeDraft(toJudge: DraftToJudge): DraftJudgement {
   if (applied.reason === "candidate-refused") {
     return { kind: "candidate-refused" };
   }
-  const newRefusal = applied.refusals.find(({ index }) =>
-    isNewIndex(toJudge, index),
+  const newRefusal = causeOf(
+    applied.refusals.filter(({ index }) => isNewIndex(toJudge, index)),
   );
   if (newRefusal !== undefined) {
     return { kind: "refused-new-change", code: newRefusal.code };
@@ -56,6 +57,19 @@ export function judgeDraft(toJudge: DraftToJudge): DraftJudgement {
     ),
   );
   return addsNoRefusal ? { kind: "applies" } : { kind: "candidate-refused" };
+}
+
+/**
+ * The refusal the person corrects. A created class that lacks a rate is refused at its own index, ahead of the rate that
+ * was refused (`ZERO`, say), so it is named only when no other change is the reason.
+ */
+function causeOf(
+  refusals: readonly ChangeRefusal[],
+): ChangeRefusal | undefined {
+  return (
+    refusals.find(({ code }) => code !== "CREATED_TIER_RATES_MISSING") ??
+    refusals[0]
+  );
 }
 
 function isNewIndex(newChanges: NewChanges, index: number): boolean {

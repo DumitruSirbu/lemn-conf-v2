@@ -111,6 +111,93 @@ describe("a class the draft creates", () => {
   });
 });
 
+describe("the lines of the fields of a row the draft creates or deletes", () => {
+  const PUBLISHED_TIER = "hardware.soft-close";
+  const creationRows = readyRows(ACTIVE, createTierChanges());
+
+  it("carry no arrow for the rates of a created class: the class goes whole, by the arrow of its own row", () => {
+    const rates = rowsOfKind(creationRows, "field").filter(
+      (row) => row.address.kind === "hardware",
+    );
+
+    expect(rates.length).toBeGreaterThan(0);
+    expect(rates.map(({ revert }) => revert)).toEqual(
+      rates.map(() => undefined),
+    );
+    expect(rowsOfKind(creationRows, "row")[0]?.revert).toEqual({
+      kind: "change",
+      address: HARDWARE_TIER_CREATED,
+    });
+  });
+
+  it("carry no arrow for the price of a created accessory, which lies inside its creation", () => {
+    const rows = readyRows(ACTIVE, [
+      createAccessoryChange(firstNamedBuildId()),
+    ]);
+
+    const price = rowsOfKind(rows, "field").find(
+      (row) => row.address.kind === "accessory",
+    );
+
+    expect(price).toBeDefined();
+    expect(price?.revert).toBeUndefined();
+  });
+
+  it("carry no arrow for a price set on a class the draft deletes", () => {
+    const rate = change(
+      { kind: "hardware", tierId: PUBLISHED_TIER, field: "perHingeMinor" },
+      2_000,
+    );
+    const deletion = change(
+      {
+        kind: "item-deleted",
+        item: { kind: "hardware", tierId: PUBLISHED_TIER },
+      },
+      true,
+    );
+
+    const rows = readyRows(ACTIVE, [rate, deletion]);
+
+    const ofDeleted = rowsOfKind(rows, "field").filter(
+      (row) => row.address.kind === "hardware",
+    );
+    expect(ofDeleted.length).toBeGreaterThan(0);
+    expect(ofDeleted.map(({ revert }) => revert)).toEqual(
+      ofDeleted.map(() => undefined),
+    );
+  });
+
+  it("keep their arrow for a price set on a class the book already states, beside a created class", () => {
+    const rate = change(
+      { kind: "hardware", tierId: PUBLISHED_TIER, field: "perHingeMinor" },
+      2_000,
+    );
+
+    const rows = readyRows(ACTIVE, [...createTierChanges(), rate]);
+
+    const published = rowsOfKind(rows, "field").find(
+      (row) =>
+        row.address.kind === "hardware" &&
+        row.address.tierId === PUBLISHED_TIER,
+    );
+    expect(published?.revert).toEqual({
+      kind: "change",
+      address: rate.address,
+    });
+  });
+
+  it("keep their arrow for a cabinet price, which belongs to no row", () => {
+    const price = change(
+      { kind: "cabinet", ruleId: "cabinet.base-cabinet", field: "anchorMinor" },
+      400_000,
+    );
+
+    const [field] = rowsOfKind(readyRows(ACTIVE, [price]), "field");
+
+    expect(field?.revert).toEqual({ kind: "change", address: price.address });
+  });
+});
+
 describe("an accessory the draft creates", () => {
   const creation = createAccessoryChange(firstNamedBuildId());
   const rows = readyRows(ACTIVE, [creation]);

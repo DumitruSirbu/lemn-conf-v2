@@ -46,9 +46,8 @@ vi.mock("@/lib/server/price-stores", () =>
 // `inMemoryPriceDraftClient`, which calls `applyChanges` itself, so none of them reaches the boundary reader that turns a
 // request into a change. Here the fetching client (the one a browser has) is run over a `fetch` that is the real `PUT` and
 // `DELETE` of `/api/staff/prices/draft`, over the persistence package's price-book fake, and the bodies are the ones the
-// accessory screens send. No creation route exists: a test below marked `it.fails` is a promise of the screens' port that
-// no route keeps yet. It runs and goes red the moment a route keeps it, and is flipped to `it` then. Beside it stands a test
-// that pins today's answer, so a route that breaks in some other way cannot keep an `it.fails` green by throwing.
+// accessory screens send. The creation has a route of its own (`price-dashboard-creation-route.test.ts` runs it); the draft
+// route does not take one.
 
 let prices: PriceDashboardWorld;
 let cookie: string;
@@ -148,20 +147,9 @@ async function revertTarget(
   );
 }
 
-describe("the write that creates an accessory (the creation form's `createAccessory`) — no route until R4a", () => {
-  // R4a adds the creation's route and client method, and owes the flip to `it`.
-  it.fails(
-    "has a client method in the browser's client, so the form can create anything at all",
-    () => {
-      expect(FETCHING_PRICE_DRAFT_CLIENT.createAccessory).toBeTypeOf(
-        "function",
-      );
-    },
-  );
-
-  // Pins today's absence, and goes red when R4a adds the method: delete this test then, with the flip above.
-  it("has none today, which is why the form's Create is off in a build with no route behind it", () => {
-    expect(FETCHING_PRICE_DRAFT_CLIENT.createAccessory).toBeUndefined();
+describe("the write that creates an accessory (the creation form's `createAccessory`)", () => {
+  it("has a client method in the browser's client, so the form can create anything at all", () => {
+    expect(FETCHING_PRICE_DRAFT_CLIENT.createAccessory).toBeTypeOf("function");
   });
 
   it("is not smuggled through the change route: a creation as a change is refused, so the screens' optional method stays honest", async () => {

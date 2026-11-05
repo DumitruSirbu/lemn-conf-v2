@@ -27,12 +27,16 @@ import {
 } from "./price-dashboard-wire-contract";
 import {
   readDashboardStateWire,
+  readDraftChangeCreatedWire,
   readDraftWire,
 } from "./price-dashboard-wire-reading";
 
 // What the dashboard's screens write the draft through, and read the state again through. The fetching one asks the
-// routes of the dashboard: `GET /api/staff/prices`, `PUT` and `DELETE` of `…/draft`, and `POST …/bulk`. Each answer is
-// sorted into the outcomes below, and anything that is not one of the routes' own answers is `failed`.
+// routes of the dashboard: `GET /api/staff/prices`, `PUT` and `DELETE` of `…/draft`, `POST …/bulk` and the two creations
+// under `…/draft`. Each answer is sorted into the outcomes below, and anything that is not one of the routes' own answers
+// is `failed`. A request is sent once: a creation whose answer was lost is never sent again by the client, since it
+// names the draft revision it read, and only the person's own second try, against the revision then held, can tell
+// whether the first landed.
 
 /**
  * What a write to the draft came to. `refused` is a `400` naming a member the person can correct; `candidate-refused`
@@ -93,6 +97,8 @@ export interface PriceDraftClient {
 }
 
 const BULK_ADDRESS = "/api/staff/prices/bulk";
+const HARDWARE_CLASS_ADDRESS = "/api/staff/prices/draft/hardware-class";
+const ACCESSORY_ADDRESS = "/api/staff/prices/draft/accessory";
 
 export const FETCHING_PRICE_DRAFT_CLIENT: PriceDraftClient = {
   readState: async () => {
@@ -104,6 +110,10 @@ export const FETCHING_PRICE_DRAFT_CLIENT: PriceDraftClient = {
   change: (request) => write("PUT", DRAFT_ADDRESS, request, DRAFT_ANSWERS),
   revert: (request) => write("DELETE", DRAFT_ADDRESS, request, DRAFT_ANSWERS),
   bulk: (request) => write("POST", BULK_ADDRESS, request, BULK_ANSWERS),
+  createHardwareClass: (request) =>
+    write("POST", HARDWARE_CLASS_ADDRESS, request, HARDWARE_CLASS_ANSWERS),
+  createAccessory: (request) =>
+    write("POST", ACCESSORY_ADDRESS, request, ACCESSORY_ANSWERS),
   acceptsCreatedRowText: true,
 };
 
@@ -120,6 +130,22 @@ const BULK_ANSWERS: RouteAnswers<BulkRefusalCode, BulkChangedWire> = {
   readWritten: readBulkChangedWire,
   refusalCodes: BULK_REFUSAL_CODES,
 };
+
+const HARDWARE_CLASS_ANSWERS = createdAnswersOf("hardware");
+const ACCESSORY_ANSWERS = createdAnswersOf("accessory");
+
+/** A creation's `200` is believed only when it names a row of the kind the route creates. */
+function createdAnswersOf(
+  kind: "hardware" | "accessory",
+): RouteAnswers<DraftChangeRefusalCode, DraftChangeCreatedWire> {
+  return {
+    readWritten: (body) => {
+      const written = readDraftChangeCreatedWire(body);
+      return written?.created.kind === kind ? written : undefined;
+    },
+    refusalCodes: DRAFT_CHANGE_REFUSAL_CODES,
+  };
+}
 
 async function write<Code extends string, Written>(
   method: "PUT" | "DELETE" | "POST",

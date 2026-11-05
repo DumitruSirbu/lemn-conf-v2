@@ -9,8 +9,7 @@
 // can be driven. The tests of the dialogs skip themselves under `CI`, and the test of the off controls skips itself
 // without it. A switch never reaches the server, and each page starts from its own copy of it.
 //
-// NOT REACHABLE, so not asserted here: creating a class (the default client has no creation route, S3, so Create is off
-// under both servers, and "appears in the list, deleting it reverts it" cannot be reached); deleting a class into the draft
+// NOT ASSERTED here: creating a class, which `creation.e2e.spec.ts` drives; deleting a class into the draft
 // (the draft route reads no `item-deleted` until R4a, so the dialog's confirmation is refused with a 400, which the tests
 // record); a switch's survival of a reload (the in-memory client forgets it).
 //
@@ -627,7 +626,7 @@ test.describe("the hardware screens on a phone, 390 x 844", () => {
   });
 
   test.describe("D4C: a new class, under either server", () => {
-    test("Romanian only, a name, a description and five prices; Create stays off and says why, and nothing is sent; refusals show only where something was typed", async ({
+    test("Romanian only, a name, a description and five prices; Create is off until every value is valid and then on, and nothing is sent until it is pressed; refusals show only where something was typed", async ({
       page,
     }) => {
       const words = wordsOf("ro");
@@ -708,14 +707,13 @@ test.describe("the hardware screens on a phone, 390 x 844", () => {
       ).toHaveCount(0);
       await expect(
         create,
-        "every value is valid and Create is still off: no route takes a creation yet (S3)",
-      ).toBeDisabled();
+        "every value is valid, so Create is on",
+      ).toBeEnabled();
       await expect(
         form.getByText(romanian("priceDashboard.lifecycle.cannotJudge")),
-        "and the form says so",
-      ).toBeVisible();
-      await create.tap({ force: true });
-      expect(requests, "nothing was sent").toEqual([]);
+        "and the form does not say it cannot judge",
+      ).toHaveCount(0);
+      expect(requests, "nothing was sent before it was pressed").toEqual([]);
       await expectNoSidewaysScroll(page, "the new class form");
       await expectTargetsLargeEnough(
         page,

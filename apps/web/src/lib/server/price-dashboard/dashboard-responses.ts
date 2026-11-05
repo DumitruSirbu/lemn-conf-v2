@@ -17,6 +17,7 @@ import type {
   DashboardIssue,
   DashboardItemInUseWire,
   DashboardStateWire,
+  DraftChangeCreatedWire,
   PriceVersionListWire,
   PriceVersionNotFoundWire,
   PriceVersionWire,
@@ -31,6 +32,7 @@ import type {
 type DashboardBody =
   | DashboardStateWire
   | DashboardDraftWire
+  | DraftChangeCreatedWire
   | BulkChangedWire
   | DashboardConflictWire
   | DashboardCandidateRefusedWire
@@ -57,6 +59,13 @@ export function dashboardStateResponse(
 /** `200`: the draft as it is now. */
 export function draftChangedResponse(draft: DashboardDraftWire): NextResponse {
   return jsonResponse(draft, 200);
+}
+
+/** `200`: the draft after a creation, and the row the server minted an id for. */
+export function draftChangeCreatedResponse(
+  wire: DraftChangeCreatedWire,
+): NextResponse {
+  return jsonResponse({ draft: wire.draft, created: { ...wire.created } }, 200);
 }
 
 /** `200`: the draft after a bulk action, and how many cabinets and prices the action touched. */

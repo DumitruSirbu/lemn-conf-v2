@@ -266,6 +266,8 @@ describe("the audit rows of every route (R-c)", () => {
       "price-catalogue-viewed",
       "price-catalogue-viewed",
       "price-draft-changed",
+      "price-draft-changed",
+      "price-draft-changed",
       "price-draft-reverted",
       "price-draft-reverted",
     ]);

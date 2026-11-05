@@ -148,6 +148,58 @@ describe("a class the draft creates", () => {
   });
 });
 
+describe("the lines of a created row's rates and price", () => {
+  const FIELD_LINES = '[data-testid="diff-row"][data-unchanged]';
+  const REVERT = '[data-testid="diff-revert"]';
+
+  it("have no arrow for the rates of a created class, whose own row's arrow takes the class whole", async () => {
+    const { container } = await mountOver(ACTIVE, createTierChanges());
+
+    const rates = allIn(container, FIELD_LINES);
+
+    expect(rates.length).toBeGreaterThan(0);
+    expect(rates.map((line) => allIn(line, REVERT).length)).toEqual(
+      rates.map(() => 0),
+    );
+    expect(
+      allIn(onlyRowOfKind(container, "hardware-created"), REVERT),
+    ).toHaveLength(1);
+  });
+
+  it("have no arrow for the price of a created accessory", async () => {
+    const { container } = await mountOver(ACTIVE, [
+      createAccessoryChange(firstNamedBuildId()),
+    ]);
+
+    const prices = allIn(container, FIELD_LINES);
+
+    expect(prices.length).toBeGreaterThan(0);
+    expect(prices.map((line) => allIn(line, REVERT).length)).toEqual(
+      prices.map(() => 0),
+    );
+  });
+
+  it("leave a cabinet price its arrow, beside a created class", async () => {
+    const { container } = await mountOver(ACTIVE, [
+      ...createTierChanges(),
+      change(
+        {
+          kind: "cabinet",
+          ruleId: "cabinet.base-cabinet",
+          field: "anchorMinor",
+        },
+        400_000,
+      ),
+    ]);
+
+    const withArrow = allIn(container, FIELD_LINES).filter(
+      (line) => allIn(line, REVERT).length > 0,
+    );
+
+    expect(withArrow).toHaveLength(1);
+  });
+});
+
 describe("an item the draft deletes", () => {
   const withTier = applied(ACTIVE, createTierChanges());
   const deletion = change(

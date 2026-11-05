@@ -1,6 +1,7 @@
 import {
   APPLIED_ADDRESS_KINDS,
   CREATION_ADDRESS_KINDS,
+  HARDWARE_RATE_FIELDS,
   PRICE_GROUP_CODES,
   type AddressOfKind,
   type AppliedAddressKind,
@@ -196,6 +197,77 @@ function readRevertTarget(
       : refusedWith("groupId", "MISSING_VALUE");
   }
   return refusedWith("target", "MISSING_VALUE");
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// A creation
+
+/** The members that would name the id of the row: the server mints it, so a request that states one is not read. */
+const ROW_ID_MEMBERS = ["id", "tierId", "accessoryId"] as const;
+
+export interface CreateHardwareClassRequest {
+  readonly expectedDraftRevision: string;
+  /** As sent: `applyChanges` judges it, and only a judged value is ever stored. */
+  readonly value: unknown;
+  /** Each rate as sent, by field; `applyChanges` judges every one. */
+  readonly rates: Readonly<Record<string, unknown>>;
+}
+
+export interface CreateAccessoryRequest {
+  readonly expectedDraftRevision: string;
+  readonly value: unknown;
+}
+
+export function readCreateHardwareClassRequest(
+  bodyText: string,
+): RequestReading<CreateHardwareClassRequest, DraftChangeRefusalCode> {
+  const body = membersOf(bodyText, ["expectedDraftRevision", "value", "rates"]);
+  if (body === undefined) return MALFORMED;
+  const revision = readRevision(body.expectedDraftRevision);
+  if (!revision.ok) return revision;
+  const value = readCreationValue(body.value);
+  if (!value.ok) return value;
+  const rates = readRates(body.rates);
+  if (!rates.ok) return rates;
+  return accepted({
+    expectedDraftRevision: revision.value,
+    value: value.value,
+    rates: rates.value,
+  });
+}
+
+export function readCreateAccessoryRequest(
+  bodyText: string,
+): RequestReading<CreateAccessoryRequest, DraftChangeRefusalCode> {
+  const body = membersOf(bodyText, ["expectedDraftRevision", "value"]);
+  if (body === undefined) return MALFORMED;
+  const revision = readRevision(body.expectedDraftRevision);
+  if (!revision.ok) return revision;
+  const value = readCreationValue(body.value);
+  if (!value.ok) return value;
+  return accepted({
+    expectedDraftRevision: revision.value,
+    value: value.value,
+  });
+}
+
+function readCreationValue(
+  declared: unknown,
+): RequestReading<Members, DraftChangeRefusalCode> {
+  if (!isPlainRecord(declared)) return refusedWith("change", "MISSING_VALUE");
+  const namesAnId = ROW_ID_MEMBERS.some((name) =>
+    Object.hasOwn(declared, name),
+  );
+  return namesAnId ? MALFORMED : accepted(declared);
+}
+
+function readRates(
+  declared: unknown,
+): RequestReading<Members, DraftChangeRefusalCode> {
+  if (!isPlainRecord(declared)) return refusedWith("change", "MISSING_VALUE");
+  return hasMemberOutside(declared, HARDWARE_RATE_FIELDS)
+    ? MALFORMED
+    : accepted(declared);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

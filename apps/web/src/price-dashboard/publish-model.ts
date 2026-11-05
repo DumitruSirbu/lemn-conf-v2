@@ -1,6 +1,8 @@
 import {
   ACCESSORY_IDS,
   applyChanges,
+  changedRowOf,
+  changedRowsOf,
   DIFF_SECTIONS,
   diffBooks,
   isCabinetAddress,
@@ -213,6 +215,7 @@ export function readPendingDraft(
   if (!applied.ok) return { kind: "candidate-refused" };
   const candidate = applied.book;
   const rows = diffBooks(active, candidate, { changes });
+  const changedRows = changedRowsOf(changes);
   return {
     kind: "ready",
     view: {
@@ -222,6 +225,7 @@ export function readPendingDraft(
             books: { before: active, after: candidate },
             cabinetNames,
             isRevertable: true,
+            changedRows,
           }),
         ),
       ),
@@ -261,6 +265,7 @@ export function describeVersionDiff(input: {
         books: { before, after },
         cabinetNames,
         isRevertable: false,
+        changedRows: [],
       }),
     ),
   );
@@ -276,6 +281,8 @@ interface RowContext {
   readonly books: BookPair;
   readonly cabinetNames: Readonly<Record<string, string>>;
   readonly isRevertable: boolean;
+  /** The rows the draft creates or deletes: the row's own ↺ takes back everything the draft says of one. */
+  readonly changedRows: readonly ItemRef[];
 }
 
 function rowViewOf(row: BookDiffRow, context: RowContext): RowView {
@@ -396,10 +403,22 @@ function fieldRowViewOf(
     difference: differenceOf(row),
     isUnchanged: row.before === row.after,
     anchorWidthMm: row.cabinet?.anchorWidthMm,
-    revert: options.isRevertable
-      ? { kind: "change", address: row.address }
-      : undefined,
+    revert:
+      options.isRevertable && !isOfChangedRow(row.address, context.changedRows)
+        ? { kind: "change", address: row.address }
+        : undefined,
   };
+}
+
+/**
+ * Whether a field is a rate or price of a row the draft creates or deletes. A created accessory's price lies inside its
+ * creation, so no change of it is held to take back, and a created class goes whole: both leave with the row's own ↺.
+ */
+function isOfChangedRow(
+  address: AppliedAddress,
+  changedRows: readonly ItemRef[],
+): boolean {
+  return changedRowOf({ address } as DraftChange, changedRows) !== undefined;
 }
 
 function subjectOf(row: FieldDiffRow, context: RowContext): RowSubject {

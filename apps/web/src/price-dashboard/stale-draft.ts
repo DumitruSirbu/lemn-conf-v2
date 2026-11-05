@@ -15,6 +15,7 @@ import { subjectOfAddress } from "./publish-refusals";
 // A draft that no longer makes a book is listed change by change, so a valid change beside a refused one is not lost to
 // giving the whole draft up. A bulk action is one line, since its changes stand or go together, and so is a row the
 // draft creates or deletes, with its rates, price and words: a row goes whole, so ↺ is not offered on one of its fields.
+// A created row's line takes the row back by its creation; a deleted row's line has no ↺.
 
 export interface StaleChangeView {
   readonly key: string;
@@ -22,7 +23,8 @@ export interface StaleChangeView {
   /** The change cannot be applied: it is the one to take back. */
   readonly isRefused: boolean;
   /**
-   * What ↺ removes. Absent for a created or deleted row, which this view does not offer to take back on its own.
+   * What ↺ removes: the change, the bulk group, or a created row by its creation. Absent for a deleted row, which this
+   * view does not offer to take back on its own.
    */
   readonly revert: DraftRevertTargetWire | undefined;
 }
@@ -58,7 +60,10 @@ function linesOf(
     const isRefused = refusedIndexes.has(index);
     const held = lines.get(key);
     if (held !== undefined) {
-      if (isRefused && !held.isRefused) lines.set(key, { ...held, isRefused });
+      lines.set(
+        key,
+        mergedLine(held, { isRefused, revert: revertOf(change, rows) }),
+      );
       return;
     }
     lines.set(key, {
@@ -73,6 +78,18 @@ function linesOf(
   return [...lines.values()];
 }
 
+/** A later change of a line's row: it is refused if any is, and the creation, wherever it stands, is what ↺ takes back. */
+function mergedLine(
+  held: StaleChangeView,
+  next: Pick<StaleChangeView, "isRefused" | "revert">,
+): StaleChangeView {
+  return {
+    ...held,
+    isRefused: held.isRefused || next.isRefused,
+    revert: held.revert ?? next.revert,
+  };
+}
+
 /** One key for a bulk action, for a created or deleted row and for each of the other changes. */
 function lineKeyOf(change: DraftChange, rows: readonly ItemRef[]): string {
   const row = changedRowOf(change, rows);
@@ -84,7 +101,11 @@ function revertOf(
   change: DraftChange,
   rows: readonly ItemRef[],
 ): DraftRevertTargetWire | undefined {
-  if (changedRowOf(change, rows) !== undefined) return undefined;
+  if (changedRowOf(change, rows) !== undefined) {
+    return isCreationAddress(change.address)
+      ? { kind: "change", address: change.address }
+      : undefined;
+  }
   if (change.groupId !== undefined) {
     return { kind: "group", groupId: change.groupId };
   }
