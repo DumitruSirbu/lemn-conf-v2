@@ -35,3 +35,11 @@ export function isPlainRecord(
     !Array.isArray(declared)
   );
 }
+
+/** Whether `members` holds a member `allowed` does not name. */
+export function hasMemberOutside(
+  members: Readonly<Record<string, unknown>>,
+  allowed: readonly string[],
+): boolean {
+  return Object.keys(members).some((member) => !allowed.includes(member));
+}

@@ -82,7 +82,13 @@ export {
   type CreatedRowTextRefusalCode,
   type AuthoredTextRefusalCode,
 } from "./created-row-text.js";
-export { hardwareRatesOf, isStructuralAddress } from "./structural-changes.js";
+export {
+  STRUCTURAL_ADDRESS_KINDS,
+  hardwareRatesOf,
+  isCreationAddress,
+  isStructuralAddress,
+  type StructuralAddressKind,
+} from "./structural-changes.js";
 export {
   linkTargetBuildIdsOf,
   refuseLinkTarget,

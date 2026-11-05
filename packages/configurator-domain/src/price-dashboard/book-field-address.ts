@@ -143,6 +143,13 @@ export type BookFieldAddress =
       readonly item: DeletableItemRef;
     };
 
+/** The kinds that add a row to the book: a hardware class or a linked accessory. */
+export const CREATION_ADDRESS_KINDS = Object.freeze([
+  "hardware-tier-created",
+  "accessory-created",
+] as const);
+export type CreationAddressKind = (typeof CREATION_ADDRESS_KINDS)[number];
+
 /** Every `field` an address can name, by its own word: what an audit detail may say a change touched. */
 export const ADDRESS_FIELDS = Object.freeze([
   ...CABINET_RULE_FIELDS,

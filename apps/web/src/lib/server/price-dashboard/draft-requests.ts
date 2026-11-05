@@ -1,12 +1,19 @@
 import {
+  APPLIED_ADDRESS_KINDS,
+  CREATION_ADDRESS_KINDS,
   PRICE_GROUP_CODES,
-  type AppliedAddress,
+  type AddressOfKind,
+  type AppliedAddressKind,
+  type BookFieldAddressKind,
+  type CreationAddressKind,
   type PriceGroupCode,
+  type StructuralAddressKind,
 } from "@lemnaria/configurator-domain";
 
 import { parseJsonObject } from "@/lib/server/account/account-request";
-import { readAppliedAddress } from "@/lib/server/price-dashboard/draft-address";
+import { readDraftAddress } from "@/lib/server/price-dashboard/draft-address";
 import {
+  hasMemberOutside,
   isIdentifier,
   isPlainRecord,
 } from "@/lib/server/price-dashboard/identifier-shape";
@@ -57,9 +64,31 @@ function refusedWith<Code extends string>(
 // ---------------------------------------------------------------------------------------------------------------------
 // One change
 
+type DeletionKind = Extract<StructuralAddressKind, "item-deleted">;
+type ChangeKind =
+  | AppliedAddressKind
+  | Exclude<StructuralAddressKind, CreationAddressKind | DeletionKind>;
+type RevertKind = ChangeKind | CreationAddressKind;
+
+const DELETION_KIND: DeletionKind = "item-deleted";
+
+const CHANGE_KINDS: readonly ChangeKind[] = [
+  ...APPLIED_ADDRESS_KINDS,
+  "created-row-text",
+];
+
+/** A revert takes back a creation too, which only a creation route puts there. */
+const REVERT_KINDS: readonly RevertKind[] = [
+  ...CHANGE_KINDS,
+  ...CREATION_ADDRESS_KINDS,
+];
+
+export type ChangeAddress = AddressOfKind<ChangeKind>;
+export type RevertAddress = AddressOfKind<RevertKind>;
+
 export interface DraftChangeRequest {
   readonly expectedDraftRevision: string;
-  readonly address: AppliedAddress;
+  readonly address: ChangeAddress;
   /** As sent: `applyChanges` judges it, and only a judged value is ever stored. */
   readonly value: unknown;
 }
@@ -84,7 +113,7 @@ function readChangeMembers(
 > {
   if (!isPlainRecord(declared)) return refusedWith("change", "MISSING_VALUE");
   if (hasMemberOutside(declared, ["address", "value"])) return MALFORMED;
-  return withAddress(declared.address, (address) =>
+  return withAddress(declared.address, CHANGE_KINDS, (address) =>
     accepted({ address, value: ownMember(declared, "value") }),
   );
 }
@@ -93,7 +122,7 @@ function readChangeMembers(
 // A revert
 
 export type RevertTarget =
-  | { readonly kind: "change"; readonly address: AppliedAddress }
+  | { readonly kind: "change"; readonly address: RevertAddress }
   | { readonly kind: "group"; readonly groupId: string };
 
 export interface RevertRequest {
@@ -155,7 +184,7 @@ function readRevertTarget(
   const kind = declared.kind;
   if (kind === "change") {
     if (hasMemberOutside(declared, ["kind", "address"])) return MALFORMED;
-    return withAddress(declared.address, (address) =>
+    return withAddress(declared.address, REVERT_KINDS, (address) =>
       accepted({ kind: "change", address }),
     );
   }
@@ -286,13 +315,6 @@ export function membersOf(
     : body;
 }
 
-function hasMemberOutside(
-  members: Members,
-  allowed: readonly string[],
-): boolean {
-  return Object.keys(members).some((member) => !allowed.includes(member));
-}
-
 /** The member the body holds itself, never one inherited from the prototype. */
 export function ownMember(members: Members, name: string): unknown {
   return Object.hasOwn(members, name) ? members[name] : undefined;
@@ -310,21 +332,28 @@ function readRevision(
     : refusedWith("expectedDraftRevision", "NOT_A_WHOLE_NUMBER");
 }
 
-function withAddress<Value>(
+function withAddress<Kind extends BookFieldAddressKind, Value>(
   declared: unknown,
+  accepts: readonly Kind[],
   continueWith: (
-    address: AppliedAddress,
+    address: AddressOfKind<Kind>,
   ) => RequestReading<Value, DraftChangeRefusalCode>,
 ): RequestReading<Value, DraftChangeRefusalCode> {
-  const reading = readAppliedAddress(declared);
+  if (isDeletion(declared)) return refusedWith("address", "NOT_EDITABLE");
+  const reading = readDraftAddress(declared, accepts);
   switch (reading.kind) {
     case "address":
       return continueWith(reading.address);
-    case "not-applied":
+    case "not-accepted":
       return refusedWith("address", "NOT_EDITABLE");
     case "unknown":
       return refusedWith("address", "UNKNOWN_ADDRESS");
     case "extra-member":
       return MALFORMED;
   }
+}
+
+/** A deletion is refused on both routes by its kind, whatever else the address holds. */
+function isDeletion(declared: unknown): boolean {
+  return isPlainRecord(declared) && declared.kind === DELETION_KIND;
 }

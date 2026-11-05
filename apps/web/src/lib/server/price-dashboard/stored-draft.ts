@@ -1,11 +1,14 @@
 import {
+  BOOK_FIELD_ADDRESS_KINDS,
   readBulk,
+  type BookFieldAddress,
   type DraftBulk,
   type DraftChange,
 } from "@lemnaria/configurator-domain";
 
-import { readAppliedAddress } from "@/lib/server/price-dashboard/draft-address";
+import { readDraftAddress } from "@/lib/server/price-dashboard/draft-address";
 import {
+  hasMemberOutside,
   isIdentifier,
   isPlainRecord,
 } from "@/lib/server/price-dashboard/identifier-shape";
@@ -33,15 +36,94 @@ export function readStoredDraft(stored: unknown): StoredDraftReading {
 function readStoredChange(declared: unknown): DraftChange | undefined {
   if (!isPlainRecord(declared)) return undefined;
   const members = declared;
-  const address = readAppliedAddress(members.address);
-  const value = members.value;
-  if (address.kind !== "address" || !isStoredValue(value)) return undefined;
+  const address = readDraftAddress(members.address, BOOK_FIELD_ADDRESS_KINDS);
+  if (address.kind !== "address") return undefined;
+  const value = readStoredValue(address.address, members.value);
   const grouping = readGrouping(members);
-  if (grouping === undefined) return undefined;
-  return { address: address.address, value, ...grouping } as DraftChange;
+  if (!value.ok || grouping === undefined) return undefined;
+  return {
+    address: address.address,
+    value: value.value,
+    ...grouping,
+  } as DraftChange;
 }
 
-function isStoredValue(value: unknown): value is number | boolean {
+type ValueReading =
+  | { readonly ok: true; readonly value: unknown }
+  | { readonly ok: false };
+
+const UNREADABLE_VALUE: ValueReading = { ok: false };
+
+/** The value a change of this kind holds, rebuilt member by member where it is an object; the domain judges its content. */
+function readStoredValue(
+  address: BookFieldAddress,
+  value: unknown,
+): ValueReading {
+  switch (address.kind) {
+    case "hardware-tier-created":
+      return readTierCreationValue(value);
+    case "accessory-created":
+      return readAccessoryCreationValue(value);
+    case "created-row-text":
+      return typeof value === "string" ? { ok: true, value } : UNREADABLE_VALUE;
+    case "item-deleted":
+      return value === true ? { ok: true, value } : UNREADABLE_VALUE;
+    case "cabinet":
+    case "cabinet-size":
+    case "hardware":
+    case "material":
+    case "depth-rule":
+    case "accessory":
+    case "provisional":
+      return isNumberOrFlag(value) ? { ok: true, value } : UNREADABLE_VALUE;
+  }
+}
+
+const TIER_CREATION_MEMBERS = ["name", "description"];
+const ACCESSORY_CREATION_MEMBERS = [
+  "linkedBuildId",
+  "perUnitMinor",
+  "name",
+  "description",
+];
+
+function readTierCreationValue(value: unknown): ValueReading {
+  if (!isPlainRecord(value) || hasMemberOutside(value, TIER_CREATION_MEMBERS)) {
+    return UNREADABLE_VALUE;
+  }
+  const { name, description } = value;
+  return typeof name === "string" && typeof description === "string"
+    ? { ok: true, value: { name, description } }
+    : UNREADABLE_VALUE;
+}
+
+/** A description may be left out, which reads as empty. */
+function readAccessoryCreationValue(value: unknown): ValueReading {
+  if (
+    !isPlainRecord(value) ||
+    hasMemberOutside(value, ACCESSORY_CREATION_MEMBERS)
+  ) {
+    return UNREADABLE_VALUE;
+  }
+  const { linkedBuildId, perUnitMinor, name, description } = value;
+  const isDescriptionRight =
+    description === undefined || typeof description === "string";
+  if (
+    typeof linkedBuildId !== "string" ||
+    typeof perUnitMinor !== "number" ||
+    typeof name !== "string" ||
+    !isDescriptionRight
+  ) {
+    return UNREADABLE_VALUE;
+  }
+  const words = description === undefined ? {} : { description };
+  return {
+    ok: true,
+    value: { linkedBuildId, perUnitMinor, name, ...words },
+  };
+}
+
+function isNumberOrFlag(value: unknown): value is number | boolean {
   return typeof value === "number" || typeof value === "boolean";
 }
 

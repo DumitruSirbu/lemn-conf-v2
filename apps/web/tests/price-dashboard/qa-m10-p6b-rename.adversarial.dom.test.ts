@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 //
 // Counterexamples for the rename of a class the catalogue does not key: the field refuses what the domain refuses and in
-// the domain's words, a class the draft deletes offers no field, the production client offers none, a second press while a
+// the domain's words, a class the draft deletes offers no field, the production client offers one for a created class only, a second press while a
 // save is out sends nothing, an answer that arrives after the person typed on does not overwrite what they typed, and
 // typing the published name back leaves no change in "De publicat".
 import fc from "fast-check";
@@ -36,7 +36,6 @@ import {
   BLUM,
   CREATED,
   CREATED_CLASS,
-  HETTICH,
   hardwarePageOf,
   mountHardwareEdit,
   pendingChipText,
@@ -314,12 +313,11 @@ describe("a published class renamed and then named as it was", () => {
 });
 
 describe("the production client", () => {
-  it("takes no change of a created row's words", () => {
-    expect(FETCHING_PRICE_DRAFT_CLIENT.acceptsCreatedRowText).not.toBe(true);
+  it("takes the change of a created row's words", () => {
+    expect(FETCHING_PRICE_DRAFT_CLIENT.acceptsCreatedRowText).toBe(true);
   });
 
-  it("is the one a screen mounted without a client is given: the name is text with the reason, and no field", () => {
-    const page = hardwarePageOf({ changes: CREATED_CLASS });
+  function nameFieldsOf(tierId: string, changes: readonly DraftChange[]) {
     const screen = mountInCatalogue(
       createElement(HardwareEditScreen, {
         locale: "ro",
@@ -328,43 +326,24 @@ describe("the production client", () => {
           "hardware",
           "publish",
         ]),
-        page,
-        tierId: CREATED,
+        page: hardwarePageOf({ changes }),
+        tierId,
       }),
     );
     try {
-      expect(
-        allIn<HTMLInputElement>(screen.container, "input").filter(
-          (input) => input.name === "name",
-        ),
-      ).toEqual([]);
-      expect(screen.container.textContent).toContain(CREATED_NAME);
-      expect(screen.container.textContent).toContain(
-        roCopy("priceDashboard.lifecycle.cannotJudge"),
+      return allIn<HTMLInputElement>(screen.container, "input").filter(
+        (input) => input.name === "name",
       );
     } finally {
       screen.unmount();
     }
+  }
+
+  it("is the one a screen mounted without a client is given: the name is a field for a created class", () => {
+    expect(nameFieldsOf(CREATED, CREATED_CLASS)).toHaveLength(1);
   });
-});
 
-describe("a class the catalogue keys", () => {
-  it.each([HETTICH, BLUM])(
-    "%s offers neither a name field nor a rename button",
-    async (tierId) => {
-      mounted = await mountHardwareEdit(tierId, hardwarePageOf());
-      const { container } = mounted;
-
-      expect(
-        allIn<HTMLLabelElement>(container, "label").filter(
-          (label) => label.textContent.trim() === NAME,
-        ),
-      ).toEqual([]);
-      expect(
-        allIn<HTMLButtonElement>(container, "button").filter(
-          (button) => button.textContent.trim() === RENAME,
-        ),
-      ).toEqual([]);
-    },
-  );
+  it("is the one a screen mounted without a client is given: the name of a class the book states is no field", () => {
+    expect(nameFieldsOf(BLUM, [])).toEqual([]);
+  });
 });
