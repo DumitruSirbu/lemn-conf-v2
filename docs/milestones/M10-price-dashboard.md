@@ -764,6 +764,9 @@ the stated default and needs only a yes or a correction.
 | OQ-34 | Should an anonymous kitchen, or one nobody has opened in months, keep a tier or linked accessory from being deleted? Today every saved kitchen the client has not deleted counts (S3 security review) | Every one counts, as built; switching off still works | S3, R4a |
 | OQ-35 | The staff kitchen page's two estimates (as sent, current) read as "De la …", rounded up to the thousand like the customer's price, so a change under 1000 lei looks like none. Show exact totals to staff instead? | Rounded, as built | K3 |
 | OQ-36 | A production deployment with no `DATABASE_URL` shows no prices and refuses contact requests, rather than failing to start | As built | W1 |
+| OQ-37 | May a created hardware class or accessory have the same name as an existing one, for example a second "Blum" beside the shipped Blum? Customers would see two rows they cannot tell apart. Security review recommends refusing a name equal to another row's name, after NFC and case-folding. | Allowed, as built. Invisible format characters are refused from R4a4 on. | R4a4 (R-h) |
+| OQ-38 | Two places count a created class differently. The header chip and the publish button count it once ("1 preț de publicat"), as OQ-30's proposal does. The publish page's group heading counts its lines ("6 modificări"). Should the heading follow OQ-30 too? | As built | R4a4, U5c (OQ-30) |
+| OQ-11f | The `cannot-judge` note on Switch off and Delete ends "Încearcă din nou mai târziu". From R4a5 on, production's Delete of a stated row (until R4c) and its Switch off (until R4b) are a standing state, and retrying will not help. New wording? | As drafted | R4a5 |
 | OQ-28c | P6 leaves the seeded default kitchen's hardware total unchanged (its push fronts are top-row doors, no drawers); only push-to-open drawers move | Recorded, no question | P6 |
 | OQ-33 | ADR 0062's third Amendment, item 2, forbids deleting an item any saved kitchen uses (owner, as relayed: "Deleting no, disabling yes"). That holds for every kitchen the publish can see. A kitchen can still come to name a deleted item: a save in the very moment of publishing, or a page left open since before the publish. What does that customer see? | **The same as for a switched-off item** (items 3 and 4): a notice, a required choice from the remaining options, and no price until they choose. A deleted accessory is removed with the notice. Architect's reading, ADR 0178, Amendment of 2026-11-04 | S2c, R4a, Q3 |
 
@@ -2823,10 +2826,34 @@ R4a2's hand-offs:
     `Retry-After`. Otherwise strict-mode double effects and overlapping views get `429` and show counts as unknown.
   - Add a test that two concurrent views both end up counted.
 
-*Before the next push:* `live-suite-census.test.ts` is red on `m10-price-dashboard`, because the K3 live file
-`qa-m10-k3-seen-at.live.adversarial.test.ts` is not in its table. The flake fixes are queued with it:
-`plan-preview-model.facing-labels`, the `qa-m10-w1-price-stores-wiring` timeout, `qa-8q2-sink-store`, and the
-`qa-m10-r2-dashboard-api` property, which needs a pinned accepted example.
+*R4a4* (in review). Rulings:
+- A rate outside `hardwareRatesOf(book)` answers `400 NOT_EDITABLE`.
+- A creation on a stale draft answers `409 candidate-refused`, for both kinds.
+- Row-identity members are refused before the bucket.
+- One words reader serves creation and rename. R-h judges the text as sent, and the draft stores it trimmed.
+- `\p{Cf}` is refused inside names.
+- D7 offers no ↺ on a deleted row.
+- Residual: the 21st class or 51st accessory answers `409 candidate-refused`. A named `LIMIT_REACHED` code is queued as a small wave of its own.
+
+R4a4 hands to R4c:
+- **Turn the deleted row's ↺ back on** in D7 and in the stale-draft list once the revert route accepts `item-deleted`. QA's `it.fails` will mark when.
+- **One book for a creation's rates.** `ratesOf` and `incompleteCreationIndexes` take the rate list from the active book. `prepareTierCreation` takes the starting rates from the running candidate. Once deletions are accepted, a draft that deletes every class carrying some rate could make creation impossible.
+
+R4a4 hands to Q3: an end-to-end arm showing that publishing a created class blanks the deltas, written when Q3 flips `qa-p4a-tier-offer-switched-off…:56`.
+
+*R4a5* (in progress) revises R4a2's rule. The usage *route* omits a tier or linked accessory that the server's active book does not state, and does not answer `0`. The client reads an unmatched item as `unavailable`, so a stale screen shows no false `0`. `countItemUsage` and `countUsageProbes` keep answering `0` for in-process callers.
+
+*Before the next push:* the tests-only wave `m10/flake-fixes` (merged 2026-11-05) cleared the earlier blockers:
+- The census now lists the K3 live file.
+- `plan-preview-model.facing-labels` sweeps a pinned seed.
+- `qa-m10-w1-price-stores-wiring` has an explicit timeout.
+- `qa-8q2-sink-store` has explicit timeouts.
+- The `qa-m10-r2-dashboard-api` property has pinned accepted examples.
+- In `client-write-path`, an earlier test now drains its held request.
+
+What still blocks `pnpm ci:local` is the preview database. The two `priced` arms of
+`application-role-privileges.test.ts` pass only once preview holds `0023`–`0029` and their grants. The owner runs those
+steps.
 
 ### Lane U — Dashboard UI D1–D9 (Light + visual; U5 Full, because it publishes)
 
