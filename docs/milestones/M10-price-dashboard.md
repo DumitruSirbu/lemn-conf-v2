@@ -2794,9 +2794,34 @@ S2c's hand-offs:
 - **The shared-file note above** names `qa-m10-u4a-wire` only. R4a3 also flipped `qa-m10-u4c-wire`'s revert and rename
   `it.fails`. Its `createAccessory` `it.fails` and pin stay R4a4's.
 
-*R4a2*: the bucket `staff-price-usage-by-account` allows 120 an hour, and the read has a 10 s deadline. Both figures
-are provisional and the owner's to retune. The scribe records them in ADR 0178. The walk is not cancelled at the
-deadline: an `AbortSignal` on `countEach` is queued.
+*R4a2* (merged; QA green; logic, clean-code and security reviewed in two rounds):
+- **Limits.** The bucket `staff-price-usage-by-account` allows 120 in a fixed UTC hour, and a burst may spend them at
+  once. The deadline is 10 s. Both figures are provisional and the owner's to retune; the scribe records them in ADR
+  0178.
+- **The deadline covers the whole request**: the stores, the book read and the count. At the deadline the walk and the
+  SQL fan-out stop, and retries stop too. Statements already issued still run to completion.
+- **One usage read in flight per account, per process.** A second concurrent read answers `429` with `Retry-After: 10`.
+- **Unstated refs.** A tier or linked accessory that the given book does not state reads `0` and is never probed. This
+  departs from `usesItem`, which counts a design naming a dropped tier. It is a recorded ruling, and it means callers
+  must ask about items of the same book. It also means made-up refs cost no scan.
+- **The log.** The account log gains `{event: "staff-price-usage", unreadableDesigns}`, an integer only. The scribe
+  records this extension of the closed list in ADR 0172.
+
+R4a2's hand-offs:
+- **R4a6:**
+  - Build the probes once with `usageProbesFor(deleted, {catalog, book: active})`, against the active book and never the
+    candidate.
+  - Count them with `countUsageProbes`, in chunks of at most 50, since a draft can delete about 88 items.
+  - Read each linked accessory's `buildIds` from those same probes.
+  - Assert that no `migrated-design` probe is present.
+  - Optionally, tie `createdItems` to the summary (security N4, above).
+- **R4a5:**
+  - Match usage answers by item, never by position.
+  - Never show a count for an item the current book does not state. A stale screen after another publish would read a
+    false `0`.
+  - The client keeps one usage read in flight: it joins a read that is already running, or retries a busy `429` after
+    `Retry-After`. Otherwise strict-mode double effects and overlapping views get `429` and show counts as unknown.
+  - Add a test that two concurrent views both end up counted.
 
 *Before the next push:* `live-suite-census.test.ts` is red on `m10-price-dashboard`, because the K3 live file
 `qa-m10-k3-seen-at.live.adversarial.test.ts` is not in its table. The flake fixes are queued with it:
