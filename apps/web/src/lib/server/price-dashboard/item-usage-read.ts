@@ -33,6 +33,14 @@ export class UsageReadDeadlineError extends Error {
   }
 }
 
+/** The reader's count of designs it left out is not a whole number of designs, so nothing it answered is trusted. */
+export class MalformedUsageAnswerError extends Error {
+  constructor() {
+    super("The usage reader answered a count that is not a number of designs.");
+    this.name = "MalformedUsageAnswerError";
+  }
+}
+
 /** The questions asked name more distinct items than one count may fan out to. */
 export class TooManyUsageItemsError extends Error {
   constructor() {
@@ -55,7 +63,8 @@ export function isWithinUsageBound(items: readonly ItemRef[]): boolean {
 /**
  * One entry per distinct item, in the domain's order, each the count of the designs that use it. A reader that leaves an
  * item out, repeats it or answers a number of designs it cannot is thrown on (`usageCountOf`), never read as 0. Throws
- * `UsageReadDeadlineError` past the deadline and `TooManyUsageItemsError` above the bound.
+ * `UsageReadDeadlineError` past the deadline, `MalformedUsageAnswerError` for an unreadable-design count that is not a
+ * whole number, and `TooManyUsageItemsError` above the bound.
  */
 export async function countItemUsage(
   items: readonly ItemRef[],
@@ -70,11 +79,21 @@ export async function countItemUsage(
   const { counts, unreadableDesigns } = await withinDeadline(
     stores.usage.countEach(probes),
   );
-  reportUnreadableDesigns(unreadableDesigns);
-  return distinct.map((item) => ({
+  const usage = distinct.map((item) => ({
     item,
     designCount: usageCountOf(counts, item),
   }));
+  if (!isWholeCount(unreadableDesigns)) throw new MalformedUsageAnswerError();
+  reportUnreadableDesigns(unreadableDesigns);
+  return usage;
+}
+
+function isWholeCount(declared: unknown): declared is number {
+  return (
+    typeof declared === "number" &&
+    Number.isSafeInteger(declared) &&
+    declared >= 0
+  );
 }
 
 async function withinDeadline<Result>(work: Promise<Result>): Promise<Result> {

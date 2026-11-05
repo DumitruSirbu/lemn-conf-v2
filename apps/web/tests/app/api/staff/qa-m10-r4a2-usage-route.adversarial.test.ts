@@ -714,7 +714,7 @@ describe("what a failure may say", () => {
     ["text", "3"],
     ["Infinity", Number.POSITIVE_INFINITY],
   ])(
-    "writes no line for an unreadable-design count that is %s, and still answers the counts",
+    "answers 503 with no counts and writes no line for an unreadable-design count that is %s",
     async (_n, unreadableDesigns) => {
       readerAnswering(
         Promise.resolve({
@@ -725,7 +725,8 @@ describe("what a failure may say", () => {
 
       const answer = await askedFor([VENEER]);
 
-      expect(answer.status).toBe(200);
+      expect(answer.status).toBe(503);
+      expect(await jsonOf(answer)).toEqual({ status: "unavailable" });
       expect(
         console_.accountLines().filter((line) => "unreadableDesigns" in line),
       ).toEqual([]);
