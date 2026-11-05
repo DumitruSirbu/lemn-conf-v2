@@ -142,6 +142,21 @@ describe("a rename of a created row", () => {
     ["an empty name", "   ", "TEXT_EMPTY"],
     ["a name past the bound", "x".repeat(500), "TEXT_TOO_LONG"],
     ["a name with a line break", "GTV\nPremium", "TEXT_FORBIDDEN_CHARACTER"],
+    [
+      "a name that is not in composed form",
+      "Cafe\u0301",
+      "TEXT_FORBIDDEN_CHARACTER",
+    ],
+    [
+      "a name with a direction override",
+      "GTV \u202Epremium",
+      "TEXT_FORBIDDEN_CHARACTER",
+    ],
+    [
+      "a name with a control character",
+      "GTV\u0007",
+      "TEXT_FORBIDDEN_CHARACTER",
+    ],
     ["a name that is not text", 12, "MISSING_VALUE"],
   ])("refuses %s", async (_name, value, code) => {
     const plan = planChange(
