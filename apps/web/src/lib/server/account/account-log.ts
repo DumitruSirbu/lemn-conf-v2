@@ -1,5 +1,7 @@
 import "server-only";
 
+import { isWholeCount } from "@/lib/server/whole-count";
+
 // The account routes' lines, over closed lists. `reportAccountEvent` is handed an event kind, an outcome and the name
 // of a limiter policy, and nothing else, so no line can hold a password, a token, a session value, an e-mail address or
 // a phone number: there is no parameter to carry one (ADR 0172 decision 5; flow rules in M8B plan section 5).
@@ -98,7 +100,7 @@ export function reportAccountEvent({
  * it takes: a whole number above 0 is written, and anything else writes nothing.
  */
 export function reportUnreadableDesigns(count: number): void {
-  if (!Number.isSafeInteger(count) || count <= 0) return;
+  if (!isWholeCount(count) || count === 0) return;
   try {
     console.warn(LINE_LABEL, {
       event: "staff-price-usage",

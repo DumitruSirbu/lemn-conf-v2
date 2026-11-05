@@ -2,16 +2,19 @@ import "server-only";
 
 import {
   distinctItemsInOrder,
+  isBuiltInAccessoryId,
+  isItemStated,
   usageCountOf,
   type ItemRef,
   type ItemUsage,
   type PriceBook,
 } from "@lemnaria/configurator-domain";
-import { usageProbesFor } from "@lemnaria/persistence";
+import { usageProbesFor, type ItemUsageProbe } from "@lemnaria/persistence";
 
 import { reportUnreadableDesigns } from "@/lib/server/account/account-log";
 import { shippedCatalogue } from "@/lib/server/price-dashboard/shipped-catalogue";
 import type { PriceStores } from "@/lib/server/price-stores";
+import { isWholeCount } from "@/lib/server/whole-count";
 import { MAX_USAGE_ITEMS } from "@/price-dashboard/price-dashboard-wire-contract";
 
 // How many saved designs use each of some items. The probes are built here from the server's own catalogue and the book
@@ -21,7 +24,7 @@ import { MAX_USAGE_ITEMS } from "@/price-dashboard/price-dashboard-wire-contract
 
 /**
  * PROVISIONAL: how long a count may take before the read is given up. Past it nothing is answered, so a count that
- * arrives late is never sent. The database work behind it is not cancelled (`countEach` takes no signal).
+ * arrives late is never sent, and the reader is told to stop (its signal aborts).
  */
 export const USAGE_READ_DEADLINE_MS = 10_000;
 
@@ -55,16 +58,22 @@ export interface UsageBasis {
   readonly book: PriceBook;
 }
 
+/** What a count of probes answers: one entry per probe, in the probes' order, and the designs the walk left out. */
+export interface ProbeCounts {
+  readonly usage: readonly ItemUsage[];
+  readonly unreadableDesigns: number;
+}
+
 /** Whether a list of items, once each is counted once, is no more than one count fans out to. */
 export function isWithinUsageBound(items: readonly ItemRef[]): boolean {
   return distinctItemsInOrder(items).length <= MAX_USAGE_ITEMS;
 }
 
 /**
- * One entry per distinct item, in the domain's order, each the count of the designs that use it. A reader that leaves an
- * item out, repeats it or answers a number of designs it cannot is thrown on (`usageCountOf`), never read as 0. Throws
- * `UsageReadDeadlineError` past the deadline, `MalformedUsageAnswerError` for an unreadable-design count that is not a
- * whole number, and `TooManyUsageItemsError` above the bound.
+ * The count of the designs using each distinct item, in the domain's order, and the log of the designs the walk left
+ * out. A tier or a linked accessory the book does not state is used by no one the dashboard can show, and is answered 0
+ * without a probe, so refs made up to be scanned cost nothing. Throws `TooManyUsageItemsError` above the bound, and what
+ * `countUsageProbes` throws.
  */
 export async function countItemUsage(
   items: readonly ItemRef[],
@@ -72,39 +81,68 @@ export async function countItemUsage(
 ): Promise<readonly ItemUsage[]> {
   const distinct = distinctItemsInOrder(items);
   if (distinct.length > MAX_USAGE_ITEMS) throw new TooManyUsageItemsError();
-  const probes = usageProbesFor(distinct, {
+  const probes = usageProbesFor(distinct.filter(isProbedIn(book)), {
     catalog: shippedCatalogue(),
     book,
   });
-  const { counts, unreadableDesigns } = await withinDeadline(
-    stores.usage.countEach(probes),
-  );
-  const usage = distinct.map((item) => ({
-    item,
-    designCount: usageCountOf(counts, item),
-  }));
-  if (!isWholeCount(unreadableDesigns)) throw new MalformedUsageAnswerError();
+  const { usage, unreadableDesigns } = await countUsageProbes(probes, stores);
   reportUnreadableDesigns(unreadableDesigns);
-  return usage;
+  return distinct.map((item) => ({
+    item,
+    designCount: isProbedIn(book)(item) ? usageCountOf(usage, item) : 0,
+  }));
 }
 
-function isWholeCount(declared: unknown): declared is number {
+function isProbedIn(book: PriceBook): (item: ItemRef) => boolean {
+  return (item) => !isTierOrLinkedAccessory(item) || isItemStated(item, book);
+}
+
+function isTierOrLinkedAccessory(item: ItemRef): boolean {
   return (
-    typeof declared === "number" &&
-    Number.isSafeInteger(declared) &&
-    declared >= 0
+    item.kind === "material" ||
+    item.kind === "hardware" ||
+    (item.kind === "accessory" && !isBuiltInAccessoryId(item.accessoryId))
   );
 }
 
-async function withinDeadline<Result>(work: Promise<Result>): Promise<Result> {
+/**
+ * One entry per probe, in the probes' order, each the count of the designs that use its item. A reader that leaves a
+ * probe out, repeats it, or answers a number of designs it cannot is thrown on (`usageCountOf`), never read as 0; so is an
+ * unreadable-design count that is not a whole number. Throws `UsageReadDeadlineError` past the deadline, and the reader is
+ * aborted by then. It returns data only: the caller logs.
+ */
+export async function countUsageProbes(
+  probes: readonly ItemUsageProbe[],
+  stores: Pick<PriceStores, "usage">,
+): Promise<ProbeCounts> {
+  if (probes.length === 0) return { usage: [], unreadableDesigns: 0 };
+  const { counts, unreadableDesigns } = await withinDeadline((signal) =>
+    stores.usage.countEach(probes, signal),
+  );
+  if (!isWholeCount(unreadableDesigns)) throw new MalformedUsageAnswerError();
+  return {
+    usage: probes.map(({ item }) => ({
+      item,
+      designCount: usageCountOf(counts, item),
+    })),
+    unreadableDesigns,
+  };
+}
+
+async function withinDeadline<Result>(
+  start: (signal: AbortSignal) => Promise<Result>,
+): Promise<Result> {
+  const cancelled = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
   const deadline = new Promise<never>((_, reject) => {
     timer = setTimeout(() => {
-      reject(new UsageReadDeadlineError());
+      const late = new UsageReadDeadlineError();
+      cancelled.abort(late);
+      reject(late);
     }, USAGE_READ_DEADLINE_MS);
   });
   try {
-    return await Promise.race([work, deadline]);
+    return await Promise.race([start(cancelled.signal), deadline]);
   } finally {
     clearTimeout(timer);
   }

@@ -52,3 +52,23 @@ describe("FakeKitchenDefaultsStore, before a first save (a table with no row)", 
     expect(await world.store.read()).toBe(NONE_SAVED);
   });
 });
+
+describe("FakeKitchenDefaultsStore, asked to count with an aborted signal", () => {
+  it("rejects and counts nothing, as the Neon reader does", async () => {
+    const world = newDefaultsWorld();
+    const item = { kind: "material", tierId: "material.veneer" } as const;
+    await world.aDesignUsing({ uses: [item] });
+    const controller = new AbortController();
+    controller.abort();
+
+    const counting = world.usage.countEach(
+      [world.probeFor(item)],
+      controller.signal,
+    );
+
+    await expect(counting).rejects.toBeInstanceOf(Error);
+    expect(
+      (await world.usage.countEach([world.probeFor(item)])).counts,
+    ).toEqual([{ item, designCount: 1 }]);
+  });
+});

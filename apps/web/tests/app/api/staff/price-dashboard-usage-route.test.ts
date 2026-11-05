@@ -219,6 +219,10 @@ describe("a count that is answered", () => {
 
     const answer = await count(longest);
 
+    const bodyBytes = new TextEncoder().encode(
+      JSON.stringify({ items: longest }),
+    ).length;
+    expect(bodyBytes).toBeLessThan(8 * 1024);
     expect(answer.status).toBe(200);
   });
 
@@ -381,29 +385,20 @@ describe("the probes the reader is handed", () => {
     expect(flagOf(otherTier)).toMatchObject({ isFallback: false });
   });
 
-  it("give a linked accessory the build ids priced as its row in the other depth's catalogue, and none for a name the book lacks", async () => {
+  it("give a linked accessory the build ids priced as its row in the other depth's catalogue", async () => {
     await startWorld({ book: bookLinking(LINKED_ACCESSORY, LINKED_ROW) });
     const deep = buildKitchenLBodyCatalog(700);
     const pricedAsTheRow = [...deep.keys()].filter(
       (buildId) => pricedAsBuildId(deep, buildId) === LINKED_ROW,
     );
 
-    const probes = await probesAskedFor([
+    const [probe] = await probesAskedFor([
       { kind: "accessory", accessoryId: LINKED_ACCESSORY },
-      { kind: "accessory", accessoryId: "not-in-the-book" },
     ]);
 
-    const byAccessory = new Map(
-      probes.map((probe) => [
-        probe.item.kind === "accessory" ? probe.item.accessoryId : "",
-        probe.via === "placed-bodies" ? [...probe.buildIds].sort() : undefined,
-      ]),
-    );
+    const buildIds = probe?.via === "placed-bodies" ? probe.buildIds : [];
     expect(pricedAsTheRow.length).toBeGreaterThan(1);
-    expect(byAccessory.get(LINKED_ACCESSORY)).toEqual(
-      [...pricedAsTheRow].sort(),
-    );
-    expect(byAccessory.get("not-in-the-book")).toEqual([]);
+    expect([...buildIds].sort()).toEqual([...pricedAsTheRow].sort());
   });
 
   it("read a colour and a built-in accessory the same in a kitchen of either depth, so neither is dropped", async () => {
@@ -438,6 +433,74 @@ describe("the probes the reader is handed", () => {
     );
     expect(atTheDeepDepth).toEqual([true, true]);
     expect(verdicts).toEqual(oracle);
+  });
+});
+
+describe("refs the active book does not state", () => {
+  it("cost no probe: 50 made-up tiers and linked accessories are answered 0 and the reader is never asked", async () => {
+    plant("d1", [VENEER]);
+    const madeUp: ItemRef[] = Array.from({ length: 25 }, (_, index) => ({
+      kind: index % 2 === 0 ? "material" : "hardware",
+      tierId: `tier.made-up-${String(index)}`,
+    }));
+    const unlinked = accessoryIds(25);
+    const asked = vi.spyOn(prices.defaults, "countEach");
+
+    const answer = await count([...madeUp, ...unlinked]);
+
+    expect(answer.status).toBe(200);
+    const { counts } = (await jsonOf(answer)) as {
+      counts: { count: number }[];
+    };
+    expect(counts).toHaveLength(MAX_USAGE_ITEMS);
+    expect(counts.every(({ count }) => count === 0)).toBe(true);
+    expect(asked).not.toHaveBeenCalled();
+  });
+
+  it("are answered 0 beside a stated item, which alone is handed to the reader", async () => {
+    plant("d1", [VENEER]);
+    const unstated = { kind: "material", tierId: "tier.made-up" } as const;
+    const asked = vi.spyOn(prices.defaults, "countEach");
+
+    const answer = await count([unstated, VENEER]);
+
+    expect(await jsonOf(answer)).toEqual({
+      counts: [
+        { item: VENEER, count: 1 },
+        { item: unstated, count: 0 },
+      ],
+    });
+    expect(asked.mock.calls[0]?.[0].map(({ item }) => item)).toEqual([VENEER]);
+  });
+});
+
+describe("the reader's signal", () => {
+  it("is handed to the reader and aborts at the deadline with the deadline's own error", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const asked = vi
+      .spyOn(prices.defaults, "countEach")
+      .mockReturnValue(new Promise(() => undefined));
+
+    const pending = count([VENEER]);
+    await vi.advanceTimersByTimeAsync(USAGE_READ_DEADLINE_MS - 1);
+    const signal = asked.mock.calls[0]?.[1];
+    const abortedBefore = signal?.aborted;
+    await vi.advanceTimersByTimeAsync(1);
+    const answer = await pending;
+
+    expect(abortedBefore).toBe(false);
+    expect(signal?.aborted).toBe(true);
+    expect((signal?.reason as Error).name).toBe("UsageReadDeadlineError");
+    expect(answer.status).toBe(503);
+  });
+
+  it("is not aborted by a count that finishes in time", async () => {
+    const asked = vi.spyOn(prices.defaults, "countEach");
+
+    const answer = await count([VENEER]);
+
+    expect(answer.status).toBe(200);
+    expect(asked.mock.calls[0]?.[1]?.aborted).toBe(false);
   });
 });
 

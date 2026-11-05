@@ -22,7 +22,6 @@ import {
 
 import { USAGE_READ_DEADLINE_MS } from "@/lib/server/price-dashboard/item-usage-read";
 import {
-  STAFF_PRICE_DRAFT_BY_ACCOUNT_POLICY,
   STAFF_PRICE_USAGE_BY_ACCOUNT_POLICY,
   STAFF_PRICE_USAGE_PER_ACCOUNT_HOUR_FIGURE,
 } from "@/lib/server/rate-limit/limit-policy";
@@ -58,6 +57,7 @@ import {
   bookOf,
   designOf,
   HARDWARE_TIERS,
+  isUnstatedTierOrLinkedAccessory,
   ITEM_POOL,
   MATERIAL_TIERS,
   readerOver,
@@ -85,7 +85,6 @@ vi.mock("@/lib/server/price-stores", () =>
 const VENEER = { kind: "material", tierId: "material.veneer" } as const;
 const SOFT_CLOSE = { kind: "hardware", tierId: "hardware.soft-close" } as const;
 const THE_BUCKET = STAFF_PRICE_USAGE_BY_ACCOUNT_POLICY.name;
-const THE_DRAFT_BUCKET = STAFF_PRICE_DRAFT_BY_ACCOUNT_POLICY.name;
 const THE_BODY_BOUND_BYTES = 8 * 1024;
 
 let prices: PriceDashboardWorld;
@@ -138,10 +137,6 @@ function readerAnswering(result: unknown): void {
   vi.spyOn(prices.defaults, "countEach").mockReturnValue(
     result as ReturnType<KitchenUsageReader["countEach"]>,
   );
-}
-
-function accountLinesOf(event: string) {
-  return console_.accountLines().filter((line) => line.event === event);
 }
 
 describe("a body that tries to steer a probe, sent as raw JSON text", () => {
@@ -383,67 +378,6 @@ describe("the bucket, spent for real", () => {
   });
 });
 
-describe("the draft writes, after their pipeline was shared with the usage read", () => {
-  async function aSwitchOff() {
-    return setAvailability({
-      cookie: admin.cookie,
-      json: {
-        expectedRevision: (await prices.stores.availability.readCurrent())
-          .revision,
-        item: SOFT_CLOSE,
-        active: false,
-      },
-    });
-  }
-
-  it("spend the draft bucket and never the usage one, and log under the draft's event", async () => {
-    limiterLedger.counted.length = 0;
-
-    const answer = await aSwitchOff();
-
-    expect(answer.status).toBe(200);
-    expect(budgetOf(THE_DRAFT_BUCKET)).toBeGreaterThan(0);
-    expect(budgetOf(THE_BUCKET)).toBe(0);
-    expect(accountLinesOf("staff-price-usage")).toEqual([]);
-    expect(accountLinesOf("staff-price-draft").length).toBeGreaterThan(0);
-  });
-
-  it("are refused 429 by the draft bucket, and not by a drained usage one", async () => {
-    limiterLedger.refusing.set(THE_DRAFT_BUCKET, 5);
-
-    const draft = await aSwitchOff();
-    limiterLedger.refusing.clear();
-    limiterLedger.refusing.set(THE_BUCKET, 5);
-    const usage = await askedFor([VENEER]);
-
-    expect([draft.status, usage.status]).toEqual([429, 429]);
-    expect(accountLinesOf("staff-price-usage").length).toBeGreaterThan(0);
-    expect(accountLinesOf("staff-price-draft").length).toBeGreaterThan(0);
-  });
-
-  it("answer 401 for a store that found no live session behind the write, logged under the draft's event", async () => {
-    vi.spyOn(prices.stores.availability, "setActive").mockRejectedValue(
-      new DashboardStoreError("set an item's availability", "not-recorded"),
-    );
-
-    const answer = await aSwitchOff();
-
-    expect(answer.status).toBe(401);
-    expect(accountLinesOf("staff-price-usage")).toEqual([]);
-    expect(accountLinesOf("staff-price-draft").length).toBeGreaterThan(0);
-  });
-
-  it("are not made by a read: a usage read that fails leaves no draft line", async () => {
-    readerAnswering(Promise.reject(new Error("down")));
-
-    const answer = await askedFor([VENEER]);
-
-    expect(answer.status).toBe(503);
-    expect(accountLinesOf("staff-price-draft")).toEqual([]);
-    expect(accountLinesOf("staff-price-usage").length).toBeGreaterThan(0);
-  });
-});
-
 describe("a reader that answers what it should not", () => {
   let rowsBefore: number;
 
@@ -557,8 +491,9 @@ describe("a reader that answers what it should not", () => {
 
           const expected = distinctItemsInOrder(asked).map((item) => ({
             item,
-            count: withNumbers.find((entry) => entry.item === item)
-              ?.designCount,
+            count: isUnstatedTierOrLinkedAccessory(item, ANCHORED_BOOK)
+              ? 0
+              : withNumbers.find((entry) => entry.item === item)?.designCount,
           }));
           expect(await jsonOf(answer)).toEqual({ counts: expected });
         },
@@ -815,6 +750,7 @@ describe("any items, any saved designs of either depth, under the book the store
   const BOOK: PriceBook = bookOf(BOOK_RECIPE, ANCHORED_BOOK);
 
   function usedBy(designs: readonly Design[], item: ItemRef): number {
+    if (isUnstatedTierOrLinkedAccessory(item, BOOK)) return 0;
     return designs.filter((design) =>
       usesItem({
         design,

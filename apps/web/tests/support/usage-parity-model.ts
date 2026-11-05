@@ -11,6 +11,8 @@ import {
   cabinetDepthMmOf,
   paletteFinish,
   pricedAsBuildId,
+  isBuiltInAccessoryId,
+  isItemStated,
   usesItem,
   type Design,
   type ItemRef,
@@ -226,12 +228,25 @@ export function readerOver(designs: readonly Design[]): KitchenUsageReader {
   };
 }
 
+/** A tier or a linked accessory the book does not state: the route answers 0 for it and asks the reader nothing. */
+export function isUnstatedTierOrLinkedAccessory(
+  item: ItemRef,
+  book: PriceBook,
+): boolean {
+  const isTierOrLinked =
+    item.kind === "material" ||
+    item.kind === "hardware" ||
+    (item.kind === "accessory" && !isBuiltInAccessoryId(item.accessoryId));
+  return isTierOrLinked && !isItemStated(item, book);
+}
+
 /** `undefined` when the domain itself cannot answer for the design, which no reader could be held to. */
 export function oracleCount(
   designs: readonly Design[],
   item: ItemRef,
   book: PriceBook,
 ): number | undefined {
+  if (isUnstatedTierOrLinkedAccessory(item, book)) return 0;
   try {
     return designs.filter((design) =>
       usesItem({

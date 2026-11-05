@@ -237,7 +237,7 @@ export const STAFF_PRICES_READ_PER_ACCOUNT_HOUR_FIGURE = 300;
 export const STAFF_PRICE_DRAFT_PER_ACCOUNT_HOUR_FIGURE = 600;
 /**
  * PROVISIONAL: how many usage questions one administrator may ask in an hour. A question names up to 50 items and walks
- * every stored design once (`neon-kitchen-usage-reader.ts`), so the bucket **fails closed**; 120 is one every 30 seconds.
+ * every stored design once (`neon-kitchen-usage-reader.ts`), so the bucket **fails closed**; 120 is a fixed UTC hour's allowance, which a burst may spend at once.
  * The owner's answer changes this constant and no code; see ADR 0178.
  */
 export const STAFF_PRICE_USAGE_PER_ACCOUNT_HOUR_FIGURE = 120;

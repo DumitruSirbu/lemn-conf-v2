@@ -1,11 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { SAMPLE_PRICE_BOOK, type ItemRef } from "@lemnaria/configurator-domain";
 import type { ItemUsageProbe, KitchenUsageReader } from "@lemnaria/persistence";
 
 import {
   countItemUsage,
+  countUsageProbes,
   isWithinUsageBound,
+  MalformedUsageAnswerError,
   TooManyUsageItemsError,
 } from "@/lib/server/price-dashboard/item-usage-read";
 import { MAX_USAGE_ITEMS } from "@/price-dashboard/price-dashboard-wire-contract";
@@ -89,4 +91,65 @@ describe("isWithinUsageBound", () => {
   ])("judges %s", (_name, items, expected) => {
     expect(isWithinUsageBound(items)).toBe(expected);
   });
+});
+
+describe("countUsageProbes", () => {
+  const A_TIER_PROBE: ItemUsageProbe = {
+    via: "settings-tier",
+    item: VENEER,
+    isFallback: false,
+  };
+
+  it("answers one entry per probe in the probes' order, and asks no reader for no probes", async () => {
+    const asked: ItemUsageProbe[][] = [];
+    const stores = { usage: readerRecording(asked) };
+
+    const counted = await countUsageProbes([A_TIER_PROBE], stores);
+    const nothing = await countUsageProbes([], stores);
+
+    expect(counted).toEqual({
+      usage: [{ item: VENEER, designCount: 2 }],
+      unreadableDesigns: 0,
+    });
+    expect(nothing).toEqual({ usage: [], unreadableDesigns: 0 });
+    expect(asked).toHaveLength(1);
+  });
+
+  it("hands the unreadable-design count back and writes no log line itself", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const stores = {
+      usage: {
+        countEach: () =>
+          Promise.resolve({
+            counts: [{ item: VENEER, designCount: 1 }],
+            unreadableDesigns: 4,
+          }),
+      },
+    };
+
+    const counted = await countUsageProbes([A_TIER_PROBE], stores);
+
+    expect(counted.unreadableDesigns).toBe(4);
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it.each([Number.NaN, -1, 1.5, Number.POSITIVE_INFINITY, "3"])(
+    "refuses an unreadable-design count of %s",
+    async (unreadableDesigns) => {
+      const stores = {
+        usage: {
+          countEach: () =>
+            Promise.resolve({
+              counts: [{ item: VENEER, designCount: 1 }],
+              unreadableDesigns: unreadableDesigns as number,
+            }),
+        },
+      };
+
+      await expect(
+        countUsageProbes([A_TIER_PROBE], stores),
+      ).rejects.toBeInstanceOf(MalformedUsageAnswerError);
+    },
+  );
 });

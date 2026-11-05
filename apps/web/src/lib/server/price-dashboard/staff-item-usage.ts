@@ -10,10 +10,6 @@ import {
 
 import type { AccountEvent } from "@/lib/server/account/account-log";
 import { ACCOUNT_RESPONSE_HEADERS } from "@/lib/server/account/account-responses";
-import {
-  readActiveBook,
-  readItemRef,
-} from "@/lib/server/catalogue-availability";
 import { dashboardConflictResponse } from "@/lib/server/price-dashboard/dashboard-responses";
 import {
   accepted,
@@ -22,6 +18,10 @@ import {
   ownMember,
   type RequestReading,
 } from "@/lib/server/price-dashboard/draft-requests";
+import {
+  readActiveBook,
+  readItemRef,
+} from "@/lib/server/price-dashboard/item-ref-reading";
 import {
   countItemUsage,
   isWithinUsageBound,
