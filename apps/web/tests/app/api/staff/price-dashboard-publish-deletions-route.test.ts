@@ -11,6 +11,8 @@ import type { ItemUsageProbe } from "@lemnaria/persistence";
 
 import { shippedCatalogue } from "@/lib/server/price-dashboard/shipped-catalogue";
 import { CLIENT_NETWORK_SOURCE_VARIABLE } from "@/lib/server/rate-limit/network-source";
+import { judgePendingDeletions } from "@/price-dashboard/publish-deletions";
+import { readPublishPage } from "@/price-dashboard/publish-source";
 
 import {
   captureConsole,
@@ -22,7 +24,6 @@ import {
   changeDraft,
   publishBody,
   publishDraft,
-  readState,
 } from "../../../support/price-dashboard-requests";
 import {
   freshPriceDashboardWorld,
@@ -113,6 +114,17 @@ async function stateOfTheWorld() {
   };
 }
 
+async function judgedOnThePage(): Promise<{ kind: string }> {
+  const read = await readPublishPage();
+  if (read.kind !== "ready") throw new Error("the page was not ready");
+  const { state, deletionFacts } = read.input;
+  return judgePendingDeletions({
+    book: state.active.book,
+    changes: state.draft.changes,
+    facts: deletionFacts,
+  });
+}
+
 async function publish() {
   return publishDraft({ cookie, json: await publishBody() });
 }
@@ -175,10 +187,10 @@ describe("a publish whose draft deletes an item a saved design names", () => {
     expect(await stateOfTheWorld()).toEqual(before);
   });
 
-  it("is judged on the usage at the publish, not on what the page's read counted", async () => {
+  it("is judged on the usage at the publish when the page counted a use that has since gone", async () => {
     await plantDraft(tokenHash, deleting(VENEER));
     const usedAtPageLoad = aDesignNaming(VENEER);
-    await readState({ cookie });
+    expect((await judgedOnThePage()).kind).toBe("blocked");
     prices.designs.plant({
       designId: usedAtPageLoad,
       uses: [VENEER],
@@ -190,15 +202,19 @@ describe("a publish whose draft deletes an item a saved design names", () => {
     expect(answer.status).toBe(200);
   });
 
-  it("is refused for a design saved after the page's read, which counted none", async () => {
+  it("is judged on the usage at the publish when the page counted none and a design was saved after", async () => {
     await plantDraft(tokenHash, deleting(VENEER));
-    await readState({ cookie });
+    expect((await judgedOnThePage()).kind).toBe("none");
     aDesignNaming(VENEER);
     const storeAsked = vi.spyOn(prices.stores.priceBook, "publish");
 
     const answer = await publish();
 
     expect(answer.status).toBe(409);
+    expect(await jsonOf(answer)).toEqual({
+      status: "item-in-use",
+      items: [VENEER],
+    });
     expect(storeAsked).not.toHaveBeenCalled();
   });
 
