@@ -502,12 +502,19 @@ const anyText = fc
   .map((units) => units.join(""));
 
 /** The parser tolerates a format character in text it holds; a judgement of new words refuses it, and refuses
- *  nothing else for its characters that the parser accepts. */
+ *  nothing else for its characters that the parser accepts: the same text with every format character removed is not
+ *  refused for its characters. */
 function expectForbiddenOnlyForAFormatCharacter(
   code: string,
   raw: string,
+  field: CreatedRowTextField = "name",
 ): void {
-  if (code === "TEXT_FORBIDDEN_CHARACTER") expect(raw).toMatch(/\p{Cf}/u);
+  if (code !== "TEXT_FORBIDDEN_CHARACTER") return;
+  expect(raw).toMatch(/\p{Cf}/u);
+  const withoutFormatCharacters = raw.replace(/\p{Cf}/gu, "");
+  expect(codeOf(withoutFormatCharacters, field), shown(raw)).not.toBe(
+    "TEXT_FORBIDDEN_CHARACTER",
+  );
 }
 
 describe("what the judgement accepts, the parser accepts, and what the parser accepts the judgement does not refuse for its characters or bounds", () => {
@@ -553,7 +560,7 @@ describe("what the judgement accepts, the parser accepts, and what the parser ac
         fc.pre(parses(withLinkedName("Nume", raw)));
 
         const code = codeOf(raw, "description");
-        expectForbiddenOnlyForAFormatCharacter(code, raw);
+        expectForbiddenOnlyForAFormatCharacter(code, raw, "description");
         expect(code).not.toBe("TEXT_TOO_LONG");
       }),
       { numRuns: 600, seed: SEED },
