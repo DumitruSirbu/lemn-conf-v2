@@ -326,7 +326,12 @@ describe.each(KINDS)("a production $label screen", (kind) => {
       const { container } = kind.mountEdit(id, undefined);
       await flushPromises(8);
 
-      for (const control of allIn(container, '[role="switch"]')) {
+      const switches = allIn(container, '[role="switch"]');
+      expect(
+        switches.length,
+        `${id}: the page has a switch to hold off`,
+      ).toBeGreaterThan(0);
+      for (const control of switches) {
         await hardware.press(control);
         expect(control.getAttribute("aria-disabled"), id).toBe("true");
         expect(openDialog(), id).toBeNull();

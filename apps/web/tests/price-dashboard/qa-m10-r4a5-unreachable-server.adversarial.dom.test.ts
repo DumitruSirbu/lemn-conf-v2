@@ -16,6 +16,8 @@ import {
   mountInCatalogue,
   type MountedScreen,
 } from "../support/render-with-intl";
+import { AccessoryListScreen } from "@/price-dashboard/accessory-list";
+import * as accessories from "./accessory-harness";
 import * as hardware from "./hardware-harness";
 import { inMemoryPriceDraftClient } from "./in-memory-price-draft-client";
 import * as materials from "./material-harness";
@@ -110,6 +112,9 @@ describe("a count the server did not give", () => {
 
     expect(asked).toEqual([USAGE_ADDRESS]);
     expect(anyCountIn(container.textContent)).toBe(false);
+    expect(container.textContent).not.toContain(
+      roCopy("priceDashboard.materials.usageDrift"),
+    );
     const chips = allIn(container, '[data-testid="material-chip"]').map(
       (chip) => chip.textContent,
     );
@@ -213,4 +218,118 @@ describe("a switch the server did not take", () => {
       expect(chips).toContain(INACTIVE);
     },
   );
+});
+
+describe("the question of a switch-off when the kitchens cannot be counted", () => {
+  const DEACTIVATE = roCopy("priceDashboard.common.deactivate");
+  const CONFIRM_DEACTIVATE = roCopy(
+    "priceDashboard.lifecycle.deactivateConfirm",
+  );
+  const CANCEL = roCopy("priceDashboard.common.cancel");
+
+  async function expectInertQuestion(
+    dialog: HTMLElement,
+    unavailableCopy: string,
+  ): Promise<void> {
+    expect(dialog.textContent).toContain(unavailableCopy);
+    expect(anyUsedByIn(dialog.textContent)).toBe(false);
+    const confirmation = hardware.dialogButton(dialog, CONFIRM_DEACTIVATE);
+    expect(confirmation.getAttribute("aria-disabled")).toBe("true");
+    await hardware.press(confirmation);
+    expect(
+      asked.filter((address) => address === AVAILABILITY_ADDRESS),
+      "pressing the confirmation sent nothing",
+    ).toEqual([]);
+    await hardware.press(hardware.dialogButton(dialog, CANCEL));
+  }
+
+  function anyUsedByIn(text: string): boolean {
+    return Array.from(
+      { length: MOST_KITCHENS_TRIED },
+      (_, count) => count,
+    ).some(
+      (count) =>
+        text.includes(roCopy("priceDashboard.lifecycle.usedBy", { count })) ||
+        text.includes(
+          roCopy("priceDashboard.lifecycle.usedByAccessory", { count }),
+        ),
+    );
+  }
+
+  it("says so for a class, and says no number: its confirmation is inert and sends nothing", async () => {
+    serverAnswering(unavailable);
+    const page = {
+      ...hardware.hardwarePageOf({ defaults: {} }),
+      sampleUsage: undefined,
+    };
+    screen = mountInCatalogue(
+      createElement(HardwareListScreen, {
+        locale: "ro",
+        context: contextOf("administrator", [
+          "kitchens",
+          "hardware",
+          "publish",
+        ]),
+        page,
+        client: inMemoryPriceDraftClient(page.state).client,
+      }),
+      "ro",
+    );
+    await flushPromises(10);
+    const { container } = screen;
+
+    await hardware.openMenuOf(container, hardware.HETTICH, "Hettich");
+    await hardware.press(
+      hardware.menuEntry(container, hardware.HETTICH, DEACTIVATE),
+    );
+    const dialog = hardware.openDialog();
+    if (dialog === null) throw new Error("no dialog opened");
+
+    await expectInertQuestion(
+      dialog,
+      roCopy("priceDashboard.lifecycle.usageUnavailable"),
+    );
+    expect(asked).toEqual([USAGE_ADDRESS]);
+  });
+
+  it("says so for an accessory, and says no number: its confirmation is inert and sends nothing", async () => {
+    serverAnswering(unavailable);
+    const page = {
+      ...accessories.accessoryPageOf({
+        defaults: {},
+        linked: [accessories.PUBLISHED_RULE],
+      }),
+      sampleUsage: undefined,
+    };
+    screen = mountInCatalogue(
+      createElement(AccessoryListScreen, {
+        locale: "ro",
+        context: contextOf("administrator", [
+          "kitchens",
+          "accessories",
+          "publish",
+        ]),
+        page,
+        client: inMemoryPriceDraftClient(page.state).client,
+      }),
+      "ro",
+    );
+    await flushPromises(10);
+    const { container } = screen;
+
+    for (const [id, name] of [
+      [accessories.DRYING_RACK, accessories.RACK_NAME],
+      [accessories.PUBLISHED, accessories.PUBLISHED_RULE.name],
+    ] as const) {
+      await accessories.openMenuOf(container, id, name);
+      await hardware.press(accessories.menuEntry(container, id, DEACTIVATE));
+      const dialog = hardware.openDialog();
+      if (dialog === null) throw new Error(`no dialog opened for ${id}`);
+
+      await expectInertQuestion(
+        dialog,
+        roCopy("priceDashboard.lifecycle.usageUnavailableAccessory"),
+      );
+    }
+  });
 });

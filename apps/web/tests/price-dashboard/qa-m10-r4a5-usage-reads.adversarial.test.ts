@@ -502,17 +502,34 @@ describe("a switch is never asked again", () => {
 });
 
 describe("a read that the network never answers", () => {
+  /**
+   * A network that holds every request for ever, but gives up on one whose caller aborts it, as a real `fetch` does. A
+   * deadline on a read is therefore met by an `AbortController` the client aborts from `setTimeout`, which this test's
+   * clock drives; `AbortSignal.timeout` runs on its own clock and would not end it here.
+   */
+  function holdEveryRequestUntilAborted(): void {
+    vi.stubGlobal(
+      "fetch",
+      (_address: string, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => {
+            reject(new DOMException("aborted", "AbortError"));
+          });
+        }),
+    );
+  }
+
   it("does not keep another read, of other items, waiting for ever", async () => {
-    vi.stubGlobal("fetch", () => new Promise<Response>(() => undefined));
+    holdEveryRequestUntilAborted();
     const client = createFetchingItemLifecycleClient();
     void client.readUsage([itemAt(0)]);
-    let isSecondDone = false;
+    const second = { isDone: false };
     void client.readUsage([itemAt(1)]).then(() => {
-      isSecondDone = true;
+      second.isDone = true;
     });
 
     await vi.advanceTimersByTimeAsync(10 * 60_000);
 
-    expect(isSecondDone, "the second read was told something").toBe(true);
+    expect(second.isDone, "the second read was told something").toBe(true);
   });
 });
