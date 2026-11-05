@@ -259,6 +259,7 @@ describe("the audit rows of every route (R-c)", () => {
       ...staffWorld.audit.heldEvents(),
     ];
     expect(rows.map(({ action }) => action).sort()).toEqual([
+      "catalogue-item-active-changed",
       "price-bulk-changed",
       "price-catalogue-viewed",
       "price-catalogue-viewed",

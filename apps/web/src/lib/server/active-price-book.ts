@@ -40,7 +40,7 @@ export { MAX_DISABLED_ITEMS };
  * The stores are an argument, with the process's own as the default, so a test of a surface hands in stores it counts.
  */
 export async function readActivePriceBook(
-  stores?: PriceStores,
+  stores?: Pick<PriceStores, "priceBook" | "availability">,
 ): Promise<PriceBookRoot> {
   try {
     const { priceBook, availability } = stores ?? (await getPriceStores());

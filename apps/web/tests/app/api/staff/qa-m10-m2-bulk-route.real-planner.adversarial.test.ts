@@ -13,6 +13,7 @@ import {
 import {
   FakeCatalogueAvailabilityStore,
   FakeDashboardAuditLedger,
+  FakeKitchenDefaultsStore,
   FakeHeldDesigns,
   FakePriceBookStore,
   FakeRevisionHead,
@@ -88,12 +89,8 @@ async function publish(book: PriceBook): Promise<void> {
     head: new FakeRevisionHead(),
     ledger,
   });
-  priceBook = new FakePriceBookStore({
-    ledger,
-    availability,
-    now,
-    designs: new FakeHeldDesigns(),
-  });
+  const designs = new FakeHeldDesigns();
+  priceBook = new FakePriceBookStore({ ledger, availability, now, designs });
   const publisher = await signedInAs(
     { role: "administrator" },
     `price-publisher-${String((publishers += 1))}@example.test`,
@@ -120,9 +117,17 @@ async function publish(book: PriceBook): Promise<void> {
     },
   });
   if (published.kind !== "ok") throw new Error("seed: publish refused");
+  const defaults = new FakeKitchenDefaultsStore({
+    ledger,
+    availability,
+    now,
+    designs,
+  });
   world.stores = {
     priceBook: stampedWithItsVersionId(priceBook),
     availability,
+    defaults,
+    usage: defaults,
   };
 }
 
