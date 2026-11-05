@@ -1,6 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  HARDWARE_RATE_FIELDS,
+  type DraftChange,
+} from "@lemnaria/configurator-domain";
+
+import { IDLE_LIFETIME_SECONDS_BY_ROLE } from "@/lib/server/account/session-lifetimes";
+import {
   STAFF_PRICE_DRAFT_BY_ACCOUNT_POLICY,
   STAFF_PRICE_DRAFT_PER_ACCOUNT_HOUR_FIGURE,
 } from "@/lib/server/rate-limit/limit-policy";
@@ -119,6 +125,125 @@ async function nothingWasWritten(revisionBefore: string): Promise<void> {
   expect((await storedDraft()).draftRevision).toBe(revisionBefore);
   expect((await storedDraft()).changes).toEqual([]);
 }
+
+describe("a rename of a row the draft created", () => {
+  const CREATED_TIER = "hardware.economic";
+  const NAME_ADDRESS = {
+    kind: "created-row-text",
+    item: { kind: "hardware", tierId: CREATED_TIER },
+    field: "name",
+  } as const;
+  const CREATED_CLASS: readonly DraftChange[] = [
+    {
+      address: { kind: "hardware-tier-created", tierId: CREATED_TIER },
+      value: { name: "GTV Economic", description: "" },
+    },
+    ...HARDWARE_RATE_FIELDS.map(
+      (field): DraftChange => ({
+        address: { kind: "hardware", tierId: CREATED_TIER, field },
+        value: 2_000,
+      }),
+    ),
+  ];
+
+  async function signedInWithCreatedClass() {
+    const { session, account } = await signedInAs(
+      { role: "administrator" },
+      "administrator@example.test",
+    );
+    const written = await prices.priceBook.writeDraft({
+      expectedDraftRevision: await currentDraftRevision(),
+      changes: CREATED_CLASS,
+      audit: {
+        session: {
+          sessionTokenHash: session.tokenHash,
+          idleLifetimeSeconds: IDLE_LIFETIME_SECONDS_BY_ROLE,
+        },
+        entry: {
+          action: "price-draft-changed",
+          detail: { changeKind: "provisional" },
+        },
+      },
+    });
+    if (written.kind !== "ok") throw new Error("seed: the draft not written");
+    return { cookie: session.cookie, accountId: account.id };
+  }
+
+  it("is stored after the creation, answered as the draft now is, and recorded naming the row and the field and not the words", async () => {
+    const { cookie, accountId } = await signedInWithCreatedClass();
+
+    const answer = await putChange(cookie, {
+      address: NAME_ADDRESS,
+      value: "GTV Premium",
+    });
+
+    expect(answer.status).toBe(200);
+    const expected = [
+      ...CREATED_CLASS,
+      { address: NAME_ADDRESS, value: "GTV Premium" },
+    ];
+    const stored = await storedDraft();
+    expect(stored.changes).toEqual(expected);
+    expect(await jsonOf(answer)).toEqual({
+      draftRevision: stored.draftRevision,
+      changes: expected,
+    });
+    expect(
+      draftRows()
+        .slice(-1)
+        .map(({ action, detail, actorAccountId }) => ({
+          action,
+          detail,
+          actorAccountId,
+        })),
+    ).toEqual([
+      {
+        action: "price-draft-changed",
+        detail: {
+          changeKind: "created-row-text",
+          itemKind: "hardware",
+          itemId: CREATED_TIER,
+          field: "name",
+        },
+        actorAccountId: accountId,
+      },
+    ]);
+  });
+
+  it("is refused for a class the draft did not create, and writes nothing", async () => {
+    const { cookie } = await administrator();
+    const before = await currentDraftRevision();
+
+    const answer = await putChange(cookie, {
+      address: NAME_ADDRESS,
+      value: "GTV Premium",
+    });
+
+    expect(answer.status).toBe(400);
+    expect(await jsonOf(answer)).toEqual({
+      status: "invalid-input",
+      issues: [{ field: "change", code: "UNKNOWN_ITEM" }],
+    });
+    await nothingWasWritten(before);
+  });
+
+  it("is refused with the text rule's code when the words state an amount, and writes nothing more", async () => {
+    const { cookie } = await signedInWithCreatedClass();
+    const before = await currentDraftRevision();
+
+    const answer = await putChange(cookie, {
+      address: NAME_ADDRESS,
+      value: "GTV 500 lei",
+    });
+
+    expect(answer.status).toBe(400);
+    expect(await jsonOf(answer)).toEqual({
+      status: "invalid-input",
+      issues: [{ field: "change", code: "TEXT_STATES_AN_AMOUNT" }],
+    });
+    expect((await storedDraft()).draftRevision).toBe(before);
+  });
+});
 
 describe("a change that is accepted", () => {
   it("is stored, answered as the draft now is, and recorded in one audit row naming the field and no value", async () => {
@@ -384,19 +509,11 @@ describe("a change that is refused, with M1's code", () => {
       { kind: "accessory-created", accessoryId: "accessory.new" },
     ],
     [
-      "created-row-text",
-      {
-        kind: "created-row-text",
-        item: { kind: "hardware", tierId: "h" },
-        field: "name",
-      },
-    ],
-    [
       "item-deleted",
       { kind: "item-deleted", item: { kind: "hardware", tierId: "h" } },
     ],
   ])(
-    "answers the %s kind, which arrives with M4, NOT_EDITABLE on the address",
+    "answers the %s kind, which this route does not take, NOT_EDITABLE on the address",
     async (_kind, address) => {
       const { cookie } = await administrator();
       const before = await currentDraftRevision();
