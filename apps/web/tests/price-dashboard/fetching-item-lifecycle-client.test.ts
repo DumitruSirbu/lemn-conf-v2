@@ -278,7 +278,6 @@ describe("a count", () => {
   });
 
   it.each([
-    ["an item left out", { counts: [wireCount(HETTICH, 3)] }],
     [
       "a count that is missing",
       { counts: [{ item: HETTICH }, wireCount(BLUM, 1)] },
@@ -327,6 +326,25 @@ describe("a count", () => {
 
     expect(
       await createFetchingItemLifecycleClient().readUsage([HETTICH]),
+    ).toEqual({ kind: "unavailable" });
+  });
+
+  it("has no count for an item the server's book does not state: the server leaves it out, and it is never a zero", async () => {
+    stubFetch(200, { counts: [wireCount(HETTICH, 3)] });
+
+    expect(
+      await createFetchingItemLifecycleClient().readUsage([HETTICH, BLUM]),
+    ).toEqual({
+      kind: "counted",
+      counts: [{ item: HETTICH, designCount: 3 }],
+    });
+  });
+
+  it("is unavailable when the server states none of the items asked", async () => {
+    stubFetch(200, { counts: [] });
+
+    expect(
+      await createFetchingItemLifecycleClient().readUsage([HETTICH, BLUM]),
     ).toEqual({ kind: "unavailable" });
   });
 
@@ -505,6 +523,25 @@ describe("a count while another is on its way", () => {
     await client.readUsage([HETTICH]);
 
     expect(fetchStub).toHaveBeenCalledTimes(2);
+  });
+
+  it("frees its place when a read rejects, and a read waiting behind it is not rejected with it", async () => {
+    const client = createFetchingItemLifecycleClient();
+    const unsendable = { kind: "material", tierId: 1n } as unknown as ItemRef;
+    countingServer(() => 4);
+
+    const rejected = client.readUsage([unsendable]);
+    const waiting = client.readUsage([HETTICH]);
+    await expect(rejected).rejects.toThrow();
+
+    expect(await waiting).toEqual({
+      kind: "counted",
+      counts: [{ item: HETTICH, designCount: 4 }],
+    });
+    expect(await client.readUsage([BLUM])).toEqual({
+      kind: "counted",
+      counts: [{ item: BLUM, designCount: 4 }],
+    });
   });
 
   it("is not kept waiting by one that failed", async () => {

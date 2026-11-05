@@ -198,6 +198,36 @@ describe("the counts of the switched-off materials", () => {
     rendered.unmount();
   });
 
+  it("show no count for a material the server's book dropped though the screen's book still states it: the fetching client is told nothing of it", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({
+              counts: [{ item: materialItem(MDF), count: 23 }],
+            }),
+            { status: 200 },
+          ),
+        ),
+      ),
+    );
+
+    const client = createFetchingItemLifecycleClient();
+    const rendered = renderHook(() =>
+      useMaterialUsage({
+        client,
+        book: SAMPLE_PRICE_BOOK,
+        availability: MDF_AND_VENEER_OFF,
+      }),
+    );
+    await flushPromises();
+
+    expect([...rendered.result.current]).toEqual([[MDF, 23]]);
+    expect(rendered.result.current.has(VENEER)).toBe(false);
+    rendered.unmount();
+  });
+
   it("show no count for a material only `alsoCount` names when the book does not state it", async () => {
     const { client, asked } = clientAnswering(() =>
       countedAs(ONLY_MDF_AND_VENEER_COUNTS),

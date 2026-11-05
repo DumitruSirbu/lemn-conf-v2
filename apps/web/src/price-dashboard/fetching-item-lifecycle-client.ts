@@ -120,14 +120,17 @@ function readsOneUsageAtATime(): (
       if (names(current.items, items)) {
         return narrowedTo(items, await current.answer);
       }
-      await current.answer;
+      await current.answer.catch(() => undefined);
     }
     const answer = readUsageInChunks(items);
     const own: UsageReadInFlight = { items, answer };
     running = own;
-    void answer.then(() => {
-      if (running === own) running = undefined;
-    });
+    // Registered before any other reader of the answer, so the slot is free by the time a waiter resumes.
+    void answer
+      .finally(() => {
+        if (running === own) running = undefined;
+      })
+      .catch(() => undefined);
     return answer;
   };
 }
@@ -148,10 +151,13 @@ function narrowedTo(items: readonly ItemRef[], read: UsageRead): UsageRead {
   const counts = items.flatMap((item) =>
     read.counts.filter((held) => isSameItem(held.item, item)),
   );
-  return { kind: "counted", counts };
+  return counts.length === 0 ? UNAVAILABLE : { kind: "counted", counts };
 }
 
-/** One request for up to 50 items; more are asked in turn, and one that fails leaves every count of the read unknown. */
+/**
+ * One request for up to 50 items; more are asked in turn, and one that fails leaves every count of the read unknown. An
+ * item the server's book does not state is not answered, so it has no count here; a read that counts none is unknown.
+ */
 async function readUsageInChunks(
   items: readonly ItemRef[],
 ): Promise<UsageRead> {
@@ -162,7 +168,7 @@ async function readUsageInChunks(
     if (counted === undefined) return UNAVAILABLE;
     counts.push(...counted);
   }
-  return { kind: "counted", counts };
+  return counts.length === 0 ? UNAVAILABLE : { kind: "counted", counts };
 }
 
 /** The counts of one request. A busy answer with a short `Retry-After` is waited out a bounded number of times. */
@@ -199,32 +205,31 @@ function pause(milliseconds: number): Promise<void> {
 }
 
 /**
- * The count for each item asked, found by the item and never by position. The answer's own refs are not believed: an
- * entry counts for an asked item when it names that kind and that id. `undefined` unless every item has a count that is
- * a whole number of kitchens.
+ * The count of each item asked that the answer states, found by the item and never by position. The answer's own refs
+ * are not believed: an entry counts for an asked item when it names that kind and that id. An item with no entry is
+ * left out: the server states only the items its book states, so a screen that is behind has no count for one. `undefined`
+ * when an entry's count is not a whole number of kitchens, or when the answer is no list.
  */
 function countsMatching(
   items: readonly ItemRef[],
   declared: unknown,
 ): ItemUsageCounts | undefined {
   if (!Array.isArray(declared)) return undefined;
+  const entries = declared as readonly unknown[];
   const counts: ItemUsageCounts[number][] = [];
   for (const item of items) {
-    const designCount = countNamedFor(item, declared as readonly unknown[]);
+    const entry = entries.find((held) =>
+      namesItem(ownValueOf(held, "item"), item),
+    );
+    if (entry === undefined) continue;
+    const designCount = wholeCountOf(ownValueOf(entry, "count"));
     if (designCount === undefined) return undefined;
     counts.push({ item, designCount });
   }
   return counts;
 }
 
-function countNamedFor(
-  item: ItemRef,
-  entries: readonly unknown[],
-): number | undefined {
-  const entry = entries.find((held) =>
-    namesItem(ownValueOf(held, "item"), item),
-  );
-  const count = ownValueOf(entry, "count");
+function wholeCountOf(count: unknown): number | undefined {
   return typeof count === "number" && Number.isSafeInteger(count) && count >= 0
     ? count
     : undefined;

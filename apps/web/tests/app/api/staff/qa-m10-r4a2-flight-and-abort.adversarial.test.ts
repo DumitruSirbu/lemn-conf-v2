@@ -401,7 +401,7 @@ describe("a tier or a linked accessory the active book does not state", () => {
     },
   };
 
-  it("is answered 0 with the reader never asked, though a saved design names it: the answer is for items the book states", async () => {
+  it("is left out of the answer with the reader never asked, though a saved design names it: the answer is for items the book states", async () => {
     const spy = vi
       .spyOn(prices.defaults, "countEach")
       .mockImplementation((probes) =>
@@ -410,9 +410,7 @@ describe("a tier or a linked accessory the active book does not state", () => {
 
     const answer = await askedFor(NAMED_BY_A_DESIGN_ONLY);
 
-    expect(await jsonOf(answer)).toEqual({
-      counts: NAMED_BY_A_DESIGN_ONLY.map((item) => ({ item, count: 0 })),
-    });
+    expect(await jsonOf(answer)).toEqual({ counts: [] });
     expect(spy).not.toHaveBeenCalled();
   });
 
@@ -434,7 +432,7 @@ describe("a tier or a linked accessory the active book does not state", () => {
     const { counts } = (await jsonOf(answer)) as {
       counts: { item: ItemRef; count: number }[];
     };
-    expect(counts).toHaveLength(NAMED_BY_A_DESIGN_ONLY.length + 1);
+    expect(counts.map(({ item }) => item)).toEqual([stated]);
   });
 });
 

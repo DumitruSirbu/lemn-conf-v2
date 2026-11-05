@@ -228,7 +228,7 @@ describe("an id that is also a name on every object", () => {
     (id: string): ItemRef => ({ kind: "accessory", accessoryId: id }),
   ];
 
-  it("is answered as the item it names, with a count of 0, whatever its kind, beside a used item that keeps its own count", async () => {
+  it("is left out where it names a tier or a linked accessory, and answered 0 where it names a finish, beside a used item that keeps its own count", async () => {
     prices.designs.plant({
       designId: "d1",
       uses: [VENEER],
@@ -242,12 +242,16 @@ describe("an id that is also a name on every object", () => {
     const { counts } = (await jsonOf(answer)) as {
       counts: { item: ItemRef; count: number }[];
     };
-    expect(counts).toHaveLength(odd.length + 1);
+    const finishes = odd.filter(({ kind }) => kind === "finish");
+    expect(counts).toHaveLength(finishes.length + 1);
     expect(counts.filter(({ count }) => count > 0)).toEqual([
       { item: VENEER, count: 1 },
     ]);
-    for (const item of odd) {
+    for (const item of finishes) {
       expect(counts.map((entry) => entry.item)).toContainEqual(item);
+    }
+    for (const item of odd.filter(({ kind }) => kind !== "finish")) {
+      expect(counts.map((entry) => entry.item)).not.toContainEqual(item);
     }
   });
 });
@@ -273,7 +277,7 @@ describe("a cap that cannot be walked around", () => {
     expect(fiftyOne.status).toBe(400);
   });
 
-  it("counts a ref whose members are written in the other order as the same item, so 50 distinct and its twin are answered", async () => {
+  it("counts a ref whose members are written in the other order as the same item, so 50 distinct and its twin are answered, none of them stated", async () => {
     const fifty = accessories(MAX_USAGE_ITEMS).map(refText);
     const twinOfTheFirst = `{"accessoryId":"accessory-0","kind":"accessory"}`;
 
@@ -282,20 +286,20 @@ describe("a cap that cannot be walked around", () => {
     );
 
     expect(answer.status).toBe(200);
-    expect(
-      ((await jsonOf(answer)) as { counts: unknown[] }).counts,
-    ).toHaveLength(MAX_USAGE_ITEMS);
+    expect(((await jsonOf(answer)) as { counts: unknown[] }).counts).toEqual(
+      [],
+    );
   });
 
-  it("counts a material and a hardware class that share an id as two items", async () => {
+  it("leaves out a material and a hardware class that share an id and that the book does not state, and mistakes neither for the other", async () => {
     const answer = await askedFor([
       { kind: "material", tierId: "shared" },
       { kind: "hardware", tierId: "shared" },
     ]);
 
-    expect(
-      ((await jsonOf(answer)) as { counts: unknown[] }).counts,
-    ).toHaveLength(2);
+    expect(((await jsonOf(answer)) as { counts: unknown[] }).counts).toEqual(
+      [],
+    );
   });
 
   it("answers the most duplicates the body bound lets through as one entry, and refuses a body one byte over with 413 before any store", async () => {
@@ -489,12 +493,15 @@ describe("a reader that answers what it should not", () => {
 
           const answer = await askedFor([...asked, ...asked]);
 
-          const expected = distinctItemsInOrder(asked).map((item) => ({
-            item,
-            count: isUnstatedTierOrLinkedAccessory(item, ANCHORED_BOOK)
-              ? 0
-              : withNumbers.find((entry) => entry.item === item)?.designCount,
-          }));
+          const expected = distinctItemsInOrder(asked)
+            .filter(
+              (item) => !isUnstatedTierOrLinkedAccessory(item, ANCHORED_BOOK),
+            )
+            .map((item) => ({
+              item,
+              count: withNumbers.find((entry) => entry.item === item)
+                ?.designCount,
+            }));
           expect(await jsonOf(answer)).toEqual({ counts: expected });
         },
       ),
@@ -750,7 +757,6 @@ describe("any items, any saved designs of either depth, under the book the store
   const BOOK: PriceBook = bookOf(BOOK_RECIPE, ANCHORED_BOOK);
 
   function usedBy(designs: readonly Design[], item: ItemRef): number {
-    if (isUnstatedTierOrLinkedAccessory(item, BOOK)) return 0;
     return designs.filter((design) =>
       usesItem({
         design,
@@ -779,10 +785,9 @@ describe("any items, any saved designs of either depth, under the book the store
 
           const answer = await askedFor(items);
 
-          const expected = distinctItemsInOrder(items).map((item) => ({
-            item,
-            count: usedBy(designs, item),
-          }));
+          const expected = distinctItemsInOrder(items)
+            .filter((item) => !isUnstatedTierOrLinkedAccessory(item, BOOK))
+            .map((item) => ({ item, count: usedBy(designs, item) }));
           expect(answer.status).toBe(200);
           expect(await jsonOf(answer)).toEqual({ counts: expected });
           if (designs.some((design) => cabinetDepthMmOf(design) === 700)) {

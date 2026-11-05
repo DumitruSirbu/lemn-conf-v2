@@ -470,8 +470,9 @@ export interface ItemUsageWire {
 }
 
 /**
- * One entry per distinct item asked about. A tier or a linked accessory that the active book does not state reads 0
- * though a saved design may still name it; ask about items of the active book.
+ * One entry per distinct item asked about that the active book can speak of. A tier or a linked accessory that the
+ * active book does not state is left out, never answered 0, though a saved design may still name it: a caller that finds
+ * an item missing has no count for it.
  */
 export interface UsageCountsWire {
   readonly counts: readonly ItemUsageWire[];

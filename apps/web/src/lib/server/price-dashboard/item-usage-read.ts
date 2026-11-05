@@ -99,6 +99,17 @@ export async function countItemUsage(
   };
 }
 
+/**
+ * The items a count of this book can speak of: a tier or linked accessory the book does not state is left out, so a
+ * caller that answers a person can say nothing of it rather than 0.
+ */
+export function itemsStatedIn(
+  items: readonly ItemRef[],
+  book: PriceBook,
+): readonly ItemRef[] {
+  return items.filter(isProbedIn(book));
+}
+
 function isProbedIn(book: PriceBook): (item: ItemRef) => boolean {
   return (item) => !isTierOrLinkedAccessory(item) || isItemStated(item, book);
 }

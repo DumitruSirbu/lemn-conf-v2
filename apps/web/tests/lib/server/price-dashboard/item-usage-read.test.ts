@@ -7,6 +7,7 @@ import {
   countItemUsage,
   countUsageProbes,
   isWithinUsageBound,
+  itemsStatedIn,
   MalformedUsageAnswerError,
   TooManyUsageItemsError,
 } from "@/lib/server/price-dashboard/item-usage-read";
@@ -115,6 +116,26 @@ describe("countItemUsage, as the data it returns", () => {
 
     expect(usage).toEqual([{ item: unstated, designCount: 0 }]);
     expect(asked).toEqual([]);
+  });
+
+  it("names the items a book can speak of: a tier or linked accessory it does not state is left out, a built-in accessory and a finish are kept", () => {
+    const unstatedTier = {
+      kind: "material",
+      tierId: "material.dropped",
+    } as const;
+    const unlinked = { kind: "accessory", accessoryId: "accessory-0" } as const;
+    const builtIn = {
+      kind: "accessory",
+      accessoryId: "sinkProtectiveCover",
+    } as const;
+    const finish = { kind: "finish", finishId: "veneer.nuc" } as const;
+
+    expect(
+      itemsStatedIn(
+        [VENEER, unstatedTier, unlinked, builtIn, finish],
+        SAMPLE_PRICE_BOOK,
+      ),
+    ).toEqual([VENEER, builtIn, finish]);
   });
 
   it("leaves the deadline to a caller that passes its own signal, and hands the reader that signal", async () => {
