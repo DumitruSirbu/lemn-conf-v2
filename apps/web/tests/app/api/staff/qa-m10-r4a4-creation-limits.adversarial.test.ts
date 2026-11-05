@@ -68,7 +68,10 @@ describe("creating past the book's bounds", () => {
     expect(made).toBe(
       MOST_ACCESSORIES - SAMPLE_PRICE_BOOK.linkedAccessories.length,
     );
-    expect(refusal.status).not.toBe(200);
+    expect({ status: refusal.status, body: await jsonOf(refusal) }).toEqual({
+      status: 409,
+      body: { status: "candidate-refused" },
+    });
     expect(await storedChangesOf(world.prices)).toHaveLength(made);
   });
 
@@ -79,7 +82,10 @@ describe("creating past the book's bounds", () => {
     );
 
     expect(made).toBe(MOST_CLASSES - SAMPLE_PRICE_BOOK.hardware.tiers.length);
-    expect(refusal.status).not.toBe(200);
+    expect({ status: refusal.status, body: await jsonOf(refusal) }).toEqual({
+      status: 409,
+      body: { status: "candidate-refused" },
+    });
     expect(await storedChangesOf(world.prices)).toHaveLength(
       made * (1 + HARDWARE_RATE_FIELDS.length),
     );

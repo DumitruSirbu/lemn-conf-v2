@@ -214,7 +214,13 @@ describe("a deletion, which no route of this build writes", () => {
       address: DELETES_SOFT_CLOSE.address,
     });
 
-    expect(answer.status).toBe(400);
+    expect({ status: answer.status, body: await jsonOf(answer) }).toEqual({
+      status: 400,
+      body: {
+        status: "invalid-input",
+        issues: [{ field: "address", code: "NOT_EDITABLE" }],
+      },
+    });
     expect(await storedChangesOf(world.prices)).toEqual([DELETES_SOFT_CLOSE]);
   });
 

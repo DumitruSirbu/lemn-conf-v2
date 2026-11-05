@@ -60,6 +60,8 @@ beforeEach(() => {
   console_ = captureConsole();
   vi.stubEnv(CLIENT_NETWORK_SOURCE_VARIABLE, "vercel");
   vi.stubEnv("DATABASE_URL", "");
+  vi.stubEnv("NODE_ENV", "production");
+  vi.stubEnv("VERCEL_ENV", "production");
   forgetHeldPriceStores();
 });
 
