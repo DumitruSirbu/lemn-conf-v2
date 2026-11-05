@@ -2708,6 +2708,63 @@ That is the 5-item limit. R4c's own plan may split it.
   checks every route keeps).
 - **Visual review (R4a4, R4a5):** the frames named in R4a5's row, and `browser-and-visual-qa.md`.
 
+**S2c and K3 merged; decisions and hand-offs** (coordinator, 2026-11-05).
+
+The decisions and hand-offs below were recorded at merge. Each one was ruled in the wave's dispatch or found in its review.
+
+*S2c* (merged at `m10-price-dashboard`; QA green; logic, clean-code and security reviewed in two rounds). Decisions:
+- The required deletions are those of rows the draft did not itself create. `deletedBookItemsOf` exports them once, in
+  draft order.
+- A stale request is judged against the version at `expectedActiveSequence`, which is the book the plan was built from.
+  It is never judged against the newest book. A stale request that this book contradicts answers `changed-meanwhile`.
+  `isFallback` is read from that same book, which departs from the wording of the earlier ruling ("the active book's
+  `defaultTierId`"). On a fresh request it is the same book.
+- The answer order is:
+  1. the shape check;
+  2. `not-recorded`;
+  3. contradicted by the plan's book (`invalid-request`, or `changed-meanwhile` if stale);
+  4. `item-in-use`;
+  5. the compare-and-set refusals.
+
+  The logic review recorded one refinement and left it open: answer `changed-meanwhile` ahead of `item-in-use` when the
+  *draft* revision or sequence is stale. The contract arm that pins the current order would change with it.
+- A creation whose id the running book already states is refused at the change with `NOT_EDITABLE`. The publish
+  statement refuses it again (`restated_creations`). This closes create-then-delete of a used row.
+- An active book that links an accessory to a row the build no longer ships is refused as unreadable by
+  `readDashboardState`. Every dashboard write then answers `503`, which fails closed. This is an accepted residual;
+  `judge-book.ts` never lets a publish create such a book.
+- A design saved after the statement's snapshot is unseen. This is inherent (ADR 0178).
+
+S2c's hand-offs:
+- **R4a6:** pass `plan.deletedItems` unchanged to the store. One builder serves both the in-request count and the
+  guard. Do not rebuild the build ids from `accessoryProbe`, because it drops the rule's own `linkedBuildId` when the
+  catalogue no longer prices it, and the store then answers `invalid-request`. This supersedes item (3)'s wording
+  "taken from the same probes" in the R4a6 row.
+- **R4a6 (optional hardening, security N4):** tie `createdItems` to `createdItemsOf(changeSummary)` in
+  `storablePublishOf`, as `deletedItems` is tied. Today no route can reach the gap.
+- **Whichever of S2c and R4a1 merges second:** `price-book-test-seed.ts` builds one `FakeHeldDesigns` and hands it to
+  both the price book and the fake usage reader. In the seeded app the guard and the counts must see the same designs.
+- **Q3 and R4c:** no route-level test publishes a stored draft that really deletes an item. The draft route refuses
+  `item-deleted` until R4c, which owns that test.
+- **Unverified until preview has `0023`–`0029`:** the application-role planning arm for the publish statement. It
+  skipped because preview is at ledger 22. Security review read the grants and expects no new grant. The runbook's M10
+  section should say that publish now reads `designs`.
+
+*K3* (merged; QA green; Light combined review approved; visual verified at 390 and desktop). Decisions:
+- The "Văzută … modificată din nou" sub-line shows only when `updatedAt` is strictly after `seenAt`. An instant after the
+  read time is written as the read time.
+- A kitchen with no cabinets gets current estimate `{ empty: true }` and the leaf `staffChanges.estimateEmpty`. It never
+  gets a priced zero.
+- The client accepts only `PriceBookCurrency` values, through the domain's `isPriceBookCurrency`.
+
+*R4a1* (ruled in its dispatch; not yet merged):
+- A switch to the state an item is already in answers `200 {revision: head}` and writes nothing, whatever its
+  `expectedRevision`. The bucket is spent first, and an unstated item is never a no-op. The owner may overturn this
+  ruling.
+- Queued for a later wave: `readDashboardAvailability` (`dashboard-state.ts:78`) does not check the revision's shape.
+  A malformed revision from a store would read as a permanent `changed-meanwhile` instead of a `503`. Neither store can
+  produce one today.
+
 ### Lane U — Dashboard UI D1–D9 (Light + visual; U5 Full, because it publishes)
 
 **Base reading:** the mockup frames named in each row, with their notes; the brief `…-v2-update.md`, `…-v2-fixes.md`,
