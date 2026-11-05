@@ -77,7 +77,10 @@ import {
   type RequestRefusal,
   type RevertOrDiscardRequest,
 } from "@/lib/server/price-dashboard/draft-requests";
-import { planPublish } from "@/lib/server/price-dashboard/publish-plan";
+import {
+  planPublish,
+  refusalOfDeletions,
+} from "@/lib/server/price-dashboard/publish-plan";
 import {
   readPublishRequest,
   readRestoreRequest,
@@ -599,8 +602,10 @@ async function performRestore(
 }
 
 /**
- * A publish stores a book the domain has judged whole. The store takes the head's and the sequence's compare-and-set in
- * the same transaction as the insert, the draft's reset and the audit row, so a refusal of any kind wrote nothing.
+ * A publish stores a book the domain has judged whole, and judges the draft's deletions against the usage and defaults
+ * read in this request. The store takes the head's and the sequence's compare-and-set in the same transaction as the
+ * insert, the draft's reset and the audit row, and refuses a deleted item a design saved since the count names, so a
+ * refusal of any kind wrote nothing.
  */
 async function performPublish(
   input: PublishRequest,
@@ -611,6 +616,8 @@ async function performPublish(
   const { stores, state } = ready;
   const plan = planPublish(input, state);
   if (plan.kind === "refused") return refused(PRICE_DRAFT_EVENT, plan.response);
+  const refusal = await refusalOfDeletions(plan, { stores, book: state.book });
+  if (refusal !== undefined) return refused(PRICE_DRAFT_EVENT, refusal);
   const result = await stores.priceBook.publish({
     expectedDraftRevision: input.expectedDraftRevision,
     expectedActiveSequence: input.expectedActiveSequence,
