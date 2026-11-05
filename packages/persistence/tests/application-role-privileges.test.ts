@@ -31,6 +31,7 @@ import {
   recordDigestedStatement,
 } from "../src/kitchen-change-statements.js";
 import {
+  deletedItemsJsonOf,
   listVersionsStatement,
   publishStatement,
   readActiveVersionStatement,
@@ -1323,6 +1324,13 @@ describe.skipIf(!hasLiveDatabase)("the application's database role", () => {
           changeCount: 0,
           createdItemKinds: ["hardware"],
           createdItemIds: ["a-probe"],
+          deletedItemsJson: deletedItemsJsonOf([
+            { item: { kind: "material", tierId: "a-probe" } },
+            {
+              item: { kind: "accessory", accessoryId: "a-probe" },
+              buildIds: ["a-probe"],
+            },
+          ]),
           detailJson: JSON.stringify({ provisional: true }),
           audit: auditOf("price-published", {
             provisional: true,

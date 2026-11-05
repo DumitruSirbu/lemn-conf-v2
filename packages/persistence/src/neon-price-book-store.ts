@@ -1,3 +1,4 @@
+import type { ItemRef } from "@lemnaria/configurator-domain";
 import type { NeonQueryFunction } from "@neondatabase/serverless";
 import { nanoid } from "nanoid";
 
@@ -20,6 +21,7 @@ import {
 } from "./m10-ports.js";
 import type {
   DashboardStoreOperation,
+  DeletedItem,
   PriceBookStore,
   PriceDraft,
   PriceVersionPage,
@@ -55,6 +57,7 @@ import { openApplicationDatabase } from "./open-application-database.js";
 import {
   PUBLISH_RACED,
   SEQUENCE_NUMBER_IS_UNIQUE,
+  deletedItemsJsonOf,
   listVersionsStatement,
   publishStatement,
   readActiveVersionStatement,
@@ -177,8 +180,10 @@ export class NeonPriceBookStore implements PriceBookStore {
 
   /**
    * Of two publishes at one draft revision the second finds the draft locked by the first and then moved, and is
-   * `changed-meanwhile`; a stale availability head is `availability-changed-meanwhile`. A refusal wrote nothing, the audit
-   * row included. The book is stored with its `version` set to the new version's id.
+   * `changed-meanwhile`; a stale availability head is `availability-changed-meanwhile`. The answers come in the order the
+   * port documents (`PriceBookStore`): the shape check, no live session, a request the book at `expectedActiveSequence`
+   * contradicts, a deleted item a saved design names, then those refusals. A refusal wrote nothing, the audit row included.
+   * The book is stored with its `version` set to the new version's id.
    */
   async publish(
     request: PublishPriceBookRequest,
@@ -209,7 +214,7 @@ export class NeonPriceBookStore implements PriceBookStore {
       publishRefusalOf,
     );
     if (isRefusal(outcome)) return outcome;
-    return publishResultFrom(outcome, versionId);
+    return publishResultFrom(outcome, versionId, publishable.deletedItems);
   }
 }
 
@@ -235,6 +240,7 @@ function statementInputOf(
     changeCount: publishable.changeCount,
     createdItemKinds: publishable.createdItems.map(({ kind }) => kind),
     createdItemIds: publishable.createdItems.map(itemIdOf),
+    deletedItemsJson: deletedItemsJsonOf(publishable.deletedItems),
     detailJson: detailJsonWithout(audit, STAMPED_PUBLISH_KEYS),
     audit,
   };
@@ -266,6 +272,7 @@ function publishRefusalOf(failure: unknown): typeof CHANGED_MEANWHILE {
 function publishResultFrom(
   rows: readonly Row[],
   mintedVersionId: string,
+  deletedItems: readonly DeletedItem[],
 ): PublishPriceBookResult {
   const row = onlyRow(rows, PUBLISH);
   const versionId = nullableText(row["version_id"], PUBLISH);
@@ -273,12 +280,44 @@ function publishResultFrom(
   if (!requiredBoolean(row["is_session_live"], PUBLISH)) {
     throw new DashboardStoreError(PUBLISH, "not-recorded");
   }
+  if (isRequestContradictedByTheBook(row)) {
+    if (!requiredBoolean(row["is_sequence_current"], PUBLISH)) {
+      return CHANGED_MEANWHILE;
+    }
+    throw new DashboardStoreError(PUBLISH, "invalid-request");
+  }
+  const itemsInUse = itemsInUseFrom(row["in_use_positions"], deletedItems);
+  if (itemsInUse.length > 0) return { kind: "item-in-use", items: itemsInUse };
   const isDraftOrSequenceStale =
     requiredCount(row["draft_rows"], PUBLISH) === 0 ||
     !requiredBoolean(row["is_sequence_current"], PUBLISH);
   return isDraftOrSequenceStale
     ? CHANGED_MEANWHILE
     : AVAILABILITY_CHANGED_MEANWHILE;
+}
+
+/** A deleted accessory the book does not place by its build ids, or a created row the book already states. */
+function isRequestContradictedByTheBook(row: Row): boolean {
+  return (
+    requiredCount(row["unlinked_accessories"], PUBLISH) > 0 ||
+    requiredCount(row["restated_creations"], PUBLISH) > 0
+  );
+}
+
+/** The deleted items at the positions the statement found in use, in the request's order; a position it never sent is a defect. */
+function itemsInUseFrom(
+  positions: unknown,
+  deletedItems: readonly DeletedItem[],
+): readonly ItemRef[] {
+  if (!Array.isArray(positions)) throw unexpectedAnswer(PUBLISH);
+  return (positions as unknown[]).map((position) => {
+    const held =
+      typeof position === "number" && Number.isInteger(position)
+        ? deletedItems[position - 1]
+        : undefined;
+    if (held === undefined) throw unexpectedAnswer(PUBLISH);
+    return held.item;
+  });
 }
 
 function publishedFrom(

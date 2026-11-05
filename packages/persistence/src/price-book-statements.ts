@@ -1,4 +1,13 @@
+import {
+  designChoosesTier,
+  designPlacesBodies,
+  tierSettingKeyOf,
+} from "./kitchen-usage-statements.js";
+import { buildIdsOf } from "./m10-ports.js";
+import type { DeletedItem } from "./m10-ports.js";
 import type { StatementTag } from "./preset-statements.js";
+import { sqlFragment, statementFrom } from "./sql-fragment.js";
+import type { SqlFragment } from "./sql-fragment.js";
 import type { PreparedStaffAuditRecord } from "./staff-audit-store.js";
 
 /**
@@ -6,6 +15,8 @@ import type { PreparedStaffAuditRecord } from "./staff-audit-store.js";
  * transaction, because a Neon HTTP batch cannot read an earlier statement's result: the audit insert reads the change it
  * records, so a refused write leaves no audit row. A tagged template cannot be interpolated into another, so the actor test
  * (`NeonSessionStore.findLive`'s, administrators only) is repeated in each write; a statements test compares the copies.
+ * A predicate that two statements must share is a fragment (`sql-fragment.ts`), which `statementFrom` sends as one
+ * tagged template; the publish's use of the designs is the one such case.
  */
 
 /**
@@ -148,19 +159,68 @@ export interface PublishStatementInput {
   /** The created items, in order, as two lists of one length: the kind of each, then its id. */
   readonly createdItemKinds: readonly string[];
   readonly createdItemIds: readonly string[];
+  /** The deleted items as `deletedItemsJsonOf` writes them. */
+  readonly deletedItemsJson: string;
   /** The audit detail's members the caller supplies; the statement stamps `sequenceNumber` and `changeCount`. */
   readonly detailJson: string;
   readonly audit: PreparedStaffAuditRecord;
 }
 
 /**
- * The publish, in one statement whose branches depend on one another in this order: `draft_row` locks the draft at the
- * revision read (two publishes meet here first); `moved_head` moves the availability head by `greatest(k, 1)` only
- * while it is still at the revision read, and a head that moved changes no row and then nothing else is written;
- * `reset_draft`, `inserted_version`, `logged` and `audited` follow. The audit row's `sequenceNumber` and `changeCount`
- * are read from the inserted version row's columns. The book is stored with its `version` set to the version's id. The
- * last select reports each branch, and raises `PUBLISH_RACED` for the one state it must not leave. A sequence number
- * taken raises 23505.
+ * The deleted items as the publish statement reads them: one object per item, `position` from 1 in the request's order, so
+ * the statement can answer which of them is in use without echoing a value. `setting_key` is the `settings` key a tier is
+ * named under, and `build_ids` the set a linked accessory is placed by (empty for a tier).
+ */
+export function deletedItemsJsonOf(
+  deletedItems: readonly DeletedItem[],
+): string {
+  return JSON.stringify(
+    deletedItems.map((deleted, index) => ({
+      position: index + 1,
+      kind: deleted.item.kind,
+      item_id:
+        deleted.item.kind === "accessory"
+          ? deleted.item.accessoryId
+          : deleted.item.tierId,
+      setting_key:
+        deleted.item.kind === "accessory"
+          ? null
+          : tierSettingKeyOf(deleted.item.kind),
+      build_ids: buildIdsOf(deleted),
+    })),
+  );
+}
+
+/** The designs that use a deleted item, over `designs d`, in the words the usage reader's counts use (`kitchen-usage-statements.ts`). */
+function deletedItemIsUsed(): SqlFragment {
+  const choosesTier = designChoosesTier({
+    settingKey: sqlFragment`deleted.setting_key`,
+    tierId: sqlFragment`deleted.item_id`,
+    isFallback: sqlFragment`(
+      deleted.item_id = (select b.book #>> array[deleted.kind, 'defaultTierId'] from active_book b)
+    )`,
+  });
+  const placesBodies = designPlacesBodies(
+    sqlFragment`array(select jsonb_array_elements_text(deleted.build_ids))`,
+  );
+  return sqlFragment`
+    (deleted.kind in ('material', 'hardware') and exists (select 1 from designs d where ${choosesTier}))
+      or (deleted.kind = 'accessory' and exists (select 1 from designs d where ${placesBodies}))
+  `;
+}
+
+/**
+ * The publish, in one statement whose branches depend on one another in this order: `active_book` is the version at
+ * `expectedActiveSequence` (versions are append-only, so it is the book the plan was built from, however many have
+ * followed); `in_use` lists each deleted item a saved design names, `unlinked_deletions` each deleted accessory whose build
+ * ids lack the `linkedBuildId` of its rule in that book, and `restated_creations` each created row that book already
+ * states; `draft_row` locks the draft at the revision read (two publishes meet here first); `moved_head` moves the
+ * availability head by `greatest(k, 1)` only while it is still at the revision read and none of those three is non-empty,
+ * and a head that did not move changes no row and then nothing else is written; `reset_draft`, `inserted_version`,
+ * `logged` and `audited` follow. The audit row's `sequenceNumber` and `changeCount` are read from the inserted version
+ * row's columns. The book is stored with its `version` set to the version's id. The last select reports each branch, and
+ * raises `PUBLISH_RACED` for the one state it must not leave. A sequence number taken raises 23505. `in_use` is read only
+ * for a live administrator session, so a caller who may not publish learns nothing of the designs.
  */
 export function publishStatement<Statement>(
   sql: StatementTag<Statement>,
@@ -168,7 +228,9 @@ export function publishStatement<Statement>(
 ): Statement {
   const { audit } = input;
   const lifetimes = JSON.stringify(audit.idleLifetimeSeconds);
-  return sql`
+  return statementFrom(
+    sql,
+    sqlFragment`
     with actor as (
       select s.account_id
       from account_sessions s
@@ -186,6 +248,52 @@ export function publishStatement<Statement>(
       from unnest(${input.createdItemKinds}::text[], ${input.createdItemIds}::text[])
         with ordinality as t(kind, item_id, position)
     ),
+    active_book as (
+      select v.book
+      from price_book_versions v
+      where v.sequence_number = ${input.expectedActiveSequence}::bigint
+    ),
+    deleted_items as (
+      select t.position, t.kind, t.item_id, t.setting_key, t.build_ids
+      from jsonb_to_recordset(${input.deletedItemsJson}::jsonb)
+        as t(position int, kind text, item_id text, setting_key text, build_ids jsonb)
+    ),
+    unlinked_deletions as (
+      select deleted.position
+      from deleted_items deleted
+      where deleted.kind = 'accessory'
+        and not exists (
+          select 1
+          from active_book b
+          cross join lateral jsonb_array_elements(
+            case when jsonb_typeof(b.book -> 'linkedAccessories') = 'array' then b.book -> 'linkedAccessories' else '[]'::jsonb end
+          ) as linked
+          where linked ->> 'accessoryId' = deleted.item_id
+            and linked ->> 'linkedBuildId' in (select jsonb_array_elements_text(deleted.build_ids))
+        )
+    ),
+    restated_creations as (
+      select c.position
+      from created_items c
+      cross join active_book b
+      where (
+          c.kind = 'accessory'
+          and jsonb_path_exists(b.book, '$.linkedAccessories[*] ? (@.accessoryId == $id)', jsonb_build_object('id', c.item_id))
+        )
+        or (
+          c.kind = 'hardware'
+          and (
+            jsonb_path_exists(b.book, '$.hardware.tiers[*] ? (@.tierId == $id)', jsonb_build_object('id', c.item_id))
+            or jsonb_path_exists(b.book, '$.material.tiers[*] ? (@.tierId == $id)', jsonb_build_object('id', c.item_id))
+          )
+        )
+    ),
+    in_use as (
+      select deleted.position
+      from deleted_items deleted
+      where exists (select 1 from actor)
+        and (${deletedItemIsUsed()})
+    ),
     draft_row as materialized (
       select revision from price_book_draft
       where revision = ${input.expectedDraftRevision}::bigint
@@ -197,6 +305,9 @@ export function publishStatement<Statement>(
       where revision = ${input.expectedAvailabilityRevision}::bigint
         and exists (select 1 from actor)
         and exists (select 1 from draft_row)
+        and not exists (select 1 from in_use)
+        and not exists (select 1 from unlinked_deletions)
+        and not exists (select 1 from restated_creations)
         and (select coalesce(max(sequence_number), 0) from price_book_versions)
           = ${input.expectedActiveSequence}::bigint
       returning revision
@@ -247,6 +358,9 @@ export function publishStatement<Statement>(
       exists (select 1 from actor) as is_session_live,
       (select coalesce(max(sequence_number), 0) from price_book_versions)
         = ${input.expectedActiveSequence}::bigint as is_sequence_current,
+      (select coalesce(jsonb_agg(u.position order by u.position), '[]'::jsonb) from in_use u) as in_use_positions,
+      (select count(*) from unlinked_deletions)::int as unlinked_accessories,
+      (select count(*) from restated_creations)::int as restated_creations,
       power(
         case
           when (select count(*) from moved_head) = 1
@@ -257,7 +371,8 @@ export function publishStatement<Statement>(
           then 0
           else 1
         end, -1) as publish_complete
-  `;
+  `,
+  );
 }
 
 export interface SeedPriceBookStatementInput {

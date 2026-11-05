@@ -283,6 +283,7 @@ describe("a switch that changes nothing", () => {
       expectedActiveSequence: active.version.sequenceNumber,
       expectedAvailabilityRevision: preparedAgainst,
       createdItems: [],
+      deletedItems: [],
       label: "Next",
       note: "",
       book: ANCHORED_BOOK,

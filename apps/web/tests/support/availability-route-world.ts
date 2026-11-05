@@ -203,6 +203,7 @@ export async function publishNextVersion(
     expectedActiveSequence: active.version.sequenceNumber,
     expectedAvailabilityRevision: await availabilityHead(),
     createdItems: [],
+    deletedItems: [],
     label: "Next",
     note: "",
     book,

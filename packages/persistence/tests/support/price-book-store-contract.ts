@@ -32,13 +32,15 @@ import {
 import type {
   DashboardStaffMember,
   DashboardStaffWorld,
+  SavedDesignsWorld,
 } from "./dashboard-contract-support.js";
+import { describeDeletionGuardContract } from "./price-book-deletion-guard-contract.js";
 
 // These suites also run against a shared test database that earlier runs have written to (ADR 0151). They therefore
 // assert what a step changed, from a read taken before it, and never what the table held to begin with. What only a
 // table with no rows can promise is asserted in the fake's own test file.
 
-export interface PriceBookWorld extends DashboardStaffWorld {
+export interface PriceBookWorld extends DashboardStaffWorld, SavedDesignsWorld {
   readonly store: PriceBookStore;
   /** The log whose head a publish takes its compare-and-set on and writes its created items to. */
   readonly availability: CatalogueAvailabilityStore;
@@ -72,6 +74,7 @@ export function describePriceBookStoreContract(
   describeReadingVersions(suiteName, newWorld);
   describeDraft(suiteName, newWorld);
   describePublish(suiteName, newWorld);
+  describeDeletionGuardContract(suiteName, newWorld);
   describeHistory(suiteName, newWorld);
   describeWhatNoTableCanHold(suiteName, newWorld);
   describeWhoMayWrite(suiteName, newWorld);

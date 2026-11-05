@@ -14,6 +14,7 @@ import {
   FakeCatalogueAvailabilityStore,
   FakeDashboardAuditLedger,
   FakeKitchenDefaultsStore,
+  FakeHeldDesigns,
   FakePriceBookStore,
   FakeRevisionHead,
 } from "@lemnaria/persistence";
@@ -88,7 +89,8 @@ async function publish(book: PriceBook): Promise<void> {
     head: new FakeRevisionHead(),
     ledger,
   });
-  priceBook = new FakePriceBookStore({ ledger, availability, now });
+  const designs = new FakeHeldDesigns();
+  priceBook = new FakePriceBookStore({ ledger, availability, now, designs });
   const publisher = await signedInAs(
     { role: "administrator" },
     `price-publisher-${String((publishers += 1))}@example.test`,
@@ -98,6 +100,7 @@ async function publish(book: PriceBook): Promise<void> {
     expectedActiveSequence: 0,
     expectedAvailabilityRevision: "0",
     createdItems: [],
+    deletedItems: [],
     label: "Version 1",
     note: "",
     book,
@@ -114,7 +117,12 @@ async function publish(book: PriceBook): Promise<void> {
     },
   });
   if (published.kind !== "ok") throw new Error("seed: publish refused");
-  const defaults = new FakeKitchenDefaultsStore({ ledger, availability, now });
+  const defaults = new FakeKitchenDefaultsStore({
+    ledger,
+    availability,
+    now,
+    designs,
+  });
   world.stores = {
     priceBook: stampedWithItsVersionId(priceBook),
     availability,

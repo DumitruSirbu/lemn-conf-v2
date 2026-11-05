@@ -2,11 +2,13 @@ import type { ItemRef } from "@lemnaria/configurator-domain";
 import { nanoid } from "nanoid";
 
 import {
+  isJsonObject,
   isListablePage,
   stampedWithVersion,
   storableJsonTextOf,
   storablePublishOf,
 } from "./dashboard-store-shapes.js";
+import type { StorablePublish } from "./dashboard-store-shapes.js";
 
 import type { FakeCatalogueAvailabilityStore } from "./fake-catalogue-availability-store.js";
 import {
@@ -15,8 +17,10 @@ import {
   settle,
 } from "./fake-dashboard-support.js";
 import type { FakeDashboardAuditLedger } from "./fake-dashboard-support.js";
+import type { FakeHeldDesigns } from "./fake-held-designs.js";
 import {
   AVAILABILITY_CHANGED_MEANWHILE,
+  buildIdsOf,
   CHANGED_MEANWHILE,
   DashboardStoreError,
   NO_ACTIVE_VERSION,
@@ -24,6 +28,7 @@ import {
   VERSION_NOT_FOUND,
 } from "./m10-ports.js";
 import type {
+  DeletedItem,
   PriceBookStore,
   PriceDraft,
   PriceVersionPage,
@@ -63,6 +68,11 @@ export interface FakePriceBookStoreOptions {
   readonly ledger: FakeDashboardAuditLedger;
   /** The availability log and head a publish takes its compare-and-set on and writes its created items to. */
   readonly availability: FakeCatalogueAvailabilityStore;
+  /**
+   * The saved designs a publish's deleted items are checked against. The fake reads this table alone and never a
+   * `KitchenUsageReader` a route holds, so a test that stubs the route's reader leaves the guard intact.
+   */
+  readonly designs: FakeHeldDesigns;
 }
 
 /**
@@ -79,15 +89,18 @@ export class FakePriceBookStore implements PriceBookStore {
   private readonly now: () => Date;
   private readonly ledger: FakeDashboardAuditLedger;
   private readonly availability: FakeCatalogueAvailabilityStore;
+  private readonly designs: FakeHeldDesigns;
 
   constructor({
     now = () => new Date(),
     ledger,
     availability,
+    designs,
   }: FakePriceBookStoreOptions) {
     this.now = now;
     this.ledger = ledger;
     this.availability = availability;
+    this.designs = designs;
   }
 
   /** Whether the version exists, for the fakes that judge against the versions in the same turn. */
@@ -199,6 +212,24 @@ export class FakePriceBookStore implements PriceBookStore {
       onlyAdministrators: true,
     });
     const newestSequence = this.versions.at(-1)?.sequenceNumber ?? 0;
+    const planBook = this.versions.find(
+      (version) => version.sequenceNumber === request.expectedActiveSequence,
+    )?.book;
+    if (isContradictedByTheBook(publishable, planBook)) {
+      if (request.expectedActiveSequence !== newestSequence) {
+        return CHANGED_MEANWHILE;
+      }
+      throw new DashboardStoreError(
+        "publish the price book",
+        "invalid-request",
+      );
+    }
+    const itemsInUse = publishable.deletedItems
+      .map(({ item }) => item)
+      .filter((item) => this.designs.countUsing(item) > 0);
+    if (itemsInUse.length > 0) {
+      return { kind: "item-in-use", items: itemsInUse };
+    }
     if (
       request.expectedDraftRevision !== this.draftRevision.current() ||
       request.expectedActiveSequence !== newestSequence
@@ -268,3 +299,51 @@ export class FakePriceBookStore implements PriceBookStore {
     return held === this.versions.at(-1) ? "active" : "archived";
   }
 }
+
+/**
+ * Whether the book at the sequence the plan was built from contradicts the request: a deleted linked accessory whose build
+ * ids lack its rule's `linkedBuildId`, or a created row the book already states. Both are what the statement's
+ * `unlinked_deletions` and `restated_creations` find.
+ */
+function isContradictedByTheBook(
+  { deletedItems, createdItems }: StorablePublish,
+  book: unknown,
+): boolean {
+  const states = (path: readonly string[], key: string, id: string) =>
+    rowsAt(book, path).some((row) => isJsonObject(row) && row[key] === id);
+  const isRestated = (created: ItemRef) =>
+    (created.kind === "accessory" &&
+      states(["linkedAccessories"], "accessoryId", created.accessoryId)) ||
+    (created.kind === "hardware" &&
+      (states(["hardware", "tiers"], "tierId", created.tierId) ||
+        states(["material", "tiers"], "tierId", created.tierId)));
+  return (
+    deletedItems.some((deleted) => !hasItsLinkedBuildId(deleted, book)) ||
+    createdItems.some(isRestated)
+  );
+}
+
+/** Whether a deleted linked accessory's build ids hold the `linkedBuildId` of its rule in the book; a tier carries none. */
+function hasItsLinkedBuildId(deleted: DeletedItem, book: unknown): boolean {
+  const { item } = deleted;
+  if (item.kind !== "accessory") return true;
+  const buildIds = buildIdsOf(deleted);
+  return rowsAt(book, ["linkedAccessories"]).some(
+    (rule) =>
+      isJsonObject(rule) &&
+      rule["accessoryId"] === item.accessoryId &&
+      typeof rule["linkedBuildId"] === "string" &&
+      buildIds.includes(rule["linkedBuildId"]),
+  );
+}
+
+/** The rows of the array the path names in the book, or none where the book has no such array. */
+function rowsAt(book: unknown, path: readonly string[]): readonly unknown[] {
+  let at: unknown = book;
+  for (const key of path) {
+    at = isJsonObject(at) ? at[key] : undefined;
+  }
+  return Array.isArray(at) ? at : NO_ROWS;
+}
+
+const NO_ROWS: readonly unknown[] = Object.freeze([]);

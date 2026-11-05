@@ -1,9 +1,13 @@
 import type {
   CatalogueActivationAuditInput,
   DashboardAuditEntry,
+  DraftChange,
   ItemRef,
 } from "@lemnaria/configurator-domain";
-import { CATALOGUE_ACTIVATION_AUDIT_ACTION } from "@lemnaria/configurator-domain";
+import {
+  CATALOGUE_ACTIVATION_AUDIT_ACTION,
+  deletedBookItemsOf,
+} from "@lemnaria/configurator-domain";
 import { nanoid } from "nanoid";
 import { expect } from "vitest";
 
@@ -12,12 +16,39 @@ import { DashboardStoreError } from "../../src/m10-ports.js";
 import type {
   CatalogueAvailabilityStore,
   DashboardStoreFailure,
+  DeletedItem,
   PriceBookStore,
   PricePublishedAuditInput,
   PublishPriceBookRequest,
 } from "../../src/m10-ports.js";
 import type { StaffActingSession } from "../../src/staff-kitchen-actions-store.js";
 import { rejectionOf } from "./rejection-of.js";
+
+/**
+ * The saved designs a world holds, planted and counted as a customer's kitchen and the usage reader do: what the publish's
+ * guard is checked against.
+ */
+export interface SavedDesignsWorld {
+  /**
+   * Saves a design that names the item: a tier in its settings, a linked accessory by placing a body of `viaBuildId`.
+   * Only a linked accessory takes `viaBuildId`. A design its client has deleted names the item all the same.
+   */
+  aDesignNaming(
+    item: ItemRef,
+    options?: {
+      readonly viaBuildId?: string;
+      readonly isDeletedByClient?: boolean;
+    },
+  ): Promise<void>;
+  /**
+   * How many designs the usage reader's count (the one the dashboard's dialogs read) finds using the item, given the
+   * build ids a linked accessory is placed by.
+   */
+  countDesignsUsing(
+    item: ItemRef,
+    buildIds: readonly string[],
+  ): Promise<number>;
+}
 
 /** A staff member the world has signed in: the account, and the session a call acts for. */
 export interface DashboardStaffMember {
@@ -141,6 +172,38 @@ export const A_BOOK = Object.freeze({
   linkedAccessories: [{ accessoryId: "plinth-light" }],
 });
 
+/** The catalogue row a linked accessory is linked to in `aBookLinking`'s book, and so the build id it is placed by. */
+export function linkedBuildIdOf(accessoryId: string): string {
+  return `row-${accessoryId}`;
+}
+
+/** `A_BOOK` stating each accessory as a linked one, each linked to the row `linkedBuildIdOf` names. */
+export function aBookLinking(accessoryIds: readonly string[]): unknown {
+  return {
+    ...A_BOOK,
+    linkedAccessories: accessoryIds.map((accessoryId) => ({
+      accessoryId,
+      linkedBuildId: linkedBuildIdOf(accessoryId),
+    })),
+  };
+}
+
+/** A deleted item as a publish names it: a tier by its id, a linked accessory with the row it is placed by. */
+export function aDeletedItem(item: ItemRef): DeletedItem {
+  if (item.kind === "accessory") {
+    return { item, buildIds: [linkedBuildIdOf(item.accessoryId)] };
+  }
+  if (item.kind === "material" || item.kind === "hardware") return { item };
+  throw new Error(`a ${item.kind} is never deleted`);
+}
+
+/** The deleted items a summary owes the guard, as the domain lists them. */
+export function deletedItemsOfSummary(
+  summary: readonly DraftChange[],
+): readonly DeletedItem[] {
+  return deletedBookItemsOf(summary).map(aDeletedItem);
+}
+
 /** The sequence number of the active version, or 0 when none is published. */
 export async function newestSequenceOf(store: PriceBookStore): Promise<number> {
   const active = await store.readActive();
@@ -162,6 +225,7 @@ export async function publishRequestFor(
     expectedActiveSequence: await newestSequenceOf(store),
     expectedAvailabilityRevision: (await availability.readCurrent()).revision,
     createdItems: [],
+    deletedItems: [],
     label: "Test version",
     note: "A version a contract seeded.",
     book: A_BOOK,
