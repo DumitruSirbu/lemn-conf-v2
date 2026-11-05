@@ -43,10 +43,13 @@ describe("countItemUsage", () => {
   it("asks one probe per distinct item and answers one entry per distinct item, whatever repeats", async () => {
     const asked: ItemUsageProbe[][] = [];
 
-    const usage = await countItemUsage([VENEER, SOFT_CLOSE, VENEER, VENEER], {
-      stores: { usage: readerRecording(asked) },
-      book: SAMPLE_PRICE_BOOK,
-    });
+    const { usage } = await countItemUsage(
+      [VENEER, SOFT_CLOSE, VENEER, VENEER],
+      {
+        stores: { usage: readerRecording(asked) },
+        book: SAMPLE_PRICE_BOOK,
+      },
+    );
 
     expect(asked[0]).toHaveLength(2);
     expect(usage).toEqual([
@@ -62,7 +65,7 @@ describe("countItemUsage", () => {
       book: SAMPLE_PRICE_BOOK,
     };
 
-    const atTheBound = await countItemUsage(
+    const { usage: atTheBound } = await countItemUsage(
       accessories(MAX_USAGE_ITEMS),
       basis,
     );
@@ -75,6 +78,70 @@ describe("countItemUsage", () => {
     expect(atTheBound).toHaveLength(MAX_USAGE_ITEMS);
     await expect(overTheBound).rejects.toBeInstanceOf(TooManyUsageItemsError);
     expect(asked).toEqual([]);
+  });
+});
+
+describe("countItemUsage, as the data it returns", () => {
+  it("hands the unreadable-design count back and writes no line itself", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const stores = {
+      usage: {
+        countEach: (probes: readonly ItemUsageProbe[]) =>
+          Promise.resolve({
+            counts: probes.map(({ item }) => ({ item, designCount: 1 })),
+            unreadableDesigns: 3,
+          }),
+      },
+    };
+
+    const counted = await countItemUsage([VENEER], {
+      stores,
+      book: SAMPLE_PRICE_BOOK,
+    });
+
+    expect(counted.unreadableDesigns).toBe(3);
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it("reads 0 for a tier the given book does not state and never probes it, though a reader would count it", async () => {
+    const asked: ItemUsageProbe[][] = [];
+    const unstated = { kind: "material", tierId: "material.dropped" } as const;
+
+    const { usage } = await countItemUsage([unstated], {
+      stores: { usage: readerRecording(asked) },
+      book: SAMPLE_PRICE_BOOK,
+    });
+
+    expect(usage).toEqual([{ item: unstated, designCount: 0 }]);
+    expect(asked).toEqual([]);
+  });
+
+  it("leaves the deadline to a caller that passes its own signal, and hands the reader that signal", async () => {
+    const seen: (AbortSignal | undefined)[] = [];
+    const mine = new AbortController().signal;
+    const stores = {
+      usage: {
+        countEach: (
+          probes: readonly ItemUsageProbe[],
+          signal?: AbortSignal,
+        ) => {
+          seen.push(signal);
+          return Promise.resolve({
+            counts: probes.map(({ item }) => ({ item, designCount: 1 })),
+            unreadableDesigns: 0,
+          });
+        },
+      },
+    };
+
+    await countItemUsage([VENEER], {
+      stores,
+      book: SAMPLE_PRICE_BOOK,
+      signal: mine,
+    });
+
+    expect(seen).toEqual([mine]);
   });
 });
 

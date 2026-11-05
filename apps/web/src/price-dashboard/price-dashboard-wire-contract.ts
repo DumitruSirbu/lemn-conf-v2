@@ -469,6 +469,10 @@ export interface ItemUsageWire {
   readonly count: number;
 }
 
+/**
+ * One entry per distinct item asked about. A tier or a linked accessory that the active book does not state reads 0
+ * though a saved design may still name it; ask about items of the active book.
+ */
 export interface UsageCountsWire {
   readonly counts: readonly ItemUsageWire[];
 }

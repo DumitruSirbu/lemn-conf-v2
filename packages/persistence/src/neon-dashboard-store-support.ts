@@ -135,15 +135,23 @@ export function unexpectedAnswer(
   return new DashboardStoreError(operation, "unexpected-answer");
 }
 
-/** A read, retried on a transient failure, whose rows are plain copies. A write is never given this. */
+/**
+ * A read, retried on a transient failure, whose rows are plain copies. A write is never given this. A read whose
+ * `signal` has aborted rejects with the signal's reason, not with a store error.
+ */
 export async function readRows(
   operation: DashboardStoreOperation,
   runQuery: () => PromiseLike<unknown>,
+  signal?: AbortSignal,
 ): Promise<readonly Row[]> {
   let reply: unknown;
   try {
-    reply = await retryOnTransientFailure(() => Promise.resolve(runQuery()));
+    reply = await retryOnTransientFailure(
+      () => Promise.resolve(runQuery()),
+      signal,
+    );
   } catch (failure) {
+    signal?.throwIfAborted();
     throw failureFrom(operation, failure);
   }
   return plainRowsOf(reply, operation);

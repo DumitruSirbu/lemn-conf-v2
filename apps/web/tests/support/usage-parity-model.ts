@@ -252,7 +252,11 @@ export function isUnstatedTierOrLinkedAccessory(
   }
 }
 
-/** `undefined` when the domain itself cannot answer for the design, which no reader could be held to. */
+/**
+ * The count the usage read is held to: `usesItem` over the designs, except that a tier or a linked accessory the book does
+ * not state reads 0 (the rule `countItemUsage` documents), though a design may name it. `undefined` when the domain itself
+ * cannot answer for the design, which no reader could be held to.
+ */
 export function oracleCount(
   designs: readonly Design[],
   item: ItemRef,

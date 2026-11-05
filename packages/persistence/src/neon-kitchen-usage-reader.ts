@@ -96,6 +96,7 @@ export class NeonKitchenUsageReader implements KitchenUsageReader {
           : await this.countInSql(probe, signal),
       })),
     );
+    signal?.throwIfAborted();
     return { counts, unreadableDesigns: walk.unreadableDesigns };
   }
 
@@ -106,21 +107,27 @@ export class NeonKitchenUsageReader implements KitchenUsageReader {
     signal?.throwIfAborted();
     if (probe.via === "placed-bodies") {
       if (probe.buildIds.length === 0) return 0;
-      return this.countRows(() =>
-        countDesignsPlacingBodiesStatement(this.sql, probe.buildIds),
+      return this.countRows(
+        () => countDesignsPlacingBodiesStatement(this.sql, probe.buildIds),
+        signal,
       );
     }
-    return this.countRows(() =>
-      countDesignsChoosingTierStatement(this.sql, {
-        settingKey: tierSettingKeyOf(probe.item.kind),
-        tierId: probe.item.tierId,
-        isFallback: probe.isFallback,
-      }),
+    return this.countRows(
+      () =>
+        countDesignsChoosingTierStatement(this.sql, {
+          settingKey: tierSettingKeyOf(probe.item.kind),
+          tierId: probe.item.tierId,
+          isFallback: probe.isFallback,
+        }),
+      signal,
     );
   }
 
-  private async countRows(run: () => PromiseLike<unknown>): Promise<number> {
-    const rows = await readRows(COUNT_USAGE, run);
+  private async countRows(
+    run: () => PromiseLike<unknown>,
+    signal: AbortSignal | undefined,
+  ): Promise<number> {
+    const rows = await readRows(COUNT_USAGE, run, signal);
     return requiredCount(onlyRow(rows, COUNT_USAGE)["designs"], COUNT_USAGE);
   }
 
@@ -138,19 +145,25 @@ export class NeonKitchenUsageReader implements KitchenUsageReader {
     let afterId = "";
     for (;;) {
       signal?.throwIfAborted();
-      const page = await this.readDesignPage(afterId);
+      const page = await this.readDesignPage(afterId, signal);
       for (const row of page) tallyDesign(walk, row);
       if (page.length < USAGE_DESIGN_PAGE_SIZE) return walk;
       afterId = lastIdOf(page);
     }
   }
 
-  private readDesignPage(afterId: string): Promise<readonly Row[]> {
-    return readRows(COUNT_USAGE, () =>
-      readDesignPageStatement(this.sql, {
-        afterId,
-        pageSize: USAGE_DESIGN_PAGE_SIZE,
-      }),
+  private readDesignPage(
+    afterId: string,
+    signal: AbortSignal | undefined,
+  ): Promise<readonly Row[]> {
+    return readRows(
+      COUNT_USAGE,
+      () =>
+        readDesignPageStatement(this.sql, {
+          afterId,
+          pageSize: USAGE_DESIGN_PAGE_SIZE,
+        }),
+      signal,
     );
   }
 }

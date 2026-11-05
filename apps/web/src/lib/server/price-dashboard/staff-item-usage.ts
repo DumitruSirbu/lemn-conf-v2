@@ -8,7 +8,10 @@ import {
   type ItemUsage,
 } from "@lemnaria/configurator-domain";
 
-import type { AccountEvent } from "@/lib/server/account/account-log";
+import {
+  reportUnreadableDesigns,
+  type AccountEvent,
+} from "@/lib/server/account/account-log";
 import {
   ACCOUNT_RESPONSE_HEADERS,
   rateLimitedResponse,
@@ -29,6 +32,7 @@ import {
 import {
   USAGE_READ_DEADLINE_MS,
   countItemUsage,
+  withinUsageDeadline,
   isWithinUsageBound,
 } from "@/lib/server/price-dashboard/item-usage-read";
 import {
@@ -118,10 +122,13 @@ function refusedOnItems(
  */
 const ACCOUNTS_COUNTING = new Set<string>();
 
-/** The longest a count in flight can hold its account's slot, in whole seconds: the deadline. */
+/** The longest a count in flight can hold its account's slot, in whole seconds: the whole count's deadline. */
 const BUSY_RETRY_AFTER_SECONDS = Math.ceil(USAGE_READ_DEADLINE_MS / 1000);
 
-/** One count at a time per account: a second while the first runs is `429` at once, before any store is read. */
+/**
+ * One count at a time per account: a second while the first runs is `429` at once, before any store is read. The whole
+ * count, the stores and the book read included, runs under one deadline, so the slot frees within it.
+ */
 async function performCount(
   items: readonly ItemRef[],
   _cookies: SessionCookieReader,
@@ -135,7 +142,7 @@ async function performCount(
   }
   ACCOUNTS_COUNTING.add(accountId);
   try {
-    return await countAndAnswer(items);
+    return await withinUsageDeadline((signal) => countAndAnswer(items, signal));
   } finally {
     ACCOUNTS_COUNTING.delete(accountId);
   }
@@ -143,6 +150,7 @@ async function performCount(
 
 async function countAndAnswer(
   items: readonly ItemRef[],
+  signal: AbortSignal,
 ): Promise<NextResponse> {
   const stores = await getPriceStores();
   const book = await readActiveBook(stores);
@@ -152,7 +160,14 @@ async function countAndAnswer(
       dashboardConflictResponse("no-active-version"),
     );
   }
-  const usage = await countItemUsage(items, { stores, book });
+  const { usage, unreadableDesigns } = await countItemUsage(items, {
+    stores,
+    book,
+    signal,
+  });
+  // A count that finishes after the deadline is neither logged nor answered.
+  signal.throwIfAborted();
+  reportUnreadableDesigns(unreadableDesigns);
   return succeeded(PRICE_USAGE_EVENT, countsResponse(usage));
 }
 

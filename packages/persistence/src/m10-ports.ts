@@ -422,7 +422,8 @@ export type ItemUsageProbe =
  * out. A predicate or a migration that fails any other way fails the call (`unexpected-answer`): it never reads as unused.
  *
  * An aborted `signal` stops the call: it rejects with the signal's reason, checked before the walk's first page, between
- * its pages and before each count in SQL, so a call given up on issues at most the statement already in flight.
+ * its pages, before each count in SQL and before a repeat of a read that failed transiently. A call given up on issues
+ * at most the statements already issued.
  */
 export interface KitchenUsageReader {
   countEach(

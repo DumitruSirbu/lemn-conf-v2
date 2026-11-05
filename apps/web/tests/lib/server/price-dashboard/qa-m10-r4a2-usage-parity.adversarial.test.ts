@@ -75,7 +75,7 @@ describe("the count of an item, whatever the items, the designs and the active b
           const designs = designRecipes.map(designOf);
           const book = bookOf(bookRecipe);
 
-          const usage = await countItemUsage(items, {
+          const { usage } = await countItemUsage(items, {
             stores: { usage: readerOver(designs) },
             book,
           });
@@ -147,7 +147,9 @@ describe("the count of an item, whatever the items, the designs and the active b
     );
     const item: ItemRef = { kind: "accessory", accessoryId: "linked-a" };
 
-    const [usage] = await countItemUsage([item], {
+    const {
+      usage: [usage],
+    } = await countItemUsage([item], {
       stores: { usage: readerOver(designs) },
       book,
     });
