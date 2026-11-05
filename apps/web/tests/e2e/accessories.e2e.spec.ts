@@ -5,7 +5,7 @@
 // what each gives these pages, is written at the head of `support/accessory-page.ts`. The list, a price's Save, a reload
 // and the refusals run under BOTH; the dialogs need the sample lifecycle that only `next dev` draws, and the off controls
 // are what `next start` draws. The tests of the dialogs skip themselves under `CI`, and the test of the off controls skips
-// itself without it. A switch never reaches the server, and each page starts from its own copy of it.
+// itself without it. On `next dev` a switch never reaches the server, and each page starts from its own copy of it.
 //
 // NOT REACHABLE, so not asserted here: creating an accessory (no route takes a creation until the draft's routes do, so the
 // form's Create is off, which a test holds), renaming, deleting a created accessory and opening a linked one (the sample

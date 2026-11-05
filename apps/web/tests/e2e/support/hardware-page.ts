@@ -17,8 +17,9 @@ import { signIn, type SignedInAdministrator } from "./staff-world";
 // WHAT EACH SERVER GIVES THESE PAGES (read from the source, then probed in a browser):
 //  - The classes and the draft come from the dashboard's state, which the e2e server holds in its fake price book under
 //    BOTH `next dev` and `next start`, so the list, the class page, the rate Save and a reload are the same under both.
-//  - What differs is the lifecycle, which has no server behind it yet (R4a, R4b, S3). A production build (CI) hands the
-//    page no saved defaults, no usage counts and a lifecycle client that cannot write, so every switch and deletion of
+//  - What differs is the lifecycle. A production build (CI) hands the page no saved defaults and a lifecycle
+//    client that asks the server, so a switch-on is written to it, a switch-off is drawn off until the defaults can be
+//    read, and a count is the server's; every deletion of
 //    a class the book states is drawn off with its reason. `next dev` hands it the sample defaults, the sample counts
 //    (Standard 9, Hettich 14, Blum 0) and an in-memory client, so the dialogs can be driven; nothing it does reaches the
 //    server, and each page starts from its own copy.
@@ -60,8 +61,8 @@ export const RATE_COLUMN_KEY = {
 
 export const DEV_ONLY_REASON =
   "The sample defaults, the sample counts of saved kitchens and the in-memory switch exist only outside a production " +
-  "build, so the dialogs can be driven only on `next dev`; a production build draws those controls off, which the CI tests " +
-  "of this file hold. Run it without CI set.";
+  "build, so the dialogs can be driven only on `next dev`; a production build asks the server instead, which the CI tests " +
+  "of these files hold. Run it without CI set.";
 export const CI_ONLY_REASON =
   "The off controls of a production build are drawn only when `CI` is set (`playwright.config.ts` starts `next start` " +
   "then); `next dev` draws the sample's working controls instead. Run it with: CI=1";

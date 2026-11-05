@@ -18,6 +18,8 @@ const NO_REFERRER_POLICY: ReferrerPolicy = "no-referrer";
 export interface Answer {
   readonly status: number;
   readonly body: unknown;
+  /** The whole seconds a `Retry-After` header asks for; absent when the answer names none or not a whole number. */
+  readonly retryAfterSeconds?: number | undefined;
 }
 
 export type Request =
@@ -33,7 +35,11 @@ export async function ask(
 ): Promise<Answer | undefined> {
   try {
     const response = await fetch(address, init(request));
-    return { status: response.status, body: await readJsonOrNothing(response) };
+    return {
+      status: response.status,
+      body: await readJsonOrNothing(response),
+      retryAfterSeconds: retryAfterSecondsOf(response),
+    };
   } catch {
     return undefined;
   }
@@ -49,6 +55,15 @@ function init(request: Request): RequestInit {
     headers: { "content-type": "application/json" },
     referrerPolicy: SAME_ORIGIN_REFERRER_POLICY,
   };
+}
+
+const WHOLE_SECONDS = /^\d+$/;
+
+function retryAfterSecondsOf(response: Response): number | undefined {
+  const declared = response.headers.get("Retry-After");
+  return declared !== null && WHOLE_SECONDS.test(declared)
+    ? Number(declared)
+    : undefined;
 }
 
 async function readJsonOrNothing(response: Response): Promise<unknown> {

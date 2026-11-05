@@ -14,11 +14,12 @@ import type {
 import type { LifecycleContext } from "./item-lifecycle-model";
 import type { AvailabilityRequestWire } from "./price-dashboard-wire-contract";
 
-// A client that keeps what the page showed in memory, for a build with no server behind the screen. It holds no data of its
+// A client that keeps what the page showed in memory, for a build that is not a production one. It holds no data of its
 // own: it is seeded with the facts the page was given, so it can sit in a browser chunk and name no invented count. It
 // counts only the items its seed counts.
 
-export interface ItemLifecycleSeed extends Omit<LifecycleContext, "canWrite"> {
+export interface ItemLifecycleSeed
+  extends Omit<LifecycleContext, "canWrite" | "canDeleteStatedItems"> {
   readonly usage: ItemUsageCounts;
 }
 
@@ -33,6 +34,7 @@ export function inMemoryItemLifecycleClient(
   let current = seed.availability;
   return {
     canWrite: true,
+    canDeleteStatedItems: true,
     setActive: (request) => {
       const outcome = judgedWrite(seed, current, request);
       if (outcome.kind === "set") {

@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 //
 // Adversarial QA of the accessory screens: no path switches the sink cover off (the menu, the page, the desk's own request
-// and a write forged at the client), the rack and the others still switch, and a build with no server behind the screens
-// offers nothing that could be pressed and claims no count. The pending count is read at each step of a creation that is
+// and a write forged at the client), the rack and the others still switch, and a production build offers no switch-off or
+// deletion that cannot be judged, and claims no count it was not given. The pending count is read at each step of a creation that is
 // taken back.
 import { act, createElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -58,6 +58,7 @@ import {
 } from "./hardware-harness";
 import { inMemoryPriceDraftClient } from "./in-memory-price-draft-client";
 import { roCopy } from "./romanian-copy";
+import { stubTheLifecycleServer } from "./lifecycle-server-harness";
 import {
   contextOf,
   leaveTheStaffServer,
@@ -67,7 +68,6 @@ import {
 const DEACTIVATE = roCopy("priceDashboard.common.deactivate");
 const ACTIVATE = roCopy("priceDashboard.common.activate");
 const DELETE = roCopy("priceDashboard.common.delete");
-const CANCEL = roCopy("priceDashboard.common.cancel");
 const DELETE_ON_PAGE = roCopy("priceDashboard.accessories.deleteAction");
 const RENAME = roCopy("priceDashboard.accessories.renameAction");
 const SAVE = roCopy("priceDashboard.common.save");
@@ -226,6 +226,7 @@ describe("the sink cover cannot be switched off by a request the screen did not 
       calls,
       client: {
         canWrite: inner.canWrite,
+        canDeleteStatedItems: inner.canDeleteStatedItems,
         setActive: (request: Parameters<typeof inner.setActive>[0]) => {
           calls.push("setActive");
           return inner.setActive(request);
@@ -296,28 +297,13 @@ describe("the sink cover cannot be switched off by a request the screen did not 
   });
 });
 
-describe("a build with no server behind the accessory screens", () => {
+describe("a production build of the accessory screens", () => {
   const productionPageOf = (
     options: Parameters<typeof accessoryPageOf>[0] = {},
   ): AccessoryPageInput => ({
     ...accessoryPageOf(options),
     sampleUsage: undefined,
   });
-
-  /** A dialog may open to say the kitchens cannot be counted; its confirmation must then be inert. */
-  async function leaveInertDialog(): Promise<void> {
-    const dialog = openDialog();
-    if (dialog === null) return;
-    expect(dialog.textContent).toContain(
-      roCopy("priceDashboard.lifecycle.usageUnavailableAccessory"),
-    );
-    const confirmations = allIn<HTMLButtonElement>(dialog, "button").filter(
-      (button) => button.getAttribute("aria-disabled") === "true",
-    );
-    expect(confirmations.length).toBeGreaterThan(0);
-    for (const confirmation of confirmations) await press(confirmation);
-    await press(dialogButton(dialog, CANCEL));
-  }
 
   function mountScreen(element: ReturnType<typeof createElement>): void {
     extraScreen = mountInCatalogue(element, "ro");
@@ -372,23 +358,40 @@ describe("a build with no server behind the accessory screens", () => {
     }
   });
 
-  // A production page is given no saved defaults (nothing yet reads them), so this state cannot arise there: it holds that
-  // a page that was given them still claims no count and writes nothing, when a linked accessory's deletion opens its dialog.
-  it("opens, with saved defaults read, a dialog for a linked accessory's deletion that says the kitchens could not be counted and whose confirmation is inert", async () => {
+  // The state saved defaults make readable: a page that has them still offers no deletion of an accessory the book states,
+  // and a switch-off it does offer is counted by the server, never from the page.
+  it("with the saved defaults read, offers no deletion of a stated accessory and counts a switch-off by what the server says", async () => {
+    const SERVER_COUNT_FOR_RACK = 4;
+    const server = stubTheLifecycleServer({
+      availability: { revision: "1", disabled: [] },
+      usage: [
+        {
+          item: accessoryItem(DRYING_RACK),
+          designCount: SERVER_COUNT_FOR_RACK,
+        },
+      ],
+    });
     const { container, draftServer } = await mountProductionList({});
-    const fetched = fetchSpy();
 
     for (const [accessoryId, name] of EVERY_ENTRY) {
       await openMenuOf(container, accessoryId, name);
-      for (const words of [DEACTIVATE, DELETE]) {
-        await press(menuEntry(container, accessoryId, words));
-        await leaveInertDialog();
-      }
+      const entry = menuEntry(container, accessoryId, DELETE);
+      await press(entry);
+      expect(entry.getAttribute("aria-disabled"), accessoryId).toBe("true");
+      expect(openDialog(), accessoryId).toBeNull();
     }
+    expect(server.usageRequests).toEqual([]);
 
-    expect(openDialog()).toBeNull();
+    await openMenuOf(container, DRYING_RACK, RACK_NAME);
+    await press(menuEntry(container, DRYING_RACK, DEACTIVATE));
+
+    expect(server.usageRequests).toEqual([[accessoryItem(DRYING_RACK)]]);
+    expect(openDialog()?.textContent).toContain(
+      roCopy("priceDashboard.lifecycle.usedByAccessory", {
+        count: SERVER_COUNT_FOR_RACK,
+      }),
+    );
     expect(draftServer.calls).toEqual([]);
-    expect(fetched).not.toHaveBeenCalled();
   });
 
   it("offers the cover and the built-ins no deletion in production either, with the reason that fits each", async () => {

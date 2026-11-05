@@ -47,6 +47,7 @@ function contextOf(
     availability: NOTHING_OFF,
     defaults: {},
     canWrite: true,
+    canDeleteStatedItems: true,
     ...overrides,
   };
 }

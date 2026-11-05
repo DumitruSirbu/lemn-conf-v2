@@ -50,6 +50,10 @@ import {
 import { inMemoryPriceDraftClient } from "./in-memory-price-draft-client";
 import { roCopy } from "./romanian-copy";
 import {
+  stubTheLifecycleServer,
+  type LifecycleServer,
+} from "./lifecycle-server-harness";
+import {
   contextOf,
   leaveTheStaffServer,
   stubTheStaffServer,
@@ -92,6 +96,12 @@ async function pressWithPointer(element: HTMLElement): Promise<void> {
     );
   });
   await press(element);
+}
+
+function requireDialog(): HTMLElement {
+  const dialog = openDialog();
+  if (dialog === null) throw new Error("no dialog opened");
+  return dialog;
 }
 
 async function dialogFor(
@@ -172,8 +182,18 @@ describe("a production build, as the server hands it its page", () => {
     sampleUsage: undefined,
   });
 
+  /** The kitchens the server counts for Hettich: not the page's sample, so a count read off the page shows. */
+  const SERVER_COUNT_FOR_HETTICH = 3;
+  let server: LifecycleServer;
+
   async function mountWithNoLifecycleClient(page: Page): Promise<void> {
     vi.stubEnv("NODE_ENV", "production");
+    server = stubTheLifecycleServer({
+      availability: page.state.active.availability,
+      usage: [
+        { item: hardwareItem(HETTICH), designCount: SERVER_COUNT_FOR_HETTICH },
+      ],
+    });
     const draftServer = inMemoryPriceDraftClient(page.state);
     const screenOf = mountInCatalogue(
       createElement(HardwareListScreen, {
@@ -217,7 +237,7 @@ describe("a production build, as the server hands it its page", () => {
     expect(screen().draftServer.calls).toEqual([]);
   });
 
-  it("offers no deletion of a class that only the draft holds either: where nothing can be written it is off for the reason that nothing can be checked, and sends nothing", async () => {
+  it("offers the deletion of a class that only the draft holds: it counts nothing, and confirming takes the creation back out of the draft", async () => {
     await mountWithNoLifecycleClient(
       productionPageOf({ changes: CREATED_CLASS }),
     );
@@ -225,17 +245,16 @@ describe("a production build, as the server hands it its page", () => {
     await openMenuOf(screen().container, CREATED, CREATED_NAME);
     const entry = menuEntry(screen().container, CREATED, DELETE);
     await press(entry);
+    const dialog = requireDialog();
 
-    expect(entry.getAttribute("aria-disabled")).toBe("true");
-    expect(openDialog()).toBeNull();
-    expect(
-      allIn(
-        rowOf(screen().container, CREATED),
-        '[data-testid="menu-reason"]',
-      ).map((reason) => reason.textContent),
-    ).toContain(roCopy("priceDashboard.lifecycle.cannotJudge"));
-    expect(rowOf(screen().container, CREATED)).toBeDefined();
-    expect(screen().draftServer.calls).toEqual([]);
+    expect(entry.getAttribute("aria-disabled")).not.toBe("true");
+    expect(dialog.textContent).toContain(
+      roCopy("priceDashboard.lifecycle.deleteCreatedBody"),
+    );
+    expect(server.usageRequests).toEqual([]);
+    await press(dialogButton(dialog, DELETE));
+    expect(screen().draftServer.state().draft.changes).toEqual([]);
+    expect(server.switchRequests).toEqual([]);
   });
 
   it("names the fallback class a default that cannot be deleted, where the saved defaults cannot be read", async () => {
@@ -254,22 +273,49 @@ describe("a production build, as the server hands it its page", () => {
     ]);
   });
 
-  it("claims no count of kitchens even where a page was handed one with the saved defaults, and opens no question at all: nothing can be written", async () => {
-    // Not a page production builds: it is what a leak would look like, and no figure may then reach a dialog.
+  it("counts a switch-off by what the server says, never by the sample a page was handed", async () => {
     await mountWithNoLifecycleClient(hardwarePageOf());
 
     await openMenuOf(screen().container, HETTICH, HETTICH_NAME);
-    const entry = menuEntry(screen().container, HETTICH, DEACTIVATE);
-    await press(entry);
+    await press(menuEntry(screen().container, HETTICH, DEACTIVATE));
 
-    expect(entry.getAttribute("aria-disabled")).toBe("true");
-    expect(openDialog()).toBeNull();
-    expect(screen().container.textContent).not.toContain(
+    expect(server.usageRequests).toEqual([[hardwareItem(HETTICH)]]);
+    const dialog = openDialog();
+    expect(dialog?.textContent).toContain(
+      roCopy("priceDashboard.lifecycle.usedBy", {
+        count: SERVER_COUNT_FOR_HETTICH,
+      }),
+    );
+    expect(dialog?.textContent).not.toContain(
       roCopy("priceDashboard.lifecycle.usedBy", { count: 14 }),
     );
   });
 
-  it("offers no switch-on that could be pressed: it is off for the reason that nothing can be checked, no dialog opens, and the class stays off", async () => {
+  it("offers no deletion of a class the book states even once the saved defaults are read: only the switch-off opens", async () => {
+    await mountWithNoLifecycleClient(hardwarePageOf({ defaults: {} }));
+
+    for (const [tierId, name] of [
+      [HETTICH, HETTICH_NAME],
+      [BLUM, BLUM_NAME],
+    ] as const) {
+      await openMenuOf(screen().container, tierId, name);
+      const deletion = menuEntry(screen().container, tierId, DELETE);
+      await press(deletion);
+
+      expect(deletion.getAttribute("aria-disabled"), tierId).toBe("true");
+      expect(openDialog(), tierId).toBeNull();
+      expect(
+        menuEntry(screen().container, tierId, DEACTIVATE).getAttribute(
+          "aria-disabled",
+        ),
+        tierId,
+      ).not.toBe("true");
+    }
+    expect(server.usageRequests).toEqual([]);
+    expect(screen().draftServer.calls).toEqual([]);
+  });
+
+  it("offers a switch-on that is pressed through to the server, and the class is on once it answers", async () => {
     await mountWithNoLifecycleClient(
       productionPageOf({ disabled: [hardwareItem(BLUM)] }),
     );
@@ -277,25 +323,33 @@ describe("a production build, as the server hands it its page", () => {
     await openMenuOf(screen().container, BLUM, BLUM_NAME);
     const entry = menuEntry(screen().container, BLUM, ACTIVATE);
     await press(entry);
+    const dialog = requireDialog();
 
-    expect(entry.getAttribute("aria-disabled")).toBe("true");
+    expect(entry.getAttribute("aria-disabled")).not.toBe("true");
+    expect(server.switchRequests).toEqual([]);
+    await press(
+      dialogButton(dialog, roCopy("priceDashboard.lifecycle.activateConfirm")),
+    );
+    expect(server.switchRequests).toEqual([
+      { expectedRevision: "1", item: hardwareItem(BLUM), active: true },
+    ]);
+    expect(server.availability().disabled).toEqual([]);
     expect(openDialog()).toBeNull();
-    expect(
-      allIn(rowOf(screen().container, BLUM), '[data-testid="menu-reason"]').map(
-        (reason) => reason.textContent,
-      ),
-    ).toContain(roCopy("priceDashboard.lifecycle.cannotJudge"));
     expect(
       allIn(
         rowOf(screen().container, BLUM),
         '[data-testid="hardware-chip"]',
       ).map((chip) => chip.textContent),
-    ).toEqual([roCopy("priceDashboard.chips.inactive")]);
+    ).not.toContain(roCopy("priceDashboard.chips.inactive"));
   });
 
-  it("offers no switch-on on the class's own page either: the switch is off and says why", async () => {
+  it("offers the switch on the class's own page as well, which asks first and sends nothing until it is confirmed", async () => {
     vi.stubEnv("NODE_ENV", "production");
     const page = productionPageOf({ disabled: [hardwareItem(BLUM)] });
+    server = stubTheLifecycleServer({
+      availability: page.state.active.availability,
+      usage: [],
+    });
     const screenOf = mountInCatalogue(
       createElement(HardwareEditScreen, {
         locale: "ro",
@@ -315,11 +369,9 @@ describe("a production build, as the server hands it its page", () => {
     const classSwitch = requireIn(screenOf.container, '[role="switch"]');
     await press(classSwitch);
 
-    expect(classSwitch.getAttribute("aria-disabled")).toBe("true");
-    expect(openDialog()).toBeNull();
-    expect(screenOf.container.textContent).toContain(
-      roCopy("priceDashboard.lifecycle.cannotJudge"),
-    );
+    expect(classSwitch.getAttribute("aria-disabled")).not.toBe("true");
+    expect(openDialog()).not.toBeNull();
+    expect(server.switchRequests).toEqual([]);
     screenOf.unmount();
   });
 

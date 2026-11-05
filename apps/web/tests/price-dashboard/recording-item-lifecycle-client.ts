@@ -45,6 +45,7 @@ export function recordingLifecycleClient(
 
   const client: ItemLifecycleClient = {
     canWrite: inner.canWrite,
+    canDeleteStatedItems: inner.canDeleteStatedItems,
     setActive: async (request) => {
       calls.push({ kind: "setActive", request });
       const waiting = heldWrite;

@@ -2,12 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type {
-  CatalogueAvailability,
-  DeletableItemRef,
-  ItemRef,
-  NewKitchenSettings,
-  PriceBook,
+import {
+  isItemStated,
+  type CatalogueAvailability,
+  type DeletableItemRef,
+  type ItemRef,
+  type NewKitchenSettings,
+  type PriceBook,
 } from "@lemnaria/configurator-domain";
 
 import { raiseStaffSessionExpired } from "@/staff/staff-session-expiry";
@@ -41,8 +42,9 @@ import type { FieldWriteResult } from "./use-price-draft";
 
 // Switching an item on or off, and deleting one, as a screen runs them. Switching applies at once and is never a draft
 // change; deleting is a draft change, so the screen hands in the write. Before a switch-off or a deletion is offered the
-// saved kitchens that use the item are counted, and a count that cannot be had is said so and never read as none. One
-// dialog is open at a time, and an answer to a question the person has since closed or replaced is dropped.
+// saved kitchens that use the item are counted, one request for the dialog, and a count that cannot be had is said so
+// and never read as none; nor is one had for an item the book does not state. One dialog is open at a time, and an
+// answer to a question the person has since closed or replaced is dropped.
 
 export interface ItemAvailabilityDesk {
   /** What is switched off now, as the last answer left it. */
@@ -104,9 +106,25 @@ export function useItemAvailability({
   const isSendingRef = useRef(false);
   const { moveOn: markMoved, begin } = useLateAnswerGuard();
   const context = useMemo<LifecycleContext>(
-    () => ({ book, availability, defaults, canWrite: client.canWrite }),
-    [book, availability, defaults, client.canWrite],
+    () => ({
+      book,
+      availability,
+      defaults,
+      canWrite: client.canWrite,
+      canDeleteStatedItems: client.canDeleteStatedItems,
+    }),
+    [
+      book,
+      availability,
+      defaults,
+      client.canWrite,
+      client.canDeleteStatedItems,
+    ],
   );
+  const bookRef = useRef(book);
+  useEffect(() => {
+    bookRef.current = book;
+  }, [book]);
 
   /** Takes what is switched off as it now stands, and remembers the revision it replaces: a later read of the draft
    *  that still names a revision left behind is an older read, and leaves a newer switch alone. */
@@ -137,19 +155,30 @@ export function useItemAvailability({
     setFailure(undefined);
   }, [markMoved]);
 
-  const openAfterCounting = useCallback(
-    async (item: ItemRef, flowOf: (read: UsageRead) => ItemFlow) => {
-      const hasMoved = begin();
-      setReadingItem(item);
+  /** The count of an item the book states, asked and answered under the book as it stands. A book that no longer states
+   *  the item leaves nothing to say of it, and a reader that counted it anyway is not believed. */
+  const readUsageOfStatedItem = useCallback(
+    async (item: ItemRef): Promise<UsageRead> => {
+      if (!isItemStated(item, bookRef.current)) return UNREADABLE_USAGE;
       const read = await orFailed(
         () => client.readUsage([item]),
         UNREADABLE_USAGE,
       );
+      return isItemStated(item, bookRef.current) ? read : UNREADABLE_USAGE;
+    },
+    [client],
+  );
+
+  const openAfterCounting = useCallback(
+    async (item: ItemRef, flowOf: (read: UsageRead) => ItemFlow) => {
+      const hasMoved = begin();
+      setReadingItem(item);
+      const read = await readUsageOfStatedItem(item);
       if (hasMoved()) return;
       setReadingItem(undefined);
       setFlow(flowOf(read));
     },
-    [client, begin],
+    [readUsageOfStatedItem, begin],
   );
 
   const requestSwitch = useCallback(

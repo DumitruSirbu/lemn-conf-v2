@@ -12,11 +12,11 @@ import { signIn, type SignedInAdministrator } from "./staff-world";
 // WHAT EACH SERVER GIVES THESE PAGES (read from the source): - The accessories and the draft come from the dashboard's
 // state, which the e2e server holds in its fake price book under BOTH `next dev` and `next start`, so the list, the
 // accessory page, the price Save and a reload are the same under both. The sample book carries the two built-in accessories
-// and no linked one. - What differs is the lifecycle, which has no server behind it yet. A production build (CI) hands the
-// page no saved defaults, no usage counts and a lifecycle client that cannot write, so every switch of an accessory the
-// book states is drawn off with its reason, and no count is claimed. `next dev` hands it the sample defaults, the sample
-// counts (cover 12, rack 31) and an in-memory client, so the dialogs can be driven; nothing it does reaches the server, and
-// each page starts from its own copy. - Creating an accessory needs a route that does not exist: the default client has no
+// and no linked one. - What differs is the lifecycle. A production build (CI) hands the page no saved defaults and a
+// lifecycle client that asks the server, so a switch-on is written to it, a switch-off of an accessory the book states is
+// drawn off with its reason until the defaults can be read, and a count is the server's. `next dev` hands it the sample
+// defaults, the sample counts (cover 12, rack 31) and an in-memory client, so the dialogs can be driven; nothing it does
+// reaches the server, and each page starts from its own copy. - Creating an accessory needs a route that does not exist: the default client has no
 // `createAccessory`, so the form's Create is off under both servers, and there is never a linked accessory to open.
 
 export const ACCESSORIES_PATH = "/ro/staff/catalog/accessories";
