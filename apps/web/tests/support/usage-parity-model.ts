@@ -12,7 +12,6 @@ import {
   paletteFinish,
   pricedAsBuildId,
   isBuiltInAccessoryId,
-  isItemStated,
   usesItem,
   type Design,
   type ItemRef,
@@ -228,16 +227,29 @@ export function readerOver(designs: readonly Design[]): KitchenUsageReader {
   };
 }
 
-/** A tier or a linked accessory the book does not state: the route answers 0 for it and asks the reader nothing. */
+/**
+ * A tier or a linked accessory the book does not state: the route answers 0 for it and asks the reader nothing. Written
+ * out from the book's own lists, not from the domain's `isItemStated` which the route reads.
+ */
 export function isUnstatedTierOrLinkedAccessory(
   item: ItemRef,
   book: PriceBook,
 ): boolean {
-  const isTierOrLinked =
-    item.kind === "material" ||
-    item.kind === "hardware" ||
-    (item.kind === "accessory" && !isBuiltInAccessoryId(item.accessoryId));
-  return isTierOrLinked && !isItemStated(item, book);
+  switch (item.kind) {
+    case "material":
+      return !book.material.tiers.some(({ tierId }) => tierId === item.tierId);
+    case "hardware":
+      return !book.hardware.tiers.some(({ tierId }) => tierId === item.tierId);
+    case "accessory":
+      return (
+        !isBuiltInAccessoryId(item.accessoryId) &&
+        !book.linkedAccessories.some(
+          ({ accessoryId }) => accessoryId === item.accessoryId,
+        )
+      );
+    default:
+      return false;
+  }
 }
 
 /** `undefined` when the domain itself cannot answer for the design, which no reader could be held to. */
