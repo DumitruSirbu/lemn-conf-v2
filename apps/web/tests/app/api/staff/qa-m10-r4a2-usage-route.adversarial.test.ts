@@ -831,6 +831,7 @@ describe("any items, any saved designs of either depth, under the book the store
       readerOver(designs).countEach(probes),
     );
     let answeredDeep = 0;
+    let answeredLinked = 0;
 
     await fc.assert(
       fc.asyncProperty(
@@ -850,12 +851,23 @@ describe("any items, any saved designs of either depth, under the book the store
           if (designs.some((design) => cabinetDepthMmOf(design) === 700)) {
             answeredDeep += 1;
           }
+          if (
+            expected.some(
+              ({ item, count }) =>
+                item.kind === "accessory" &&
+                item.accessoryId.startsWith("linked-") &&
+                count > 0,
+            )
+          ) {
+            answeredLinked += 1;
+          }
         },
       ),
       { numRuns: 60, seed: 20_261_105 },
     );
 
     expect(answeredDeep).toBeGreaterThan(0);
+    expect(answeredLinked).toBeGreaterThan(0);
     expect(budgetOf(THE_BUCKET)).toBeLessThan(
       STAFF_PRICE_USAGE_PER_ACCOUNT_HOUR_FIGURE,
     );
