@@ -1,4 +1,7 @@
-import { CATALOGUE_ACTIVATION_AUDIT_ACTION } from "@lemnaria/configurator-domain";
+import {
+  CATALOGUE_ACTIVATION_AUDIT_ACTION,
+  itemIdOf,
+} from "@lemnaria/configurator-domain";
 import type {
   CatalogueAvailability,
   ItemRef,
@@ -9,7 +12,6 @@ import {
   FakeRevisionHead,
   isRevisionAhead,
   isRevisionShape,
-  itemIdOf,
   itemKeyOf,
   settle,
 } from "./fake-dashboard-support.js";

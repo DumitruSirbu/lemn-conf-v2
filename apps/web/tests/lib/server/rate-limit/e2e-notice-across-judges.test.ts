@@ -70,6 +70,7 @@ async function freshJudges() {
     "staff-seen-by-account": () => Promise.resolve(undefined),
     "staff-prices-read-by-account": () => Promise.resolve(undefined),
     "staff-price-draft-by-account": () => Promise.resolve(undefined),
+    "staff-price-usage-by-account": () => Promise.resolve(undefined),
   };
   return askers;
 }

@@ -1,3 +1,4 @@
+import { itemIdOf } from "@lemnaria/configurator-domain";
 import type { ItemRef } from "@lemnaria/configurator-domain";
 import type { NeonQueryFunction } from "@neondatabase/serverless";
 import { nanoid } from "nanoid";
@@ -6,7 +7,6 @@ import {
   isListablePage,
   isMintedId,
   isRevisionShape,
-  itemIdOf,
   storableJsonTextOf,
   storablePublishOf,
 } from "./dashboard-store-shapes.js";

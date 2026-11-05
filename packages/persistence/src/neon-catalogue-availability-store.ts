@@ -1,15 +1,14 @@
-import { CATALOGUE_ACTIVATION_AUDIT_ACTION } from "@lemnaria/configurator-domain";
+import {
+  CATALOGUE_ACTIVATION_AUDIT_ACTION,
+  itemIdOf,
+} from "@lemnaria/configurator-domain";
 import type {
   CatalogueAvailability,
   ItemRef,
 } from "@lemnaria/configurator-domain";
 import type { NeonQueryFunction } from "@neondatabase/serverless";
 
-import {
-  isRevisionShape,
-  isStorableItem,
-  itemIdOf,
-} from "./dashboard-store-shapes.js";
+import { isRevisionShape, isStorableItem } from "./dashboard-store-shapes.js";
 import {
   AVAILABILITY_REVISION_NOT_FOUND,
   CHANGED_MEANWHILE,

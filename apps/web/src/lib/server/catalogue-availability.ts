@@ -103,7 +103,7 @@ function readAvailabilityRequest(
   const body = membersOf(bodyText, ["expectedRevision", "item", "active"]);
   if (body === undefined) return MALFORMED;
   const expectedRevision = ownMember(body, "expectedRevision");
-  const item = readItem(ownMember(body, "item"));
+  const item = readItemRef(ownMember(body, "item"));
   const active = ownMember(body, "active");
   if (
     typeof expectedRevision !== "string" ||
@@ -117,7 +117,7 @@ function readAvailabilityRequest(
 }
 
 /** An item as exactly its kind and its one id, rebuilt member by member: a member beyond them is not read. */
-function readItem(declared: unknown): ItemRef | undefined {
+export function readItemRef(declared: unknown): ItemRef | undefined {
   if (!isPlainRecord(declared)) return undefined;
   const kind = ownMember(declared, "kind");
   if (typeof kind !== "string" || !Object.hasOwn(ID_MEMBER_OF_KIND, kind)) {
@@ -235,8 +235,8 @@ async function defaultsToJudge(
 }
 
 /** The active version's book, or `undefined` before any version was published. A stored book that is not one is thrown. */
-async function readActiveBook(
-  stores: PriceStores,
+export async function readActiveBook(
+  stores: Pick<PriceStores, "priceBook">,
 ): Promise<PriceBook | undefined> {
   const active = await stores.priceBook.readActive();
   if (active.kind !== "found") return undefined;

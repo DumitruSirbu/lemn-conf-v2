@@ -4,6 +4,7 @@ import { POST as BULK } from "@/app/api/staff/prices/bulk/route";
 import { POST as AVAILABILITY } from "@/app/api/staff/prices/availability/route";
 import { DELETE, PUT } from "@/app/api/staff/prices/draft/route";
 import { POST as PUBLISH } from "@/app/api/staff/prices/publish/route";
+import { POST as USAGE } from "@/app/api/staff/prices/usage/route";
 import { GET } from "@/app/api/staff/prices/route";
 import { POST as RESTORE } from "@/app/api/staff/prices/versions/[id]/restore/route";
 import { GET as VERSION } from "@/app/api/staff/prices/versions/[id]/route";
@@ -48,6 +49,10 @@ export function availabilityRequest(init: Init = {}): NextRequest {
   return request("/api/staff/prices/availability", "POST", init);
 }
 
+export function usageRequest(init: Init = {}): NextRequest {
+  return request("/api/staff/prices/usage", "POST", init);
+}
+
 export function publishRequest(init: Init = {}): NextRequest {
   return request("/api/staff/prices/publish", "POST", init);
 }
@@ -85,6 +90,7 @@ export const revertDraft = (init: Init = {}) => DELETE(revertRequest(init));
 export const bulkDraft = (init: Init = {}) => BULK(bulkRequest(init));
 export const setAvailability = (init: Init = {}) =>
   AVAILABILITY(availabilityRequest(init));
+export const readUsage = (init: Init = {}) => USAGE(usageRequest(init));
 export const publishDraft = (init: Init = {}) => PUBLISH(publishRequest(init));
 export const readVersions = (init: Init = {}) =>
   VERSIONS(versionsRequest(init));
@@ -123,7 +129,7 @@ function seededVersionId(): string {
 export interface DashboardRoute {
   readonly name: string;
   /** The log event the route's refusals are written under. */
-  readonly event: "staff-prices" | "staff-price-draft";
+  readonly event: "staff-prices" | "staff-price-draft" | "staff-price-usage";
   readonly capability: Capability;
   /** What an administrator's request is answered with: the status that shows the request was admitted and judged. */
   readonly admittedStatus: number;
@@ -234,6 +240,17 @@ export const DASHBOARD_ROUTES: readonly DashboardRoute[] = [
           item: { kind: "hardware", tierId: "hardware.soft-close" },
           active: false,
         },
+      }),
+  },
+  {
+    name: "POST /api/staff/prices/usage",
+    event: "staff-price-usage",
+    capability: "price.edit",
+    admittedStatus: 200,
+    ask: (cookie) =>
+      readUsage({
+        ...WITH_COOKIE(cookie),
+        json: { items: [{ kind: "material", tierId: "material.veneer" }] },
       }),
   },
   {

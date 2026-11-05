@@ -4,6 +4,7 @@ import {
   deletedBookItemsOf,
   isBuiltInAccessoryId,
   isRevisionShape,
+  itemIdOf,
 } from "@lemnaria/configurator-domain";
 import type { DraftChange, ItemRef } from "@lemnaria/configurator-domain";
 
@@ -20,21 +21,6 @@ export { isRevisionShape };
 // the same request. None of these reads a value as a number: a revision is an opaque digit run, and the only ordering
 // of two of them is `isRevisionAhead`, which stands for the `bigint` comparison SQL makes and is never used to decide
 // a write.
-
-/** The id an item is known by within its kind, as the audit detail names it. */
-export function itemIdOf(item: ItemRef): string {
-  switch (item.kind) {
-    case "material":
-    case "hardware":
-      return item.tierId;
-    case "finish":
-      return item.finishId;
-    case "handle":
-      return item.handle;
-    case "accessory":
-      return item.accessoryId;
-  }
-}
 
 export function isNamedItem(item: ItemRef): boolean {
   const id: unknown = itemIdOf(item);

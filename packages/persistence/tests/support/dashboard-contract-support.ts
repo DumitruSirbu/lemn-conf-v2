@@ -7,11 +7,11 @@ import type {
 import {
   CATALOGUE_ACTIVATION_AUDIT_ACTION,
   deletedBookItemsOf,
+  itemIdOf,
 } from "@lemnaria/configurator-domain";
 import { nanoid } from "nanoid";
 import { expect } from "vitest";
 
-import { itemIdOf } from "../../src/fake-dashboard-support.js";
 import { DashboardStoreError } from "../../src/m10-ports.js";
 import type {
   CatalogueAvailabilityStore,
