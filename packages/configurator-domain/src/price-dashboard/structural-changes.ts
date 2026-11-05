@@ -14,10 +14,12 @@ import {
 
 import {
   CREATED_ROW_TEXT_FIELDS,
+  CREATION_ADDRESS_KINDS,
   HARDWARE_RATE_FIELDS,
   type AddressOfKind,
   type BookFieldAddress,
   type CreatedRowTextField,
+  type CreationAddressKind,
   type HardwareRateField,
 } from "./book-field-address.js";
 import { judgeCreatedRowText } from "./created-row-text.js";
@@ -44,14 +46,19 @@ import {
 // states no linked accessories takes none: a creation would write a section the version never held.
 
 export const STRUCTURAL_ADDRESS_KINDS = Object.freeze([
-  "hardware-tier-created",
-  "accessory-created",
+  ...CREATION_ADDRESS_KINDS,
   "created-row-text",
   "item-deleted",
 ] as const);
 export type StructuralAddressKind = (typeof STRUCTURAL_ADDRESS_KINDS)[number];
 
 export type StructuralAddress = AddressOfKind<StructuralAddressKind>;
+
+export function isCreationAddress(
+  address: BookFieldAddress,
+): address is AddressOfKind<CreationAddressKind> {
+  return (CREATION_ADDRESS_KINDS as readonly string[]).includes(address.kind);
+}
 
 export function isStructuralAddress(
   address: BookFieldAddress,

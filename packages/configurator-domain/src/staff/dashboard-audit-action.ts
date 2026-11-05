@@ -7,6 +7,7 @@ import {
 import {
   ADDRESS_FIELDS,
   BOOK_FIELD_ADDRESS_KINDS,
+  CREATION_ADDRESS_KINDS,
   ITEM_KINDS,
   type AddressField,
   type BookFieldAddressKind,
@@ -119,10 +120,10 @@ export interface PriceDraftChangedDetail extends DraftChangeTarget {
 }
 
 /**
- * Changes removed from the draft: one request to take back one change (`revertedCount` 1), every change of one bulk
- * action (`changeKind` `bulk-group`, `revertedCount` n), or the whole draft (`changeKind` `discard-all`,
- * `revertedCount` the entries it held, 0 when they could not be read). Taking back a created row's creation removes its
- * rates and words too, so such an entry says 1 for the one change named while more leave the draft.
+ * Changes removed from the draft: one (`revertedCount` 1), every change of one bulk action (`changeKind` `bulk-group`,
+ * `revertedCount` n), a created row (`changeKind` its creation's kind, `revertedCount` n: the creation, its rates and
+ * its words), or the whole draft (`changeKind` `discard-all`, `revertedCount` the entries it held, 0 when they could not
+ * be read).
  */
 export interface PriceDraftRevertedDetail extends DraftChangeTarget {
   readonly changeKind:
@@ -407,13 +408,19 @@ function readDraftReverted(detail: PlainObject): DashboardAuditEntryReading {
   };
 }
 
-/** One change reverts one; a bulk group reverts one or more; a discard-all reverts the entries the draft held, none included. */
+/**
+ * One change reverts one; a bulk group reverts one or more; a creation reverts the row it created with its rates and
+ * words, so it names the count that left; a discard-all reverts the entries the draft held, none included.
+ */
 function isRevertedCountOf(
   changeKind: string,
   revertedCount: unknown,
 ): revertedCount is number {
   if (changeKind === DISCARD_ALL_CHANGE_KIND) return isCount(revertedCount);
-  if (changeKind === BULK_GROUP_CHANGE_KIND) {
+  if (
+    changeKind === BULK_GROUP_CHANGE_KIND ||
+    isOneOf(CREATION_ADDRESS_KINDS, changeKind)
+  ) {
     return isPositiveSafeInteger(revertedCount);
   }
   return revertedCount === 1;
