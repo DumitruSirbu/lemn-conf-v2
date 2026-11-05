@@ -325,6 +325,35 @@ describe("a revert of a created row", () => {
     expect(written(plan).changes).toEqual([...CREATED_CLASS, DESCRIPTION]);
   });
 
+  it.each([
+    ["words never reworded", { ...NAME_ADDRESS, field: "description" }],
+    [
+      "a rate field the class has no change for",
+      {
+        kind: "hardware",
+        tierId: TIER_ID,
+        field: "bogus",
+      },
+    ],
+  ])(
+    "refuses the revert of %s, so the class stands and no audit row is planned",
+    async (_name, address) => {
+      const plan = revertOf(address as unknown as RevertAddress, [
+        ...CREATED_CLASS,
+        RENAME,
+      ]);
+
+      expect(plan.kind).toBe("refused");
+      expect(await refusalOf(plan)).toEqual({
+        status: 400,
+        body: {
+          status: "invalid-input",
+          issues: [{ field: "address", code: "UNKNOWN_ADDRESS" }],
+        },
+      });
+    },
+  );
+
   it("answers a class the draft does not hold as an address it does not know", async () => {
     const plan = revertOf(addressOf(TIER_CREATION), [CABINET_PRICE]);
 

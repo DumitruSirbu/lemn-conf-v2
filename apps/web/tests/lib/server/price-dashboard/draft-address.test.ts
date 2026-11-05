@@ -108,6 +108,23 @@ describe("the four structural kinds, rebuilt member by member", () => {
   });
 });
 
+describe("the field an address names", () => {
+  it("reads a word outside the closed list of a created row's words as an address of no kind", () => {
+    for (const field of ["bogus", "\u202Ename", "na\u0007me", "f".repeat(64)]) {
+      const declared = { kind: "created-row-text", item: TIER, field };
+
+      expect(readAny(declared)).toEqual({ kind: "unknown" });
+    }
+  });
+
+  it("takes each word of a created row's closed list", () => {
+    for (const field of ["name", "description"]) {
+      const declared = { kind: "created-row-text", item: TIER, field };
+      expect(readAny(declared)).toEqual({ kind: "address", address: declared });
+    }
+  });
+});
+
 describe("the kinds the caller takes", () => {
   const TAKEN: readonly BookFieldAddressKind[] = [
     "hardware",

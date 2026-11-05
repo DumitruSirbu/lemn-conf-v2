@@ -119,9 +119,10 @@ export interface PriceDraftChangedDetail extends DraftChangeTarget {
 }
 
 /**
- * Changes removed from the draft: one (`revertedCount` 1), every change of one bulk action (`changeKind` `bulk-group`,
- * `revertedCount` n), or the whole draft (`changeKind` `discard-all`, `revertedCount` the entries it held, 0 when they
- * could not be read).
+ * Changes removed from the draft: one request to take back one change (`revertedCount` 1), every change of one bulk
+ * action (`changeKind` `bulk-group`, `revertedCount` n), or the whole draft (`changeKind` `discard-all`,
+ * `revertedCount` the entries it held, 0 when they could not be read). Taking back a created row's creation removes its
+ * rates and words too, so such an entry says 1 for the one change named while more leave the draft.
  */
 export interface PriceDraftRevertedDetail extends DraftChangeTarget {
   readonly changeKind:

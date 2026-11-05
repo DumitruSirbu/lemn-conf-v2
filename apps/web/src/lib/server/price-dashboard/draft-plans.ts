@@ -184,15 +184,17 @@ type Removal =
     }
   | { readonly kind: "nothing-to-remove"; readonly response: NextResponse };
 
-/** A revert of what the draft does not hold writes nothing, and so no audit row either. */
+/**
+ * A revert names a change the draft holds. The domain's `revertChange` takes a whole created row for a field it has no
+ * change of, so an address the draft does not hold is refused here: it writes nothing, and no audit row either.
+ */
 function removalOfChange(
   changes: readonly DraftChange[],
   address: RevertAddress,
 ): Removal {
+  const isHeld = changes.some((held) => isSameAddress(held.address, address));
+  if (!isHeld) return nothingToRemove("address");
   const remaining = revertChange(changes, address);
-  if (remaining.length === changes.length) {
-    return nothingToRemove("address");
-  }
   return { kind: "removes", remaining, entry: draftRevertedEntry(address) };
 }
 

@@ -332,19 +332,18 @@ describe("a deletion in the draft and a revert of a field of the deleted item", 
       { kind: "created-row-text", item: SOFT_CLOSE, field: "name" },
     ],
   ])(
-    "takes the deletion with it when %s is reverted, and the audit row names that field and not the deletion",
+    "refuses the revert of %s as an address the draft does not hold, and leaves the deletion and writes no audit row",
     async (_name, address) => {
       await plant([DELETION]);
       const before = await snapshot();
 
       const answer = await revertOf(address);
 
-      expect(answer.status).toBe(200);
-      expect(await storedChanges()).toEqual([]);
-      const written = auditRows().slice(before.rows);
-      expect(written.map(({ detail }) => detail)).toEqual([
-        expect.objectContaining({ changeKind: address.kind, revertedCount: 1 }),
-      ]);
+      await expectRefusedAndUntouched(
+        answer,
+        { status: 400, body: issue("address", "UNKNOWN_ADDRESS") },
+        before,
+      );
     },
   );
 

@@ -1,5 +1,6 @@
 import {
   BOOK_FIELD_ADDRESS_KINDS,
+  CREATED_ROW_TEXT_FIELDS,
   type AddressOfKind,
   type BookFieldAddressKind,
 } from "@lemnaria/configurator-domain";
@@ -51,6 +52,16 @@ const MEMBERS_OF_KIND: Readonly<
   "item-deleted": ["item"],
 };
 
+/**
+ * The kinds whose `field` is read against a closed list. The older kinds' fields are judged by `applyChanges`, which
+ * answers a word outside its list as an unknown address of the change.
+ */
+const FIELDS_OF_KIND: Readonly<
+  Partial<Record<BookFieldAddressKind, readonly string[]>>
+> = {
+  "created-row-text": CREATED_ROW_TEXT_FIELDS,
+};
+
 const NUMBER_MEMBERS: readonly string[] = ["widthMm"];
 
 /** The item kinds the member `item` of a kind may name; the kinds without an `item` member name none. */
@@ -91,7 +102,11 @@ function readMember(
 ): MemberReading {
   if (name === "item")
     return readItem(ITEM_KINDS_OF_ADDRESS[kind] ?? [], member);
-  const isRight = isMemberOfRightType(name, member);
+  const fields = FIELDS_OF_KIND[kind];
+  const isRight =
+    name === "field" && fields !== undefined
+      ? fields.includes(member as string)
+      : isMemberOfRightType(name, member);
   return isRight
     ? { ok: true, value: member }
     : { ok: false, reading: "unknown" };
