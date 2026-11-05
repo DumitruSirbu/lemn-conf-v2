@@ -38,12 +38,15 @@ import { shippedCatalogue } from "@/lib/server/price-dashboard/shipped-catalogue
 // What a creation does to the stored draft. The id is minted here, once the draft is known to be the one the page read,
 // and the creation goes first so that the audit row is named after it. A class is written with a rate for each field the
 // active book's classes state, in one judgement: the draft never holds a class without them, nor a rate for a row it has
-// not created.
+// not created. Nothing is created while the draft beside it makes no book: `candidate-refused`.
 
 export function planHardwareClassCreation(
   { value, rates }: CreateHardwareClassRequest,
   state: ActiveDashboardState,
 ): DraftPlan {
+  if (hasRateOutsideTheBook(rates, state.book)) {
+    return refused(dashboardInvalidInputResponse([notEditable]));
+  }
   const tierId = mintedIdFor(state);
   const creation: PutRequest = {
     address: { kind: "hardware-tier-created", tierId },
@@ -53,6 +56,10 @@ export function planHardwareClassCreation(
     [creation, ...ratesOf(tierId, rates, state.book)],
     state,
   );
+  if (plan.kind === "refused") return plan;
+  if (candidateOf(state.book, plan.changes) === undefined) {
+    return candidateRefused();
+  }
   return answeringWithCreated(plan, { kind: "hardware", tierId });
 }
 
@@ -67,19 +74,25 @@ export function planAccessoryCreation(
   };
   const plan = planChanges([creation], state);
   if (plan.kind === "refused") return plan;
-  const refusal = refusalOfLink(state.book, plan.changes, accessoryId);
-  if (refusal === undefined) {
-    return answeringWithCreated(plan, { kind: "accessory", accessoryId });
+  const candidate = candidateOf(state.book, plan.changes);
+  if (candidate === undefined) return candidateRefused();
+  const refusal = refusalOfLink(candidate, accessoryId);
+  if (refusal !== undefined) {
+    return refused(
+      dashboardInvalidInputResponse([{ field: "change", code: refusal }]),
+    );
   }
-  return { kind: "refused", response: responseOfLinkRefusal(refusal) };
+  return answeringWithCreated(plan, { kind: "accessory", accessoryId });
 }
 
-function responseOfLinkRefusal(
-  refusal: LinkTargetRefusalCode | "candidate-refused",
-): NextResponse {
-  return refusal === "candidate-refused"
-    ? dashboardConflictResponse(refusal)
-    : dashboardInvalidInputResponse([{ field: "change", code: refusal }]);
+const notEditable = { field: "change", code: "NOT_EDITABLE" } as const;
+
+function refused(response: NextResponse): DraftPlan {
+  return { kind: "refused", response };
+}
+
+function candidateRefused(): DraftPlan {
+  return refused(dashboardConflictResponse("candidate-refused"));
 }
 
 function mintedIdFor({ book, draft }: ActiveDashboardState): string {
@@ -100,19 +113,25 @@ function ratesOf(
   );
 }
 
+/** The book the draft makes, or `undefined` when the draft makes none. */
+function candidateOf(
+  book: PriceBook,
+  changes: readonly DraftChange[],
+): PriceBook | undefined {
+  const applied = applyChanges(book, changes);
+  return applied.ok ? applied.book : undefined;
+}
+
 /**
  * The code the creation's link is refused for in the candidate, judged against the catalogue; `undefined` for a link
  * that holds. Only the new accessory's own refusals count: whatever else the catalogue finds in the book is the
  * publish's to say.
  */
 function refusalOfLink(
-  book: PriceBook,
-  changes: readonly DraftChange[],
+  candidate: PriceBook,
   accessoryId: string,
-): LinkTargetRefusalCode | "candidate-refused" | undefined {
-  const candidate = applyChanges(book, changes);
-  if (!candidate.ok) return "candidate-refused";
-  const judged = judgeBookAgainstCatalog(candidate.book, shippedCatalogue());
+): LinkTargetRefusalCode | undefined {
+  const judged = judgeBookAgainstCatalog(candidate, shippedCatalogue());
   if (judged.ok) return undefined;
   return judged.refusals.find(isLinkRefusalOf(accessoryId))?.code;
 }
@@ -129,6 +148,14 @@ function isLinkRefusalOf(
     (refusal.code === "LINK_TARGET_UNKNOWN" ||
       refusal.code === "LINK_TARGET_CUSTOMER_SUPPLIED") &&
     refusal.accessoryId === accessoryId;
+}
+
+function hasRateOutsideTheBook(
+  rates: CreateHardwareClassRequest["rates"],
+  book: PriceBook,
+): boolean {
+  const stated: readonly string[] = hardwareRatesOf(book);
+  return Object.keys(rates).some((field) => !stated.includes(field));
 }
 
 /** The plan told as a creation: the draft it makes, and the row whose id the server minted. */

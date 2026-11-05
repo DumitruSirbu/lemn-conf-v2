@@ -454,13 +454,15 @@ describe("a created hardware class", () => {
     expect(await storedChanges()).toEqual([]);
   });
 
-  it("writes only the rates the active book's classes state, and drops a rate it states no class at", async () => {
+  it("writes only the rates the active book's classes state, when the request names only those", async () => {
     const stated = hardwareRatesOf(SAMPLE_PRICE_BOOK).filter(
       (field) => field !== "perHingeMinor",
     );
     await startWorld(withoutRate(SAMPLE_PRICE_BOOK, "perHingeMinor"));
+    const { perHingeMinor, ...namedStated } = ratesOf(2_000);
+    void perHingeMinor;
 
-    const answer = await createClass();
+    const answer = await createClass({ rates: namedStated });
 
     const rates = (await storedChanges()).slice(1);
     expect(answer.status).toBe(200);
@@ -468,6 +470,48 @@ describe("a created hardware class", () => {
       rates.map(({ address }) => "field" in address && address.field),
     ).toEqual(stated);
   });
+
+  it("is refused NOT_EDITABLE for a rate the active book's classes do not state, and nothing is written, audited or minted", async () => {
+    await startWorld(withoutRate(SAMPLE_PRICE_BOOK, "perHingeMinor"));
+    const rowsBefore = auditRows().length;
+
+    const answer = await createClass();
+
+    expect({ status: answer.status, body: await jsonOf(answer) }).toEqual({
+      status: 400,
+      body: {
+        status: "invalid-input",
+        issues: [{ field: "change", code: "NOT_EDITABLE" }],
+      },
+    });
+    expect(await storedChanges()).toEqual([]);
+    expect(auditRows()).toHaveLength(rowsBefore);
+    expect(created.mintCreatedId).not.toHaveBeenCalled();
+  });
+
+  it("stores the words trimmed, as the book will hold them", async () => {
+    await createClass({
+      value: { name: "  GTV Economic ", description: " Mecanisme simple\n" },
+    });
+
+    const [creation] = await storedChanges();
+    expect(creation?.value).toEqual(CLASS_WORDS);
+  });
+
+  it.each(["ruleId", "nameKey", "descriptionKey"])(
+    "is refused, before the bucket, when the value names a `%s`",
+    async (member) => {
+      limiterLedger.counted.length = 0;
+
+      const answer = await createClass({
+        value: { ...CLASS_WORDS, [member]: "hardware.mine" },
+      });
+
+      expect(answer.status).toBe(400);
+      expect(budgetOfDraft()).toBe(0);
+      expect(created.mintCreatedId).not.toHaveBeenCalled();
+    },
+  );
 
   it("replaces nothing of what the draft holds, and goes after it", async () => {
     await plant([{ address: { kind: "provisional" }, value: false }]);

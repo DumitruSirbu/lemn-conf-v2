@@ -142,7 +142,7 @@ describe("a class the hardware screens deleted, as the publish review reads the 
     ).toBe(true);
   });
 
-  it("is the one item a publish owes a usage count for, and the ↺ of its own row, the only one offered, gives the class back", () => {
+  it("is the one item a publish owes a usage count for, and the review offers no ↺ for it while the revert route takes no address of a deletion", () => {
     expect(deletedItemsOf(DELETES_HETTICH)).toEqual([
       { kind: "hardware", tierId: HETTICH },
     ]);
@@ -150,15 +150,11 @@ describe("a class the hardware screens deleted, as the publish review reads the 
       row.revert === undefined ? [] : [row.revert],
     );
 
-    expect(offered).toEqual([
-      { kind: "change", address: DELETES_HETTICH[0]?.address },
-    ]);
+    expect(offered).toEqual([]);
     expect(
       revertChange(
         DELETES_HETTICH,
-        offered[0]?.kind === "change"
-          ? offered[0].address
-          : { kind: "provisional" },
+        DELETES_HETTICH[0]?.address ?? { kind: "provisional" },
       ),
     ).toEqual([]);
   });

@@ -85,6 +85,23 @@ describe("the body of a hardware class creation", () => {
   });
 
   it.each([
+    "ruleId",
+    "nameKey",
+    "descriptionKey",
+    "address",
+    "kind",
+    "item",
+    "finishId",
+    "handle",
+  ])("is not read when the value names a `%s`", (member) => {
+    expect(
+      readCreateHardwareClassRequest(
+        classBody({ value: { ...CLASS_VALUE, [member]: "x" } }),
+      ),
+    ).toEqual(MALFORMED);
+  });
+
+  it.each([
     ["a value that is not an object", classBody({ value: "GTV" })],
     [
       "no value",
@@ -106,6 +123,40 @@ describe("the body of a hardware class creation", () => {
     expect(readCreateHardwareClassRequest(text)).toMatchObject({
       ok: false,
       refusal: { kind: "issues", issues: [{ field: "expectedDraftRevision" }] },
+    });
+  });
+
+  it("trims the name and the description, which the book holds trimmed, and changes nothing else of the value", () => {
+    expect(
+      readCreateHardwareClassRequest(
+        classBody({
+          value: {
+            name: "  GTV Economic \n",
+            description: "\tMecanisme  ",
+            extra: " kept ",
+          },
+        }),
+      ),
+    ).toMatchObject({
+      ok: true,
+      value: {
+        value: {
+          name: "GTV Economic",
+          description: "Mecanisme",
+          extra: " kept ",
+        },
+      },
+    });
+  });
+
+  it("leaves a name that is not text for applyChanges to refuse", () => {
+    expect(
+      readCreateHardwareClassRequest(
+        classBody({ value: { name: 7, description: "" } }),
+      ),
+    ).toMatchObject({
+      ok: true,
+      value: { value: { name: 7, description: "" } },
     });
   });
 
@@ -146,5 +197,22 @@ describe("the body of an accessory creation", () => {
     expect(readCreateAccessoryRequest(accessoryBody({ value: null }))).toEqual(
       MISSING_VALUE,
     );
+  });
+
+  it("trims the name and the description of an accessory too", () => {
+    expect(
+      readCreateAccessoryRequest(
+        accessoryBody({
+          value: {
+            ...ACCESSORY_VALUE,
+            name: " Soclu ",
+            description: " Lumina ",
+          },
+        }),
+      ),
+    ).toMatchObject({
+      ok: true,
+      value: { value: { name: "Soclu", description: "Lumina" } },
+    });
   });
 });

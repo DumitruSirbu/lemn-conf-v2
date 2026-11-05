@@ -202,8 +202,26 @@ function readRevertTarget(
 // ---------------------------------------------------------------------------------------------------------------------
 // A creation
 
-/** The members that would name the id of the row: the server mints it, so a request that states one is not read. */
-const ROW_ID_MEMBERS = ["id", "tierId", "accessoryId"] as const;
+/**
+ * The members that would name a row, or what the row is: the server mints its id and derives its rule, and a row it
+ * creates has no catalogue key, so a request that states one of these is not read.
+ */
+const ROW_IDENTITY_MEMBERS = [
+  "id",
+  "tierId",
+  "accessoryId",
+  "finishId",
+  "handle",
+  "ruleId",
+  "nameKey",
+  "descriptionKey",
+  "address",
+  "kind",
+  "item",
+] as const;
+
+/** The words of a created row, which the book holds trimmed: the draft holds them the same. */
+const TRIMMED_MEMBERS = ["name", "description"] as const;
 
 export interface CreateHardwareClassRequest {
   readonly expectedDraftRevision: string;
@@ -255,10 +273,18 @@ function readCreationValue(
   declared: unknown,
 ): RequestReading<Members, DraftChangeRefusalCode> {
   if (!isPlainRecord(declared)) return refusedWith("change", "MISSING_VALUE");
-  const namesAnId = ROW_ID_MEMBERS.some((name) =>
+  const namesAnIdentity = ROW_IDENTITY_MEMBERS.some((name) =>
     Object.hasOwn(declared, name),
   );
-  return namesAnId ? MALFORMED : accepted(declared);
+  return namesAnIdentity ? MALFORMED : accepted(withTrimmedWords(declared));
+}
+
+function withTrimmedWords(value: Members): Members {
+  const trimmed = TRIMMED_MEMBERS.flatMap((name) => {
+    const words = ownMember(value, name);
+    return typeof words === "string" ? [[name, words.trim()] as const] : [];
+  });
+  return { ...value, ...Object.fromEntries(trimmed) };
 }
 
 function readRates(

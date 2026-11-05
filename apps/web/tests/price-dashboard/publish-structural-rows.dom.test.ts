@@ -216,17 +216,11 @@ describe("an item the draft deletes", () => {
     expect(noteOf(row)).toBe(roCopy("priceDashboard.publish.rowDeleted"));
   });
 
-  it("is taken back by the address of the deletion", async () => {
-    const { container, client } = await mountOver(withTier, [deletion]);
+  it("offers no ↺ while the revert route takes no address of a deletion", async () => {
+    const { container } = await mountOver(withTier, [deletion]);
     const row = onlyRowOfKind(container, "hardware-deleted");
 
-    click(requireIn(row, '[data-testid="diff-revert"]'));
-    await settle();
-
-    expect(client.revert.mock.calls[0]?.[0].target).toEqual({
-      kind: "change",
-      address: deletion.address,
-    });
+    expect(allIn(row, '[data-testid="diff-revert"]')).toHaveLength(0);
   });
 });
 

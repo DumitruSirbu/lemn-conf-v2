@@ -237,7 +237,7 @@ describe("an item the draft deletes", () => {
     true,
   );
 
-  it("is a row naming it from the book that states it, with the address that takes the deletion back", () => {
+  it("is a row naming it from the book that states it, with no ↺ while the revert route takes no address of a deletion", () => {
     const [deleted] = rowsOfKind(readyRows(withTier, [deletion]), "row");
 
     expect(deleted).toMatchObject({
@@ -245,13 +245,7 @@ describe("an item the draft deletes", () => {
       section: "hardware",
       itemKind: "hardware",
       subject: { kind: "book-text", authored: NEW_TIER_NAME },
-      revert: {
-        kind: "change",
-        address: {
-          kind: "item-deleted",
-          item: { kind: "hardware", tierId: NEW_TIER },
-        },
-      },
+      revert: undefined,
     });
   });
 

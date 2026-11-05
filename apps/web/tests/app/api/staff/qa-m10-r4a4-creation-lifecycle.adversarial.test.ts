@@ -330,27 +330,24 @@ describe("a deleted row's ↺, until the deletion is reachable", () => {
     value: true,
   } as DraftChange;
 
-  it.fails(
-    "is not offered by the pending-draft review where the revert route refuses it with 400",
-    async () => {
-      const changes = [deletion];
-      const reading = readPendingDraft({
-        active: await activeBook(),
-        changes,
-        cabinetNames: CABINET_NAMES,
-      });
-      if (reading.kind !== "ready") throw new Error("the draft is not ready");
-      const targets = reading.view.sections.flatMap(({ rows }) =>
-        revertsOf(rows),
-      );
+  it("is not offered by the pending-draft review where the revert route refuses it with 400", async () => {
+    const changes = [deletion];
+    const reading = readPendingDraft({
+      active: await activeBook(),
+      changes,
+      cabinetNames: CABINET_NAMES,
+    });
+    if (reading.kind !== "ready") throw new Error("the draft is not ready");
+    const targets = reading.view.sections.flatMap(({ rows }) =>
+      revertsOf(rows),
+    );
 
-      const statuses: number[] = [];
-      for (const target of targets) {
-        await plantDraft(world, changes);
-        statuses.push((await revertAs(world.cookie, target)).status);
-      }
+    const statuses: number[] = [];
+    for (const target of targets) {
+      await plantDraft(world, changes);
+      statuses.push((await revertAs(world.cookie, target)).status);
+    }
 
-      expect(statuses.filter((status) => status !== 200)).toEqual([]);
-    },
-  );
+    expect(statuses.filter((status) => status !== 200)).toEqual([]);
+  });
 });

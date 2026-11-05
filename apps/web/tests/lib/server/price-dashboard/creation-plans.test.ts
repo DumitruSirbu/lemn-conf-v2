@@ -178,13 +178,16 @@ describe("the plan of a hardware class", () => {
     });
   });
 
-  it("is made on a draft that holds a change refused already, which a write that adds no refusal may stand beside", () => {
+  it("is refused with the word alone when the draft beside it makes no book, as an accessory is", async () => {
     const plan = planHardwareClassCreation(
       { expectedDraftRevision: "1", value: WORDS, rates: RATES },
       stateWith([STALE_CHANGE]),
     );
 
-    expect(written(plan).changes[0]).toEqual(STALE_CHANGE);
+    expect(await refusalOf(plan)).toEqual({
+      status: 409,
+      body: { status: "candidate-refused" },
+    });
   });
 });
 

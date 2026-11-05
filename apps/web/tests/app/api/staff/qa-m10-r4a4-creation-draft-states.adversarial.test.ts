@@ -109,20 +109,22 @@ describe("a creation on a draft the book no longer makes", () => {
     expect(await storedChangesOf(world.prices)).toEqual([STALE]);
   });
 
-  it("goes through for a class, which the domain judges change by change and leaves the stale change where it stood", async () => {
+  it("writes nothing for a class either: the draft makes no book, so it is 409 candidate-refused", async () => {
     await plantDraft(world, [STALE]);
 
     const answer = await createClassAs(world.cookie);
 
-    expect(answer.status).toBe(200);
-    const [first, second] = await storedChangesOf(world.prices);
-    expect(first).toEqual(STALE);
-    expect(second?.address.kind).toBe("hardware-tier-created");
+    expect({ status: answer.status, body: await jsonOf(answer) }).toEqual({
+      status: 409,
+      body: { status: "candidate-refused" },
+    });
+    expect(await storedChangesOf(world.prices)).toEqual([STALE]);
   });
 
-  it("cannot be published afterwards, so a class made beside a stale change does not reach a customer", async () => {
+  it("leaves a draft that cannot be published, and no class beside the stale change to reach a customer", async () => {
     await plantDraft(world, [STALE]);
     await createClassAs(world.cookie);
+    expect(await storedChangesOf(world.prices)).toEqual([STALE]);
     const versionsBefore = (
       await world.prices.stores.priceBook.listVersions({ page: 1 })
     ).total;
@@ -154,16 +156,17 @@ describe("a creation on a draft the book no longer makes", () => {
     });
   });
 
-  it("lets the stale change be taken back after the class was made beside it, and the class stays whole", async () => {
+  it("lets the stale change be taken back, after which the class can be made and stays whole", async () => {
     await plantDraft(world, [STALE]);
-    await createClassAs(world.cookie);
+    expect((await createClassAs(world.cookie)).status).toBe(409);
 
-    const answer = await revertAs(world.cookie, {
+    const reverted = await revertAs(world.cookie, {
       kind: "change",
       address: STALE.address,
     });
+    const made = await createClassAs(world.cookie);
 
-    expect(answer.status).toBe(200);
+    expect([reverted.status, made.status]).toEqual([200, 200]);
     const changes = await storedChangesOf(world.prices);
     expect(applyChanges(SAMPLE_PRICE_BOOK, changes).ok).toBe(true);
     expect(changes).toHaveLength(1 + HARDWARE_RATE_FIELDS.length);
@@ -303,20 +306,20 @@ describe("a rate for a mechanism the active book's classes do not state", () => 
     };
   }
 
-  it("is dropped without being judged, so a hostile amount for it still makes a class (a client cannot tell it was ignored)", async () => {
+  it("is refused NOT_EDITABLE, whatever its amount, and nothing is stored", async () => {
     world = await startCreationWorld(withoutHingeRate());
 
     const answer = await createClassAs(world.cookie, {
       rates: { ...ratesOf(2_000), perHingeMinor: -1 },
     });
 
-    expect(answer.status).toBe(200);
-    const stored = await storedChangesOf(world.prices);
-    expect(
-      stored.some(
-        ({ address }) =>
-          "field" in address && address.field === "perHingeMinor",
-      ),
-    ).toBe(false);
+    expect({ status: answer.status, body: await jsonOf(answer) }).toEqual({
+      status: 400,
+      body: {
+        status: "invalid-input",
+        issues: [{ field: "change", code: "NOT_EDITABLE" }],
+      },
+    });
+    expect(await storedChangesOf(world.prices)).toEqual([]);
   });
 });
