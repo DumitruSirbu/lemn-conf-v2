@@ -22,19 +22,22 @@ const NONE_SAVED_DEFAULTS: SavedDefaults = Object.freeze({
 });
 
 /**
- * The saved defaults, parsed. A row the store holds that is not settings is thrown (the route answers `503`), never read
- * as `NONE_SAVED_DEFAULTS`: judging against fallbacks would release the default the saved row names.
+ * The saved defaults, parsed. A row the store holds that is not settings is thrown (the route answers `503`), never
+ * read as `NONE_SAVED_DEFAULTS`: judging against fallbacks would release the default the saved row names.
  */
 export async function readSavedDefaults(
   stores: Pick<PriceStores, "defaults">,
 ): Promise<SavedDefaults> {
   const { revision, defaults } = await readSavedDefaultsLeniently(stores);
-  if (defaults === undefined)
+  if (defaults === undefined) {
     throw new DashboardStateUnreadableError("defaults");
+  }
   return { revision, defaults };
 }
 
-/** The revision a save is made against, and the settings the row holds, or `undefined` for a row that is not settings. */
+/**
+ * The revision a save is made against, and the settings the row holds, or `undefined` for a row that is not settings.
+ */
 export interface SavedDefaultsReading {
   readonly revision: string;
   readonly defaults: NewKitchenSettings | undefined;

@@ -513,6 +513,35 @@ describe("the customer's read of the defaults", () => {
   });
 });
 
+describe("the customer's read order", () => {
+  it("reads the head, then the book, then the saved defaults, as the staff save does", async () => {
+    const readHead = vi.spyOn(prices.stores.availability, "readCurrent");
+    const readBook = vi.spyOn(prices.stores.priceBook, "readActive");
+    const readSaved = vi.spyOn(prices.defaults, "read");
+
+    await readNewKitchenDefaults();
+
+    const first = (spy: { mock: { invocationCallOrder: number[] } }) =>
+      spy.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY;
+    expect(first(readHead)).toBeLessThan(first(readBook));
+    expect(first(readBook)).toBeLessThan(first(readSaved));
+  });
+
+  it("writes one line, not two, when the head and the book both cannot be read", async () => {
+    vi.spyOn(prices.stores.availability, "readCurrent").mockRejectedValue(
+      new DashboardStoreError("read the catalogue availability", "unavailable"),
+    );
+    vi.spyOn(prices.stores.priceBook, "readActive").mockRejectedValue(
+      new DashboardStoreError("read the active price version", "unavailable"),
+    );
+
+    const read = await readNewKitchenDefaults();
+
+    expect(Object.hasOwn(read, "materialTierId")).toBe(false);
+    expect(linesWritten()).toHaveLength(1);
+  });
+});
+
 describe("the customer's read when something cannot be read", () => {
   const SAVED: NewKitchenSettings = { ...FIXED_DEFAULTS, handle: "black" };
 

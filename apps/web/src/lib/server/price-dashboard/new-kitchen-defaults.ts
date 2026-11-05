@@ -1,3 +1,6 @@
+// What a new kitchen starts from, read two ways. The dashboard's page reads the saved defaults as they are stored,
+// completed from the fixed fallbacks. A customer's new kitchen reads them judged against what is on offer now, and
+// never fails: a creation is never blocked by the dashboard's data.
 import "server-only";
 
 import {
@@ -31,15 +34,12 @@ import {
   type SavedDefaults,
 } from "@/lib/server/price-dashboard/saved-defaults";
 import { getPriceStores, type PriceStores } from "@/lib/server/price-stores";
-import type {
-  KitchenDefaultsPageInput,
-  TierOffer,
+import {
+  DEFAULTS_ROW_ORDER,
+  type KitchenDefaultsPageInput,
+  type TierOffer,
 } from "@/price-dashboard/kitchen-defaults-model";
 import type { KitchenDefaultsWire } from "@/price-dashboard/price-dashboard-wire-contract";
-
-// What a new kitchen starts from, read two ways. The dashboard's page reads the saved defaults as they are stored, completed
-// from the fixed fallbacks. A customer's new kitchen reads them judged against what is on offer now, and never fails: a
-// creation is never blocked by the dashboard's data.
 
 /** The two tier ids only the active book can name. Both are absent when there is no book. */
 interface FixedTiers {
@@ -58,21 +58,26 @@ export interface CompletedSettings
 // The completion
 
 /**
- * The saved defaults with every key the row lacks taken from the fixed fallbacks: the book's material and hardware tier,
- * the reference depth, the kitchen's and the top row's handle, and the stamped material's own colour. The colour is reset
- * where the stamped material does not offer it, as the stamp does it.
+ * The saved defaults with every key the row lacks taken from the fixed fallbacks: the book's material and hardware
+ * tier, the reference depth, the kitchen's and the top row's handle, and the stamped material's own colour. The colour
+ * is reset where the stamped material does not offer it, as the stamp does it.
  */
 export function completedDefaultsOf(
   saved: NewKitchenSettings,
   book: PriceBook,
 ): KitchenDefaultsWire {
-  const tiers = fixedTiersOf(book);
-  const {
-    materialTierId = tiers.materialTierId,
-    hardwareTierId = tiers.hardwareTierId,
-    ...rest
-  } = completionOf(saved, tiers);
-  return { materialTierId, hardwareTierId, ...rest };
+  const completed = completionOf(saved, fixedTiersOf(book));
+  if (!holdsAllSixSettings(completed)) {
+    throw new Error("A book's own tiers complete a row to all six settings.");
+  }
+  return completed;
+}
+
+/** Whether every one of the six settings is present: the one check, read from the screen's own list of rows. */
+export function holdsAllSixSettings(
+  settings: NewKitchenSettings,
+): settings is NewKitchenSettings & KitchenDefaultsWire {
+  return DEFAULTS_ROW_ORDER.every((member) => settings[member] !== undefined);
 }
 
 function fixedTiersOf(book: PriceBook): Required<FixedTiers> {
@@ -98,7 +103,9 @@ function completionOf(
   };
 }
 
-/** A material no declaration names has no colour of its own, so it wears the colour a design wearing nothing is deemed to. */
+/**
+ * A material no declaration names has no colour of its own: it wears the colour a design wearing nothing is deemed to.
+ */
 function defaultFinishOf(materialTierId: string | undefined): Finish {
   const lookup = lookUpMaterial(materialTierId ?? DEFAULT_MATERIAL_ID);
   return lookup.kind === "declared"
@@ -110,11 +117,11 @@ function defaultFinishOf(materialTierId: string | undefined): Finish {
 // The page's read
 
 /**
- * The defaults screen's facts for a page whose own staff gate has admitted the reader: the saved defaults as stored, with
- * the revision a save is made against, the availability head read with them, and the tiers on offer. The head is read once
- * and the revision and the switched-off items come from that read. It takes no session, spends no bucket and writes no
- * audit row, because a render must not write. `undefined` when no version was ever published. A store that fails, and a
- * saved row that is not settings, throw: nothing is shown as saved that was not.
+ * The defaults screen's facts for a page whose own staff gate has admitted the reader: the saved defaults as stored,
+ * with the revision a save is made against, the availability head read with them, and the tiers on offer. The head is
+ * read once and the revision and the switched-off items come from that read. It takes no session, spends no bucket and
+ * writes no audit row, because a render must not write. `undefined` when no version was ever published. A store that
+ * fails, and a saved row that is not settings, throw: nothing is shown as saved that was not.
  */
 export async function readKitchenDefaultsForAdmittedPage(): Promise<
   KitchenDefaultsPageInput | undefined
@@ -152,28 +159,40 @@ function tierOffersOf(group: TierGroup<TierIdentity>): readonly TierOffer[] {
  * The six settings a new kitchen is created with. A saved value whose item the active book and the availability head do
  * not offer is replaced by its fixed fallback, which is never switched off; the colour is judged after the material.
  *
- * It never throws and never blocks a creation. A store that cannot answer, or a saved row that is not settings, gives the
- * fixed fallbacks and one log line that names the cause and no value. With no active book there is no tier id to give, so
- * the two tiers are absent and the other four are the fixed fallbacks.
+ * It never throws and never blocks a creation. A store that cannot answer, or a saved row that is not settings, gives
+ * the fixed fallbacks and one log line that names the cause and no value. With no active book there is no tier id to
+ * give, so the two tiers are absent and the other four are the fixed fallbacks.
  */
 export async function readNewKitchenDefaults(): Promise<CompletedSettings> {
   const stores = await attempt(getPriceStores);
   if (stores.kind === "failed") return completionOf({}, {});
-  const reading = await attempt(() => readActiveBook(stores.value));
-  const book = reading.kind === "read" ? reading.value : undefined;
+  const head = await attempt(() => readDashboardAvailability(stores.value));
+  const book = await bookOf(stores.value, head);
   if (book === undefined) return completionOf({}, {});
   const tiers = fixedTiersOf(book);
-  const judged = await attempt(() => readJudged(stores.value, book));
-  return completionOf(judged.kind === "read" ? judged.value : {}, tiers);
+  if (head.kind === "failed") return completionOf({}, tiers);
+  const saved = await attempt(() => readSavedDefaults(stores.value));
+  if (saved.kind === "failed") return completionOf({}, tiers);
+  const offered = offeredPartOf(saved.value, {
+    book,
+    availability: head.value,
+  });
+  return completionOf(offered, tiers);
 }
 
-async function readJudged(
+/**
+ * The active book, read after the head. A read that failed after the head's own failure is not told again: one cause
+ * is one line.
+ */
+async function bookOf(
   stores: PriceStores,
-  book: PriceBook,
-): Promise<NewKitchenSettings> {
-  const availability = await readDashboardAvailability(stores);
-  const saved = await readSavedDefaults(stores);
-  return offeredPartOf(saved, { book, availability });
+  head: Attempt<CatalogueAvailability>,
+): Promise<PriceBook | undefined> {
+  if (head.kind === "failed") {
+    return readActiveBook(stores).catch(() => undefined);
+  }
+  const reading = await attempt(() => readActiveBook(stores));
+  return reading.kind === "read" ? reading.value : undefined;
 }
 
 interface OfferContext {
@@ -181,8 +200,10 @@ interface OfferContext {
   readonly availability: CatalogueAvailability;
 }
 
-/** The saved settings without a tier or a handle that is not on offer, and without a colour that is not, as the material
- *  the kitchen will have judges it. */
+/**
+ * The saved settings without a tier or a handle that is not on offer, and without a colour that is not, as the material
+ * the kitchen will have judges it.
+ */
 function offeredPartOf(
   { defaults }: SavedDefaults,
   context: OfferContext,

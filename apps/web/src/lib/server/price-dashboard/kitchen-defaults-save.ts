@@ -39,7 +39,10 @@ import {
   isPlainRecord,
 } from "@/lib/server/price-dashboard/identifier-shape";
 import { readActiveBook } from "@/lib/server/price-dashboard/item-ref-reading";
-import { completedDefaultsOf } from "@/lib/server/price-dashboard/new-kitchen-defaults";
+import {
+  completedDefaultsOf,
+  holdsAllSixSettings,
+} from "@/lib/server/price-dashboard/new-kitchen-defaults";
 import {
   PRICE_DRAFT_EVENT,
   changedMeanwhile,
@@ -104,7 +107,7 @@ export function saveKitchenDefaultsAsStaff(
  * Exactly three members, and `defaults` exactly the six. Nothing here reaches a store, and nothing that passes can make
  * `stampedSettingsOf` throw. A member that is absent or `null` is `MISSING_VALUE` and a member that is present and not
  * one the setting takes is `UNKNOWN_VALUE`, naming the member; the first is the one told. A body that is not an object,
- * or holds a member beyond those, is a request this route does not read: `defaults` itself has no name to be refused by.
+ * or holds a member beyond those, is a request this route does not read: `defaults` has no name to be refused by.
  */
 function readKitchenDefaultsRequest(
   bodyText: string,
@@ -199,40 +202,16 @@ function isValueOf(members: Members, member: KitchenDefaultsMember): boolean {
 }
 
 /**
- * The six members rebuilt from what was read, so nothing but them is kept. The stored settings' own reader is the last
- * check, so a value the stamp would refuse is a request this route does not read and never a `503`.
+ * The six members as the stored settings' own reader keeps them, and nothing else. That reader is the last check, so a
+ * value the stamp would refuse is a request this route does not read and never a `503`.
  */
 function wholeDefaultsOf(
   declared: Members,
 ): RequestReading<KitchenDefaultsWire, DefaultsRefusalCode> {
   const reading = readStoredNewKitchenSettings(declared);
-  if (!reading.ok) return MALFORMED;
-  const {
-    materialTierId,
-    hardwareTierId,
-    cabinetDepthMm,
-    finish,
-    handle,
-    topRowHandle,
-  } = reading.defaults;
-  if (
-    materialTierId === undefined ||
-    hardwareTierId === undefined ||
-    cabinetDepthMm === undefined ||
-    finish === undefined ||
-    handle === undefined ||
-    topRowHandle === undefined
-  ) {
-    return MALFORMED;
-  }
-  return accepted({
-    materialTierId,
-    hardwareTierId,
-    cabinetDepthMm,
-    finish,
-    handle,
-    topRowHandle,
-  });
+  return reading.ok && holdsAllSixSettings(reading.defaults)
+    ? accepted(reading.defaults)
+    : MALFORMED;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -285,8 +264,9 @@ function changedMembersOf(
 }
 
 /**
- * A save of what is already held is `200` with the revisions as they are, and writes nothing. If the head has moved since
- * it was read, the book read after it may not be the one the answer would describe, so the page reads again instead.
+ * A save of what is already held is `200` with the revisions as they are, and writes nothing. If the head has moved
+ * since it was read, the book read after it may not be the one the answer would describe, so the page reads again
+ * instead.
  */
 async function answerNothingToSave(
   stores: PriceStores,
