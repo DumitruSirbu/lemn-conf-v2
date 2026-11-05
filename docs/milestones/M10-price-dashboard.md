@@ -2776,7 +2776,10 @@ S2c's hand-offs:
   held.
 - A revert that names a field of an item the draft deletes answers `400 NOT_EDITABLE`.
 - The audit row of a revert names the change that actually left, with the real `revertedCount`.
-- Every kind's `field` comes from its closed list.
+- Every kind's `field` comes from its closed list, which reverses the round-1 allowance for tier and accessory fields.
+  The trade is intended. A stored change at a field outside its list makes the whole draft `draft-unreadable`, and
+  discard-all heals it. So a release that removes a field from a list must migrate stored drafts.
+- `planChanges` names the audit row after its first change. R4a4 passes the creation first.
 
 *Hand-offs to R4a4, to settle before its visual review:*
 - **D7's ↺ on a created row's field lines.** An accessory creation carries its `perUnitMinor` inside the creation, so
