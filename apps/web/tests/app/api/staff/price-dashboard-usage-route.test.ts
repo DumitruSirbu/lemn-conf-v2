@@ -504,6 +504,107 @@ describe("the reader's signal", () => {
   });
 });
 
+describe("one count in flight per account", () => {
+  /** A count that stays in flight until the test lets it go; the reader's later calls are the fake's own. */
+  function holdTheFirstCount() {
+    let release: () => void = () => undefined;
+    const held = new Promise<
+      Awaited<ReturnType<KitchenUsageReader["countEach"]>>
+    >((resolve) => {
+      release = () => {
+        resolve({
+          counts: [{ item: VENEER, designCount: 0 }],
+          unreadableDesigns: 0,
+        });
+      };
+    });
+    const asked = vi
+      .spyOn(prices.defaults, "countEach")
+      .mockReturnValueOnce(held);
+    return { asked, release };
+  }
+
+  it("answers a second call from the account 429 at once, reads no store and runs no walk, though it spent its token", async () => {
+    const { asked, release } = holdTheFirstCount();
+    const first = count([VENEER]);
+    await vi.waitFor(() => {
+      expect(asked).toHaveBeenCalledTimes(1);
+    });
+    const storeAsks = priceStoreAsks.count;
+    limiterLedger.counted.length = 0;
+
+    const second = await count([NUT_FINISH]);
+
+    expect(second.status).toBe(429);
+    expect(second.headers.get("retry-after")).toBe("10");
+    expect(await jsonOf(second)).toEqual({ status: "rate-limited" });
+    expect(asked).toHaveBeenCalledTimes(1);
+    expect(priceStoreAsks.count).toBe(storeAsks);
+    expect(budgetOf(THE_BUCKET)).toBe(1);
+    release();
+    expect((await first).status).toBe(200);
+  });
+
+  it("frees the slot when the first count finishes", async () => {
+    const { asked, release } = holdTheFirstCount();
+    const first = count([VENEER]);
+    await vi.waitFor(() => {
+      expect(asked).toHaveBeenCalledTimes(1);
+    });
+    release();
+    await first;
+
+    const next = await count([VENEER]);
+
+    expect(next.status).toBe(200);
+  });
+
+  it("frees the slot after the deadline, though the first count never finishes", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const asked = vi
+      .spyOn(prices.defaults, "countEach")
+      .mockReturnValueOnce(new Promise(() => undefined));
+    const first = count([VENEER]);
+    await vi.advanceTimersByTimeAsync(USAGE_READ_DEADLINE_MS);
+    const timedOut = await first;
+
+    const next = await count([VENEER]);
+
+    expect(timedOut.status).toBe(503);
+    expect(asked).toHaveBeenCalledTimes(2);
+    expect(next.status).toBe(200);
+  });
+
+  it("frees the slot after a count that fails", async () => {
+    vi.spyOn(prices.defaults, "countEach").mockRejectedValueOnce(
+      new Error("down"),
+    );
+    const failed = await count([VENEER]);
+
+    const next = await count([VENEER]);
+
+    expect([failed.status, next.status]).toEqual([503, 200]);
+  });
+
+  it("leaves another account's counts alone", async () => {
+    const { asked, release } = holdTheFirstCount();
+    const first = count([VENEER]);
+    await vi.waitFor(() => {
+      expect(asked).toHaveBeenCalledTimes(1);
+    });
+    const other = await administrator("other-administrator@example.test");
+
+    const theirs = await readUsage({
+      cookie: other.cookie,
+      json: { items: [VENEER] },
+    });
+
+    expect(theirs.status).toBe(200);
+    release();
+    await first;
+  });
+});
+
 describe("the order of checks", () => {
   it("answers a cross-site request before the session is read", async () => {
     const answer = await readUsage({

@@ -311,6 +311,7 @@ export interface StaffWrite<Input> {
   readonly perform: (
     input: Input,
     cookies: SessionCookieReader,
+    accountId: string,
   ) => Promise<NextResponse>;
 }
 
@@ -449,7 +450,11 @@ export async function runStaffRequest<Input>(
   );
   if (limited !== undefined) return limited;
   try {
-    return await write.perform(reading.value, cookies);
+    return await write.perform(
+      reading.value,
+      cookies,
+      admission.session.accountId,
+    );
   } catch (failure) {
     return answerOfStoreFailure(failure, event);
   }

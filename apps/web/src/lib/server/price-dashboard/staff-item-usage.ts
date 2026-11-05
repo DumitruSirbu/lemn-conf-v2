@@ -9,7 +9,11 @@ import {
 } from "@lemnaria/configurator-domain";
 
 import type { AccountEvent } from "@/lib/server/account/account-log";
-import { ACCOUNT_RESPONSE_HEADERS } from "@/lib/server/account/account-responses";
+import {
+  ACCOUNT_RESPONSE_HEADERS,
+  rateLimitedResponse,
+} from "@/lib/server/account/account-responses";
+import type { SessionCookieReader } from "@/lib/server/account/session-cookie";
 import { dashboardConflictResponse } from "@/lib/server/price-dashboard/dashboard-responses";
 import {
   accepted,
@@ -23,6 +27,7 @@ import {
   readItemRef,
 } from "@/lib/server/price-dashboard/item-ref-reading";
 import {
+  USAGE_READ_DEADLINE_MS,
   countItemUsage,
   isWithinUsageBound,
 } from "@/lib/server/price-dashboard/item-usage-read";
@@ -107,7 +112,38 @@ function refusedOnItems(
 // ---------------------------------------------------------------------------------------------------------------------
 // The count
 
-async function performCount(items: readonly ItemRef[]): Promise<NextResponse> {
+/**
+ * The accounts with a count in flight in this process. Per process only: a serverless platform may run several, and this
+ * is accepted as defence in depth beside the bucket, not a global limit.
+ */
+const ACCOUNTS_COUNTING = new Set<string>();
+
+/** The longest a count in flight can hold its account's slot, in whole seconds: the deadline. */
+const BUSY_RETRY_AFTER_SECONDS = Math.ceil(USAGE_READ_DEADLINE_MS / 1000);
+
+/** One count at a time per account: a second while the first runs is `429` at once, before any store is read. */
+async function performCount(
+  items: readonly ItemRef[],
+  _cookies: SessionCookieReader,
+  accountId: string,
+): Promise<NextResponse> {
+  if (ACCOUNTS_COUNTING.has(accountId)) {
+    return refused(
+      PRICE_USAGE_EVENT,
+      rateLimitedResponse(BUSY_RETRY_AFTER_SECONDS),
+    );
+  }
+  ACCOUNTS_COUNTING.add(accountId);
+  try {
+    return await countAndAnswer(items);
+  } finally {
+    ACCOUNTS_COUNTING.delete(accountId);
+  }
+}
+
+async function countAndAnswer(
+  items: readonly ItemRef[],
+): Promise<NextResponse> {
   const stores = await getPriceStores();
   const book = await readActiveBook(stores);
   if (book === undefined) {
