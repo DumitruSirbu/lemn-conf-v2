@@ -80,20 +80,38 @@ describe("a class the hardware screens created, as the publish review reads the 
     expect(createdItemsOf(afterDeleting)).toEqual([]);
   });
 
-  it("is taken out whole by the ↺ of any one of its rows, as the review offers it: the class goes, not one amount", () => {
+  it("is taken out whole by the ↺ of its own row, the only one the review offers: the class goes, not one amount", () => {
     const rows = rowsOf(CREATED_CLASS);
 
-    for (const row of rows) {
-      if (row.revert?.kind !== "change") {
-        throw new Error("a row of a created class has no ↺ of its own");
-      }
+    const offered = rows.flatMap((row) =>
+      row.revert === undefined ? [] : [row.revert],
+    );
 
-      const remaining = revertChange(CREATED_CLASS, row.revert.address);
-
-      expect(remaining).toEqual([]);
-    }
+    expect(offered).toEqual([
+      {
+        kind: "change",
+        address: { kind: "hardware-tier-created", tierId: CREATED },
+      },
+    ]);
+    expect(
+      revertChange(
+        CREATED_CLASS,
+        offered[0]?.kind === "change"
+          ? offered[0].address
+          : { kind: "provisional" },
+      ),
+    ).toEqual([]);
     expect(rows.filter((row) => row.kind === "field")).toHaveLength(
       HARDWARE_RATE_FIELDS.length,
+    );
+  });
+
+  it("offers no ↺ on a rate of it, which the revert route would not take on its own: the domain would take the whole class for it", () => {
+    const rates = rowsOf(CREATED_CLASS).filter((row) => row.kind === "field");
+
+    expect(rates).toHaveLength(HARDWARE_RATE_FIELDS.length);
+    expect(rates.map(({ revert }) => revert)).toEqual(
+      rates.map(() => undefined),
     );
   });
 });
@@ -124,17 +142,21 @@ describe("a class the hardware screens deleted, as the publish review reads the 
     ).toBe(true);
   });
 
-  it("is the one item a publish owes a usage count for, and the ↺ of any of its rows gives the class back", () => {
+  it("is the one item a publish owes a usage count for, and the review offers no ↺ for it while the revert route takes no address of a deletion", () => {
     expect(deletedItemsOf(DELETES_HETTICH)).toEqual([
       { kind: "hardware", tierId: HETTICH },
     ]);
-    for (const row of rowsOf(DELETES_HETTICH)) {
-      if (row.revert?.kind !== "change") {
-        throw new Error("a row of a deleted class has no ↺ of its own");
-      }
+    const offered = rowsOf(DELETES_HETTICH).flatMap((row) =>
+      row.revert === undefined ? [] : [row.revert],
+    );
 
-      expect(revertChange(DELETES_HETTICH, row.revert.address)).toEqual([]);
-    }
+    expect(offered).toEqual([]);
+    expect(
+      revertChange(
+        DELETES_HETTICH,
+        DELETES_HETTICH[0]?.address ?? { kind: "provisional" },
+      ),
+    ).toEqual([]);
   });
 
   it("is deleted whole even when its rates were edited first: the book has no such class, and no edit of one", () => {

@@ -423,13 +423,18 @@ describe("a production build of the accessory screens", () => {
     );
   });
 
-  it("holds the creation form's Create off for the reason that nothing can be checked, however well it is filled", async () => {
+  it("holds the creation form's Create off for the reason that nothing can be checked where the client has no route to create through, however well it is filled", async () => {
     vi.stubEnv("NODE_ENV", "production");
+    const page = productionPageOf();
     mountScreen(
       createElement(AccessoryCreateScreen, {
         locale: "ro",
         context: FRAME(),
-        page: productionPageOf(),
+        page,
+        client: {
+          ...inMemoryPriceDraftClient(page.state).client,
+          createAccessory: undefined,
+        },
       }),
     );
     await flushPromises(5);

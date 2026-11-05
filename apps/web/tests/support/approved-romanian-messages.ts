@@ -2171,6 +2171,8 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       priceHint: "Intră în vigoare când publici.",
       pricePerPiece: "Preț pe bucată",
       createAction: "Creează accesoriul",
+      // Drafted, not approved: the form's one reason for Create being off while every value is valid.
+      createNeedsLink: "Alege tipul de dulap ca să poți crea accesoriul.",
       createdNotice:
         "Accesoriul a fost creat în „De publicat”. Îl activezi după ce publici.",
       // Drafted, not approved: the accessory screens' own words for a creation, a rename, a deletion and a refused link.

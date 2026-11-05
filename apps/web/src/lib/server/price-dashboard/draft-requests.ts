@@ -1,10 +1,14 @@
 import {
   APPLIED_ADDRESS_KINDS,
+  CREATED_ROW_TEXT_FIELDS,
   CREATION_ADDRESS_KINDS,
+  HARDWARE_RATE_FIELDS,
+  judgeCreatedRowText,
   PRICE_GROUP_CODES,
   type AddressOfKind,
   type AppliedAddressKind,
   type BookFieldAddressKind,
+  type CreatedRowTextField,
   type CreationAddressKind,
   type PriceGroupCode,
   type StructuralAddressKind,
@@ -114,7 +118,13 @@ function readChangeMembers(
   if (!isPlainRecord(declared)) return refusedWith("change", "MISSING_VALUE");
   if (hasMemberOutside(declared, ["address", "value"])) return MALFORMED;
   return withAddress(declared.address, CHANGE_KINDS, (address) =>
-    accepted({ address, value: ownMember(declared, "value") }),
+    accepted({
+      address,
+      value:
+        address.kind === "created-row-text"
+          ? storedWords(ownMember(declared, "value"), address.field)
+          : ownMember(declared, "value"),
+    }),
   );
 }
 
@@ -196,6 +206,111 @@ function readRevertTarget(
       : refusedWith("groupId", "MISSING_VALUE");
   }
   return refusedWith("target", "MISSING_VALUE");
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// A creation
+
+/**
+ * The members that would name a row, or what the row is: the server mints its id and derives its rule, and a row it
+ * creates has no catalogue key, so a request that states one of these is not read.
+ */
+const ROW_IDENTITY_MEMBERS = [
+  "id",
+  "tierId",
+  "accessoryId",
+  "finishId",
+  "handle",
+  "ruleId",
+  "nameKey",
+  "descriptionKey",
+  "address",
+  "kind",
+  "item",
+] as const;
+
+export interface CreateHardwareClassRequest {
+  readonly expectedDraftRevision: string;
+  /** As sent: `applyChanges` judges it, and only a judged value is ever stored. */
+  readonly value: unknown;
+  /** Each rate as sent, by field; `applyChanges` judges every one. */
+  readonly rates: Readonly<Record<string, unknown>>;
+}
+
+export interface CreateAccessoryRequest {
+  readonly expectedDraftRevision: string;
+  readonly value: unknown;
+}
+
+export function readCreateHardwareClassRequest(
+  bodyText: string,
+): RequestReading<CreateHardwareClassRequest, DraftChangeRefusalCode> {
+  const body = membersOf(bodyText, ["expectedDraftRevision", "value", "rates"]);
+  if (body === undefined) return MALFORMED;
+  const revision = readRevision(body.expectedDraftRevision);
+  if (!revision.ok) return revision;
+  const value = readCreationValue(body.value);
+  if (!value.ok) return value;
+  const rates = readRates(body.rates);
+  if (!rates.ok) return rates;
+  return accepted({
+    expectedDraftRevision: revision.value,
+    value: value.value,
+    rates: rates.value,
+  });
+}
+
+export function readCreateAccessoryRequest(
+  bodyText: string,
+): RequestReading<CreateAccessoryRequest, DraftChangeRefusalCode> {
+  const body = membersOf(bodyText, ["expectedDraftRevision", "value"]);
+  if (body === undefined) return MALFORMED;
+  const revision = readRevision(body.expectedDraftRevision);
+  if (!revision.ok) return revision;
+  const value = readCreationValue(body.value);
+  if (!value.ok) return value;
+  return accepted({
+    expectedDraftRevision: revision.value,
+    value: value.value,
+  });
+}
+
+function readCreationValue(
+  declared: unknown,
+): RequestReading<Members, DraftChangeRefusalCode> {
+  if (!isPlainRecord(declared)) return refusedWith("change", "MISSING_VALUE");
+  const namesAnIdentity = ROW_IDENTITY_MEMBERS.some((name) =>
+    Object.hasOwn(declared, name),
+  );
+  return namesAnIdentity ? MALFORMED : accepted(withStoredWords(declared));
+}
+
+function withStoredWords(value: Members): Members {
+  const stored = CREATED_ROW_TEXT_FIELDS.flatMap((field) =>
+    Object.hasOwn(value, field)
+      ? [[field, storedWords(value[field], field)] as const]
+      : [],
+  );
+  return { ...value, ...Object.fromEntries(stored) };
+}
+
+/**
+ * The words of a created row as the draft keeps them, the same for a creation and for a rename: judged as sent, so a
+ * character the rule refuses is refused whatever surrounds it, and kept without the spaces around them, as the book
+ * holds them. Words the rule refuses go on as sent, for `applyChanges` to refuse with the rule's own code.
+ */
+function storedWords(declared: unknown, field: CreatedRowTextField): unknown {
+  const judged = judgeCreatedRowText(declared, field);
+  return judged.ok ? judged.text : declared;
+}
+
+function readRates(
+  declared: unknown,
+): RequestReading<Members, DraftChangeRefusalCode> {
+  if (!isPlainRecord(declared)) return refusedWith("change", "MISSING_VALUE");
+  return hasMemberOutside(declared, HARDWARE_RATE_FIELDS)
+    ? MALFORMED
+    : accepted(declared);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

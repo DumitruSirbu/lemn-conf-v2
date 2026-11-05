@@ -18,7 +18,13 @@ import {
   spiedPublishClient,
   type MountedDesk,
 } from "./publish-desk-harness";
-import { createTierChanges } from "./publish-structural-rows.support";
+import {
+  createAccessoryChange,
+  createTierChanges,
+  firstNamedBuildId,
+  NEW_ACCESSORY,
+  NEW_TIER,
+} from "./publish-structural-rows.support";
 import { roCopy } from "./romanian-copy";
 import { leaveTheStaffServer, stubTheStaffServer } from "./staff-frame-harness";
 
@@ -164,17 +170,57 @@ describe("a refused draft with a change the revert route does not take", () => {
 });
 
 describe("a refused draft beside a class the draft created", () => {
-  it("draws the class and its rates as one line without a ↺, so no press can take the class away by one of its rates", async () => {
+  it("draws the class and its rates as one line with one ↺, so no press can take the class away by one of its rates", async () => {
     const { container } = await mountRefused([...createTierChanges(), STALE]);
 
     expect(createTierChanges().length).toBeGreaterThan(2);
     expect(lines(container)).toHaveLength(2);
-    expect(allIn(container, REVERT)).toHaveLength(1);
-    expect(lineAt(container, 0).textContent).toContain(
+    expect(allIn(container, REVERT)).toHaveLength(2);
+    expect(allIn(lineAt(container, 0), REVERT)).toHaveLength(1);
+    expect(lineAt(container, 0).textContent).not.toContain(
       roCopy("priceDashboard.publish.staleChangeWholeDraftOnly", {
         name: isolated("Economic"),
       }),
     );
+  });
+
+  it("takes the class away whole when its line's ↺ is pressed, by the address of its creation and no other", async () => {
+    const { container, client } = await mountRefused(
+      [...createTierChanges(), STALE],
+      {
+        revert: () =>
+          Promise.resolve({
+            kind: "changed",
+            draft: { draftRevision: "8", changes: [STALE] },
+          }),
+      },
+    );
+
+    click(requireIn(lineAt(container, 0), REVERT));
+    await settle();
+
+    expect(client.revert).toHaveBeenCalledTimes(1);
+    expect(client.revert.mock.calls[0]?.[0]).toStrictEqual({
+      expectedDraftRevision: "7",
+      target: {
+        kind: "change",
+        address: { kind: "hardware-tier-created", tierId: NEW_TIER },
+      },
+    });
+    expect(lines(container)).toHaveLength(1);
+  });
+
+  it("offers a ↺ on the line of a created accessory too, by its creation", async () => {
+    const creation = createAccessoryChange(firstNamedBuildId());
+    const { container, client } = await mountRefused([creation, STALE]);
+
+    click(requireIn(lineAt(container, 0), REVERT));
+    await settle();
+
+    expect(client.revert.mock.calls[0]?.[0].target).toEqual({
+      kind: "change",
+      address: { kind: "accessory-created", accessoryId: NEW_ACCESSORY },
+    });
   });
 });
 

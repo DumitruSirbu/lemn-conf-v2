@@ -102,7 +102,9 @@ function AccessoryCreate({
           {translate("priceDashboard.accessories.title")}
         </a>
         <h1 className={styles.title}>
-          {translate("priceDashboard.accessories.newTitle")}
+          {creation.feedback.kind === "created"
+            ? creation.name.text.trim()
+            : translate("priceDashboard.accessories.newTitle")}
         </h1>
         <span className={styles.chips}>
           <span className={styles.chip} data-testid="accessory-chip">
@@ -173,6 +175,12 @@ function CreateForm({
 }) {
   const translate = useTranslations();
   const cannotWriteId = useId();
+  const needsLinkId = useId();
+  const whyCreateIsOffId = creation.canWrite
+    ? creation.isWaitingForLink
+      ? needsLinkId
+      : undefined
+    : cannotWriteId;
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     void creation.create();
@@ -212,7 +220,7 @@ function CreateForm({
             className={editStyles.action}
             data-tone="primary"
             disabled={!creation.canCreate}
-            aria-describedby={creation.canWrite ? undefined : cannotWriteId}
+            aria-describedby={whyCreateIsOffId}
           >
             {translate("priceDashboard.accessories.createAction")}
           </button>
@@ -225,6 +233,11 @@ function CreateForm({
             {translate("priceDashboard.lifecycle.cannotJudge")}
           </p>
         )}
+        {creation.isWaitingForLink ? (
+          <p id={needsLinkId} className={styles.hint}>
+            {translate("priceDashboard.accessories.createNeedsLink")}
+          </p>
+        ) : null}
       </div>
     </form>
   );

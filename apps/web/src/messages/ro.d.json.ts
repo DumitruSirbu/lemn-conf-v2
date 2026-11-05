@@ -1659,6 +1659,7 @@ declare const messages: {
       "priceHint": "Intră în vigoare când publici.",
       "pricePerPiece": "Preț pe bucată",
       "createAction": "Creează accesoriul",
+      "createNeedsLink": "Alege tipul de dulap ca să poți crea accesoriul.",
       "createdNotice": "Accesoriul a fost creat în „De publicat”. Îl activezi după ce publici.",
       "activeHintNew": "Un accesoriu nou se creează inactiv. Îl activezi după ce îi publici prețul.",
       "linkPlaceholder": "Alege tipul de dulap",

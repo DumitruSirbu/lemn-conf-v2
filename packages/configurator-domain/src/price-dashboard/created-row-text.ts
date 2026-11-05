@@ -3,6 +3,7 @@ import {
   MAX_BOOK_NAME_LENGTH,
 } from "../pricing/book-reading.js";
 import {
+  holdsFormatCharacter,
   holdsNothingVisible,
   holdsUnsendableCharacter,
   isComposed,
@@ -107,8 +108,10 @@ const FORMAT_CHARACTERS = /\p{Cf}/gu;
  * The text a created row carries, or the one reason it is refused. A name is required; a description may be empty.
  * On acceptance, `text` is the form to store: trimmed, and otherwise as typed. Refused, in this order: a value that is
  * not text, a control, line-breaking, unpaired-surrogate or direction-control character or text not in NFC, text with
- * nothing visible (a name only), text past the book's bound, and text that states an amount, a percentage or an
- * inclusion. An amount is a number beside a money unit, judged without format characters.
+ * nothing visible (a name only), text past the book's bound, text that states an amount, a percentage or an inclusion
+ * (an amount is a number beside a money unit, judged without format characters), and last, text holding a format
+ * character anywhere (zero-width, soft hyphen, word joiner: it prints as nothing, so one name could pass for another).
+ * Words that hold nothing visible are stored as empty, so they hold no format character either.
  */
 export function judgeCreatedRowText(
   raw: unknown,
@@ -121,6 +124,9 @@ export function judgeCreatedRowText(
   if (text === "" && field === "name") return refused("TEXT_EMPTY");
   if (text.length > MAX_LENGTH_OF_FIELD[field]) return refused("TEXT_TOO_LONG");
   if (statesAnAmountOrInclusion(text)) return refused("TEXT_STATES_AN_AMOUNT");
+  if (text !== "" && holdsFormatCharacter(raw)) {
+    return refused("TEXT_FORBIDDEN_CHARACTER");
+  }
   return { ok: true, text };
 }
 

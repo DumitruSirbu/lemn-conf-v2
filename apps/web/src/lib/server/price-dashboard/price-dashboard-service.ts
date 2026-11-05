@@ -27,6 +27,10 @@ import {
 import type { SessionCookieReader } from "@/lib/server/account/session-cookie";
 import { getBulkPlanner } from "@/lib/server/price-dashboard/bulk-planner";
 import {
+  planAccessoryCreation,
+  planHardwareClassCreation,
+} from "@/lib/server/price-dashboard/creation-plans";
+import {
   catalogueViewedEntry,
   draftDiscardedEntry,
   publishedEntry,
@@ -60,9 +64,13 @@ import {
 import {
   isDiscardRequest,
   readBulkRequest,
+  readCreateAccessoryRequest,
+  readCreateHardwareClassRequest,
   readDraftChangeRequest,
   readRevertRequest,
   type BulkRequest,
+  type CreateAccessoryRequest,
+  type CreateHardwareClassRequest,
   type DiscardRequest,
   type DraftChangeRequest,
   type RequestReading,
@@ -341,6 +349,18 @@ const BULK_WRITE: DraftWrite<BulkRequest> = {
     ),
 };
 
+const CREATE_HARDWARE_CLASS_WRITE: DraftWrite<CreateHardwareClassRequest> = {
+  judge: readCreateHardwareClassRequest,
+  perform: (input, cookies) =>
+    performPlanned(input, cookies, planHardwareClassCreation),
+};
+
+const CREATE_ACCESSORY_WRITE: DraftWrite<CreateAccessoryRequest> = {
+  judge: readCreateAccessoryRequest,
+  perform: (input, cookies) =>
+    performPlanned(input, cookies, planAccessoryCreation),
+};
+
 const PUBLISH_WRITE: DraftWrite<PublishRequest> = {
   judge: readPublishRequest,
   perform: performPublish,
@@ -368,6 +388,23 @@ export function bulkChangeDraftAsStaff(
   request: DashboardWriteRequest,
 ): Promise<NextResponse> {
   return runStaffWrite(BULK_WRITE, request);
+}
+
+/**
+ * Puts a new hardware class in the draft with a rate for each mechanism, as one write. The server mints its id. A request
+ * is made once: it names the draft revision it read, so a repeat of one that was answered finds the draft moved.
+ */
+export function createHardwareClassAsStaff(
+  request: DashboardWriteRequest,
+): Promise<NextResponse> {
+  return runStaffWrite(CREATE_HARDWARE_CLASS_WRITE, request);
+}
+
+/** Puts a new linked accessory in the draft. The server mints its id, and the request is made once. */
+export function createAccessoryAsStaff(
+  request: DashboardWriteRequest,
+): Promise<NextResponse> {
+  return runStaffWrite(CREATE_ACCESSORY_WRITE, request);
 }
 
 export interface RestoreWriteRequest extends DashboardWriteRequest {

@@ -16,8 +16,8 @@ import { signIn, type SignedInAdministrator } from "./staff-world";
 // lifecycle client that asks the server, so a switch-on is written to it, a switch-off of an accessory the book states is
 // drawn off with its reason until the defaults can be read, and a count is the server's. `next dev` hands it the sample
 // defaults, the sample counts (cover 12, rack 31) and an in-memory client, so the dialogs can be driven; nothing it does
-// reaches the server, and each page starts from its own copy. - Creating an accessory needs a route that does not exist: the default client has no
-// `createAccessory`, so the form's Create is off under both servers, and there is never a linked accessory to open.
+// reaches the server, and each page starts from its own copy. - Creating an accessory goes to its own route under both
+// servers; a spec that creates one empties the draft after it, so there is no linked accessory to open unless a test made it.
 
 export const ACCESSORIES_PATH = "/ro/staff/catalog/accessories";
 export const RUSSIAN_ACCESSORIES_PATH = "/ru/staff/catalog/accessories";

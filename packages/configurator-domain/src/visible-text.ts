@@ -14,8 +14,17 @@ const UNSENDABLE_CHARACTER = /[\p{Cc}\p{Cs}\p{Zl}\p{Zp}؜‎‏‪-‮⁦-⁩]/u
  *  soft hyphen), the combining grapheme joiner and the Hangul fillers, which render as blank. */
 const NOTHING_VISIBLE = /^[\s\p{Z}\p{Cf}͏ᅟᅠㅤ]*$/u;
 
+/** Every format character: zero-width space and joiners, soft hyphen, word joiner, the byte-order mark and the rest of
+ *  `\p{Cf}`, which print as nothing. */
+const FORMAT_CHARACTER = /\p{Cf}/u;
+
 export function holdsUnsendableCharacter(text: string): boolean {
   return UNSENDABLE_CHARACTER.test(text);
+}
+
+/** Whether the text holds a character that prints as nothing, so a name could look like another that it is not. */
+export function holdsFormatCharacter(text: string): boolean {
+  return FORMAT_CHARACTER.test(text);
 }
 
 /** Whether a name with these characters would print as an empty one. */

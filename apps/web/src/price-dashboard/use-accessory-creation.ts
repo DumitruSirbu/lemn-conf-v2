@@ -41,6 +41,8 @@ export interface AccessoryCreationForm {
   readonly price: PriceEntry;
   readonly feedback: CreationFeedback;
   readonly canCreate: boolean;
+  /** Everything else is ready and only the cabinet type is not chosen: what keeps Create off, which the form says. */
+  readonly isWaitingForLink: boolean;
   /** Whether the client can create an accessory at all; where it cannot, the form says so and sends nothing. */
   readonly canWrite: boolean;
   readonly isCreating: boolean;
@@ -97,15 +99,16 @@ export function useAccessoryCreation({
     () => ({ buildId, isTouched: touched.has("link") }),
     [buildId, touched],
   );
-  const canCreate =
+  const isReadyBesidesLink =
     canWrite &&
     nameEntry.judgement.ok &&
     descriptionEntry.judgement.ok &&
-    buildId !== "" &&
     price.reading.kind === "amount" &&
     feedback.kind !== "created" &&
     !isCreating &&
     !isBusy;
+  const canCreate = isReadyBesidesLink && buildId !== "";
+  const isWaitingForLink = isReadyBesidesLink && buildId === "";
 
   const moveOn = useCallback(
     (key: TouchedKey) => {
@@ -185,6 +188,7 @@ export function useAccessoryCreation({
     price,
     feedback,
     canCreate,
+    isWaitingForLink,
     canWrite,
     isCreating,
     typeName,

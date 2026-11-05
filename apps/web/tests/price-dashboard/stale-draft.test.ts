@@ -1,6 +1,7 @@
 // A draft that no longer makes a book is listed change by change, so the valid change beside a refused one can be taken
-// back on its own. What the person can take back alone is what the revert route takes, and a created or deleted row is
-// one line with everything the draft says of it, which only the whole draft gives up.
+// back on its own. What the person can take back alone is what the revert route takes. A created or deleted row is one
+// line with everything the draft says of it: the line of a created row takes the row back by its creation, and the line of
+// a deleted row offers nothing, since a deletion is not taken back by this view.
 import { describe, expect, it } from "vitest";
 
 import type { DraftChange } from "@lemnaria/configurator-domain";
@@ -12,7 +13,10 @@ import {
   ACTIVE,
   CABINET_NAMES,
   change,
+  createAccessoryChange,
   createTierChanges,
+  firstNamedBuildId,
+  NEW_ACCESSORY,
   NEW_TIER,
 } from "./publish-structural-rows.support";
 
@@ -109,16 +113,51 @@ describe("a draft with a change that cannot be applied", () => {
 });
 
 describe("a row the draft creates or deletes", () => {
-  it("is one line with its rates and words, and no revert, which would take the whole row away", () => {
+  it("is one line with its rates and words, and its revert takes the row away by its creation", () => {
     const lines = linesOf([...createTierChanges(), STALE]);
 
     expect(createTierChanges().length).toBeGreaterThan(2);
     expect(lines).toHaveLength(2);
     expect(lines[0]?.key).toContain(NEW_TIER);
-    expect(lines[0]?.revert).toBeUndefined();
+    expect(lines[0]?.revert).toEqual({
+      kind: "change",
+      address: { kind: "hardware-tier-created", tierId: NEW_TIER },
+    });
     expect(lines[1]?.revert).toEqual({
       kind: "change",
       address: STALE.address,
+    });
+  });
+
+  it("takes a created row back by its creation wherever the creation stands among the row's changes", () => {
+    const [creation, ...rates] = createTierChanges();
+
+    const lines = linesOf([...rates, ...(creation ? [creation] : [])]);
+
+    expect(lines).toHaveLength(1);
+    expect(lines[0]?.revert).toEqual({
+      kind: "change",
+      address: { kind: "hardware-tier-created", tierId: NEW_TIER },
+    });
+  });
+
+  it("takes a created accessory back by its creation, with the words changed since", () => {
+    const creation = createAccessoryChange(firstNamedBuildId());
+    const rename = change(
+      {
+        kind: "created-row-text",
+        item: { kind: "accessory", accessoryId: NEW_ACCESSORY },
+        field: "name",
+      },
+      "Soclu nou",
+    );
+
+    const lines = linesOf([creation, rename, STALE]);
+
+    expect(lines).toHaveLength(2);
+    expect(lines[0]?.revert).toEqual({
+      kind: "change",
+      address: { kind: "accessory-created", accessoryId: NEW_ACCESSORY },
     });
   });
 
@@ -142,7 +181,10 @@ describe("a row the draft creates or deletes", () => {
     const lines = linesOf([...createTierChanges(), deletesCreated, STALE]);
 
     expect(lines).toHaveLength(2);
-    expect(lines[0]?.revert).toBeUndefined();
+    expect(lines[0]?.revert).toEqual({
+      kind: "change",
+      address: { kind: "hardware-tier-created", tierId: NEW_TIER },
+    });
   });
 
   it("is refused when any change of the row is", () => {

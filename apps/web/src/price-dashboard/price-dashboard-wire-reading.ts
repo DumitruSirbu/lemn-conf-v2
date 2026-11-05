@@ -2,6 +2,7 @@ import {
   readBulk,
   type DraftBulk,
   type DraftChange,
+  type CreatedRowItemRef,
 } from "@lemnaria/configurator-domain";
 
 import { ownValueOf } from "@/staff/staff-kitchens-wire-reading";
@@ -10,6 +11,7 @@ import type {
   DashboardBookPayload,
   DashboardDraftWire,
   DashboardStateWire,
+  DraftChangeCreatedWire,
 } from "./price-dashboard-wire-contract";
 
 // What the dashboard's routes answer, read before it is believed: the draft and the state, each rebuilt from the
@@ -46,6 +48,30 @@ export function readDraftWire(body: unknown): DashboardDraftWire | undefined {
     changes.push(read);
   }
   return { draftRevision, changes };
+}
+
+/** The answer to a creation: the draft, and the hardware class or accessory whose id the server minted. */
+export function readDraftChangeCreatedWire(
+  body: unknown,
+): DraftChangeCreatedWire | undefined {
+  const draft = readDraftWire(ownValueOf(body, "draft"));
+  const created = readCreatedRow(ownValueOf(body, "created"));
+  return draft === undefined || created === undefined
+    ? undefined
+    : { draft, created };
+}
+
+/** The row a creation made, rebuilt from its kind and the one id that kind names; no other kind is a created row. */
+function readCreatedRow(declared: unknown): CreatedRowItemRef | undefined {
+  const kind = ownValueOf(declared, "kind");
+  if (kind === "hardware") {
+    const tierId = ownValueOf(declared, "tierId");
+    return typeof tierId === "string" ? { kind, tierId } : undefined;
+  }
+  const accessoryId = ownValueOf(declared, "accessoryId");
+  return kind === "accessory" && typeof accessoryId === "string"
+    ? { kind, accessoryId }
+    : undefined;
 }
 
 /** A change rebuilt from the members a draft change declares, so nothing else the answer carried reaches the screen. */

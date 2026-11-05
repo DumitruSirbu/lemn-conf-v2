@@ -239,6 +239,38 @@ describe("the form", () => {
   });
 });
 
+describe("the reason Create is off for want of a cabinet type", () => {
+  const NEEDS_LINK = roCopy("priceDashboard.accessories.createNeedsLink");
+
+  it("is said in words once the name and the price are valid and no cabinet type is chosen, and the button points to it", async () => {
+    const container = await mountForm();
+    typeInField(container, NAME, "Suport pentru farfurii");
+    typeInField(container, PRICE, "80");
+
+    expect(container.textContent).toContain(NEEDS_LINK);
+    const create = buttonNamed(container, CREATE);
+    expect(create).toHaveProperty("disabled", true);
+    const reason = container.querySelector(
+      `[id="${create.getAttribute("aria-describedby") ?? ""}"]`,
+    );
+    expect(reason?.textContent).toBe(NEEDS_LINK);
+  });
+
+  it("is not said while something else is missing, and goes once the cabinet type is chosen", async () => {
+    const container = await mountForm();
+    expect(container.textContent).not.toContain(NEEDS_LINK);
+    typeInField(container, NAME, "Suport pentru farfurii");
+    expect(container.textContent).not.toContain(NEEDS_LINK);
+    typeInField(container, PRICE, "80");
+    expect(container.textContent).toContain(NEEDS_LINK);
+
+    choose(container, LINKED_BUILD_ID);
+
+    expect(container.textContent).not.toContain(NEEDS_LINK);
+    expect(buttonNamed(container, CREATE)).toHaveProperty("disabled", false);
+  });
+});
+
 describe("creating", () => {
   it("sends one write with the trimmed words, the cabinet type and the price in bani, and nothing else", async () => {
     const container = await mountForm();
@@ -265,6 +297,20 @@ describe("creating", () => {
         .state()
         .draft.changes.map((change) => change.address.kind),
     ).toEqual(["accessory-created"]);
+  });
+
+  it("heads the page with the accessory's name once it is created, in place of the title of a new accessory", async () => {
+    const container = await mountForm();
+    expect(requireIn(container, "h1").textContent).toBe(
+      roCopy("priceDashboard.accessories.newTitle"),
+    );
+    fillEverything(container);
+
+    await press(buttonNamed(container, CREATE));
+
+    expect(requireIn(container, "h1").textContent).toBe(
+      "Suport pentru farfurii",
+    );
   });
 
   it("says the accessory is in De publicat, inactive, links to its own page and the list, and moves focus to that notice", async () => {

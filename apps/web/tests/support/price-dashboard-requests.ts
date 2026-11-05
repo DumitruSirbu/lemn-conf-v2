@@ -2,6 +2,8 @@ import type { NextRequest } from "next/server";
 
 import { POST as BULK } from "@/app/api/staff/prices/bulk/route";
 import { POST as AVAILABILITY } from "@/app/api/staff/prices/availability/route";
+import { POST as CREATE_ACCESSORY } from "@/app/api/staff/prices/draft/accessory/route";
+import { POST as CREATE_HARDWARE_CLASS } from "@/app/api/staff/prices/draft/hardware-class/route";
 import { DELETE, PUT } from "@/app/api/staff/prices/draft/route";
 import { POST as PUBLISH } from "@/app/api/staff/prices/publish/route";
 import { POST as USAGE } from "@/app/api/staff/prices/usage/route";
@@ -9,7 +11,10 @@ import { GET } from "@/app/api/staff/prices/route";
 import { POST as RESTORE } from "@/app/api/staff/prices/versions/[id]/restore/route";
 import { GET as VERSION } from "@/app/api/staff/prices/versions/[id]/route";
 import { GET as VERSIONS } from "@/app/api/staff/prices/versions/route";
-import type { Capability } from "@lemnaria/configurator-domain";
+import {
+  HARDWARE_RATE_FIELDS,
+  type Capability,
+} from "@lemnaria/configurator-domain";
 
 import { accountRequest, type AccountRequestInit } from "./account-world";
 import { currentPriceDashboardWorld } from "./price-dashboard-world";
@@ -39,6 +44,14 @@ export function changeRequest(init: Init = {}): NextRequest {
 
 export function revertRequest(init: Init = {}): NextRequest {
   return request("/api/staff/prices/draft", "DELETE", init);
+}
+
+export function createHardwareClassRequest(init: Init = {}): NextRequest {
+  return request("/api/staff/prices/draft/hardware-class", "POST", init);
+}
+
+export function createAccessoryRequest(init: Init = {}): NextRequest {
+  return request("/api/staff/prices/draft/accessory", "POST", init);
 }
 
 export function bulkRequest(init: Init = {}): NextRequest {
@@ -88,6 +101,10 @@ export const readState = (init: Init = {}) => GET(readRequest(init));
 export const changeDraft = (init: Init = {}) => PUT(changeRequest(init));
 export const revertDraft = (init: Init = {}) => DELETE(revertRequest(init));
 export const bulkDraft = (init: Init = {}) => BULK(bulkRequest(init));
+export const createHardwareClassInDraft = (init: Init = {}) =>
+  CREATE_HARDWARE_CLASS(createHardwareClassRequest(init));
+export const createAccessoryInDraft = (init: Init = {}) =>
+  CREATE_ACCESSORY(createAccessoryRequest(init));
 export const setAvailability = (init: Init = {}) =>
   AVAILABILITY(availabilityRequest(init));
 export const readUsage = (init: Init = {}) => USAGE(usageRequest(init));
@@ -251,6 +268,41 @@ export const DASHBOARD_ROUTES: readonly DashboardRoute[] = [
       readUsage({
         ...WITH_COOKIE(cookie),
         json: { items: [{ kind: "material", tierId: "material.veneer" }] },
+      }),
+  },
+  {
+    name: "POST /api/staff/prices/draft/hardware-class",
+    event: "staff-price-draft",
+    capability: "price.edit",
+    admittedStatus: 200,
+    ask: async (cookie) =>
+      createHardwareClassInDraft({
+        ...WITH_COOKIE(cookie),
+        json: {
+          expectedDraftRevision: await currentDraftRevision(),
+          value: { name: "GTV Economic", description: "" },
+          rates: Object.fromEntries(
+            HARDWARE_RATE_FIELDS.map((field) => [field, 2_000]),
+          ),
+        },
+      }),
+  },
+  {
+    name: "POST /api/staff/prices/draft/accessory",
+    event: "staff-price-draft",
+    capability: "price.edit",
+    admittedStatus: 200,
+    ask: async (cookie) =>
+      createAccessoryInDraft({
+        ...WITH_COOKIE(cookie),
+        json: {
+          expectedDraftRevision: await currentDraftRevision(),
+          value: {
+            linkedBuildId: "base-3drawer",
+            perUnitMinor: 1_000,
+            name: "Soclu luminos",
+          },
+        },
       }),
   },
   {
