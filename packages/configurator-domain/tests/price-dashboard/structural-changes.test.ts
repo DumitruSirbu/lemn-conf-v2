@@ -400,16 +400,15 @@ describe("a created class owes a change for every rate", () => {
   });
 });
 
-describe("an id the book already states is a collision the parser refuses (F5)", () => {
+describe("an id the book already states is a collision (F5)", () => {
   const EXISTING: readonly (readonly [string, DraftChange])[] = [
     ["a hardware tier id", createTier("hardware.soft-close")],
     ["a material tier id", createTier("material.veneer")],
-    ["a built-in accessory's field name", createAccessory("dishDryingRack")],
     ["a linked accessory id", createAccessory("organiser")],
   ];
 
   it.each(EXISTING)(
-    "refuses a creation reusing %s, and the base book is untouched",
+    "refuses a creation reusing %s at the creation itself, and the base book is untouched",
     (_, creation) => {
       const frozen = deepFreeze(structuredClone(WITH_LINKED));
       const needsRates = creation.address.kind === "hardware-tier-created";
@@ -420,8 +419,37 @@ describe("an id the book already states is a collision the parser refuses (F5)",
         ...(needsRates ? everyRate(tierId) : []),
       ]);
 
-      expect(result).toMatchObject({ ok: false, reason: "candidate-refused" });
+      expect(refusalsOf(result)).toContain("0:NOT_EDITABLE");
       expect(frozen).toEqual(WITH_LINKED);
+    },
+  );
+
+  it("leaves a built-in accessory's field name to the parser's refusal", () => {
+    const frozen = deepFreeze(structuredClone(WITH_LINKED));
+
+    const result = applyChanges(frozen, [createAccessory("dishDryingRack")]);
+
+    expect(result).toMatchObject({ ok: false, reason: "candidate-refused" });
+    expect(frozen).toEqual(WITH_LINKED);
+  });
+
+  it.each([
+    [
+      "a linked accessory",
+      createAccessory("organiser"),
+      ACCESSORY("organiser"),
+    ],
+    [
+      "a hardware class",
+      createTier("hardware.soft-close"),
+      HARDWARE("hardware.soft-close"),
+    ],
+  ])(
+    "refuses a creation of %s over the book's own row followed by its deletion, which would take the row out unguarded",
+    (_, creation, item) => {
+      const result = applyChanges(WITH_LINKED, [creation, deletion(item)]);
+
+      expect(refusalsOf(result)).toContain("0:NOT_EDITABLE");
     },
   );
 });

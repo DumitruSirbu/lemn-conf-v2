@@ -88,7 +88,11 @@ export {
   refuseLinkTarget,
   type LinkTargetRefusalCode,
 } from "./link-target.js";
-export { createdItemsOf, deletedItemsOf } from "./draft-structure.js";
+export {
+  createdItemsOf,
+  deletedBookItemsOf,
+  deletedItemsOf,
+} from "./draft-structure.js";
 export {
   changedRowOf,
   changedRowsOf,

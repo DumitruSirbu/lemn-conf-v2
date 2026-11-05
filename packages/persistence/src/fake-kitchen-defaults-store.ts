@@ -1,5 +1,3 @@
-import type { ItemRef } from "@lemnaria/configurator-domain";
-
 import type { FakeCatalogueAvailabilityStore } from "./fake-catalogue-availability-store.js";
 import {
   isCountableProbeSet,
@@ -8,10 +6,11 @@ import {
 import {
   FakeRevisionHead,
   isRevisionShape,
-  itemKeyOf,
   settle,
 } from "./fake-dashboard-support.js";
 import type { FakeDashboardAuditLedger } from "./fake-dashboard-support.js";
+import { FakeHeldDesigns } from "./fake-held-designs.js";
+import type { HeldDesignUsage } from "./fake-held-designs.js";
 import {
   AVAILABILITY_CHANGED_MEANWHILE,
   CHANGED_MEANWHILE,
@@ -28,22 +27,13 @@ import type {
   SaveKitchenDefaultsResult,
 } from "./m10-ports.js";
 
-/**
- * A saved design as the usage reader sees it: the items it uses at any level, whether its client deleted it, and whether
- * the product can read it (an unreadable one uses nothing, and is counted in `unreadableDesigns` when a probe walks).
- */
-export interface HeldDesignUsage {
-  readonly designId: string;
-  readonly uses: readonly ItemRef[];
-  readonly isDeletedByClient: boolean;
-  readonly isUnreadable?: boolean;
-}
-
 export interface FakeKitchenDefaultsStoreOptions {
   readonly now?: () => Date;
   readonly ledger: FakeDashboardAuditLedger;
   /** The head the defaults save advances with the availability write; the same table the availability fake holds. */
   readonly availability: FakeCatalogueAvailabilityStore;
+  /** The saved designs usage counts. A world that also holds a price book passes the table the book's guard reads. */
+  readonly designs?: FakeHeldDesigns;
 }
 
 /**
@@ -60,7 +50,7 @@ export class FakeKitchenDefaultsStore
   private readonly revision = new FakeRevisionHead();
   private defaults: unknown = {};
   private savedAt: Date | undefined;
-  private readonly designs = new Map<string, HeldDesignUsage>();
+  private readonly designs: FakeHeldDesigns;
   private readonly now: () => Date;
   private readonly ledger: FakeDashboardAuditLedger;
   private readonly availability: FakeCatalogueAvailabilityStore;
@@ -69,14 +59,16 @@ export class FakeKitchenDefaultsStore
     now = () => new Date(),
     ledger,
     availability,
+    designs = new FakeHeldDesigns(),
   }: FakeKitchenDefaultsStoreOptions) {
+    this.designs = designs;
     this.now = now;
     this.ledger = ledger;
     this.availability = availability;
   }
 
   plantDesign(design: HeldDesignUsage): void {
-    this.designs.set(design.designId, structuredClone(design));
+    this.designs.plant(design);
   }
 
   read(): Promise<ReadKitchenDefaultsResult> {
@@ -130,27 +122,11 @@ export class FakeKitchenDefaultsStore
       return {
         counts: probes.map(({ item }) => ({
           item,
-          designCount: this.countUsing(item),
+          designCount: this.designs.countUsing(item),
         })),
-        unreadableDesigns: isWalked ? this.countUnreadable() : 0,
+        unreadableDesigns: isWalked ? this.designs.countUnreadable() : 0,
       };
     });
-  }
-
-  private countUnreadable(): number {
-    return [...this.designs.values()].filter(
-      (design) => !design.isDeletedByClient && design.isUnreadable === true,
-    ).length;
-  }
-
-  private countUsing(item: ItemRef): number {
-    const key = itemKeyOf(item);
-    return [...this.designs.values()].filter(
-      (design) =>
-        !design.isDeletedByClient &&
-        design.isUnreadable !== true &&
-        design.uses.some((used) => itemKeyOf(used) === key),
-    ).length;
   }
 }
 

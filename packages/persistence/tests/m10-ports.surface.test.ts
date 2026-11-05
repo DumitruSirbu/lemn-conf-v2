@@ -92,12 +92,13 @@ describe("the write requests take the members the plan (as amended) names", () =
     >();
   });
 
-  it("a publish: three expectations, the created items, the text, the book the server computed, the summary and the audit", () => {
+  it("a publish: three expectations, the created and deleted items, the text, the book the server computed, the summary and the audit", () => {
     expectTypeOf<keyof PublishPriceBookRequest>().toEqualTypeOf<
       | "expectedDraftRevision"
       | "expectedActiveSequence"
       | "expectedAvailabilityRevision"
       | "createdItems"
+      | "deletedItems"
       | "label"
       | "note"
       | "book"
@@ -210,10 +211,16 @@ describe("the results use the plan's own names as their kinds (X0-5)", () => {
 });
 
 describe("the results are the shapes the amended plan names (M1, m2, m3, M4)", () => {
-  it("a publish answers ok with the version and the head after it, or one of the two compare-and-set refusals", () => {
+  it("a publish answers ok with the version and the head after it, one of the two compare-and-set refusals, or the deleted items in use", () => {
     expectTypeOf<PublishPriceBookResult["kind"]>().toEqualTypeOf<
-      "ok" | "changed-meanwhile" | "availability-changed-meanwhile"
+      | "ok"
+      | "changed-meanwhile"
+      | "availability-changed-meanwhile"
+      | "item-in-use"
     >();
+    expectTypeOf<
+      Extract<PublishPriceBookResult, { kind: "item-in-use" }>["items"]
+    >().toEqualTypeOf<readonly ItemRef[]>();
     expectTypeOf<
       Extract<PublishPriceBookResult, { kind: "ok" }>
     >().toEqualTypeOf<{

@@ -532,6 +532,7 @@ describe("a publish that lands between the two reads of a request", () => {
       expectedActiveSequence: 1,
       expectedAvailabilityRevision: "1",
       createdItems: [],
+      deletedItems: [],
       label: "Version 2",
       note: "",
       book: ANCHORED_BOOK,

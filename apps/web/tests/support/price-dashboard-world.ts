@@ -7,6 +7,7 @@ import {
 import {
   FakeCatalogueAvailabilityStore,
   FakeDashboardAuditLedger,
+  FakeHeldDesigns,
   FakePriceBookStore,
   FakeRevisionHead,
 } from "@lemnaria/persistence";
@@ -32,6 +33,8 @@ import { signedInAs } from "./staff-world";
 export interface PriceDashboardWorld {
   readonly stores: PriceStores;
   readonly priceBook: FakePriceBookStore;
+  /** The saved designs the price book's guard on a deleted item reads. */
+  readonly designs: FakeHeldDesigns;
   /** The audit log every draft write commits its row to. */
   readonly ledger: FakeDashboardAuditLedger;
   /** The id of the version the world published, or `undefined` while none was. */
@@ -82,13 +85,20 @@ export async function freshPriceDashboardWorld({
     head: new FakeRevisionHead(),
     ledger,
   });
-  const priceBook = new FakePriceBookStore({ ledger, availability, now });
+  const designs = new FakeHeldDesigns();
+  const priceBook = new FakePriceBookStore({
+    ledger,
+    availability,
+    now,
+    designs,
+  });
   const versionId = isPublished
     ? await publishFirstVersion(priceBook, book)
     : undefined;
   const world: PriceDashboardWorld = {
     stores: { priceBook: stampedWithItsVersionId(priceBook), availability },
     priceBook,
+    designs,
     ledger,
     versionId,
   };
@@ -111,6 +121,7 @@ async function publishFirstVersion(
     expectedActiveSequence: 0,
     expectedAvailabilityRevision: "0",
     createdItems: [],
+    deletedItems: [],
     label: "Version 1",
     note: "",
     book,

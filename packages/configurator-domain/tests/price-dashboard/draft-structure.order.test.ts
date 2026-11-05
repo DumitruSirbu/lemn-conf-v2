@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { applyChanges } from "../../src/price-dashboard/apply-changes.js";
 import {
   createdItemsOf,
+  deletedBookItemsOf,
   incompleteCreationIndexes,
   withoutRow,
 } from "../../src/price-dashboard/draft-structure.js";
@@ -60,6 +61,40 @@ describe("a deletion undoes only the creation before it", () => {
     expect(incompleteCreationIndexes(changes, new Set([0, 1]), BASE)).toEqual(
       [],
     );
+  });
+});
+
+describe("the deletions of rows the book already holds", () => {
+  it("lists a deletion no creation precedes", () => {
+    expect(deletedBookItemsOf([deleteItem(X)])).toEqual([X]);
+  });
+
+  it("leaves out a class the draft created and then deleted", () => {
+    expect(deletedBookItemsOf([createTier("hw.x"), deleteItem(X)])).toEqual([]);
+  });
+
+  it("lists a deletion that comes before the creation of the same id", () => {
+    expect(deletedBookItemsOf([deleteItem(X), createTier("hw.x")])).toEqual([
+      X,
+    ]);
+  });
+
+  it("lists an item deleted twice once", () => {
+    expect(deletedBookItemsOf([deleteItem(X), deleteItem(X)])).toEqual([X]);
+  });
+
+  it("keeps the deletions of rows the draft did not create, in draft order", () => {
+    const Y = hardwareItem("hw.y");
+    const Z = hardwareItem("hw.z");
+
+    expect(
+      deletedBookItemsOf([
+        deleteItem(Z),
+        createTier("hw.x"),
+        deleteItem(X),
+        deleteItem(Y),
+      ]),
+    ).toEqual([Z, Y]);
   });
 });
 

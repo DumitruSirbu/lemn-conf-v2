@@ -15,6 +15,7 @@ import {
   seedPriceBookStatement,
 } from "../src/price-book-statements.js";
 import { changeSummaryArbitrary } from "./support/change-summary-arbitrary.js";
+import { deletedItemsOfSummary } from "./support/dashboard-contract-support.js";
 import { WELL_FORMED_UNREACHABLE_VALUE } from "./support/leaked-connection-markers.js";
 import {
   answerQueryWith,
@@ -84,6 +85,9 @@ function aPublishRequest(
     book: BOOK,
     changeSummary,
     createdItems: [],
+    deletedItems: deletedItemsOfSummary(
+      changeSummary as readonly DraftChange[],
+    ),
     audit,
   } as PublishPriceBookRequest;
 }
@@ -97,7 +101,8 @@ async function sentChangeCountOf(request: PublishPriceBookRequest) {
   if (statement === undefined || others.length > 0) {
     throw new Error("the publish did not send exactly one statement");
   }
-  const summaryAt = statement.values.indexOf(
+  // The guard's deleted items come earlier in the statement and are `[]` text too when nothing is deleted.
+  const summaryAt = statement.values.lastIndexOf(
     JSON.stringify(request.changeSummary),
   );
   return {

@@ -429,11 +429,13 @@ export type {
   DashboardAuditRecord,
   DashboardStoreFailure,
   DashboardStoreOperation,
+  DeletedItem,
   DigestCustomer,
   DigestDayKey,
   DigestEligibleKitchen,
   DigestedKitchen,
   DisplayedRevisionAhead,
+  ItemInUse,
   ItemUsageProbe,
   KitchenChangeStore,
   KitchenDefaultsStore,
@@ -488,10 +490,9 @@ export type { FakePriceBookStoreOptions } from "./fake-price-book-store.js";
 export { FakeCatalogueAvailabilityStore } from "./fake-catalogue-availability-store.js";
 export type { FakeCatalogueAvailabilityStoreOptions } from "./fake-catalogue-availability-store.js";
 export { FakeKitchenDefaultsStore } from "./fake-kitchen-defaults-store.js";
-export type {
-  FakeKitchenDefaultsStoreOptions,
-  HeldDesignUsage,
-} from "./fake-kitchen-defaults-store.js";
+export type { FakeKitchenDefaultsStoreOptions } from "./fake-kitchen-defaults-store.js";
+export { FakeHeldDesigns } from "./fake-held-designs.js";
+export type { HeldDesignUsage } from "./fake-held-designs.js";
 export { FakeKitchenChangeStore } from "./fake-kitchen-change-store.js";
 export type {
   FakeKitchenChangeStoreOptions,

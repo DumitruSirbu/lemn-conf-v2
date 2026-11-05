@@ -38,8 +38,9 @@ import {
 //
 // A created row is built from named members only. It carries no `nameKey` or `descriptionKey` (a keyed row's words
 // are the catalogue's), no Russian field, and a rule id derived from its own id (a tier's equals it, as every shipped tier's does; an
-// accessory's is `accessory.<id>`). An id the book already states is the parser's refusal, since ids are minted by the
-// server and a collision is its defect; an id the draft removed is refused before that (`reusesRemovedId`). A book that
+// accessory's is `accessory.<id>`). An id the running book already states, or one the draft removed, is refused at its
+// own change (`reusesRemovedId`), since ids are minted by the server and a creation never stands over a row the book holds;
+// a built-in accessory's field name is the parser's refusal. A book that
 // states no linked accessories takes none: a creation would write a section the version never held.
 
 export const STRUCTURAL_ADDRESS_KINDS = Object.freeze([

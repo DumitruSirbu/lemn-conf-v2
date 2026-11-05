@@ -208,6 +208,33 @@ export interface PublishAuditRecord {
   readonly entry: PricePublishedAuditInput;
 }
 
+/**
+ * An item the draft deletes from the book it started from, as the publish's guard is asked about it. A tier is named by
+ * its id; a linked accessory also carries the build ids priced as the row it is linked to (`buildIdsPricedAs`), which are
+ * the domain's and which the store checks only so far as the accessory's own `linkedBuildId` being among them.
+ */
+export type DeletedItem =
+  | {
+      readonly item: Extract<
+        ItemRef,
+        { readonly kind: "material" | "hardware" }
+      >;
+    }
+  | {
+      readonly item: Extract<ItemRef, { readonly kind: "accessory" }>;
+      readonly buildIds: readonly string[];
+    };
+
+const NO_BUILD_IDS: readonly string[] = Object.freeze([]);
+
+/** The build ids a linked accessory is placed by; none for a tier, whatever a caller sent beside it. */
+export function buildIdsOf(deleted: DeletedItem): readonly string[] {
+  if (deleted.item.kind !== "accessory" || !("buildIds" in deleted)) {
+    return NO_BUILD_IDS;
+  }
+  return deleted.buildIds;
+}
+
 export interface PublishPriceBookRequest {
   readonly expectedDraftRevision: string;
   /** The sequence number of the version the publisher saw as active, or 0 while none exists. The new row takes the next. */
@@ -230,10 +257,22 @@ export interface PublishPriceBookRequest {
   /** The rows this publish creates (hardware classes and linked accessories). Each is logged inactive, in order (A-17). */
   readonly createdItems: readonly ItemRef[];
   /**
+   * The items the summary deletes that the draft did not create (`deletedBookItemsOf`), each once. The store refuses
+   * `invalid-request` unless these are exactly those items, so a caller cannot leave a deletion out, and it refuses the
+   * publish, writing nothing, while any saved design its client has not deleted names one of them (`item-in-use`).
+   */
+  readonly deletedItems: readonly DeletedItem[];
+  /**
    * `price-published` without `sequenceNumber` and `changeCount`. The store fills both: the sequence it inserted and the
    * count of the prices it stored. A value forced into either through a cast is overwritten.
    */
   readonly audit: PublishAuditRecord;
+}
+
+/** A deleted item is named by a saved design: nothing was written. `items` are the deleted items in use, in the request's order. */
+export interface ItemInUse {
+  readonly kind: "item-in-use";
+  readonly items: readonly ItemRef[];
 }
 
 export type PublishPriceBookResult =
@@ -245,7 +284,8 @@ export type PublishPriceBookResult =
       readonly availabilityRevision: string;
     }
   | ChangedMeanwhile
-  | AvailabilityChangedMeanwhile;
+  | AvailabilityChangedMeanwhile
+  | ItemInUse;
 
 /**
  * Published versions are append-only (no update, no delete) and the newest is the active one (F7). `publish` is one
@@ -259,8 +299,16 @@ export type PublishPriceBookResult =
  * hold a newer version together with the older draft revision it was read at: a write that names that revision is refused
  * as `changed-meanwhile`. The dashboard's routes read in that order and depend on this.
  *
- * The store does not return `item-is-default` or a used deletion: the domain judges both **before** the call, against
- * defaults and usage read at `expectedAvailabilityRevision`, which the compare-and-set keeps current (M5).
+ * The store does not return `item-is-default`: the domain judges it **before** the call, against defaults read at
+ * `expectedAvailabilityRevision`, which the compare-and-set keeps current (M5). A deletion that gained a user is the
+ * store's to refuse, because that compare-and-set does not see a design save: the statement counts the designs that name
+ * each deleted item.
+ *
+ * A publish answers in this order: a request that fails the shape check (`invalid-request`, before any statement); a call
+ * with no live session (`not-recorded`); a deleted accessory the book at `expectedActiveSequence` does not place by its
+ * build ids, or a created row that book already states (`invalid-request`, or `changed-meanwhile` when that sequence is
+ * no longer the newest, since the plan was built from a book that has since been replaced); a deleted item a saved design
+ * names (`item-in-use`); then the compare-and-set refusals.
  */
 export interface PriceBookStore {
   readActive(): Promise<ReadActiveVersionResult>;

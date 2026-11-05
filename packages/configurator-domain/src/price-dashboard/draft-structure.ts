@@ -37,6 +37,31 @@ export function deletedItemsOf(
 }
 
 /**
+ * The items the draft deletes that the book it started from holds, each once, in draft order: the deletions no creation of
+ * the same item precedes. A row the draft creates and then deletes was never in that book, so it has no user and is left
+ * out; these are the items a publish owes a usage guard for.
+ */
+export function deletedBookItemsOf(
+  changes: readonly DraftChange[],
+): readonly ItemRef[] {
+  const read = readChanges(changes);
+  const creations = creationsOf(read);
+  const deleted = deletionsOf(read)
+    .filter(
+      (deletion) =>
+        !creations.some(
+          ({ index, item }) =>
+            index < deletion.index && isSameItem(item, deletion.item),
+        ),
+    )
+    .map(({ item }) => item);
+  return deleted.filter(
+    (item, position) =>
+      deleted.findIndex((earlier) => isSameItem(earlier, item)) === position,
+  );
+}
+
+/**
  * The indexes of the accepted creations of a hardware class that no accepted change gives every rate `book`'s tiers
  * state, after the creation: the class would be priced at a rate nobody set. A class the draft deletes after its
  * creation owes nothing.
@@ -179,10 +204,11 @@ export interface DraftSoFar {
 }
 
 /**
- * Whether a creation names an id that was a row once and is not now: one the base book states, or one an earlier change
- * of the draft created, that the draft has since deleted. An id is minted once, so it is never given to a row again
- * (a keyed row's words are the catalogue's). An id the running book still states is a collision for the parser to
- * refuse, and a change that is not a creation reuses nothing.
+ * Whether a creation names an id that is not free: one the running book still states, one the base book states or an
+ * earlier change of the draft created and the draft has since deleted. An id is minted once, so it is never given to a
+ * row again (a keyed row's words are the catalogue's), and a creation never stands over a row the book already holds: a
+ * later deletion of it would take the book's own row, which no usage guard asked about. A change that is not a creation
+ * reuses nothing.
  */
 export function reusesRemovedId(
   draft: DraftSoFar,
@@ -190,7 +216,7 @@ export function reusesRemovedId(
 ): boolean {
   const created = createdItemOf(address);
   if (created === undefined) return false;
-  if (statesItemId(draft.running, created)) return false;
+  if (statesItemId(draft.running, created)) return true;
   const earlier = draft.changes.slice(0, draft.index);
   const wasCreatedEarlier = creationsOf(readChanges(earlier)).some(({ item }) =>
     isSameItem(item, created),

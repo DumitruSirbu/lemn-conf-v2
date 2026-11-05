@@ -53,6 +53,7 @@ describe("FakePriceBookStore, before anything is published (a table with no rows
       expectedActiveSequence: 0,
       expectedAvailabilityRevision: INITIAL_REVISION,
       createdItems: [],
+      deletedItems: [],
       label: "First",
       note: "",
       book: A_BOOK,

@@ -1,11 +1,7 @@
 import { readDashboardAuditEntry } from "@lemnaria/configurator-domain";
-import type {
-  DashboardAuditAction,
-  ItemRef,
-} from "@lemnaria/configurator-domain";
+import type { DashboardAuditAction } from "@lemnaria/configurator-domain";
 import { nanoid } from "nanoid";
 
-import { itemIdOf } from "./dashboard-store-shapes.js";
 import { DashboardStoreError } from "./m10-ports.js";
 import type {
   ActivationAuditRecord,
@@ -30,6 +26,7 @@ export {
   isNamedItem,
   isRevisionShape,
   itemIdOf,
+  itemKeyOf,
 } from "./dashboard-store-shapes.js";
 
 // What the M10 fakes share: the audit log a staff write commits to, the stand-ins for what SQL does to a revision, and
@@ -52,10 +49,6 @@ export function settle<Answer>(
         : new DashboardStoreError(operation, "database", { cause: failure }),
     );
   }
-}
-
-export function itemKeyOf(item: ItemRef): string {
-  return `${item.kind}:${itemIdOf(item)}`;
 }
 
 /**

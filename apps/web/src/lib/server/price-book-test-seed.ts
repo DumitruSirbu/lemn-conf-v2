@@ -6,6 +6,7 @@ import { SAMPLE_PRICE_BOOK } from "@lemnaria/configurator-domain";
 import {
   FakeCatalogueAvailabilityStore,
   FakeDashboardAuditLedger,
+  FakeHeldDesigns,
   FakePriceBookStore,
   FakeRevisionHead,
   FakeSessionStore,
@@ -70,12 +71,17 @@ export async function seedFakePriceStores(): Promise<PriceStores> {
     head: new FakeRevisionHead(),
     ledger,
   });
-  const priceBook = new FakePriceBookStore({ ledger, availability });
+  const priceBook = new FakePriceBookStore({
+    ledger,
+    availability,
+    designs: new FakeHeldDesigns(),
+  });
   const published = await priceBook.publish({
     expectedDraftRevision: INITIAL_REVISION,
     expectedActiveSequence: FIRST_SEQUENCE_EXPECTED,
     expectedAvailabilityRevision: INITIAL_REVISION,
     createdItems: [],
+    deletedItems: [],
     label: SEED_LABEL,
     note: SEED_NOTE,
     book: SAMPLE_PRICE_BOOK,

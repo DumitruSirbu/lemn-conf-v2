@@ -1,16 +1,25 @@
+import {
+  isSameItem,
+  migrateDesign,
+  usesItem,
+} from "@lemnaria/configurator-domain";
+import type { DraftChange, ItemRef } from "@lemnaria/configurator-domain";
 import { Client } from "@neondatabase/serverless";
 import { nanoid } from "nanoid";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { appendPriceVersionForTests } from "../src/append-price-version-for-tests.js";
+import { usageProbesFor } from "../src/item-usage-probes.js";
 import {
   AVAILABILITY_CHANGED_MEANWHILE,
   CHANGED_MEANWHILE,
   INITIAL_REVISION,
 } from "../src/m10-ports.js";
+import type { ItemUsageProbe } from "../src/m10-ports.js";
 import { runMigrations } from "../src/migrate.js";
 import { NeonCatalogueAvailabilityStore } from "../src/neon-catalogue-availability-store.js";
 import { NeonKitchenDefaultsStore } from "../src/neon-kitchen-defaults-store.js";
+import { NeonKitchenUsageReader } from "../src/neon-kitchen-usage-reader.js";
 import { NeonPriceBookStore } from "../src/neon-price-book-store.js";
 import { SEQUENCE_NUMBER_IS_UNIQUE } from "../src/price-book-statements.js";
 import { seedPriceBook } from "../src/seed-price-book.js";
@@ -21,6 +30,7 @@ import {
   auditRecordOf,
   dashboardFailureOf,
   newestSequenceOf,
+  publishNextVersion,
   publishRequestFor,
 } from "./support/dashboard-contract-support.js";
 import type { DashboardStaffMember } from "./support/dashboard-contract-support.js";
@@ -30,10 +40,16 @@ import {
   liveTestDatabaseUrl,
 } from "./support/live-test-database.js";
 import { createNeonDashboardStaffWorld } from "./support/neon-dashboard-world.js";
+import { createNeonSavedDesigns } from "./support/neon-saved-designs.js";
 import { describePriceBookStoreContract } from "./support/price-book-store-contract.js";
 import type { PriceBookWorld } from "./support/price-book-store-contract.js";
 import { rejectionOf } from "./support/rejection-of.js";
 import { holdExclusiveTestSchemaLock } from "./support/test-schema-lock.js";
+import {
+  USAGE_BASIS,
+  USAGE_FIXTURES,
+  USAGE_ITEMS,
+} from "./support/usage-fixture-designs.js";
 
 // Exclusive: the contract asserts over global singletons (the draft, the newest version and the availability head), and
 // every publish leaves a version that no test can remove (plan S2, recorded choice a).
@@ -69,6 +85,7 @@ vi.mock("nanoid", async (importOriginal) => {
  */
 describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
   const staff = createNeonDashboardStaffWorld(liveTestDatabaseUrl);
+  const designs = createNeonSavedDesigns(staff.sql, liveTestDatabaseUrl);
 
   // The tables of 0023 to 0025 must exist: nothing else in a run of this file migrates the test database first.
   beforeAll(async () => {
@@ -78,17 +95,158 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
   afterAll(async () => {
     if (!isLiveTestDatabaseConfigured) return;
     await staff.removeTheRowsItMinted();
+    await designs.removeTheRowsItPlanted();
   });
 
   function newWorld(): Promise<PriceBookWorld> {
     return Promise.resolve({
       ...staff.world,
+      ...designs.world,
       store: new NeonPriceBookStore(liveTestDatabaseUrl),
       availability: new NeonCatalogueAvailabilityStore(liveTestDatabaseUrl),
     });
   }
 
   describePriceBookStoreContract("NeonPriceBookStore", newWorld);
+
+  describe("the publish's guard over the usage fixture designs", () => {
+    type GuardableProbe = Exclude<ItemUsageProbe, { via: "migrated-design" }>;
+
+    /**
+     * What a publish can delete and the guard can answer for: a tier, or a linked accessory the book states whose build
+     * ids hold its own row. The fixture that links to a row the catalogue prices as another has none, and the store
+     * refuses it as it refuses any accessory sent without its row.
+     */
+    function isGuardable(probe: ItemUsageProbe): probe is GuardableProbe {
+      if (probe.via === "migrated-design") return false;
+      if (probe.via === "settings-tier") return true;
+      const rule = USAGE_BASIS.book.linkedAccessories.find(
+        ({ accessoryId }) => accessoryId === probe.item.accessoryId,
+      );
+      return rule !== undefined && probe.buildIds.includes(rule.linkedBuildId);
+    }
+    const probes = usageProbesFor(
+      USAGE_ITEMS.filter(
+        (item) =>
+          item.kind === "material" ||
+          item.kind === "hardware" ||
+          item.kind === "accessory",
+      ),
+      USAGE_BASIS,
+    ).filter(isGuardable);
+
+    function countsOfEachItem() {
+      return new NeonKitchenUsageReader(liveTestDatabaseUrl)
+        .countEach(probes)
+        .then(({ counts }) => counts);
+    }
+
+    function fixtureDesignsUsing(item: ItemRef): number {
+      return USAGE_FIXTURES.filter(
+        ({ isDeletedByClient }) => !isDeletedByClient,
+      ).filter(({ schemaVersion, document }) =>
+        usesItem({
+          design: migrateDesign(schemaVersion, document),
+          item,
+          ...USAGE_BASIS,
+        }),
+      ).length;
+    }
+
+    /** The guard's verdict, read from a publish made at a head that is stale, so that nothing is ever appended. */
+    async function isInUse(
+      world: PriceBookWorld,
+      member: DashboardStaffMember,
+      probe: GuardableProbe,
+    ): Promise<boolean> {
+      const head = await world.availability.readCurrent();
+      const result = await world.store.publish(
+        await publishRequestFor(world.store, world.availability, member, {
+          expectedAvailabilityRevision: await world.aRevisionAfter(
+            head.revision,
+            1,
+          ),
+          changeSummary: [
+            {
+              address: { kind: "item-deleted", item: probe.item },
+              value: true,
+            },
+          ] as DraftChange[],
+          deletedItems: [
+            probe.via === "placed-bodies"
+              ? { item: probe.item, buildIds: probe.buildIds }
+              : { item: probe.item },
+          ] as never,
+        }),
+      );
+      expect(result.kind).not.toBe("ok");
+      return result.kind === "item-in-use";
+    }
+
+    it("finds each deletable item in use exactly when usesItem says a fixture design uses it or a design the table already held did, and as the usage reader's count says", async () => {
+      const world = await newWorld();
+      const member = await world.aStaffMember();
+      await publishNextVersion(
+        world.store,
+        world.availability,
+        member,
+        USAGE_BASIS.book,
+      );
+      const before = await countsOfEachItem();
+      for (const fixture of USAGE_FIXTURES)
+        await designs.plantStoredDesign(fixture);
+      const after = await countsOfEachItem();
+
+      for (const probe of probes) {
+        const { item } = probe;
+        const countBefore =
+          before.find((c) => isSameItem(c.item, item))?.designCount ?? NaN;
+        const countAfter =
+          after.find((c) => isSameItem(c.item, item))?.designCount ?? NaN;
+        const verdict = await isInUse(world, member, probe);
+
+        expect(countAfter - countBefore, JSON.stringify(item)).toBe(
+          fixtureDesignsUsing(item),
+        );
+        expect(verdict, JSON.stringify(item)).toBe(
+          countBefore + fixtureDesignsUsing(item) > 0,
+        );
+        expect(verdict, JSON.stringify(item)).toBe(countAfter > 0);
+      }
+    });
+
+    it("counts a design that places a body of the accessory's set, and none that places a body of another row", async () => {
+      const world = await newWorld();
+      const member = await world.aStaffMember();
+      const accessory = {
+        kind: "accessory",
+        accessoryId: `item-${nanoid(10)}`,
+      } as const;
+      await publishNextVersion(world.store, world.availability, member, {
+        ...A_BOOK,
+        linkedAccessories: [
+          {
+            accessoryId: accessory.accessoryId,
+            linkedBuildId: "row-in-the-set",
+          },
+        ],
+      });
+      const probe = {
+        via: "placed-bodies",
+        item: accessory,
+        buildIds: ["row-in-the-set", "its-seeded-equivalent"],
+      } as GuardableProbe;
+      await world.aDesignNaming(accessory, { viaBuildId: "another-row" });
+
+      expect(await isInUse(world, member, probe)).toBe(false);
+
+      await world.aDesignNaming(accessory, {
+        viaBuildId: "its-seeded-equivalent",
+      });
+
+      expect(await isInUse(world, member, probe)).toBe(true);
+    });
+  });
 
   describe("what only the database can show", () => {
     /** Everything a refused or rolled-back publish must leave as it found it, read straight from the tables. */

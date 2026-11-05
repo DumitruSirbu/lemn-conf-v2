@@ -261,6 +261,12 @@ const EXPECTED_CLASSIFICATION: Readonly<
     reason:
       "the price book contract asserts over global singletons (the draft, the newest version and the availability head, which every publish moves), and each publish leaves a version no test can remove: versions are append-only, so no other run may read the newest one meanwhile (M10 wave S2, plan S2 recorded choice a)",
   },
+  "qa-m10-s2c-guard.live.test.ts": {
+    gate: "live test database",
+    lock: "exclusive",
+    reason:
+      "adversarial QA of the publish's guard on a deleted item: it publishes a version through the store and reads the newest version, the draft, the head and the log rows before and after a refusal, so no other run may append a version or move the head meanwhile; the designs it plants name random ids and are deleted by those ids when it finishes",
+  },
   "neon-catalogue-availability-store.live.test.ts": {
     gate: "live test database",
     lock: "exclusive",
