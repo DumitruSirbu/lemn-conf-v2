@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   readDashboardStateWire,
+  readDraftChangeCreatedWire,
   readDraftWire,
 } from "@/price-dashboard/price-dashboard-wire-reading";
 import { FETCHING_PRICE_DRAFT_CLIENT } from "@/price-dashboard/price-draft-client";
@@ -306,5 +307,192 @@ describe("the readers keep only the members the wire declares", () => {
         ],
       }),
     ).toBeUndefined();
+  });
+});
+
+describe("a creation", () => {
+  const CLASS_REQUEST = {
+    expectedDraftRevision: "6",
+    value: { name: "GTV Economic", description: "" },
+    rates: {
+      perHingeMinor: 100,
+      perDrawerMinor: 200,
+      perPushToOpenMinor: 300,
+      perLiftMinor: 400,
+      perPushRunnerMinor: 500,
+    },
+  };
+  const ACCESSORY_REQUEST = {
+    expectedDraftRevision: "6",
+    value: {
+      linkedBuildId: "base-3drawer",
+      perUnitMinor: 1_000,
+      name: "Soclu",
+    },
+  };
+  const CLASS_ROW = { kind: "hardware" as const, tierId: "Tier1" };
+  const ACCESSORY_ROW = { kind: "accessory" as const, accessoryId: "Plinth1" };
+
+  it("posts a class to its own address as JSON, stating the origin, once", async () => {
+    const fetchStub = stubFetch(200, { draft: DRAFT, created: CLASS_ROW });
+
+    await FETCHING_PRICE_DRAFT_CLIENT.createHardwareClass?.(CLASS_REQUEST);
+
+    const [address, init] = fetchStub.mock.calls[0] ?? [];
+    expect(fetchStub).toHaveBeenCalledTimes(1);
+    expect([address, init?.method]).toEqual([
+      "/api/staff/prices/draft/hardware-class",
+      "POST",
+    ]);
+    expect(init).toMatchObject({
+      headers: { "content-type": "application/json" },
+      referrerPolicy: "same-origin",
+    });
+    expect(bodyOf(init)).toEqual(CLASS_REQUEST);
+  });
+
+  it("posts an accessory to its own address as JSON, once", async () => {
+    const fetchStub = stubFetch(200, { draft: DRAFT, created: ACCESSORY_ROW });
+
+    await FETCHING_PRICE_DRAFT_CLIENT.createAccessory?.(ACCESSORY_REQUEST);
+
+    const [address, init] = fetchStub.mock.calls[0] ?? [];
+    expect(fetchStub).toHaveBeenCalledTimes(1);
+    expect([address, init?.method]).toEqual([
+      "/api/staff/prices/draft/accessory",
+      "POST",
+    ]);
+    expect(bodyOf(init)).toEqual(ACCESSORY_REQUEST);
+  });
+
+  it("is the draft and the row the server minted, for a 200", async () => {
+    const written = { draft: DRAFT, created: CLASS_ROW };
+    stubFetch(200, written);
+
+    expect(
+      await FETCHING_PRICE_DRAFT_CLIENT.createHardwareClass?.(CLASS_REQUEST),
+    ).toEqual({ kind: "changed", written });
+  });
+
+  it.each([
+    [
+      400,
+      {
+        status: "invalid-input",
+        issues: [{ field: "change", code: "ZERO" }],
+      },
+      { kind: "refused", code: "ZERO" },
+    ],
+    [
+      400,
+      {
+        status: "invalid-input",
+        issues: [{ field: "change", code: "LINK_TARGET_UNKNOWN" }],
+      },
+      { kind: "refused", code: "LINK_TARGET_UNKNOWN" },
+    ],
+    [401, { status: "unauthenticated" }, { kind: "session-ended" }],
+    [409, { status: "changed-meanwhile" }, { kind: "conflict" }],
+    [409, { status: "candidate-refused" }, { kind: "candidate-refused" }],
+    [429, undefined, { kind: "failed" }],
+    [503, undefined, { kind: "failed" }],
+  ])(
+    "sorts %i with %j as %j, for either creation",
+    async (status, body, outcome) => {
+      stubFetch(status, body);
+      expect(
+        await FETCHING_PRICE_DRAFT_CLIENT.createHardwareClass?.(CLASS_REQUEST),
+      ).toEqual(outcome);
+
+      stubFetch(status, body);
+      expect(
+        await FETCHING_PRICE_DRAFT_CLIENT.createAccessory?.(ACCESSORY_REQUEST),
+      ).toEqual(outcome);
+    },
+  );
+
+  it("is failed, and sends nothing again, when the answer is lost", async () => {
+    const fetchStub = vi.fn(() => Promise.reject(new Error("offline")));
+    vi.stubGlobal("fetch", fetchStub);
+
+    const outcome =
+      await FETCHING_PRICE_DRAFT_CLIENT.createHardwareClass?.(CLASS_REQUEST);
+
+    expect(outcome).toEqual({ kind: "failed" });
+    expect(fetchStub).toHaveBeenCalledTimes(1);
+  });
+
+  it("is failed for a 200 that names a row of the other kind, which is no answer to this route", async () => {
+    stubFetch(200, { draft: DRAFT, created: ACCESSORY_ROW });
+    expect(
+      await FETCHING_PRICE_DRAFT_CLIENT.createHardwareClass?.(CLASS_REQUEST),
+    ).toEqual({ kind: "failed" });
+
+    stubFetch(200, { draft: DRAFT, created: CLASS_ROW });
+    expect(
+      await FETCHING_PRICE_DRAFT_CLIENT.createAccessory?.(ACCESSORY_REQUEST),
+    ).toEqual({ kind: "failed" });
+  });
+
+  it("is failed for a 200 with no draft or no created row", async () => {
+    stubFetch(200, { created: CLASS_ROW });
+    expect(
+      await FETCHING_PRICE_DRAFT_CLIENT.createHardwareClass?.(CLASS_REQUEST),
+    ).toEqual({ kind: "failed" });
+
+    stubFetch(200, { draft: DRAFT });
+    expect(
+      await FETCHING_PRICE_DRAFT_CLIENT.createHardwareClass?.(CLASS_REQUEST),
+    ).toEqual({ kind: "failed" });
+  });
+});
+
+describe("the reader of a creation's answer", () => {
+  it("keeps the draft and the one id of the row, and nothing else the answer carried", () => {
+    expect(
+      readDraftChangeCreatedWire({
+        draft: { draftRevision: "7", changes: [], editor: "x@example.test" },
+        created: { kind: "hardware", tierId: "Tier1", ruleId: "leak" },
+        author: "x@example.test",
+      }),
+    ).toEqual({
+      draft: { draftRevision: "7", changes: [] },
+      created: { kind: "hardware", tierId: "Tier1" },
+    });
+    expect(
+      readDraftChangeCreatedWire({
+        draft: DRAFT,
+        created: { kind: "accessory", accessoryId: "Plinth1" },
+      })?.created,
+    ).toEqual({ kind: "accessory", accessoryId: "Plinth1" });
+  });
+
+  it.each([
+    ["nothing", undefined],
+    [
+      "a created row of a kind that is never created",
+      { draft: DRAFT, created: { kind: "material", tierId: "t" } },
+    ],
+    [
+      "a created row with no id",
+      { draft: DRAFT, created: { kind: "hardware" } },
+    ],
+    [
+      "a created row whose id is not text",
+      { draft: DRAFT, created: { kind: "hardware", tierId: 7 } },
+    ],
+    [
+      "a created row that names the wrong id member",
+      { draft: DRAFT, created: { kind: "hardware", accessoryId: "a" } },
+    ],
+    [
+      "a draft that cannot be read",
+      {
+        draft: { draftRevision: 7, changes: [] },
+        created: { kind: "hardware", tierId: "t" },
+      },
+    ],
+  ])("reads %s as no answer", (_, body) => {
+    expect(readDraftChangeCreatedWire(body)).toBeUndefined();
   });
 });

@@ -37,6 +37,36 @@ function revert(address: unknown): string {
 }
 
 describe("the change route and the words of a created row", () => {
+  it("keeps the words of a rename without the spaces around them, as a creation does", () => {
+    expect(
+      readDraftChangeRequest(change(RENAME, "  GTV Premium\u00a0")),
+    ).toMatchObject({ ok: true, value: { value: "GTV Premium" } });
+  });
+
+  it.each([
+    "GTV\n",
+    "GTV\r",
+    "GTV\u2028",
+    "\u2029GTV",
+    "GTV\ufeff",
+    "G\u200bTV",
+  ])(
+    "judges a rename as sent, so %j is not trimmed away: it goes on unchanged for applyChanges to refuse",
+    (words) => {
+      expect(readDraftChangeRequest(change(RENAME, words))).toMatchObject({
+        ok: true,
+        value: { value: words },
+      });
+    },
+  );
+
+  it("leaves a rename that is not text as sent", () => {
+    expect(readDraftChangeRequest(change(RENAME, 7))).toMatchObject({
+      ok: true,
+      value: { value: 7 },
+    });
+  });
+
   it("takes a rename and carries its value as sent, for applyChanges to judge", () => {
     expect(readDraftChangeRequest(change(RENAME, "GTV Premium"))).toEqual({
       ok: true,

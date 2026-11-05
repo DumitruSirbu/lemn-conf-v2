@@ -12,7 +12,7 @@ import {
 
 import { resetStaffSessionExpiryForTests } from "@/staff/staff-session-expiry";
 
-import { allIn, click } from "../support/render-with-intl";
+import { allIn, click, requireIn } from "../support/render-with-intl";
 import {
   buttonNamed,
   fieldNamed,
@@ -219,6 +219,18 @@ describe("creating", () => {
       "hardware-tier-created",
       ...HARDWARE_RATE_FIELDS.map(() => "hardware"),
     ]);
+  });
+
+  it("heads the page with the class's name once it is created, in place of the title of a new class", async () => {
+    const container = await mountForm();
+    expect(requireIn(container, "h1").textContent).toBe(
+      roCopy("priceDashboard.hardware.newTitle"),
+    );
+    fillEverything(container);
+
+    await press(buttonNamed(container, CREATE));
+
+    expect(requireIn(container, "h1").textContent).toBe("GTV Economic");
   });
 
   it("says the class is in De publicat, inactive, links to its own page and the list, and moves focus to that notice", async () => {

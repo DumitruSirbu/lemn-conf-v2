@@ -132,16 +132,12 @@ describe("the write that deletes a held class (the hardware screens' `deleteFrom
   });
 });
 
-describe("the write that creates a class (the creation form's `createHardwareClass`) — no route until R4a", () => {
-  // R4a adds the creation's route and client method, and owes the flip to `it`.
-  it.fails(
-    "has a client method in the browser's client, so the form can create anything at all",
-    () => {
-      expect(FETCHING_PRICE_DRAFT_CLIENT.createHardwareClass).toBeTypeOf(
-        "function",
-      );
-    },
-  );
+describe("the write that creates a class (the creation form's `createHardwareClass`)", () => {
+  it("has a client method in the browser's client, so the form can create anything at all", () => {
+    expect(FETCHING_PRICE_DRAFT_CLIENT.createHardwareClass).toBeTypeOf(
+      "function",
+    );
+  });
 
   it("is not smuggled through the change route: a creation as a change is refused, so the screens' optional method stays honest", async () => {
     const outcome = await FETCHING_PRICE_DRAFT_CLIENT.change({

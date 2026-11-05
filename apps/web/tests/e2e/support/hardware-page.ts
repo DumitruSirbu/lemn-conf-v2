@@ -22,8 +22,7 @@ import { signIn, type SignedInAdministrator } from "./staff-world";
 //    a class the book states is drawn off with its reason. `next dev` hands it the sample defaults, the sample counts
 //    (Standard 9, Hettich 14, Blum 0) and an in-memory client, so the dialogs can be driven; nothing it does reaches the
 //    server, and each page starts from its own copy.
-//  - Creating a class needs a route that does not exist (S3): the default client has no `createHardwareClass`, so the
-//    form's Create is off under both servers.
+//  - Creating a class goes to its own route under both servers, and the draft keeps it until a spec discards it.
 
 export const HARDWARE_PATH = "/ro/staff/catalog/hardware";
 export const RUSSIAN_HARDWARE_PATH = "/ru/staff/catalog/hardware";

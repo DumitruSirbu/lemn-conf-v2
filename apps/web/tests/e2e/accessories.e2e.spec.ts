@@ -7,8 +7,7 @@
 // are what `next start` draws. The tests of the dialogs skip themselves under `CI`, and the test of the off controls skips
 // itself without it. A switch never reaches the server, and each page starts from its own copy of it.
 //
-// NOT REACHABLE, so not asserted here: creating an accessory (no route takes a creation until the draft's routes do, so the
-// form's Create is off, which a test holds), renaming, deleting a created accessory and opening a linked one (the sample
+// NOT REACHABLE, so not asserted here: creating an accessory (`creation.e2e.spec.ts` drives it), renaming, deleting a created accessory and opening a linked one (the sample
 // book has none); a switch's survival of a reload (the in-memory client forgets it).
 //
 // The draft is ONE draft in the e2e server's memory, so every test starts and ends by emptying it and the file takes the
@@ -418,7 +417,7 @@ test.describe("the accessory screens on a phone, 390 x 844", () => {
   });
 
   test.describe("D6B: the new accessory, under either server", () => {
-    test("the form has a Romanian name and description, a cabinet type chosen from the rows the manufacturer supplies, and a price, and no Russian field; Create is off with the reason, and nothing is sent", async ({
+    test("the form has a Romanian name and description, a cabinet type chosen from the rows the manufacturer supplies, and a price, and no Russian field; Create is on once every value is valid, and nothing is sent until it is pressed", async ({
       page,
     }) => {
       for (const locale of LOCALES) {
@@ -460,9 +459,9 @@ test.describe("the accessory screens on a phone, 390 x 844", () => {
           .fill("80");
         await expect(
           createButton(page, words),
-          `${locale}: no route takes a creation, so Create stays off`,
-        ).toBeDisabled();
-        await expect(createPageOf(page)).toContainText(
+          `${locale}: every value is valid, so Create is on`,
+        ).toBeEnabled();
+        await expect(createPageOf(page)).not.toContainText(
           words("priceDashboard.lifecycle.cannotJudge"),
         );
         await expectNoSidewaysScroll(page, `${locale} new accessory`);

@@ -314,7 +314,7 @@ test.describe("the hardware screens at desktop 1440", () => {
       await shootForReview(page, "1440-d4b-refused-ru");
     });
 
-    test("the new class form stands in two columns in Romanian only: name, description, five prices; Create is off and says why, and nothing is sent", async ({
+    test("the new class form stands in two columns in Romanian only: name, description, five prices; Create is on once every value is valid, and nothing is sent until it is pressed", async ({
       page,
     }) => {
       const words = wordsOf("ro");
@@ -364,14 +364,10 @@ test.describe("the hardware screens at desktop 1440", () => {
         exact: true,
       });
 
-      await expect(
-        create,
-        "valid, and still off: no route takes a creation (S3)",
-      ).toBeDisabled();
+      await expect(create, "valid, so Create is on").toBeEnabled();
       await expect(
         form.getByText(romanian("priceDashboard.lifecycle.cannotJudge")),
-      ).toBeVisible();
-      await create.click({ force: true });
+      ).toHaveCount(0);
       expect(requests).toEqual([]);
       await shootForReview(page, "1440-d4c-new-class");
     });

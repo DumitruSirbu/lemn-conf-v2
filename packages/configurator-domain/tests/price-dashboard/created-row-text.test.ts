@@ -328,3 +328,66 @@ describe("the masculine plural of included is an inclusion", () => {
     },
   );
 });
+
+describe("a format character, which prints as nothing, is refused inside words that show something", () => {
+  const FORMAT_CHARACTERS = Array.from({ length: 0x110000 }, (_, code) =>
+    String.fromCodePoint(code),
+  ).filter(
+    (character) => /\p{Cf}/u.test(character) && !/[\p{Cs}]/u.test(character),
+  );
+  const ALREADY_REFUSED_AS_DIRECTION_CONTROLS = new Set([
+    ...codePoints(0x202a, 0x202e),
+    ...codePoints(0x2066, 0x2069),
+    "‎",
+    "‏",
+    "؜",
+  ]);
+
+  it("sweeps a set of characters that holds the zero-width, soft hyphen, word joiner and byte-order mark ones", () => {
+    for (const named of ["​", "‌", "‍", "­", "⁠", "﻿"]) {
+      expect(FORMAT_CHARACTERS).toContain(named);
+    }
+  });
+
+  it.each(FIELDS)(
+    "refuses every one of them inside a %s, in the middle and at either end",
+    (field) => {
+      const accepted: string[] = [];
+      for (const character of FORMAT_CHARACTERS) {
+        for (const text of [
+          `Bl${character}um`,
+          `Blum${character}`,
+          `${character}Blum`,
+        ]) {
+          if (codeOf(text, field) !== "TEXT_FORBIDDEN_CHARACTER") {
+            accepted.push(`${JSON.stringify(text)} -> ${codeOf(text, field)}`);
+          }
+        }
+      }
+
+      expect(accepted).toEqual([]);
+    },
+  );
+
+  it("names them with the code of the other characters a line cannot carry, whichever the direction controls", () => {
+    expect(ALREADY_REFUSED_AS_DIRECTION_CONTROLS.size).toBeGreaterThan(0);
+    expect(codeOf("Bl‍um")).toBe("TEXT_FORBIDDEN_CHARACTER");
+    expect(codeOf("Bl‭um")).toBe("TEXT_FORBIDDEN_CHARACTER");
+  });
+
+  it("refuses an emoji sequence joined by a zero-width joiner, which is a format character like the rest", () => {
+    expect(codeOf("👨‍👩‍👧")).toBe("TEXT_FORBIDDEN_CHARACTER");
+  });
+
+  it("still calls a name of nothing visible empty, and stores a description of nothing visible as empty", () => {
+    expect(codeOf(" ​ ﻿")).toBe("TEXT_EMPTY");
+    expect(judgeCreatedRowText("​⁠", "description")).toEqual({
+      ok: true,
+      text: "",
+    });
+  });
+
+  it("names an amount hidden by a format character as an amount, as it did", () => {
+    expect(codeOf("500​lei")).toBe("TEXT_STATES_AN_AMOUNT");
+  });
+});
