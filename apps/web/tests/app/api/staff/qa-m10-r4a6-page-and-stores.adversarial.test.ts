@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  ALWAYS_PRESENT_ACCESSORY_ID,
   SAMPLE_PRICE_BOOK,
   type ItemRef,
   type PriceBook,
@@ -234,23 +235,28 @@ describe("the publish page over counts that do not come", () => {
   it("never starts the walk, and is not drawn as judged, for a draft that also holds a deletion no count can clear", async () => {
     await plantDraft(tokenHash, [
       ...deleting(VENEER),
-      ...deleting({ kind: "finish", finishId: "white" } as unknown as ItemRef),
+      ...deleting({
+        kind: "accessory",
+        accessoryId: ALWAYS_PRESENT_ACCESSORY_ID,
+      }),
     ]);
     const counting = vi.spyOn(prices.defaults, "countEach");
 
     const read = await readPublishPage();
 
+    expect(read.kind).toBe("ready");
+    if (read.kind !== "ready") return;
     expect(
-      read.kind === "ready" &&
-        judgePendingDeletions({
-          book: read.input.state.active.book,
-          changes: read.input.state.draft.changes,
-          facts: read.input.deletionFacts,
-        }).kind === "none",
-    ).toBe(false);
-    for (const [probes] of counting.mock.calls) {
-      expect(probes.every(({ via }) => via !== "migrated-design")).toBe(true);
-    }
+      judgePendingDeletions({
+        book: read.input.state.active.book,
+        changes: read.input.state.draft.changes,
+        facts: read.input.deletionFacts,
+      }),
+    ).toEqual({ kind: "cannot-judge" });
+    expect(counting).toHaveBeenCalledTimes(1);
+    const probes = counting.mock.calls.flatMap(([asked]) => [...asked]);
+    expect(probes).toHaveLength(1);
+    expect(probes.every(({ via }) => via !== "migrated-design")).toBe(true);
   });
 
   it("is drawn, and judges nothing, when the saved defaults never answer, at the deadline", async () => {

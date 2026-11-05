@@ -17,6 +17,11 @@ export type PublishDeletionRefusalCode =
   | DeletionRefusalCode
   | "item-not-deletable";
 
+/** Whether the refusal names a default, fixed or saved: waiting does not clear it, unlike a use. */
+export function isDefaultCode(code: PublishDeletionRefusalCode): boolean {
+  return code === "item-is-default" || code === "item-is-fixed-default";
+}
+
 export interface PublishDeletionRefusal {
   readonly item: ItemRef;
   readonly code: PublishDeletionRefusalCode;

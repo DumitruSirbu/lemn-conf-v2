@@ -105,6 +105,7 @@ export {
   countPendingPrices,
 } from "./pending-price-count.js";
 export {
+  isDefaultCode,
   judgeDeletionsAtPublish,
   type PublishDeletionRefusal,
   type PublishDeletionRefusalCode,

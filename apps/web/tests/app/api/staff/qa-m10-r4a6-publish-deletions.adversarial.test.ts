@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  ALWAYS_PRESENT_ACCESSORY_ID,
   SAMPLE_PRICE_BOOK,
   type DraftChange,
   type ItemRef,
@@ -634,35 +635,55 @@ describe("a deletion that must never be published", () => {
   it.each([
     ["the fixed material default", FIXED_MATERIAL],
     ["the fixed hardware default", FIXED_HARDWARE],
-  ])("is refused for %s", async (_name, item) => {
-    await expectRefusedWithoutWriting(deleting(item));
+  ])("is refused at the candidate for %s", async (_name, item) => {
+    const answer = await expectRefusedWithoutWriting(deleting(item));
+
+    expect(answer.status).toBe(409);
+    expect(await jsonOf(answer)).toEqual({
+      status: "candidate-refused",
+      refusals: [{ source: "changes", index: 0, code: "ITEM_IS_DEFAULT" }],
+    });
   });
 
-  it("is refused for a colour", async () => {
-    await expectRefusedWithoutWriting(
-      deleting({ kind: "finish", finishId: "white" } as unknown as ItemRef),
+  it.each([
+    ["a colour", { kind: "finish", finishId: "white" }],
+    ["a handle", { kind: "handle", handle: "steel" }],
+  ])("is unreadable as a stored draft for %s", async (_name, item) => {
+    const answer = await expectRefusedWithoutWriting(
+      deleting(item as unknown as ItemRef),
     );
+
+    expect(answer.status).toBe(409);
+    expect(await jsonOf(answer)).toEqual({
+      status: "draft-unreadable",
+      draftRevision: await currentDraftRevision(),
+    });
   });
 
-  it("is refused for a handle", async () => {
-    await expectRefusedWithoutWriting(
-      deleting({ kind: "handle", handleId: "bar" } as unknown as ItemRef),
+  it("is refused at the candidate for the accessory every kitchen carries", async () => {
+    const answer = await expectRefusedWithoutWriting(
+      deleting({ kind: "accessory", accessoryId: ALWAYS_PRESENT_ACCESSORY_ID }),
     );
+
+    expect(answer.status).toBe(409);
+    expect(await jsonOf(answer)).toEqual({
+      status: "candidate-refused",
+      refusals: [{ source: "changes", index: 0, code: "NOT_EDITABLE" }],
+    });
   });
 
-  it("is refused for a built-in accessory", async () => {
-    await expectRefusedWithoutWriting(
-      deleting({ kind: "accessory", accessoryId: "always-present" }),
-    );
-  });
-
-  it("is refused for a draft that holds one such deletion beside a deletion that could go", async () => {
-    await expectRefusedWithoutWriting(
+  it("is refused at the candidate for a draft that holds one such deletion beside a deletion that could go", async () => {
+    const answer = await expectRefusedWithoutWriting(
       deleting(VENEER, {
-        kind: "finish",
-        finishId: "white",
-      } as unknown as ItemRef),
+        kind: "accessory",
+        accessoryId: ALWAYS_PRESENT_ACCESSORY_ID,
+      }),
     );
+
+    expect(await jsonOf(answer)).toEqual({
+      status: "candidate-refused",
+      refusals: [{ source: "changes", index: 1, code: "NOT_EDITABLE" }],
+    });
   });
 
   it("is refused for the fixed default beside rows that could go", async () => {

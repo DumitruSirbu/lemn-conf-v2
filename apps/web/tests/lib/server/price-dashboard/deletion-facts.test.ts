@@ -29,7 +29,7 @@ import {
 import {
   UnansweredDeletionRefusalError,
   refusalOfDeletions,
-} from "@/lib/server/price-dashboard/publish-plan";
+} from "@/lib/server/price-dashboard/deletion-refusal";
 import { shippedCatalogue } from "@/lib/server/price-dashboard/shipped-catalogue";
 import { MAX_USAGE_ITEMS } from "@/price-dashboard/price-dashboard-wire-contract";
 
