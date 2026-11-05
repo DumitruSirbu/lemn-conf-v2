@@ -216,13 +216,13 @@ describe("the publish page over counts that do not come", () => {
     await rendering;
   });
 
-  it("shows no number, and judges nothing, when the count answers a number of designs that is not one", async () => {
+  it("shows no number, and judges nothing, when the reader answers what it cannot read as a count", async () => {
     await plantDraft(tokenHash, deleting(VENEER));
-    vi.spyOn(prices.defaults, "countEach").mockImplementation((probes) =>
-      Promise.resolve({
-        counts: probes.map(({ item }) => ({ item, designCount: Number.NaN })),
-        unreadableDesigns: 0,
-      }),
+    vi.spyOn(prices.defaults, "countEach").mockRejectedValue(
+      new DashboardStoreError(
+        "count the kitchens using an item",
+        "unexpected-answer",
+      ),
     );
 
     const { deletionFacts, judgement } = await judgedOnThePage();
@@ -253,7 +253,7 @@ describe("the publish page over counts that do not come", () => {
     }
   });
 
-  it("answers the deadline once for the whole page however many chunks it counts", async () => {
+  it("is drawn, and judges nothing, when the saved defaults never answer, at the deadline", async () => {
     await plantDraft(tokenHash, deleting(VENEER));
     vi.spyOn(prices.defaults, "read").mockReturnValue(
       new Promise(() => undefined),
