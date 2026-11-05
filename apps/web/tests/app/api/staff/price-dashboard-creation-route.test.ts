@@ -180,6 +180,71 @@ function drawing(...draws: readonly Uint8Array[]): void {
 const idDrawnFrom = (draw: Uint8Array): string =>
   realMint(new Set(), () => draw);
 
+describe("the guards of a creation route", () => {
+  const ROUTES = [
+    ["hardware-class", createHardwareClassInDraft],
+    ["accessory", createAccessoryInDraft],
+  ] as const;
+
+  async function expectNothingReachedPastTheGuard(answer: Response) {
+    const rowsBefore = auditRows().length;
+    expect(priceStoreAsks.count).toBe(0);
+    expect(created.mintCreatedId).not.toHaveBeenCalled();
+    expect(budgetOfDraft()).toBe(0);
+    expect(await storedChanges()).toEqual([]);
+    expect(auditRows()).toHaveLength(rowsBefore);
+    return answer;
+  }
+
+  it.each(ROUTES)(
+    "refuses a cross-site request to %s before the session is read",
+    async (_, create) => {
+      limiterLedger.counted.length = 0;
+
+      const answer = await create({
+        cookie,
+        secFetchSite: "cross-site",
+        json: { expectedDraftRevision: "0", value: {}, rates: {} },
+      });
+
+      await expectNothingReachedPastTheGuard(answer);
+      expect(answer.status).toBe(403);
+      expect(await jsonOf(answer)).toEqual({ status: "cross-site" });
+    },
+  );
+
+  it.each(ROUTES)(
+    "refuses a body that is not JSON to %s with 415",
+    async (_, create) => {
+      limiterLedger.counted.length = 0;
+
+      const answer = await create({
+        cookie,
+        contentType: "text/plain",
+        json: "{}",
+      });
+
+      await expectNothingReachedPastTheGuard(answer);
+      expect(answer.status).toBe(415);
+    },
+  );
+
+  it.each(ROUTES)(
+    "refuses a body past its bound to %s with 413",
+    async (_, create) => {
+      limiterLedger.counted.length = 0;
+
+      const answer = await create({
+        cookie,
+        json: JSON.stringify({ padding: "x".repeat(20_000) }),
+      });
+
+      await expectNothingReachedPastTheGuard(answer);
+      expect(answer.status).toBe(413);
+    },
+  );
+});
+
 describe("the check order of a creation", () => {
   it.each([
     ["class", createHardwareClassInDraft],
