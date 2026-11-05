@@ -160,7 +160,7 @@ describe("the write that creates a class (the creation form's `createHardwareCla
   });
 });
 
-describe("the revert that takes a class only the draft holds back out (`deleteFromDraft` for a created class) — no route until R4a", () => {
+describe("the revert that takes a class only the draft holds back out (`deleteFromDraft` for a created class)", () => {
   const CREATION: readonly DraftChange[] = [
     {
       address: { kind: "hardware-tier-created", tierId: "hardware.economic" },
@@ -174,33 +174,29 @@ describe("the revert that takes a class only the draft holds back out (`deleteFr
     ),
   ];
 
-  // R4a teaches the revert reader the creation's address and owes the flip to `it`.
-  it.fails(
-    "is read by the draft route's revert reader: a target naming the creation is not refused as an address the route does not apply",
-    async () => {
-      const answer = await DELETE(
-        accountRequest("/api/staff/prices/draft", {
-          method: "DELETE",
-          cookie,
-          headers: NETWORK,
-          json: {
-            expectedDraftRevision: await currentDraftRevision(),
-            target: { kind: "change", address: CREATION[0]?.address },
-          },
-        }),
-      );
+  it("is read by the draft route's revert reader: a target naming the creation is not refused as an address the route does not apply", async () => {
+    const answer = await DELETE(
+      accountRequest("/api/staff/prices/draft", {
+        method: "DELETE",
+        cookie,
+        headers: NETWORK,
+        json: {
+          expectedDraftRevision: await currentDraftRevision(),
+          target: { kind: "change", address: CREATION[0]?.address },
+        },
+      }),
+    );
 
-      // The stored draft is empty here, so once the reader takes the address the answer is the route's "nothing to remove"
-      // (an unknown address), not a success: only the reader's own refusal of the kind is what must not be answered.
-      expect(await jsonOf(answer)).not.toEqual({
-        status: "invalid-input",
-        issues: [{ field: "address", code: "NOT_EDITABLE" }],
-      });
-    },
-  );
+    // The stored draft is empty here, so once the reader takes the address the answer is the route's "nothing to remove"
+    // (an unknown address), not a success: only the reader's own refusal of the kind is what must not be answered.
+    expect(await jsonOf(answer)).not.toEqual({
+      status: "invalid-input",
+      issues: [{ field: "address", code: "NOT_EDITABLE" }],
+    });
+  });
 });
 
-describe("the write that renames a class the draft created (the class page's rename) — no route until R4a", () => {
+describe("the write that renames a class the draft created (the class page's rename)", () => {
   const CREATED_TIER = "hardware.economic";
   const CREATION: readonly DraftChange[] = [
     {
@@ -258,57 +254,35 @@ describe("the write that renames a class the draft created (the class page's ren
     });
   }
 
-  // R4a teaches the draft route the address of a created row's words and owes the flip to `it`.
-  it.fails(
-    "is taken by the draft route, so the rename on a created class's page can succeed",
-    async () => {
-      await storeCreatedClass();
-
-      const outcome = await renameTheClass();
-
-      expect(outcome.kind).toBe("changed");
-    },
-  );
-
-  // R4a teaches the revert reader the address of a created row's words and owes the flip to `it`. Naming the published
-  // name again sends a revert, not a change.
-  it.fails(
-    "a revert of a created-row-text change is taken by the route, so a name typed back leaves nothing in the draft",
-    async () => {
-      await storeCreatedClass([...CREATION, RENAME]);
-
-      const answer = await DELETE(
-        accountRequest("/api/staff/prices/draft", {
-          method: "DELETE",
-          cookie,
-          headers: NETWORK,
-          json: {
-            expectedDraftRevision: await currentDraftRevision(),
-            target: { kind: "change", address: RENAME.address },
-          },
-        }),
-      );
-
-      expect(answer.status).toBe(200);
-    },
-  );
-
-  // R4a gives the fetching client the capability and owes the flip to `it`.
-  it.fails(
-    "is declared by the browser's client, so the page offers the rename at all",
-    () => {
-      expect(FETCHING_PRICE_DRAFT_CLIENT.acceptsCreatedRowText).toBe(true);
-    },
-  );
-
-  // Pins today's answer, and goes red when R4a adds the address: delete this test then, with the flips above.
-  it("is answered, today, as a refusal of the address, which is why the page offers no rename outside a sample", async () => {
+  it("is taken by the draft route, so the rename on a created class's page can succeed", async () => {
     await storeCreatedClass();
 
-    expect(await renameTheClass()).toEqual<DraftChangeOutcome>({
-      kind: "refused",
-      code: "NOT_EDITABLE",
-    });
+    const outcome = await renameTheClass();
+
+    expect(outcome.kind).toBe("changed");
+  });
+
+  // Naming the published name again sends a revert, not a change.
+  it("a revert of a created-row-text change is taken by the route, so a name typed back leaves nothing in the draft", async () => {
+    await storeCreatedClass([...CREATION, RENAME]);
+
+    const answer = await DELETE(
+      accountRequest("/api/staff/prices/draft", {
+        method: "DELETE",
+        cookie,
+        headers: NETWORK,
+        json: {
+          expectedDraftRevision: await currentDraftRevision(),
+          target: { kind: "change", address: RENAME.address },
+        },
+      }),
+    );
+
+    expect(answer.status).toBe(200);
+  });
+
+  it("is declared by the browser's client, so the page offers the rename at all", () => {
+    expect(FETCHING_PRICE_DRAFT_CLIENT.acceptsCreatedRowText).toBe(true);
   });
 });
 

@@ -10,8 +10,9 @@ import {
   isSameAddress,
   readEditableFields,
   revertChange,
-  type PriceBook,
   type AppliedAddress,
+  type BookFieldAddress,
+  type PriceBook,
   type ChangeRefusalCode,
   type DashboardAuditEntry,
   type DraftBulk,
@@ -40,7 +41,7 @@ import { judgeDraft } from "@/price-dashboard/draft-judgement";
 import type {
   BulkRequest,
   BulkTarget,
-  DraftChangeRequest,
+  RevertAddress,
   RevertRequest,
 } from "@/lib/server/price-dashboard/draft-requests";
 import type {
@@ -51,7 +52,8 @@ import type {
 // What each draft write does to the stored draft, decided before anything is written: the changes the draft becomes, the
 // audit entry that goes with them in the same transaction, and the answer once they are stored. A write that cannot be made
 // is the response that says why. The draft keeps one change per address (X0-4): a later change of an address replaces the
-// earlier and goes last, since changes apply in order.
+// earlier and goes last, since changes apply in order. A creation is the exception: the changes that depend on it stand
+// after it, so it is replaced where it stands.
 
 export type DraftPlan =
   | { readonly kind: "refused"; readonly response: NextResponse }
@@ -73,18 +75,22 @@ function candidateRefused(): DraftPlan {
 // ---------------------------------------------------------------------------------------------------------------------
 // One change
 
+/** A change to put in the draft: also a creation, which only a creation route puts. */
+export interface PutRequest {
+  readonly address: RevertAddress;
+  readonly value: unknown;
+}
+
 export function planChange(
-  { address, value }: DraftChangeRequest,
+  { address, value }: PutRequest,
   { draft, book }: ActiveDashboardState,
 ): DraftPlan {
-  const kept = draft.changes.filter(
-    (stored) => !isSameAddress(stored.address, address),
-  );
-  const changes = [...kept, { address, value } as DraftChange];
+  const put = putChange(draft.changes, { address, value } as DraftChange);
+  const { changes } = put;
   const judgement = judgeDraft({
     book,
     changes,
-    firstNewIndex: kept.length,
+    firstNewIndex: put.index,
     stored: draft.changes,
   });
   switch (judgement.kind) {
@@ -135,6 +141,41 @@ export function planRevert(
   };
 }
 
+interface PutChange {
+  readonly changes: readonly DraftChange[];
+  /** Where the put change stands. */
+  readonly index: number;
+}
+
+/** `change` in the draft: last, in the place of any change of its address; a creation stays where it stands. */
+function putChange(
+  stored: readonly DraftChange[],
+  change: DraftChange,
+): PutChange {
+  const storedIndex = stored.findIndex(({ address }) =>
+    isSameAddress(address, change.address),
+  );
+  if (storedIndex >= 0 && isCreation(change.address)) {
+    return {
+      changes: stored.map((held, index) =>
+        index === storedIndex ? change : held,
+      ),
+      index: storedIndex,
+    };
+  }
+  const kept = stored.filter(
+    ({ address }) => !isSameAddress(address, change.address),
+  );
+  return { changes: [...kept, change], index: kept.length };
+}
+
+function isCreation(address: BookFieldAddress): boolean {
+  return (
+    address.kind === "hardware-tier-created" ||
+    address.kind === "accessory-created"
+  );
+}
+
 type Removal =
   | {
       readonly kind: "removes";
@@ -146,7 +187,7 @@ type Removal =
 /** A revert of what the draft does not hold writes nothing, and so no audit row either. */
 function removalOfChange(
   changes: readonly DraftChange[],
-  address: AppliedAddress,
+  address: RevertAddress,
 ): Removal {
   const remaining = revertChange(changes, address);
   if (remaining.length === changes.length) {

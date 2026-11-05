@@ -1,8 +1,10 @@
 import {
   BULK_GROUP_CHANGE_KIND,
   DISCARD_ALL_CHANGE_KIND,
-  type AppliedAddress,
+  type BookFieldAddress,
   type BulkChangeScope,
+  type CreatedRowItemRef,
+  type DeletableItemRef,
   type DashboardAuditEntry,
   type DraftChangeTarget,
   type PriceCatalogueSection,
@@ -20,7 +22,7 @@ export function catalogueViewedEntry(
 }
 
 export function draftChangedEntry(
-  address: AppliedAddress,
+  address: BookFieldAddress,
 ): DashboardAuditEntry {
   return {
     action: "price-draft-changed",
@@ -29,7 +31,7 @@ export function draftChangedEntry(
 }
 
 export function draftRevertedEntry(
-  address: AppliedAddress,
+  address: BookFieldAddress,
 ): DashboardAuditEntry {
   return {
     action: "price-draft-reverted",
@@ -108,7 +110,7 @@ export function bulkChangedEntry(bulk: BulkAudited): DashboardAuditEntry {
 }
 
 /** The row and field an address names, by id and code. The depth rule and the provisional switch name no item. */
-function targetOf(address: AppliedAddress): DraftChangeTarget {
+function targetOf(address: BookFieldAddress): DraftChangeTarget {
   switch (address.kind) {
     case "cabinet":
       return {
@@ -140,8 +142,24 @@ function targetOf(address: AppliedAddress): DraftChangeTarget {
         itemId: address.accessoryId,
         field: address.field,
       };
+    case "hardware-tier-created":
+      return { itemKind: "hardware", itemId: address.tierId };
+    case "accessory-created":
+      return { itemKind: "accessory", itemId: address.accessoryId };
+    case "created-row-text":
+      return {
+        itemKind: address.item.kind,
+        itemId: itemIdOf(address.item),
+        field: address.field,
+      };
+    case "item-deleted":
+      return { itemKind: address.item.kind, itemId: itemIdOf(address.item) };
     case "depth-rule":
     case "provisional":
       return {};
   }
+}
+
+function itemIdOf(item: CreatedRowItemRef | DeletableItemRef): string {
+  return item.kind === "accessory" ? item.accessoryId : item.tierId;
 }
