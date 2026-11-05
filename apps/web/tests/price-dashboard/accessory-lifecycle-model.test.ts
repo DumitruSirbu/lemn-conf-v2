@@ -48,6 +48,7 @@ function contextOf(
     defaults: {},
     canWrite: true,
     canDeleteStatedItems: true,
+    isCreatedInDraft: () => false,
     ...overrides,
   };
 }

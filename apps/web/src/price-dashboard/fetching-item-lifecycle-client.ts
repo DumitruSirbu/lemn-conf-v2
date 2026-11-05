@@ -26,10 +26,10 @@ import type {
 import { MAX_USAGE_ITEMS } from "./price-dashboard-wire-contract";
 import { FETCHING_PRICE_DRAFT_CLIENT } from "./price-draft-client";
 
-// The lifecycle client of a build with a server behind the screen. A switch goes to `POST /api/staff/prices/availability`
-// and a count to `POST /api/staff/prices/usage`; what is switched off now comes from the dashboard's state, read through
-// the draft client's own `readState`. An answer that is not one of the routes' own is `failed` for a switch and
-// `unavailable` for a count: nothing it carries is believed, and no count is ever made up.
+// The lifecycle client of a build with a server behind the screen. A switch goes to `POST
+// /api/staff/prices/availability` and a count to `POST /api/staff/prices/usage`; what is switched off now comes from
+// the dashboard's state, read through the draft client's own `readState`. An answer that is not one of the routes' own
+// is `failed` for a switch and `unavailable` for a count: nothing it carries is believed, and no count is ever made up.
 
 const AVAILABILITY_ADDRESS = "/api/staff/prices/availability";
 const USAGE_ADDRESS = "/api/staff/prices/usage";
@@ -40,7 +40,9 @@ const BUSY_STATUS = 429;
 const LONGEST_BUSY_WAIT_SECONDS = 10;
 const MAX_BUSY_RETRIES = 2;
 const MILLISECONDS_PER_SECOND = 1000;
-/** Longer than the server's own deadline for a count, so a count the server gives up on is answered, not cut off here. */
+/**
+ * Longer than the server's own deadline for a count, so a count the server gives up on is answered, not cut off here.
+ */
 const USAGE_FETCH_DEADLINE_MS = 15_000;
 
 const CHANGED_MEANWHILE = "changed-meanwhile";
@@ -48,8 +50,8 @@ const FAILED: AvailabilityOutcome = { kind: "failed" };
 const UNAVAILABLE: UsageRead = { kind: "unavailable" };
 
 /**
- * A client of its own: tests make one each. The one a screen is given is `FETCHING_ITEM_LIFECYCLE_CLIENT`, so every view
- * of a page shares its one count in flight.
+ * A client of its own: tests make one each. The one a screen is given is `FETCHING_ITEM_LIFECYCLE_CLIENT`, so every
+ * view of a page shares its one count in flight.
  */
 export function createFetchingItemLifecycleClient(): ItemLifecycleClient {
   const readUsage = readsOneUsageAtATime();
@@ -109,22 +111,25 @@ interface UsageReadInFlight {
 /**
  * Reads usage with one request on its way at a time, as the server allows one count per account. A read for items that
  * a running read already names joins it, so a screen that asks twice (strict mode runs an effect twice) sends once;
- * any other read waits for the running one to end and then goes out itself.
+ * any other read waits for the running one to end and then goes out itself, unless its signal has aborted by then: a
+ * waiter nobody wants is dropped, so dismissed questions do not queue requests, each spending a token of the bucket.
  */
-function readsOneUsageAtATime(): (
-  items: readonly ItemRef[],
-) => Promise<UsageRead> {
+function readsOneUsageAtATime(): ItemLifecycleClient["readUsage"] {
   let running: UsageReadInFlight | undefined;
-  return async (asked) => {
+  return async (asked, signal) => {
     const items = distinctItems(asked);
     if (items.length === 0) return UNAVAILABLE;
     for (;;) {
+      if (signal?.aborted === true) return UNAVAILABLE;
       const current = running;
       if (current === undefined) break;
       if (names(current.items, items)) {
         return narrowedTo(items, await current.answer);
       }
-      await current.answer.catch(() => undefined);
+      await Promise.race([
+        current.answer.catch(() => undefined),
+        abortion(signal),
+      ]);
     }
     const answer = readUsageInChunks(items);
     const own: UsageReadInFlight = { items, answer };
@@ -137,6 +142,19 @@ function readsOneUsageAtATime(): (
       .catch(() => undefined);
     return answer;
   };
+}
+
+/** Settles when the signal aborts, and never if there is none. */
+function abortion(signal: AbortSignal | undefined): Promise<void> {
+  return new Promise((resolve) => {
+    signal?.addEventListener(
+      "abort",
+      () => {
+        resolve();
+      },
+      { once: true },
+    );
+  });
 }
 
 function names(held: readonly ItemRef[], wanted: readonly ItemRef[]): boolean {
@@ -228,8 +246,8 @@ function pause(milliseconds: number): Promise<void> {
 /**
  * The count of each item asked that the answer states, found by the item and never by position. The answer's own refs
  * are not believed: an entry counts for an asked item when it names that kind and that id. An item with no entry is
- * left out: the server states only the items its book states, so a screen that is behind has no count for one. `undefined`
- * when an entry's count is not a whole number of kitchens, or when the answer is no list.
+ * left out: the server states only the items its book states, so a screen that is behind has no count for one.
+ * `undefined` when an entry's count is not a whole number of kitchens, or when the answer is no list.
  */
 function countsMatching(
   items: readonly ItemRef[],

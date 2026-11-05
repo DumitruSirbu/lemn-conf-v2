@@ -27,6 +27,7 @@ import {
   ROWS,
   someItems,
   TIER_THE_BOOK_LACKS,
+  isUnstatedTierOrLinkedAccessory,
 } from "../../../support/usage-parity-model";
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -80,7 +81,9 @@ describe("the count of an item, whatever the items, the designs and the active b
             book,
           });
 
-          const distinct = distinctItemsInOrder(items);
+          const distinct = distinctItemsInOrder(items).filter(
+            (item) => !isUnstatedTierOrLinkedAccessory(item, book),
+          );
           expect(usage.map(({ item }) => item)).toEqual(distinct);
           for (const { item, designCount } of usage) {
             const expected = oracleCount(designs, item, book);

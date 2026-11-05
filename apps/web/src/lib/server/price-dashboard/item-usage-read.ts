@@ -74,9 +74,10 @@ export function isWithinUsageBound(items: readonly ItemRef[]): boolean {
  * The count of the designs using each distinct item, in the domain's order. It returns data only: the caller logs the
  * designs the walk left out.
  *
- * A tier or a linked accessory that the given book does not state reads 0 and is never probed, unlike `usesItem`, which
- * counts a design that names it. So callers must ask about items of that same book. Throws `TooManyUsageItemsError` above
- * the bound, and what `countUsageProbes` throws.
+ * A tier or a linked accessory that the given book does not state is left out of the answer and never probed, unlike
+ * `usesItem`, which counts a design that names it: no count is better than a count of 0 for an item the book never
+ * stated. The bound is on the items asked, stated or not. Throws `TooManyUsageItemsError` above it, and what
+ * `countUsageProbes` throws.
  */
 export async function countItemUsage(
   items: readonly ItemRef[],
@@ -84,16 +85,13 @@ export async function countItemUsage(
 ): Promise<UsageCounts> {
   const distinct = distinctItemsInOrder(items);
   if (distinct.length > MAX_USAGE_ITEMS) throw new TooManyUsageItemsError();
-  const isProbed = isProbedIn(book);
-  const probes = usageProbesFor(distinct.filter(isProbed), {
-    catalog: shippedCatalogue(),
-    book,
-  });
+  const stated = itemsStatedIn(distinct, book);
+  const probes = usageProbesFor(stated, { catalog: shippedCatalogue(), book });
   const counted = await countUsageProbes(probes, stores, signal);
   return {
-    usage: distinct.map((item) => ({
+    usage: stated.map((item) => ({
       item,
-      designCount: isProbed(item) ? usageCountOf(counted.usage, item) : 0,
+      designCount: usageCountOf(counted.usage, item),
     })),
     unreadableDesigns: counted.unreadableDesigns,
   };
@@ -124,10 +122,10 @@ function isTierOrLinkedAccessory(item: ItemRef): boolean {
 
 /**
  * One entry per probe, in the probes' order, each the count of the designs that use its item. A reader that leaves a
- * probe out, repeats it, or answers a number of designs it cannot is thrown on (`usageCountOf`), never read as 0; so is an
- * unreadable-design count that is not a whole number. Without a `signal` the count runs under its own deadline
- * (`UsageReadDeadlineError`, and the reader is aborted by then); with one, the caller holds the deadline. It returns data
- * only: the caller logs.
+ * probe out, repeats it, or answers a number of designs it cannot is thrown on (`usageCountOf`), never read as 0; so is
+ * an unreadable-design count that is not a whole number. Without a `signal` the count runs under its own deadline
+ * (`UsageReadDeadlineError`, and the reader is aborted by then); with one, the caller holds the deadline. It returns
+ * data only: the caller logs.
  */
 export async function countUsageProbes(
   probes: readonly ItemUsageProbe[],

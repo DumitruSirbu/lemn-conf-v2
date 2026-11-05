@@ -11,6 +11,7 @@ import {
   type PriceBook,
 } from "@lemnaria/configurator-domain";
 
+import type { UsageRead } from "@/price-dashboard/item-lifecycle-client";
 import { useItemAvailability } from "@/price-dashboard/use-item-availability";
 
 import { flushPromises, renderHook } from "../support/render-hook";
@@ -68,6 +69,51 @@ describe("the dialog of a switch-off", () => {
       usage: { kind: "counted", count: 14 },
     });
     rendered.unmount();
+  });
+
+  it("tells the read it is no longer wanted when the dialog is dismissed or the view is gone", () => {
+    const signals: (AbortSignal | undefined)[] = [];
+    const lifecycle = recordingLifecycleClient({
+      book: SAMPLE_PRICE_BOOK,
+      availability: NOTHING_OFF,
+      defaults: {},
+      usage: [{ item: HETTICH, designCount: 14 }],
+    });
+    const client = {
+      ...lifecycle.client,
+      readUsage: (items: readonly ItemRef[], signal?: AbortSignal) => {
+        signals.push(signal);
+        return new Promise<UsageRead>(() => undefined).then(() =>
+          lifecycle.client.readUsage(items),
+        );
+      },
+    };
+    const rendered = renderHook(() =>
+      useItemAvailability({
+        observed: NOTHING_OFF,
+        book: SAMPLE_PRICE_BOOK,
+        defaults: {},
+        client,
+        deleteFromDraft: () => Promise.resolve({ kind: "failed" }),
+        isDraftOnly: () => false,
+      }),
+    );
+
+    act(() => {
+      rendered.result.current.requestSwitch(HETTICH);
+    });
+    expect(signals[0]?.aborted).toBe(false);
+    act(() => {
+      rendered.result.current.dismiss();
+    });
+    expect(signals[0]?.aborted).toBe(true);
+
+    act(() => {
+      rendered.result.current.requestSwitch(HETTICH);
+    });
+    expect(signals[1]?.aborted).toBe(false);
+    rendered.unmount();
+    expect(signals[1]?.aborted).toBe(true);
   });
 
   it("says nothing of a number when the book drops the item while it is being counted", async () => {

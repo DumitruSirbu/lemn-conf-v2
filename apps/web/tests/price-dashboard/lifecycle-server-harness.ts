@@ -4,8 +4,6 @@
 import { vi } from "vitest";
 
 import {
-  isBuiltInAccessoryId,
-  isItemStated,
   isSameItem,
   SAMPLE_PRICE_BOOK,
   type CatalogueAvailability,
@@ -13,6 +11,8 @@ import {
   type ItemUsageCounts,
   type PriceBook,
 } from "@lemnaria/configurator-domain";
+
+import { itemsStatedIn } from "@/lib/server/price-dashboard/item-usage-read";
 
 const AVAILABILITY_ADDRESS = "/api/staff/prices/availability";
 const USAGE_ADDRESS = "/api/staff/prices/usage";
@@ -72,23 +72,12 @@ function countsOf(
   book: PriceBook,
 ) {
   return {
-    counts: [...items]
-      .reverse()
-      .filter((item) => isSpokenOfBy(book, item))
-      .map((item) => ({
-        item,
-        count:
-          usage.find((held) => isSameItem(held.item, item))?.designCount ?? 0,
-      })),
+    counts: itemsStatedIn([...items].reverse(), book).map((item) => ({
+      item,
+      count:
+        usage.find((held) => isSameItem(held.item, item))?.designCount ?? 0,
+    })),
   };
-}
-
-function isSpokenOfBy(book: PriceBook, item: ItemRef): boolean {
-  const isTierOrLinkedAccessory =
-    item.kind === "material" ||
-    item.kind === "hardware" ||
-    (item.kind === "accessory" && !isBuiltInAccessoryId(item.accessoryId));
-  return !isTierOrLinkedAccessory || isItemStated(item, book);
 }
 
 interface SwitchBody {

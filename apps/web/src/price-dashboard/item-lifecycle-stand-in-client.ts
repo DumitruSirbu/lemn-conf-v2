@@ -19,7 +19,10 @@ import type { AvailabilityRequestWire } from "./price-dashboard-wire-contract";
 // counts only the items its seed counts.
 
 export interface ItemLifecycleSeed
-  extends Omit<LifecycleContext, "canWrite" | "canDeleteStatedItems"> {
+  extends Omit<
+    LifecycleContext,
+    "canWrite" | "canDeleteStatedItems" | "isCreatedInDraft"
+  > {
   readonly usage: ItemUsageCounts;
 }
 

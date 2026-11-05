@@ -2,7 +2,10 @@ import {
   countStaffFixturesForTests,
   removeStaffFixturesForTests,
 } from "@lemnaria/persistence";
-import { type ItemRef } from "@lemnaria/configurator-domain";
+import {
+  HARDWARE_RATE_FIELDS,
+  type ItemRef,
+} from "@lemnaria/configurator-domain";
 import {
   expect,
   type BrowserContext,
@@ -31,6 +34,7 @@ import {
   VENEER,
 } from "./material-page";
 import {
+  discardDraft,
   OK,
   priceRateLimitKeysOf,
   STATE_ROUTE,
@@ -58,6 +62,7 @@ import {
 
 const AVAILABILITY_ROUTE = "/api/staff/prices/availability";
 const USAGE_ROUTE = "/api/staff/prices/usage";
+const CREATE_CLASS_ROUTE = "/api/staff/prices/draft/hardware-class";
 const FILES_TAKE_TURNS_MS = 600_000;
 const NO_SAVED_KITCHENS = 0;
 
@@ -109,6 +114,7 @@ export function describeLifecycleAgainstTheServer(viewport: Viewport): void {
     for (const item of [BLUM_ITEM, MDF_ITEM, VENEER_ITEM]) {
       await switchThrough(context, item, true);
     }
+    await discardDraft(context);
   });
 
   test(`${viewport.label}: a class switched off on the server is switched back on through the server, and stays on after a reload`, async ({
@@ -165,6 +171,49 @@ export function describeLifecycleAgainstTheServer(viewport: Viewport): void {
     expect(await disabledItemsOf(context)).toEqual([]);
   });
 
+  test(`${viewport.label}: a class the draft created can be deleted, which takes the creation back out of the draft, while a published class cannot`, async ({
+    page,
+    context,
+  }) => {
+    const words = wordsOf("ro");
+    const created = await createClassThroughTheRoute(context);
+    await openHardwareList(page);
+
+    const published = rowOf(page, BLUM);
+    await menuButtonOf(published).click();
+    await expect(
+      menuEntryOf(published, words, "delete"),
+      "a published class is not offered for deletion",
+    ).toHaveAttribute("aria-disabled", "true");
+
+    const row = rowOf(page, created.tierId);
+    await menuButtonOf(row).click();
+    const entry = menuEntryOf(row, words, "delete");
+    await expect(
+      entry,
+      "a class the draft created is offered for deletion",
+    ).not.toHaveAttribute("aria-disabled", "true");
+    await entry.click();
+    const dialog = itemDialogOf(page);
+    expect(plainText(await dialog.innerText())).toContain(
+      romanian("priceDashboard.lifecycle.deleteCreatedBody"),
+    );
+    await dialog
+      .getByRole("button", {
+        name: romanian("priceDashboard.common.delete"),
+        exact: true,
+      })
+      .click();
+
+    await expect(dialog).toHaveCount(0);
+    await expect(row, "the class is gone from the list").toHaveCount(0);
+    const state = await context.request.get(STATE_ROUTE);
+    expect(
+      ((await state.json()) as { draft: { changes: unknown[] } }).draft.changes,
+      "the draft holds nothing of it",
+    ).toEqual([]);
+  });
+
   test(`${viewport.label}: the materials switched off are counted in one request, and the page says the server's figure`, async ({
     page,
     context,
@@ -210,6 +259,31 @@ export function describeLifecycleAgainstTheServer(viewport: Viewport): void {
     ).toEqual([[MDF, VENEER].sort()]);
     await shootForReview(page, `r4a5-${viewport.label}-d5f-counted-page`);
   });
+}
+
+/** Creates a hardware class in the draft through the creation route; its row is the one the page shows for it. */
+async function createClassThroughTheRoute(
+  context: BrowserContext,
+): Promise<{ tierId: string }> {
+  const state = await context.request.get(STATE_ROUTE);
+  const { draft } = (await state.json()) as {
+    draft: { draftRevision: string };
+  };
+  const rates = Object.fromEntries(
+    HARDWARE_RATE_FIELDS.map((field) => [field, 2_000]),
+  );
+  const created = await context.request.post(CREATE_CLASS_ROUTE, {
+    data: {
+      expectedDraftRevision: draft.draftRevision,
+      value: { name: "Clasa de proba", description: "Pentru proba" },
+      rates,
+    },
+  });
+  expect(created.status(), "the class is created in the draft").toBe(OK);
+  const { created: ref } = (await created.json()) as {
+    created: { tierId: string };
+  };
+  return { tierId: ref.tierId };
 }
 
 function isAvailabilityWrite(response: Response): boolean {

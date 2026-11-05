@@ -32,7 +32,6 @@ import {
 import {
   USAGE_READ_DEADLINE_MS,
   countItemUsage,
-  itemsStatedIn,
   withinUsageDeadline,
   isWithinUsageBound,
 } from "@/lib/server/price-dashboard/item-usage-read";
@@ -161,14 +160,11 @@ async function countAndAnswer(
       dashboardConflictResponse("no-active-version"),
     );
   }
-  const { usage, unreadableDesigns } = await countItemUsage(
-    itemsStatedIn(items, book),
-    {
-      stores,
-      book,
-      signal,
-    },
-  );
+  const { usage, unreadableDesigns } = await countItemUsage(items, {
+    stores,
+    book,
+    signal,
+  });
   // A count that finishes after the deadline is neither logged nor answered.
   signal.throwIfAborted();
   reportUnreadableDesigns(unreadableDesigns);

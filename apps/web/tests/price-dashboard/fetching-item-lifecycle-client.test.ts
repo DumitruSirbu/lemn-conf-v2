@@ -515,6 +515,63 @@ describe("a count while another is on its way", () => {
     });
   });
 
+  it("is dropped, not sent, when nobody wants it by the time the one ahead ends: dismissed questions queue no requests", async () => {
+    const { fetchStub, releaseNext } = heldServer();
+    const client = createFetchingItemLifecycleClient();
+    const dismissals = [new AbortController(), new AbortController()];
+
+    const first = client.readUsage([HETTICH]);
+    const dismissed = [BLUM, RACK].map((item, place) =>
+      client.readUsage([item], dismissals[place]?.signal),
+    );
+    for (const dismissal of dismissals) dismissal.abort();
+    releaseNext();
+
+    expect(await Promise.all(dismissed)).toEqual([
+      { kind: "unavailable" },
+      { kind: "unavailable" },
+    ]);
+    expect((await first).kind).toBe("counted");
+    expect(fetchStub).toHaveBeenCalledTimes(1);
+  });
+
+  it("sends nothing when its signal has aborted before it was asked", async () => {
+    const fetchStub = countingServer(() => 1);
+    const dismissed = new AbortController();
+    dismissed.abort();
+
+    expect(
+      await createFetchingItemLifecycleClient().readUsage(
+        [HETTICH],
+        dismissed.signal,
+      ),
+    ).toEqual({ kind: "unavailable" });
+    expect(fetchStub).not.toHaveBeenCalled();
+  });
+
+  it("is still sent when only a read behind it was dismissed, and a wanted read behind it is still answered", async () => {
+    const { fetchStub, releaseNext } = heldServer();
+    const client = createFetchingItemLifecycleClient();
+    const dismissal = new AbortController();
+
+    const first = client.readUsage([HETTICH]);
+    const dismissed = client.readUsage([BLUM], dismissal.signal);
+    const wanted = client.readUsage([RACK]);
+    dismissal.abort();
+    releaseNext();
+    await first;
+    await vi.waitFor(() => {
+      expect(fetchStub).toHaveBeenCalledTimes(2);
+    });
+    releaseNext();
+
+    expect(await dismissed).toEqual({ kind: "unavailable" });
+    expect(await wanted).toEqual({
+      kind: "counted",
+      counts: [{ item: RACK, designCount: 7 }],
+    });
+  });
+
   it("asks again, once the one on its way has ended", async () => {
     const fetchStub = countingServer(() => 1);
     const client = createFetchingItemLifecycleClient();

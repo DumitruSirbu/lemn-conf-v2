@@ -33,6 +33,7 @@ function contextOf(
     defaults: {},
     canWrite: true,
     canDeleteStatedItems: true,
+    isCreatedInDraft: () => false,
     ...overrides,
   };
 }
@@ -260,20 +261,29 @@ describe("the deletion of a row where a published row cannot yet be deleted", ()
     },
   );
 
-  it("is offered, with its count to come, for a class only the draft holds", () => {
+  it("is offered, with its count to come, for a class the draft created", () => {
     expect(
       deleteStandOf(
         STRANGER as Parameters<typeof deleteStandOf>[0],
-        noStatedDeletion(),
+        noStatedDeletion({ isCreatedInDraft: () => true }),
       ),
     ).toEqual({ kind: "count-first" });
+  });
+
+  it("is off for a class the book does not state and the draft did not create either: not being stated is no leave", () => {
+    expect(
+      deleteStandOf(
+        STRANGER as Parameters<typeof deleteStandOf>[0],
+        noStatedDeletion({ isCreatedInDraft: () => false }),
+      ),
+    ).toEqual({ kind: "off", reason: "cannot-judge" });
   });
 
   it("is off for a class only the draft holds where nothing can be written", () => {
     expect(
       deleteStandOf(
         STRANGER as Parameters<typeof deleteStandOf>[0],
-        noStatedDeletion({ canWrite: false }),
+        noStatedDeletion({ canWrite: false, isCreatedInDraft: () => true }),
       ),
     ).toEqual({ kind: "off", reason: "cannot-judge" });
   });

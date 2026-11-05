@@ -48,6 +48,7 @@ const contextOf = ({ disabled, defaults }: State): LifecycleContext => ({
   defaults,
   canWrite: true,
   canDeleteStatedItems: true,
+  isCreatedInDraft: () => false,
 });
 
 const deletable = (tierId: string) => materialItem(tierId) as DeletableItemRef;

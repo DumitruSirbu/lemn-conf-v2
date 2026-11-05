@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { SAMPLE_PRICE_BOOK, type ItemRef } from "@lemnaria/configurator-domain";
+import {
+  linkTargetBuildIdsOf,
+  SAMPLE_PRICE_BOOK,
+  type ItemRef,
+  type PriceBook,
+} from "@lemnaria/configurator-domain";
 import type { ItemUsageProbe, KitchenUsageReader } from "@lemnaria/persistence";
 
 import {
@@ -26,6 +31,28 @@ function accessories(howMany: number): ItemRef[] {
     kind: "accessory",
     accessoryId: `accessory-${String(index)}`,
   }));
+}
+
+/** A book that states each of the accessories as one linked to the first cabinet type the manufacturer supplies. */
+function bookLinking(items: readonly ItemRef[]): PriceBook {
+  const linkedBuildId = linkTargetBuildIdsOf(SAMPLE_PRICE_BOOK)[0] ?? "";
+  return {
+    ...SAMPLE_PRICE_BOOK,
+    linkedAccessories: items.flatMap((item) =>
+      item.kind === "accessory"
+        ? [
+            {
+              accessoryId: item.accessoryId,
+              ruleId: `rule.${item.accessoryId}`,
+              linkedBuildId,
+              perUnitMinor: 1_000,
+              name: item.accessoryId,
+              description: "",
+            },
+          ]
+        : [],
+    ),
+  };
 }
 
 function readerRecording(asked: ItemUsageProbe[][]): KitchenUsageReader {
@@ -63,7 +90,7 @@ describe("countItemUsage", () => {
     const asked: ItemUsageProbe[][] = [];
     const basis = {
       stores: { usage: readerRecording(asked) },
-      book: SAMPLE_PRICE_BOOK,
+      book: bookLinking(accessories(MAX_USAGE_ITEMS + 1)),
     };
 
     const { usage: atTheBound } = await countItemUsage(
@@ -105,7 +132,7 @@ describe("countItemUsage, as the data it returns", () => {
     warn.mockRestore();
   });
 
-  it("reads 0 for a tier the given book does not state and never probes it, though a reader would count it", async () => {
+  it("leaves out a tier the given book does not state and never probes it, though a reader would count it", async () => {
     const asked: ItemUsageProbe[][] = [];
     const unstated = { kind: "material", tierId: "material.dropped" } as const;
 
@@ -114,7 +141,7 @@ describe("countItemUsage, as the data it returns", () => {
       book: SAMPLE_PRICE_BOOK,
     });
 
-    expect(usage).toEqual([{ item: unstated, designCount: 0 }]);
+    expect(usage).toEqual([]);
     expect(asked).toEqual([]);
   });
 

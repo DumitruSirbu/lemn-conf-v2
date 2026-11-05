@@ -16,8 +16,8 @@ import { countOfUse } from "./item-lifecycle-model";
 
 // How many saved kitchens use each material that is switched off, for the chip and the banner that say so (frames D5E
 // and D5F), and the one material a page is about, for its fact line. Asked once for all of them, so a read that fails
-// leaves every count of it unknown. A material with no count has no entry, and a screen says nothing of a number it does
-// not have; neither is a count kept for a material the book no longer states.
+// leaves every count of it unknown. A material with no count has no entry, and a screen says nothing of a number it
+// does not have; neither is a count kept for a material the book no longer states.
 
 export type MaterialUsage = ReadonlyMap<string, number>;
 
@@ -51,12 +51,14 @@ export function useMaterialUsage({
 
   useEffect(() => {
     let isCurrent = true;
+    const unwanted = new AbortController();
     const tierIds = countedKey === "" ? [] : countedKey.split(TIER_SEPARATOR);
-    void countAll(client, tierIds).then((usage) => {
+    void countAll(client, tierIds, unwanted.signal).then((usage) => {
       if (isCurrent) setCounted(usage);
     });
     return () => {
       isCurrent = false;
+      unwanted.abort();
     };
   }, [client, countedKey]);
 
@@ -74,12 +76,16 @@ function statedBy(book: PriceBook, usage: MaterialUsage): MaterialUsage {
 async function countAll(
   client: ItemLifecycleClient,
   tierIds: readonly string[],
+  signal: AbortSignal,
 ): Promise<MaterialUsage> {
   if (tierIds.length === 0) return NO_USAGE;
   const items = tierIds.map(
     (tierId): MaterialItem => ({ kind: "material", tierId }),
   );
-  const read = await orFailed(() => client.readUsage(items), UNREADABLE_USAGE);
+  const read = await orFailed(
+    () => client.readUsage(items, signal),
+    UNREADABLE_USAGE,
+  );
   if (read.kind !== "counted") return NO_USAGE;
   return new Map(
     items.flatMap((item) => {

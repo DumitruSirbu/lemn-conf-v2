@@ -41,9 +41,9 @@ import { useLateAnswerGuard } from "./use-late-answer-guard";
 import type { FieldWriteResult } from "./use-price-draft";
 
 // Switching an item on or off, and deleting one, as a screen runs them. Switching applies at once and is never a draft
-// change; deleting is a draft change, so the screen hands in the write. Before a switch-off or a deletion is offered the
-// saved kitchens that use the item are counted, one request for the dialog, and a count that cannot be had is said so
-// and never read as none; nor is one had for an item the book does not state. One dialog is open at a time, and an
+// change; deleting is a draft change, so the screen hands in the write. Before a switch-off or a deletion is offered
+// the saved kitchens that use the item are counted, one request for the dialog, and a count that cannot be had is said
+// so and never read as none; nor is one had for an item the book does not state. One dialog is open at a time, and an
 // answer to a question the person has since closed or replaced is dropped.
 
 export interface ItemAvailabilityDesk {
@@ -78,7 +78,10 @@ export interface ItemAvailabilityInput {
   readonly deleteFromDraft: (
     item: DeletableItemRef,
   ) => Promise<FieldWriteResult>;
-  /** Whether only the draft holds the item: nothing published names it, so no saved kitchen can use it and none is counted. */
+  /**
+   * Whether only the draft holds the item: nothing published names it, so no saved kitchen can use it and none is
+   * counted.
+   */
   readonly isDraftOnly: (item: DeletableItemRef) => boolean;
 }
 
@@ -112,6 +115,7 @@ export function useItemAvailability({
       defaults,
       canWrite: client.canWrite,
       canDeleteStatedItems: client.canDeleteStatedItems,
+      isCreatedInDraft: isDraftOnly,
     }),
     [
       book,
@@ -119,12 +123,21 @@ export function useItemAvailability({
       defaults,
       client.canWrite,
       client.canDeleteStatedItems,
+      isDraftOnly,
     ],
   );
+  // The book as it stands when a count answers, which the callback that asked for it was made too early to see.
   const bookRef = useRef(book);
   useEffect(() => {
     bookRef.current = book;
   }, [book]);
+  const countingRef = useRef<AbortController | undefined>(undefined);
+  useEffect(
+    () => () => {
+      countingRef.current?.abort();
+    },
+    [],
+  );
 
   /** Takes what is switched off as it now stands, and remembers the revision it replaces: a later read of the draft
    *  that still names a revision left behind is an older read, and leaves a newer switch alone. */
@@ -150,6 +163,7 @@ export function useItemAvailability({
   }, [client, adopt]);
 
   const moveOn = useCallback(() => {
+    countingRef.current?.abort();
     markMoved();
     setReadingItem(undefined);
     setFailure(undefined);
@@ -158,10 +172,10 @@ export function useItemAvailability({
   /** The count of an item the book states, asked and answered under the book as it stands. A book that no longer states
    *  the item leaves nothing to say of it, and a reader that counted it anyway is not believed. */
   const readUsageOfStatedItem = useCallback(
-    async (item: ItemRef): Promise<UsageRead> => {
+    async (item: ItemRef, signal: AbortSignal): Promise<UsageRead> => {
       if (!isItemStated(item, bookRef.current)) return UNREADABLE_USAGE;
       const read = await orFailed(
-        () => client.readUsage([item]),
+        () => client.readUsage([item], signal),
         UNREADABLE_USAGE,
       );
       return isItemStated(item, bookRef.current) ? read : UNREADABLE_USAGE;
@@ -172,8 +186,10 @@ export function useItemAvailability({
   const openAfterCounting = useCallback(
     async (item: ItemRef, flowOf: (read: UsageRead) => ItemFlow) => {
       const hasMoved = begin();
+      const unwanted = new AbortController();
+      countingRef.current = unwanted;
       setReadingItem(item);
-      const read = await readUsageOfStatedItem(item);
+      const read = await readUsageOfStatedItem(item, unwanted.signal);
       if (hasMoved()) return;
       setReadingItem(undefined);
       setFlow(flowOf(read));

@@ -228,6 +228,30 @@ describe("the counts of the switched-off materials", () => {
     rendered.unmount();
   });
 
+  it("are no longer wanted once the view is gone: the read is told by its signal", async () => {
+    const signals: (AbortSignal | undefined)[] = [];
+    const client: ItemLifecycleClient = {
+      ...UNAVAILABLE_ITEM_LIFECYCLE_CLIENT,
+      readUsage: (_items, signal) => {
+        signals.push(signal);
+        return new Promise<UsageRead>(() => undefined);
+      },
+    };
+    const rendered = renderHook(() =>
+      useMaterialUsage({
+        client,
+        book: SAMPLE_PRICE_BOOK,
+        availability: MDF_AND_VENEER_OFF,
+      }),
+    );
+    await flushPromises();
+    expect(signals[0]?.aborted).toBe(false);
+
+    rendered.unmount();
+
+    expect(signals[0]?.aborted).toBe(true);
+  });
+
   it("show no count for a material only `alsoCount` names when the book does not state it", async () => {
     const { client, asked } = clientAnswering(() =>
       countedAs(ONLY_MDF_AND_VENEER_COUNTS),
