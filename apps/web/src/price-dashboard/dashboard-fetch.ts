@@ -29,12 +29,17 @@ export type Request =
       readonly body: string;
     };
 
+/** A `signal` that aborts ends the request, and the answer is then `undefined` like any other that cannot be had. */
 export async function ask(
   address: string,
   request: Request,
+  signal?: AbortSignal,
 ): Promise<Answer | undefined> {
   try {
-    const response = await fetch(address, init(request));
+    const response = await fetch(address, {
+      ...init(request),
+      ...(signal === undefined ? {} : { signal }),
+    });
     return {
       status: response.status,
       body: await readJsonOrNothing(response),

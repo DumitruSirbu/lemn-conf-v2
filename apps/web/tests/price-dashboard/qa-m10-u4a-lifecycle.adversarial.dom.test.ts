@@ -190,6 +190,7 @@ describe("a production build, as the server hands it its page", () => {
     vi.stubEnv("NODE_ENV", "production");
     server = stubTheLifecycleServer({
       availability: page.state.active.availability,
+      book: page.state.active.book,
       usage: [
         { item: hardwareItem(HETTICH), designCount: SERVER_COUNT_FOR_HETTICH },
       ],

@@ -385,10 +385,12 @@ describe("a production page", () => {
     screen: "list" | "edit",
     page: MaterialPageInput,
     tierId = MDF,
+    serverBook = page.state.active.book,
   ): Promise<HTMLElement> => {
     vi.stubEnv("NODE_ENV", "production");
     server = stubTheLifecycleServer({
       availability: page.state.active.availability,
+      book: serverBook,
       usage: [{ item: materialItem(MDF), designCount: SERVER_COUNT_FOR_MDF }],
     });
     const draftClient = inMemoryPriceDraftClient(page.state).client;
@@ -501,6 +503,26 @@ describe("a production page", () => {
       '[role="switch"]',
     )[0];
     expect(switchButton?.getAttribute("aria-disabled")).not.toBe("true");
+  });
+
+  it("says no count on the page of a material the server's book dropped while the page's book still states it: the fact line is absent, not 0", async () => {
+    const page = productionPage({ disabled: [materialItem(VENEER)] });
+    const serverBook = {
+      ...page.state.active.book,
+      material: {
+        ...page.state.active.book.material,
+        tiers: page.state.active.book.material.tiers.filter(
+          (tier) => tier.tierId !== VENEER,
+        ),
+      },
+    };
+
+    const container = await mountProduction("edit", page, VENEER, serverBook);
+
+    expect(server.usageRequests).toEqual([[materialItem(VENEER)]]);
+    expect(container.textContent).not.toContain(
+      roCopy("priceDashboard.materials.usedInKitchens"),
+    );
   });
 
   it("opens the switch-off question of MDF, once the saved defaults are read, with the figure the server gave", async () => {

@@ -1,5 +1,6 @@
 import {
   AVAILABILITY_REFUSAL_CODES,
+  isRevisionShape,
   isSameItem,
   itemIdOf,
   ITEM_ID_MEMBER_OF_KIND,
@@ -15,6 +16,7 @@ import {
   OK_STATUS,
   UNAUTHORISED_STATUS,
   type Answer,
+  type Request,
 } from "./dashboard-fetch";
 import type {
   AvailabilityOutcome,
@@ -38,6 +40,8 @@ const BUSY_STATUS = 429;
 const LONGEST_BUSY_WAIT_SECONDS = 10;
 const MAX_BUSY_RETRIES = 2;
 const MILLISECONDS_PER_SECOND = 1000;
+/** Longer than the server's own deadline for a count, so a count the server gives up on is answered, not cut off here. */
+const USAGE_FETCH_DEADLINE_MS = 15_000;
 
 const CHANGED_MEANWHILE = "changed-meanwhile";
 const FAILED: AvailabilityOutcome = { kind: "failed" };
@@ -80,7 +84,7 @@ export function availabilityOutcomeOf({
 }: Answer): AvailabilityOutcome {
   if (status === OK_STATUS) {
     const revision = ownValueOf(body, "revision");
-    return typeof revision === "string" ? { kind: "set", revision } : FAILED;
+    return isRevisionShape(revision) ? { kind: "set", revision } : FAILED;
   }
   if (status === UNAUTHORISED_STATUS) return { kind: "session-ended" };
   if (status === CONFLICT_STATUS) return conflictOutcomeOf(body);
@@ -176,7 +180,7 @@ async function askForCounts(
   items: readonly ItemRef[],
 ): Promise<ItemUsageCounts | undefined> {
   for (let retries = 0; ; retries += 1) {
-    const answer = await ask(USAGE_ADDRESS, {
+    const answer = await askWithin(USAGE_FETCH_DEADLINE_MS, USAGE_ADDRESS, {
       method: "POST",
       body: JSON.stringify({ items }),
     });
@@ -188,6 +192,23 @@ async function askForCounts(
       return undefined;
     }
     await pause(waitSeconds * MILLISECONDS_PER_SECOND);
+  }
+}
+
+/** A request that is not answered by the deadline is ended, so a read that hangs frees the one in flight. */
+async function askWithin(
+  deadlineMs: number,
+  address: string,
+  request: Request,
+): Promise<Answer | undefined> {
+  const ending = new AbortController();
+  const timer = setTimeout(() => {
+    ending.abort();
+  }, deadlineMs);
+  try {
+    return await ask(address, request, ending.signal);
+  } finally {
+    clearTimeout(timer);
   }
 }
 

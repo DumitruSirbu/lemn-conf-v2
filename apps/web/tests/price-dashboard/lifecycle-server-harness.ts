@@ -4,10 +4,14 @@
 import { vi } from "vitest";
 
 import {
+  isBuiltInAccessoryId,
+  isItemStated,
   isSameItem,
+  SAMPLE_PRICE_BOOK,
   type CatalogueAvailability,
   type ItemRef,
   type ItemUsageCounts,
+  type PriceBook,
 } from "@lemnaria/configurator-domain";
 
 const AVAILABILITY_ADDRESS = "/api/staff/prices/availability";
@@ -24,12 +28,15 @@ export interface LifecycleServer {
 interface LifecycleServerOptions {
   readonly availability: CatalogueAvailability;
   readonly usage: ItemUsageCounts;
+  /** The server's active book: a tier or linked accessory it does not state is left out of a count, as the route does. */
+  readonly book?: PriceBook;
 }
 
 /** Call after `stubTheStaffServer()`: the staff session stays the answer to every other address. */
 export function stubTheLifecycleServer({
   availability,
   usage,
+  book = SAMPLE_PRICE_BOOK,
 }: LifecycleServerOptions): LifecycleServer {
   const sessionServer = globalThis.fetch;
   let current = availability;
@@ -45,7 +52,7 @@ export function stubTheLifecycleServer({
       if (address === USAGE_ADDRESS) {
         const { items } = body as { items: ItemRef[] };
         server.usageRequests.push(items);
-        return Promise.resolve(json(200, countsOf(items, usage)));
+        return Promise.resolve(json(200, countsOf(items, usage, book)));
       }
       if (address === AVAILABILITY_ADDRESS) {
         server.switchRequests.push(body);
@@ -59,14 +66,29 @@ export function stubTheLifecycleServer({
   return server;
 }
 
-function countsOf(items: readonly ItemRef[], usage: ItemUsageCounts) {
+function countsOf(
+  items: readonly ItemRef[],
+  usage: ItemUsageCounts,
+  book: PriceBook,
+) {
   return {
-    counts: [...items].reverse().map((item) => ({
-      item,
-      count:
-        usage.find((held) => isSameItem(held.item, item))?.designCount ?? 0,
-    })),
+    counts: [...items]
+      .reverse()
+      .filter((item) => isSpokenOfBy(book, item))
+      .map((item) => ({
+        item,
+        count:
+          usage.find((held) => isSameItem(held.item, item))?.designCount ?? 0,
+      })),
   };
+}
+
+function isSpokenOfBy(book: PriceBook, item: ItemRef): boolean {
+  const isTierOrLinkedAccessory =
+    item.kind === "material" ||
+    item.kind === "hardware" ||
+    (item.kind === "accessory" && !isBuiltInAccessoryId(item.accessoryId));
+  return !isTierOrLinkedAccessory || isItemStated(item, book);
 }
 
 interface SwitchBody {

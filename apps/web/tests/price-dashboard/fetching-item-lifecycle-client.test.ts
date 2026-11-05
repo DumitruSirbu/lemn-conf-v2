@@ -558,6 +558,32 @@ describe("a count while another is on its way", () => {
   });
 });
 
+describe("a count the network never answers", () => {
+  it("is ended after fifteen seconds, longer than the server's own deadline, and says it cannot count", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal(
+      "fetch",
+      (_address: string, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => {
+            reject(new DOMException("aborted", "AbortError"));
+          });
+        }),
+    );
+    const settled = { isDone: false };
+
+    const read = createFetchingItemLifecycleClient().readUsage([HETTICH]);
+    void read.then(() => {
+      settled.isDone = true;
+    });
+    await vi.advanceTimersByTimeAsync(14_999);
+    expect(settled.isDone, "the server may still answer").toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(await read).toEqual({ kind: "unavailable" });
+  });
+});
+
 describe("a count the server finds busy", () => {
   const BUSY = (seconds: string) => ({ "Retry-After": seconds });
 
