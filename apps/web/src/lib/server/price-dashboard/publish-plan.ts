@@ -4,11 +4,8 @@ import type { NextResponse } from "next/server";
 
 import {
   applyChanges,
-  buildIdsPricedAs,
-  deletedBookItemsOf,
   judgeBookAgainstCatalog,
   type DraftChange,
-  type ItemRef,
   type PriceBook,
 } from "@lemnaria/configurator-domain";
 import type { DeletedItem } from "@lemnaria/persistence";
@@ -22,6 +19,7 @@ import {
   dashboardConflictResponse,
 } from "@/lib/server/price-dashboard/dashboard-responses";
 import type { ActiveDashboardState } from "@/lib/server/price-dashboard/dashboard-state";
+import { deletedItemsOf } from "@/lib/server/price-dashboard/deletion-facts";
 import type { PublishRequest } from "@/lib/server/price-dashboard/publish-requests";
 import { shippedCatalogue } from "@/lib/server/price-dashboard/shipped-catalogue";
 import type { CandidateRefusalWire } from "@/price-dashboard/price-dashboard-wire-contract";
@@ -64,47 +62,12 @@ export function planPublish(
   };
 }
 
-/**
- * Each deletion of a row the active book holds, a linked accessory with the build ids the catalogue prices as its row. A
- * kind a deletion cannot be, or an accessory the book states no rule for, goes with none, and the store refuses the
- * publish rather than leave it unguarded.
- */
-function deletedItemsOf(
-  changes: readonly DraftChange[],
-  book: PriceBook,
-): readonly DeletedItem[] {
-  return deletedBookItemsOf(changes).flatMap((item) => {
-    const deleted = deletedItemFor(item, book);
-    return deleted === undefined ? [] : [deleted];
-  });
-}
-
-function deletedItemFor(
-  item: ItemRef,
-  book: PriceBook,
-): DeletedItem | undefined {
-  if (item.kind === "material" || item.kind === "hardware") return { item };
-  if (item.kind !== "accessory") return undefined;
-  const rule = book.linkedAccessories.find(
-    ({ accessoryId }) => accessoryId === item.accessoryId,
-  );
-  return rule === undefined
-    ? undefined
-    : {
-        item,
-        buildIds: withTheRulesOwnRow(rule.linkedBuildId),
-      };
-}
+/** A publish plan that went through: the book to store, and the deletions the store's guard is asked about. */
+export type PublishingPlan = Extract<PublishPlan, { readonly kind: "publish" }>;
 
 type Candidate =
   | { readonly ok: true; readonly book: PriceBook }
   | { readonly ok: false; readonly refusals: readonly CandidateRefusalWire[] };
-
-/** The rows priced as the one an accessory is linked to, then that row itself where the catalogue no longer holds it. */
-function withTheRulesOwnRow(linkedBuildId: string): readonly string[] {
-  const priced = buildIdsPricedAs(shippedCatalogue(), linkedBuildId);
-  return priced.includes(linkedBuildId) ? priced : [...priced, linkedBuildId];
-}
 
 /** The book the changes make, parsed and judged against the catalogue, or every reason either refuses it. */
 function candidateOf(

@@ -2,7 +2,10 @@
 import { describe, expect, it } from "vitest";
 
 import type { DraftChange } from "../../src/price-dashboard/book-field-address.js";
-import { judgeDeletionsAtPublish } from "../../src/price-dashboard/publish-deletions.js";
+import {
+  isDefaultCode,
+  judgeDeletionsAtPublish,
+} from "../../src/price-dashboard/publish-deletions.js";
 import { UsageNotCountedError } from "../../src/price-dashboard/item-usage.js";
 import type { ItemRef } from "../../src/pricing/catalogue-availability.js";
 import {
@@ -176,5 +179,16 @@ describe("the same item named twice", () => {
         [usedBy(SOFT_CLOSE, 1)],
       ),
     ).toHaveLength(1);
+  });
+});
+
+describe("which refusal codes name a default", () => {
+  it.each([
+    ["item-is-default", true],
+    ["item-is-fixed-default", true],
+    ["item-in-use", false],
+    ["item-not-deletable", false],
+  ] as const)("%s is a default: %s", (code, expected) => {
+    expect(isDefaultCode(code)).toBe(expected);
   });
 });

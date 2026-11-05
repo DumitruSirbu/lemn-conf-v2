@@ -1,5 +1,6 @@
 import {
   deletedItemsOf,
+  isDefaultCode,
   isItemStated,
   judgeDeletionsAtPublish,
   UsageNotCountedError,
@@ -96,8 +97,4 @@ function blockOf(
   return items.length === 0
     ? { kind: "cannot-judge" }
     : { kind: "blocked", block: { kind: "in-use", items } };
-}
-
-function isDefaultCode(code: PublishDeletionRefusal["code"]): boolean {
-  return code === "item-is-default" || code === "item-is-fixed-default";
 }
