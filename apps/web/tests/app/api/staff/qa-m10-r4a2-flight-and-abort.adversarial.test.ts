@@ -57,6 +57,7 @@ const ONE_MORE_MS = 1;
 
 type KitchenUsageResult = Awaited<ReturnType<KitchenUsageReader["countEach"]>>;
 
+let console_: ReturnType<typeof captureConsole>;
 let prices: PriceDashboardWorld;
 let admin: Administrator;
 let settleWhatIsLeftPending: (() => void)[];
@@ -66,7 +67,7 @@ beforeEach(async () => {
   freshStaffWorld();
   prices = await freshPriceDashboardWorld();
   admin = await administrator();
-  captureConsole();
+  console_ = captureConsole();
   settleWhatIsLeftPending = [];
   vi.stubEnv(CLIENT_NETWORK_SOURCE_VARIABLE, "vercel");
 });
@@ -434,5 +435,96 @@ describe("a tier or a linked accessory the active book does not state", () => {
       counts: { item: ItemRef; count: number }[];
     };
     expect(counts).toHaveLength(NAMED_BY_A_DESIGN_ONLY.length + 1);
+  });
+});
+
+describe("a count whose book arrives after the deadline", () => {
+  /** The active version, answered `afterMs` after it was asked for. */
+  function bookArrivingAt(afterMs: number): void {
+    const real = prices.stores.priceBook.readActive.bind(
+      prices.stores.priceBook,
+    );
+    vi.spyOn(prices.stores.priceBook, "readActive").mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(() => {
+            void real().then(resolve);
+          }, afterMs);
+        }),
+    );
+  }
+
+  it("is 503 at the deadline, and the reader it would then start is given a signal that has already aborted", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    bookArrivingAt(USAGE_READ_DEADLINE_MS + 1);
+    const spy = vi.spyOn(prices.defaults, "countEach");
+
+    const pending = askedFor([VENEER]);
+    await flush();
+    await vi.advanceTimersByTimeAsync(USAGE_READ_DEADLINE_MS);
+    const answer = await pending;
+    await vi.advanceTimersByTimeAsync(100);
+    await flush();
+
+    expect(answer.status).toBe(503);
+    expect(await jsonOf(answer)).toEqual({ status: "unavailable" });
+    for (const [, signal] of spy.mock.calls) {
+      expect(signal?.aborted).toBe(true);
+    }
+  });
+
+  it("writes no line of unreadable designs for a count that finishes late", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    bookArrivingAt(USAGE_READ_DEADLINE_MS + 1);
+    vi.spyOn(prices.defaults, "countEach").mockResolvedValue({
+      counts: [{ item: VENEER, designCount: 1 }],
+      unreadableDesigns: 5,
+    });
+
+    const pending = askedFor([VENEER]);
+    await flush();
+    await vi.advanceTimersByTimeAsync(USAGE_READ_DEADLINE_MS);
+    await pending;
+    await vi.advanceTimersByTimeAsync(100);
+    await flush();
+
+    const written = console_
+      .accountLines()
+      .filter((line) => "unreadableDesigns" in line);
+    expect(written).toEqual([]);
+  });
+
+  it("is answered normally when the book arrives the instant before the deadline", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    bookArrivingAt(USAGE_READ_DEADLINE_MS - 1);
+
+    const pending = askedFor([VENEER]);
+    await flush();
+    await vi.advanceTimersByTimeAsync(USAGE_READ_DEADLINE_MS);
+
+    expect((await pending).status).toBe(200);
+  });
+
+  it("is 503 at the deadline, with the slot freed, when the book arrives as no version after the deadline", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    vi.spyOn(prices.stores.priceBook, "readActive").mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(() => {
+            resolve({ kind: "none" } as never);
+          }, USAGE_READ_DEADLINE_MS + 1);
+        }),
+    );
+
+    const first = askedFor([VENEER]);
+    await flush();
+    await vi.advanceTimersByTimeAsync(USAGE_READ_DEADLINE_MS);
+    const answered = await first;
+    await vi.advanceTimersByTimeAsync(100);
+    const next = askedFor([VENEER]);
+    await flush();
+
+    expect(answered.status).toBe(503);
+    expect((await next).status).toBe(200);
   });
 });
