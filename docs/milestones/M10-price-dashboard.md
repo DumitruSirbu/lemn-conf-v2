@@ -2616,7 +2616,12 @@ block stays R4c's.
   - `CI=1` production wiring: with no `DATABASE_URL` both new members are the unavailable stores. With one, they are
     made once per process. `selectPriceStores`' existing matrix holds;
   - QA's property (the `javascript-testing-expert` skill applies): for any availability state and any item,
-    the route's answer word equals `judgeAvailabilityChange`'s verdict.
+    the route's answer word equals `judgeAvailabilityChange`'s verdict. **(Amended 2026-11-05, coordinator.)** The
+    exception is a no-op: a request whose `active` equals the item's current state. It answers
+    `200 {revision: head}` and writes nothing, whatever its `expectedRevision`. The bucket is spent first, an unstated
+    item is never a no-op, and the no-op holds only when the head is unmoved across the book read. One consequence is
+    pinned: an item that is already off and is a default answers `200` to a no-op switch-off, where the domain would
+    say `item-is-default`. That is true of the state and writes nothing.
 - **R4a2:**
   - **must-not:** the body supplies any probe fact (`buildIds`, `isFallback`, a predicate). The only member is
     `items`;
