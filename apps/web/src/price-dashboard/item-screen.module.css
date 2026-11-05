@@ -340,6 +340,8 @@
 .switch[aria-disabled="true"] {
   color: var(--ink-muted);
   cursor: not-allowed;
+  background: var(--surface);
+  border-color: var(--line);
 }
 
 .switch:focus-visible {
@@ -410,7 +412,8 @@
 }
 
 /* Where a pointer is the input the menu is a popover over the rows, so opening or closing one moves nothing under the
- * pointer: to the right of the three dots in a card, to their left in the table, whose dots stand at the row's end. */
+ * pointer: to the right of the three dots in a card. In the table it opens below its row and to the left of the row's
+ * actions: beside the dots it would cover the row's own chips, and under them the next row's dots. */
 @media (min-width: 900px) {
   .rowMenu {
     position: relative;

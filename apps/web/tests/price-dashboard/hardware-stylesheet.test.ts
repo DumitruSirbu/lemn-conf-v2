@@ -157,8 +157,14 @@ describe("one markup, two layouts", () => {
     expect(declarationsFor(css, "menu", "position")).toEqual([
       expect.objectContaining({ media: POINTER_WIDTH, value: "absolute" }),
     ]);
-    expect(declarationsFor(css, "rowMenu", "position")).toEqual([
-      expect.objectContaining({ media: POINTER_WIDTH, value: "relative" }),
+    expect(
+      declarationsFor(css, "rowMenu", "position").map((d) => [
+        d.media,
+        d.value,
+      ]),
+    ).toEqual([
+      [POINTER_WIDTH, "relative"],
+      [TABLE, "static"],
     ]);
     expect(
       declarationsFor(css, "rowMenu", "display").map((d) => [d.media, d.value]),
@@ -183,6 +189,30 @@ describe("one markup, two layouts", () => {
     ]);
     expect(valuesFor(css, "menu", "min-width")).toEqual(["15rem"]);
     expect(valuesFor(css, "menu", "max-width")).toEqual(["20rem"]);
+  });
+
+  it("opens the menu of a table row below the row and left of its actions, so it covers neither the row's own chips nor the next row's three dots", () => {
+    expect(
+      declarationsFor(css, "menu", "top").map((d) => [d.media, d.value]),
+    ).toEqual([
+      [POINTER_WIDTH, "0"],
+      [TABLE, "calc(100% + 4px)"],
+    ]);
+    expect(
+      declarationsFor(css, "rowActions", "position").map((d) => [
+        d.media,
+        d.value,
+      ]),
+    ).toEqual([
+      [PHONE, "relative"],
+      [TABLE, "relative"],
+    ]);
+    expect(
+      declarationsFor(css, "rowActions", "align-self").map((d) => [
+        d.media,
+        d.value,
+      ]),
+    ).toEqual([[TABLE, "stretch"]]);
   });
 
   it("puts the rates two by two on a phone and in a row once a card is wide enough", () => {

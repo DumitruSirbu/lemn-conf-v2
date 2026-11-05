@@ -24,6 +24,25 @@ export function sharedClassesNotComposed(screenSheetName: string): string[] {
   );
 }
 
+/** The declarations of the rule written for exactly this selector, by property; none if the sheet has no such rule. */
+export function declarationsOfRule(
+  sheetName: string,
+  selector: string,
+): Record<string, string> {
+  const css = readSheet(sheetName).replace(/\/\*[\s\S]*?\*\//g, "");
+  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const block = new RegExp(`(?:^|[}\\s])${escaped}\\s*\\{([^}]*)\\}`).exec(css);
+  const declarations: Record<string, string> = {};
+  for (const declaration of (block?.[1] ?? "").split(";")) {
+    const colon = declaration.indexOf(":");
+    if (colon < 0) continue;
+    declarations[declaration.slice(0, colon).trim()] = declaration
+      .slice(colon + 1)
+      .trim();
+  }
+  return declarations;
+}
+
 function classesOf(css: string): string[] {
   const selectorsOnly = css
     .replace(/\/\*[\s\S]*?\*\//g, "")

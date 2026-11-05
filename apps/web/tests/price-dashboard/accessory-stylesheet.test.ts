@@ -183,6 +183,15 @@ describe("one markup, two layouts", () => {
       expect.objectContaining({ media: POINTER_WIDTH, value: "absolute" }),
     ]);
     expect(
+      declarationsFor(css, "rowMenu", "position").map((d) => [
+        d.media,
+        d.value,
+      ]),
+    ).toEqual([
+      [POINTER_WIDTH, "relative"],
+      [TABLE, "static"],
+    ]);
+    expect(
       declarationsFor(css, "rowMenu", "display").map((d) => [d.media, d.value]),
     ).toEqual([
       ["", "contents"],
@@ -200,6 +209,30 @@ describe("one markup, two layouts", () => {
     expect(declarationsFor(css, "menu", "right")).toEqual([
       expect.objectContaining({ media: TABLE, value: "calc(100% + 8px)" }),
     ]);
+  });
+
+  it("opens the menu of a table row below the row and left of its actions, so it covers neither the row's own chips nor the next row's three dots", () => {
+    expect(
+      declarationsFor(css, "menu", "top").map((d) => [d.media, d.value]),
+    ).toEqual([
+      [POINTER_WIDTH, "0"],
+      [TABLE, "calc(100% + 4px)"],
+    ]);
+    expect(
+      declarationsFor(css, "rowActions", "position").map((d) => [
+        d.media,
+        d.value,
+      ]),
+    ).toEqual([
+      [PHONE, "relative"],
+      [TABLE, "relative"],
+    ]);
+    expect(
+      declarationsFor(css, "rowActions", "align-self").map((d) => [
+        d.media,
+        d.value,
+      ]),
+    ).toEqual([[TABLE, "stretch"]]);
   });
 
   it("puts the rule and the price side by side in a card, and an accessory's two columns side by side from 1200 px only", () => {
