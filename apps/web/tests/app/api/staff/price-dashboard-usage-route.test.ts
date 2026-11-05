@@ -433,7 +433,10 @@ describe("the probes the reader is handed", () => {
         }),
       ),
     );
-    expect(oracle.flat()).toContain(true);
+    const atTheDeepDepth = oracle.map(
+      ([, deepKitchenUsesIt]) => deepKitchenUsesIt,
+    );
+    expect(atTheDeepDepth).toEqual([true, true]);
     expect(verdicts).toEqual(oracle);
   });
 });
