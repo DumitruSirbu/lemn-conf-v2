@@ -797,7 +797,7 @@ const hostileAddress = fc.oneof(
 describe("whatever a signed-in administrator sends to the draft", () => {
   it("is answered 200, 400 or 409 and never 5xx; every 200 leaves exactly one audit row and the answer equals the stored draft; a refusal leaves none and echoes none", async () => {
     const cookie = await administrator();
-    let accepted = 0;
+    const acceptedRoutes = new Set<string>();
 
     await fc.assert(
       fc.asyncProperty(
@@ -831,7 +831,7 @@ describe("whatever a signed-in administrator sends to the draft", () => {
           expect([200, 400, 409]).toContain(answer.status);
           expect(answer.headers.get("cache-control")).toBe("private, no-store");
           if (answer.status === 200) {
-            accepted += 1;
+            acceptedRoutes.add(route);
             expect(draftRows()).toHaveLength(rowsBefore + 1);
             const served = (await jsonOf(answer)) as {
               draft?: { draftRevision: string; changes: unknown };
@@ -847,10 +847,17 @@ describe("whatever a signed-in administrator sends to the draft", () => {
           }
         },
       ),
-      { numRuns: 300 },
+      {
+        numRuns: 300,
+        examples: [
+          [ANCHOR_ADDRESS, 100_000, "put"],
+          [ANCHOR_ADDRESS, 5, "bulk"],
+        ],
+      },
     );
 
-    expect(accepted).toBeGreaterThan(0);
+    expect(acceptedRoutes).toContain("put");
+    expect(acceptedRoutes).toContain("bulk");
     expect(console_.everything()).not.toContain(ECHO);
   });
 });
