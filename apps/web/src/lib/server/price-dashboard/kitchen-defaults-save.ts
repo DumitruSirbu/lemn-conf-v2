@@ -12,9 +12,11 @@ import {
   type CatalogueAvailability,
   type ItemRef,
   type KitchenDefaultsField,
+  type NewKitchenSettings,
   type PriceBook,
 } from "@lemnaria/configurator-domain";
 
+import { isHeadStill } from "@/lib/server/catalogue-availability";
 import { ACCOUNT_RESPONSE_HEADERS } from "@/lib/server/account/account-responses";
 import type { SessionCookieReader } from "@/lib/server/account/session-cookie";
 import { kitchenDefaultsSavedEntry } from "@/lib/server/price-dashboard/dashboard-audit-entries";
@@ -48,7 +50,7 @@ import {
   type StaffWrite,
 } from "@/lib/server/price-dashboard/price-dashboard-service";
 import { isRevisionShape } from "@/lib/server/price-dashboard/revision-shape";
-import { readSavedDefaults } from "@/lib/server/price-dashboard/saved-defaults";
+import { readSavedDefaultsLeniently } from "@/lib/server/price-dashboard/saved-defaults";
 import { getPriceStores, type PriceStores } from "@/lib/server/price-stores";
 import { actingSessionOf } from "@/lib/server/staff/staff-acting-session";
 import {
@@ -70,6 +72,10 @@ const SAVE_MEMBERS = [
   "expectedAvailabilityRevision",
   "defaults",
 ] as const;
+
+const ALL_FIELDS: readonly KitchenDefaultsField[] = DEFAULTS_ROW_ORDER.map(
+  (member) => KITCHEN_DEFAULTS_MEMBERS[member],
+);
 
 const DEFAULTS_WRITE: StaffWrite<KitchenDefaultsSaveRequestWire> = {
   judge: readKitchenDefaultsRequest,
@@ -245,9 +251,8 @@ async function performSave(
       dashboardConflictResponse("no-active-version"),
     );
   }
-  const saved = await readSavedDefaults(stores);
-  const held = completedDefaultsOf(saved.defaults, book);
-  const changed = changedMembersOf(held, request.defaults);
+  const saved = await readSavedDefaultsLeniently(stores);
+  const changed = changedMembersOf(saved.defaults, book, request.defaults);
   if (changed.length === 0) {
     return answerNothingToSave(stores, {
       availability,
@@ -263,12 +268,18 @@ async function performSave(
   return writeDefaults(stores, { request, changed, cookies });
 }
 
-/** The members whose value is not the held one, as the audit row's codes, in the rows' order. */
+/**
+ * The members whose value is not the held one, as the audit row's codes, in the rows' order. A saved row that cannot be
+ * read holds nothing to equal, so a save over it changes every member: that is how it is repaired.
+ */
 function changedMembersOf(
-  held: KitchenDefaultsWire,
+  held: NewKitchenSettings | undefined,
+  book: PriceBook,
   sent: KitchenDefaultsWire,
 ): readonly KitchenDefaultsField[] {
-  return [...modifiedMembers(held, sent)].map(
+  if (held === undefined) return ALL_FIELDS;
+  const completed = completedDefaultsOf(held, book);
+  return [...modifiedMembers(completed, sent)].map(
     (member) => KITCHEN_DEFAULTS_MEMBERS[member],
   );
 }
@@ -291,15 +302,6 @@ async function answerNothingToSave(
     PRICE_DRAFT_EVENT,
     savedResponse({ revision, availabilityRevision: availability.revision }),
   );
-}
-
-/** Whether the head is still the one read: a version published after it creates its items switched off. */
-async function isHeadStill(
-  stores: PriceStores,
-  read: CatalogueAvailability,
-): Promise<boolean> {
-  const now = await readDashboardAvailability(stores);
-  return now.revision === read.revision;
 }
 
 /** The domain's verdict as the route's refusal, or `undefined` for defaults the book and the head offer. */

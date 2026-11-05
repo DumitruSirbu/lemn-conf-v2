@@ -184,7 +184,7 @@ function isAlreadyAsRequested(
  * Whether the head is still the one read. A version published between the head's read and the book's creates its items
  * switched off, so a head read before it would show them on.
  */
-async function isHeadStill(
+export async function isHeadStill(
   stores: PriceStores,
   read: CatalogueAvailability,
 ): Promise<boolean> {

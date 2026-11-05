@@ -15,7 +15,10 @@ import {
 } from "@lemnaria/configurator-domain";
 
 import { readSavedDefaults } from "@/lib/server/price-dashboard/saved-defaults";
-import { readKitchenDefaultsForAdmittedPage } from "@/lib/server/price-dashboard/new-kitchen-defaults";
+import {
+  readKitchenDefaultsForAdmittedPage,
+  readNewKitchenDefaults,
+} from "@/lib/server/price-dashboard/new-kitchen-defaults";
 import { STAFF_PRICE_DRAFT_BY_ACCOUNT_POLICY } from "@/lib/server/rate-limit/limit-policy";
 import { CLIENT_NETWORK_SOURCE_VARIABLE } from "@/lib/server/rate-limit/network-source";
 import {
@@ -952,30 +955,120 @@ describe("no version was ever published", () => {
 });
 
 describe("saved defaults that cannot be read", () => {
+  const ALL_SIX_ROWS = [
+    "material",
+    "hardware",
+    "depth",
+    "finish",
+    "handle",
+    "topRowHandle",
+  ];
+
+  async function expectMendedBySave(cookie: string): Promise<void> {
+    const rowsBefore = savedRows().length;
+    const headBefore = await availabilityHead();
+
+    const answer = await saveWhole(cookie);
+
+    expect(answer.status).toBe(200);
+    expect(await storedDefaults()).toEqual(FIXED_DEFAULTS);
+    expect(Number(await availabilityHead())).toBe(Number(headBefore) + 1);
+    expect(
+      savedRows()
+        .slice(rowsBefore)
+        .map(({ detail }) => detail),
+    ).toEqual([{ changedFields: ALL_SIX_ROWS }]);
+    const page = await readKitchenDefaultsForAdmittedPage();
+    expect(page?.state).toMatchObject({
+      saved: true,
+      defaults: FIXED_DEFAULTS,
+    });
+    const again = await saveWhole(cookie);
+    expect(again.status).toBe(200);
+    expect(savedRows()).toHaveLength(rowsBefore + 1);
+  }
+
   it.each([
     ["a handle that is not one", { handle: "gold" }],
     ["a key a new kitchen does not take", { colour: "red" }],
     ["a null where a value is optional", { handle: null }],
-    ["a list", []],
-    ["text", "not settings"],
   ])(
-    "answer 503 and write nothing for a row holding %s",
+    "are mended by a valid save over a row holding %s: it is no no-op, and it names all six rows",
     async (_name, stored) => {
-      const { cookie } = await administrator();
-      vi.spyOn(prices.defaults, "read").mockResolvedValue({
-        kind: "saved",
-        saved: { revision: "1", defaults: stored, savedAt: new Date(0) },
-      });
-      const write = vi.spyOn(prices.defaults, "save");
+      const admin = await administrator();
+      await trySaveDefaults(admin, stored as never);
 
-      const answer = await saveWhole(cookie, { handle: "black" });
-
-      expect(answer.status).toBe(503);
-      expect(await jsonOf(answer)).toEqual({ status: "unavailable" });
-      expect(write).not.toHaveBeenCalled();
-      expect(savedRows()).toEqual([]);
+      await expectMendedBySave(admin.cookie);
     },
   );
+
+  it.each([
+    ["a list", []],
+    ["text", "not settings"],
+    ["null", null],
+  ])(
+    "are mended by a valid save over a row holding %s",
+    async (_name, stored) => {
+      const { cookie } = await administrator();
+      const json = await saveBody();
+      vi.spyOn(prices.defaults, "read").mockResolvedValueOnce({
+        kind: "saved",
+        saved: {
+          revision: await defaultsRevision(),
+          defaults: stored,
+          savedAt: new Date(0),
+        },
+      });
+
+      const answer = await putDefaults({ cookie, json });
+
+      expect(answer.status).toBe(200);
+      expect(await storedDefaults()).toEqual(FIXED_DEFAULTS);
+      expect(savedRows().map(({ detail }) => detail)).toEqual([
+        { changedFields: ALL_SIX_ROWS },
+      ]);
+    },
+  );
+
+  it("is still judged against the book and the head, and nothing is written for an item that is not on offer", async () => {
+    const admin = await administrator();
+    await trySaveDefaults(admin, { handle: "gold" } as never);
+    const rowsBefore = savedRows().length;
+    const stored = await storedDefaults();
+
+    const answer = await saveWhole(admin.cookie, {
+      materialTierId: "material.unheard-of",
+    });
+
+    expect(answer.status).toBe(409);
+    expect(await storedDefaults()).toEqual(stored);
+    expect(savedRows()).toHaveLength(rowsBefore);
+  });
+
+  it("is still saved against the revision the row holds: a stale one is 409 changed-meanwhile", async () => {
+    const admin = await administrator();
+    await trySaveDefaults(admin, { handle: "gold" } as never);
+    const stored = await storedDefaults();
+
+    const answer = await putDefaults({
+      cookie: admin.cookie,
+      json: await saveBody({}, { expectedRevision: "0" }),
+    });
+
+    expect(answer.status).toBe(409);
+    expect(await jsonOf(answer)).toEqual({ status: "changed-meanwhile" });
+    expect(await storedDefaults()).toEqual(stored);
+  });
+
+  it("is still thrown by the page's read and given the fixed fallbacks by the customer's", async () => {
+    await trySaveDefaults(await administrator(), { handle: "gold" } as never);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    await expect(readKitchenDefaultsForAdmittedPage()).rejects.toMatchObject({
+      name: "DashboardStateUnreadableError",
+    });
+    expect(await readNewKitchenDefaults()).toEqual(FIXED_DEFAULTS);
+  });
 });
 
 describe("a write and its audit row are one thing", () => {
