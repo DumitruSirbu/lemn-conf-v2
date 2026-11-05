@@ -2766,9 +2766,39 @@ S2c's hand-offs:
 - A switch to the state an item is already in answers `200 {revision: head}` and writes nothing, whatever its
   `expectedRevision`. The bucket is spent first, and an unstated item is never a no-op. The owner may overturn this
   ruling.
+- R4a2's dispatch carries over to it the duplicate `itemIdOf` in persistence (`dashboard-store-shapes.ts`).
 - Queued for a later wave: `readDashboardAvailability` (`dashboard-state.ts:78`) does not check the revision's shape.
   A malformed revision from a store would read as a permanent `changed-meanwhile` instead of a `503`. Neither store can
   produce one today.
+
+*R4a3*. These were ruled in QA and review on 2026-11-05.
+- A revert names a change the draft holds, or it answers `400 UNKNOWN_ADDRESS`. The creation's own address counts as
+  held.
+- A revert that names a field of an item the draft deletes answers `400 NOT_EDITABLE`.
+- The audit row of a revert names the change that actually left, with the real `revertedCount`.
+- Every kind's `field` comes from its closed list.
+
+*Hand-offs to R4a4, to settle before its visual review:*
+- **D7's ↺ on a created row's field lines.** An accessory creation carries its `perUnitMinor` inside the creation, so
+  the price line's ↺ names an address the draft does not hold, and the request answers `400`. Reverting a created
+  class's rate removes the whole class, which is the domain rule: every rate is owed.
+  - Fold a created row's field lines under its row, as `stale-draft.ts:85-94` does, or offer no ↺ on them.
+  - The row's own ↺ reverts the creation address (`publish-model.ts:224, :399`).
+- **The client half of U5c's hand-off** (`stale-draft.ts`). The created row's line gets a ↺ that reverts the creation.
+  A deleted row's line stays without one until R4c.
+- **The multi-change planner.** R4a3 exports a planner that puts a creation plus its rates in one write, judged once.
+  R4a4 uses it and does not write a second one.
+- **The shared-file note above** names `qa-m10-u4a-wire` only. R4a3 also flipped `qa-m10-u4c-wire`'s revert and rename
+  `it.fails`. Its `createAccessory` `it.fails` and pin stay R4a4's.
+
+*R4a2*: the bucket `staff-price-usage-by-account` allows 120 an hour, and the read has a 10 s deadline. Both figures
+are provisional and the owner's to retune. The scribe records them in ADR 0178. The walk is not cancelled at the
+deadline: an `AbortSignal` on `countEach` is queued.
+
+*Before the next push:* `live-suite-census.test.ts` is red on `m10-price-dashboard`, because the K3 live file
+`qa-m10-k3-seen-at.live.adversarial.test.ts` is not in its table. The flake fixes are queued with it:
+`plan-preview-model.facing-labels`, the `qa-m10-w1-price-stores-wiring` timeout, `qa-8q2-sink-store`, and the
+`qa-m10-r2-dashboard-api` property, which needs a pinned accepted example.
 
 ### Lane U — Dashboard UI D1–D9 (Light + visual; U5 Full, because it publishes)
 
