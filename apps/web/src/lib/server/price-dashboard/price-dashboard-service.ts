@@ -131,25 +131,51 @@ export interface DashboardWriteRequest extends DashboardReadRequest {
 // The read
 
 /** The active version and the draft. A dashboard with no published version has no book to edit: `409 no-active-version`. */
-export async function readDashboardForStaff(
+export function readDashboardForStaff(
   request: DashboardReadRequest,
+): Promise<NextResponse> {
+  return answerReadForStaff(request, readStateAnswer);
+}
+
+/** What a read comes to once its reader is admitted and within the bucket: an answer to audit and serve, or a refusal. */
+export type StaffReadAnswer =
+  | {
+      readonly kind: "served";
+      readonly response: NextResponse;
+      readonly section: PriceCatalogueSection;
+    }
+  | { readonly kind: "refused"; readonly response: NextResponse };
+
+/**
+ * The common order of a staff read: the network's read limit, the session and `price.edit`, the account's own bucket,
+ * which fails closed, and only then `read`, where a store is first asked. An answer is served once its
+ * `price-catalogue-viewed` row for the section it names has committed; a refusal writes no row.
+ */
+export async function answerReadForStaff(
+  request: DashboardReadRequest,
+  read: () => Promise<StaffReadAnswer>,
 ): Promise<NextResponse> {
   const admission = await admitReader(request);
   if (admission.kind === "refused") return admission.response;
   const refusal = await refusalOfReadBucket(request, admission.accountId);
   if (refusal !== undefined) return refusal;
-  return serveState(request.cookies);
+  const answer = await read();
+  if (answer.kind === "refused") {
+    return refused(PRICE_READ_EVENT, answer.response);
+  }
+  return serveAudited(request.cookies, answer);
 }
 
-async function serveState(cookies: SessionCookieReader): Promise<NextResponse> {
+async function readStateAnswer(): Promise<StaffReadAnswer> {
   const reading = await readStateWire();
   if (reading.kind !== "ready") {
-    return refusalOfUnreadyState(PRICE_READ_EVENT, reading);
+    return { kind: "refused", response: responseOfUnreadyState(reading) };
   }
-  return serveAudited(cookies, {
+  return {
+    kind: "served",
     response: dashboardStateResponse(reading.wire),
     section: "catalogue",
-  });
+  };
 }
 
 /**
@@ -699,12 +725,15 @@ function refusalOfUnreadyState(
   event: AccountEvent,
   reading: Exclude<DashboardStateReading, { readonly kind: "ready" }>,
 ): NextResponse {
-  return refused(
-    event,
-    reading.kind === "no-active-version"
-      ? dashboardConflictResponse("no-active-version")
-      : draftUnreadableResponse(reading.draftRevision),
-  );
+  return refused(event, responseOfUnreadyState(reading));
+}
+
+function responseOfUnreadyState(
+  reading: Exclude<DashboardStateReading, { readonly kind: "ready" }>,
+): NextResponse {
+  return reading.kind === "no-active-version"
+    ? dashboardConflictResponse("no-active-version")
+    : draftUnreadableResponse(reading.draftRevision);
 }
 
 function answerOfRefusal(refusal: RequestRefusal<string>): NextResponse {

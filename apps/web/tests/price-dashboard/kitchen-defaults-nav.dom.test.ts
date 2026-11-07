@@ -114,7 +114,7 @@ describe("the menu entry", () => {
 });
 
 describe("the page's source", () => {
-  it("claims no value in a production build: until the real read exists it answers unavailable", async () => {
+  it("claims no value in a production build whose stores cannot be read: it answers unavailable", async () => {
     vi.stubEnv("NODE_ENV", "production");
 
     expect(await readKitchenDefaults()).toEqual({ kind: "unavailable" });

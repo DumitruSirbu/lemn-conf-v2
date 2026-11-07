@@ -944,7 +944,9 @@ describe("availability is judged on the screen", () => {
 });
 
 describe("a production build", () => {
-  it("writes nothing and says so: no request leaves the page, and the saved values stay as they were", async () => {
+  // R4b2: a production build saves through the server's route. The staff-session stub answers it with a body that is no
+  // answer of the route, so the screen claims no save and keeps what the person chose.
+  it("claims no save the server did not make: the requests go to the defaults route alone, and the saved values stay as they were", async () => {
     vi.stubEnv("NODE_ENV", "production");
     const fetched = vi.mocked(fetch).mock.calls.length;
     const container = await mount();
@@ -963,8 +965,12 @@ describe("a production build", () => {
         .filter(
           ([address]) =>
             typeof address === "string" && /default/i.test(address),
-        ),
-    ).toEqual([]);
+        )
+        .map(([address, init]) => [address, init?.method]),
+    ).toEqual([
+      ["/api/staff/prices/defaults", "PUT"],
+      ["/api/staff/prices/defaults", "PUT"],
+    ]);
     expect(checkedValue(container, "handle")).toBe("black");
   });
 });

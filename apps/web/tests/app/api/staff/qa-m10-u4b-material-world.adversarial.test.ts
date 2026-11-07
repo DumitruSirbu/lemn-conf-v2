@@ -159,7 +159,8 @@ describe("the counts a page is handed", () => {
     }
     expect(development.page.sampleUsage).toEqual(SAMPLE_MATERIAL_USAGE);
     expect(production.page.sampleUsage).toBeUndefined();
-    expect(production.page.defaults).toBeUndefined();
+    // R4b2: a production build reads the saved defaults. Nothing is saved here, which reads as the empty settings, known.
+    expect(production.page.defaults).toEqual({});
     expect(JSON.stringify(production.page)).not.toContain("designCount");
   });
 });

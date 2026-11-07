@@ -580,7 +580,7 @@ describe("a save that is not accepted", () => {
     expect(saveButton(container).disabled).toBe(false);
   });
 
-  it("claims no save in a production build, which has no server behind it yet", async () => {
+  it("claims no save in a production build when the server answers with nothing of the route's own", async () => {
     vi.stubEnv("NODE_ENV", "production");
     const container = await mount();
     await choose(radioOf(container, "cabinetDepthMm", "700"));

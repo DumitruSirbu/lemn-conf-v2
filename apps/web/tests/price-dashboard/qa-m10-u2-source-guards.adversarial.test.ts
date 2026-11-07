@@ -148,12 +148,15 @@ describe("the allow-list entry the developer added to the R-d guard", () => {
     }
   });
 
-  it("is needed by that file and by no other file of the dashboard's client side: the one file under price-dashboard that reads the server's side is the read both sources go through", () => {
+  it("is needed by that file and by no other file of the dashboard's client side: the files under price-dashboard that read the server's side are the read both sources go through and, since R4b2, the defaults source", () => {
     const readers = allSources
       .filter((path) => path.startsWith("price-dashboard/"))
       .filter((path) => READS_DRAFT_OR_ARCHIVE.test(codeOf(path)));
 
-    expect(readers).toEqual(["price-dashboard/admitted-state-read.ts"]);
+    expect(readers).toEqual([
+      "price-dashboard/admitted-state-read.ts",
+      "price-dashboard/kitchen-defaults-source.ts",
+    ]);
   });
 
   it("does not admit the client-side file that would write through it: no price-dashboard module with a use-client line reads the server directory", () => {
