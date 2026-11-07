@@ -3,6 +3,7 @@ import fc from "fast-check";
 
 import {
   DEFAULT_HANDLE,
+  isRevisionShape,
   SAMPLE_PRICE_BOOK,
   type ItemRef,
 } from "@lemnaria/configurator-domain";
@@ -174,18 +175,30 @@ describe("every answer the real PUT route can give a save", () => {
     });
   });
 
+  const UNKNOWN = (field: string) => ({
+    kind: "invalid",
+    issues: [{ field, code: "UNKNOWN_VALUE" }],
+  });
   it.each([
-    ["cabinetDepthMm", 650],
-    ["handle", "gold"],
-    ["materialTierId", "material.nonexistent-class"],
+    ["cabinetDepthMm", 650, UNKNOWN("cabinetDepthMm")],
+    ["handle", "gold", UNKNOWN("handle")],
+    ["topRowHandle", "gold", UNKNOWN("topRowHandle")],
+    [
+      "materialTierId",
+      "material.nonexistent-class",
+      {
+        kind: "item-unavailable",
+        item: { kind: "material", tierId: "material.nonexistent-class" },
+      },
+    ],
   ])(
-    "is invalid or unavailable, never saved, for a %s the route refuses",
-    async (member, value) => {
+    "is exactly the stand-in's outcome for a %s the route refuses, and nothing is saved",
+    async (member, value, expected) => {
       const request = await requestWith({ [member]: value });
 
       const outcome = await FETCHING_KITCHEN_DEFAULTS_CLIENT.save(request);
 
-      expect(["invalid", "item-unavailable"]).toContain(outcome.kind);
+      expect(outcome).toEqual(expected);
       expect((await factsOrFail()).state.saved).toBe(false);
     },
   );
@@ -316,37 +329,70 @@ describe("the facts read again, against the real routes", () => {
 // The sorter on arbitrary answers
 
 describe("the sorter of a save's answer, on arbitrary statuses and bodies", () => {
+  const REVISION = fc.nat().map(String);
+  const STATUS = fc.oneof(
+    fc.constantFrom(200, 400, 401, 403, 409, 429, 503),
+    fc.integer({ min: 100, max: 599 }),
+  );
+  const WORDS = fc.oneof(
+    fc.constantFrom(
+      "changed-meanwhile",
+      "availability-changed-meanwhile",
+      "item-unavailable",
+      "no-active-version",
+      "invalid-input",
+    ),
+    fc.jsonValue(),
+  );
+  const ITEM = fc.oneof(
+    fc.record({
+      kind: fc.constantFrom(
+        "material",
+        "hardware",
+        "finish",
+        "handle",
+        "accessory",
+      ),
+      tierId: fc.string(),
+      finishId: fc.string(),
+      handle: fc.constantFrom("steel", "black", "push", "gold"),
+      accessoryId: fc.string(),
+    }),
+    fc.jsonValue(),
+  );
   const ANY_BODY = fc.oneof(
     fc.constant(undefined),
     fc.jsonValue(),
     fc.record({
-      revision: fc.jsonValue(),
-      availabilityRevision: fc.jsonValue(),
-      status: fc.jsonValue(),
+      revision: fc.oneof(REVISION, fc.jsonValue()),
+      availabilityRevision: fc.oneof(REVISION, fc.jsonValue()),
+      status: WORDS,
       issues: fc.jsonValue(),
-      item: fc.jsonValue(),
+      item: ITEM,
     }),
   );
 
-  it("never throws, and answers saved only for a 200 whose two revisions are revisions", () => {
+  it("answers saved for every 200 whose two revisions are revisions, carrying exactly those two, and for no other answer", () => {
     fc.assert(
-      fc.property(
-        fc.integer({ min: 100, max: 599 }),
-        ANY_BODY,
-        (status, body) => {
-          const outcome = defaultsSaveOutcomeOf({ status, body });
+      fc.property(STATUS, ANY_BODY, (status, body) => {
+        const outcome = defaultsSaveOutcomeOf({ status, body });
+        const members = body as
+          | { revision?: unknown; availabilityRevision?: unknown }
+          | undefined;
+        const isWholeSave =
+          status === 200 &&
+          isRevisionShape(members?.revision) &&
+          isRevisionShape(members.availabilityRevision);
 
-          if (outcome.kind === "saved") {
-            expect(status).toBe(200);
-            expect(outcome.saved).toEqual({
-              revision: (body as { revision: string }).revision,
-              availabilityRevision: (body as { availabilityRevision: string })
-                .availabilityRevision,
-            });
-          }
-        },
-      ),
-      { numRuns: 400 },
+        expect(outcome.kind === "saved").toBe(isWholeSave);
+        if (outcome.kind === "saved") {
+          expect(outcome.saved).toEqual({
+            revision: members?.revision,
+            availabilityRevision: members?.availabilityRevision,
+          });
+        }
+      }),
+      { numRuns: 2000 },
     );
   });
 
@@ -367,24 +413,58 @@ describe("the sorter of a save's answer, on arbitrary statuses and bodies", () =
     );
   });
 
-  it("answers conflict only for the two changed-meanwhile words, and unavailable only with an item of a known kind and a non-empty id", () => {
+  it("answers conflict for exactly the two changed-meanwhile words, item-unavailable for exactly an item of a known kind with its id (handles among the handles), and failed otherwise", () => {
     fc.assert(
       fc.property(ANY_BODY, (body) => {
         const outcome = defaultsSaveOutcomeOf({ status: 409, body });
 
         const word = (body as { status?: unknown } | undefined)?.status;
-        if (outcome.kind === "conflict") {
-          expect([
-            "changed-meanwhile",
-            "availability-changed-meanwhile",
-          ]).toContain(word);
-        } else if (outcome.kind === "item-unavailable") {
+        const isConflictWord =
+          word === "changed-meanwhile" ||
+          word === "availability-changed-meanwhile";
+        expect(outcome.kind === "conflict").toBe(isConflictWord);
+        if (outcome.kind === "item-unavailable") {
           expect(word).toBe("item-unavailable");
           expect(Object.keys(outcome.item)).toHaveLength(2);
-        } else {
+        }
+        if (word !== "item-unavailable" && !isConflictWord) {
           expect(outcome).toEqual({ kind: "failed" });
         }
       }),
+      { numRuns: 600 },
+    );
+  });
+
+  it("answers item-unavailable for a named item of each kind and failed for one that names no id, over a sweep of ids", () => {
+    fc.assert(
+      fc.property(
+        fc.constantFrom(
+          "material",
+          "hardware",
+          "finish",
+          "handle",
+          "accessory",
+        ),
+        fc.string(),
+        (kind, id) => {
+          const member = {
+            material: "tierId",
+            hardware: "tierId",
+            finish: "finishId",
+            handle: "handle",
+            accessory: "accessoryId",
+          }[kind];
+          const outcome = defaultsSaveOutcomeOf({
+            status: 409,
+            body: { status: "item-unavailable", item: { kind, [member]: id } },
+          });
+          const isNamed =
+            id !== "" &&
+            (kind !== "handle" || ["steel", "black", "push"].includes(id));
+
+          expect(outcome.kind === "item-unavailable").toBe(isNamed);
+        },
+      ),
       { numRuns: 400 },
     );
   });

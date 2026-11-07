@@ -381,6 +381,30 @@ describe("the allow-list's entry for the defaults source is as narrow as the fil
     expect(codeOf(SOURCE)).not.toMatch(DRAFT_OR_ARCHIVE);
   });
 
+  it("takes one reader from the admitted-state module, readAdmitted, and names none of the six others that module exports (a draft, a version or a first page of versions)", () => {
+    const text = readFileSync(
+      join(import.meta.dirname, "../../src", SOURCE),
+      "utf8",
+    );
+
+    const fromAdmittedStateRead = [
+      ...text.matchAll(
+        /import\s*\{([^}]*)\}\s*from\s*"\.\/admitted-state-read"/g,
+      ),
+    ].flatMap((match) =>
+      (match[1] ?? "")
+        .split(",")
+        .map((name) => name.trim())
+        .filter(Boolean),
+    );
+    const OTHER_READERS =
+      /\b(?:readVersion|readStateOrNothing|readStateReading|readFirstVersionPage|readPredecessorOf|readDeletionFactsOfPage)\b/;
+
+    expect(fromAdmittedStateRead).toEqual(["readAdmitted"]);
+    expect(codeOf(SOURCE)).not.toMatch(OTHER_READERS);
+    expect(codeOf(SOURCE)).not.toMatch(/export\s*\*|export\s*\{[^}]*\}\s*from/);
+  });
+
   it("is served by three server modules that name no draft read, no version read, no list and no publish (the whole closure also holds the dashboard's own readers, which only a call would reach)", () => {
     const readers = [
       "lib/server/price-dashboard/new-kitchen-defaults.ts",

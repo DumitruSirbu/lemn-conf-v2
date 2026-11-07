@@ -472,6 +472,14 @@ describe("the route's methods", () => {
     expect(methods.sort()).toEqual(["GET", "HEAD", "PUT"]);
   });
 
+  it("names every method the route supports in the Allow header of its 405 for HEAD, and PUT is one of them (RFC 9110, 15.5.6)", () => {
+    const allowed = (defaultsRoute.HEAD().headers.get("allow") ?? "")
+      .split(",")
+      .map((method) => method.trim());
+
+    expect(allowed).toEqual(expect.arrayContaining(["GET", "PUT"]));
+  });
+
   it("answers HEAD 405 whatever the session, spending no bucket and writing no row", async () => {
     const { cookie } = await administrator();
     limiterLedger.counted.length = 0;
