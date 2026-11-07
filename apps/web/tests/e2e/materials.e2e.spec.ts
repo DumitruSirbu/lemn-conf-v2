@@ -520,10 +520,10 @@ test.describe("the materials screens on a phone, 390 x 844", () => {
     });
   });
 
-  test.describe("a production build (CI): the switch-off and the deletion stay off until judged, and the counts come from the server", () => {
+  test.describe("a production build (CI): the switch-off is judged, the deletion stays off, and the counts come from the server", () => {
     test.skip(!SERVER_IS_PRODUCTION_BUILD, CI_ONLY_REASON);
 
-    test("MDF and veneer: the menu entries and the page's switch and deletion are off with the reason, the page counts the material once, and pressing sends nothing", async ({
+    test("MDF and veneer: the switch-off entry and the page's switch are on, the deletion is off with the reason, the page counts the material once, and pressing the deletion sends nothing", async ({
       page,
     }) => {
       const words = wordsOf("ro");
@@ -534,18 +534,17 @@ test.describe("the materials screens on a phone, 390 x 844", () => {
       for (const tierId of [MDF, VENEER]) {
         const row = rowOf(page, tierId);
         await menuButtonOf(row).tap();
-        for (const which of ["switch-off", "delete"] as const) {
-          const entry = menuEntryOf(row, words, which);
-          await expect(entry, `${tierId} ${which}`).toHaveAttribute(
-            "aria-disabled",
-            "true",
-          );
-          await entry.tap({ force: true });
-        }
-        await expect(row.getByTestId("menu-reason")).toHaveText([
-          cannotJudge,
-          cannotJudge,
-        ]);
+        await expect(
+          menuEntryOf(row, words, "switch-off"),
+          `${tierId} switch-off`,
+        ).not.toHaveAttribute("aria-disabled", "true");
+        const deletion = menuEntryOf(row, words, "delete");
+        await expect(deletion, `${tierId} delete`).toHaveAttribute(
+          "aria-disabled",
+          "true",
+        );
+        await deletion.tap({ force: true });
+        await expect(row.getByTestId("menu-reason")).toHaveText([cannotJudge]);
       }
       await expect(itemDialogOf(page)).toHaveCount(0);
       expect(
@@ -555,7 +554,7 @@ test.describe("the materials screens on a phone, 390 x 844", () => {
       await shootForReview(page, "390-d5a-production-menu");
 
       await openMaterial(page, MDF);
-      await expect(activeSwitch(page, words)).toHaveAttribute(
+      await expect(activeSwitch(page, words)).not.toHaveAttribute(
         "aria-disabled",
         "true",
       );
@@ -563,7 +562,7 @@ test.describe("the materials screens on a phone, 390 x 844", () => {
         "aria-disabled",
         "true",
       );
-      await expect(editPageOf(page).getByText(cannotJudge)).toHaveCount(2);
+      await expect(editPageOf(page).getByText(cannotJudge)).toHaveCount(1);
       await expect(
         editPageOf(page)
           .locator("dl > div")
@@ -576,13 +575,32 @@ test.describe("the materials screens on a phone, 390 x 844", () => {
           `${romanian("priceDashboard.materials.usedInKitchens")}\\s*0$`,
         ),
       );
-      await activeSwitch(page, words).tap({ force: true });
+      const requestsBeforeDeletion = requests.length;
       await deleteMaterialButton(page, words).tap({ force: true });
       await expect(itemDialogOf(page)).toHaveCount(0);
       expect(
+        requests.slice(requestsBeforeDeletion),
+        "no request was made by pressing the off deletion",
+      ).toEqual([]);
+      await activeSwitch(page, words).tap();
+      await expect(
+        itemDialogOf(page),
+        "the switch-off asks first",
+      ).toBeVisible();
+      await itemDialogOf(page)
+        .getByRole("button", {
+          name: romanian("priceDashboard.common.cancel"),
+          exact: true,
+        })
+        .tap();
+      await expect(itemDialogOf(page)).toHaveCount(0);
+      expect(
         requests,
-        "one count for the page, and no request from pressing an off control",
-      ).toEqual(["POST /api/staff/prices/usage"]);
+        "one count for the page, one for the switch-off dialog, and nothing was written",
+      ).toEqual([
+        "POST /api/staff/prices/usage",
+        "POST /api/staff/prices/usage",
+      ]);
       await shootForReview(page, "390-d5b-production-off");
     });
   });

@@ -57,8 +57,8 @@ import {
 // specs of each screen drive. The world is the e2e server's fake price book, in which no saved kitchen uses anything, so
 // every count is 0: a count above 0 is held by the DOM tests over planted designs.
 //
-// Items are switched off through the route first, because a production page offers no switch-off until the saved defaults
-// can be read, and put back on afterwards: the availability is one object for the whole server, like the draft.
+// Items are switched off through the route and put back on afterwards, so each spec starts from the same state: the
+// availability is one object for the whole server, like the draft.
 
 const AVAILABILITY_ROUTE = "/api/staff/prices/availability";
 const USAGE_ROUTE = "/api/staff/prices/usage";

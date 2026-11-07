@@ -334,10 +334,10 @@ test.describe("the accessory screens at desktop 1440", () => {
     });
   });
 
-  test.describe("a production build (CI): the lifecycle is drawn off, honestly", () => {
+  test.describe("a production build (CI): the rack's switch-off is judged, the cover's and every deletion stay off", () => {
     test.skip(!SERVER_IS_PRODUCTION_BUILD, CI_ONLY_REASON);
 
-    test("each built-in: the switch is off (the cover because it is always added, the rack because nothing can be checked), the deletion says it comes with the catalogue, no count is claimed, and pressing sends nothing", async ({
+    test("each built-in: the rack's switch-off is on and opens the usage dialog, the cover's is off because it is always added, every deletion says it comes with the catalogue, no count is claimed outside the dialog, and pressing a deletion sends nothing", async ({
       page,
     }) => {
       const words = wordsOf("ro");
@@ -345,28 +345,41 @@ test.describe("the accessory screens at desktop 1440", () => {
       const alwaysPresent = romanian(
         "priceDashboard.lifecycle.alwaysPresentCannotChange",
       );
+      const builtIn = romanian(
+        "priceDashboard.lifecycle.builtInAccessoryCannotBeDeleted",
+      );
+      const alwaysPresentDelete = romanian(
+        "priceDashboard.lifecycle.alwaysPresentCannotBeDeleted",
+      );
       await openAccessoryList(page);
       const requests = collectDashboardRequests(page);
 
       for (const accessoryId of BUILT_IN_ACCESSORIES) {
         const row = rowOf(page, accessoryId);
         await menuButtonOf(row).click();
-        for (const which of ["switch-off", "delete"] as const) {
-          const entry = menuEntryOf(row, words, which);
-          await expect(entry, `${accessoryId} ${which}`).toHaveAttribute(
+        const isSinkCover = accessoryId === SINK_COVER;
+        const switchOff = menuEntryOf(row, words, "switch-off");
+        if (isSinkCover) {
+          await expect(switchOff, `${accessoryId} switch-off`).toHaveAttribute(
             "aria-disabled",
             "true",
           );
-          await entry.click({ force: true });
+          await switchOff.click({ force: true });
+        } else {
+          await expect(
+            switchOff,
+            `${accessoryId} switch-off is judged`,
+          ).not.toHaveAttribute("aria-disabled", "true");
         }
-        await expect(row.getByTestId("menu-reason")).toHaveText([
-          accessoryId === SINK_COVER ? alwaysPresent : cannotJudge,
-          romanian(
-            accessoryId === SINK_COVER
-              ? "priceDashboard.lifecycle.alwaysPresentCannotBeDeleted"
-              : "priceDashboard.lifecycle.builtInAccessoryCannotBeDeleted",
-          ),
-        ]);
+        const deletion = menuEntryOf(row, words, "delete");
+        await expect(deletion, `${accessoryId} delete`).toHaveAttribute(
+          "aria-disabled",
+          "true",
+        );
+        await deletion.click({ force: true });
+        await expect(row.getByTestId("menu-reason")).toHaveText(
+          isSinkCover ? [alwaysPresent, alwaysPresentDelete] : [builtIn],
+        );
         await menuButtonOf(row).click();
       }
       await expect(itemDialogOf(page)).toHaveCount(0);
@@ -377,17 +390,30 @@ test.describe("the accessory screens at desktop 1440", () => {
       await shootForReview(page, "1440-d6a-production-menu");
 
       await openAccessory(page, DRYING_RACK);
-      await expect(activeSwitch(page, words)).toHaveAttribute(
+      await expect(activeSwitch(page, words)).not.toHaveAttribute(
         "aria-disabled",
         "true",
       );
-      await activeSwitch(page, words).click({ force: true });
+      await expect(editPageOf(page).getByText(cannotJudge)).toHaveCount(0);
+      const requestsBeforeDeletion = requests.length;
       await deleteAccessoryButton(page, words).click({ force: true });
       await expect(itemDialogOf(page)).toHaveCount(0);
       expect(
-        requests,
-        "no request was made by pressing an off control",
+        requests.slice(requestsBeforeDeletion),
+        "no request was made by pressing the off deletion",
       ).toEqual([]);
+      await activeSwitch(page, words).click();
+      await expect(
+        itemDialogOf(page),
+        "the switch-off asks first",
+      ).toBeVisible();
+      await itemDialogOf(page)
+        .getByRole("button", {
+          name: romanian("priceDashboard.common.cancel"),
+          exact: true,
+        })
+        .click();
+      await expect(itemDialogOf(page)).toHaveCount(0);
       await shootForReview(page, "1440-d6b-production-off");
     });
   });

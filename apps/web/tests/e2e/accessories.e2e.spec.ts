@@ -477,10 +477,10 @@ test.describe("the accessory screens on a phone, 390 x 844", () => {
     });
   });
 
-  test.describe("a production build (CI): the lifecycle is drawn off, honestly", () => {
+  test.describe("a production build (CI): the rack's switch-off is judged, the cover's and every deletion stay off", () => {
     test.skip(!SERVER_IS_PRODUCTION_BUILD, CI_ONLY_REASON);
 
-    test("each built-in: the switch entry is off (the cover because it is always added, the rack because nothing can be checked), the delete entry says it comes with the catalogue, no count is claimed anywhere, and pressing sends nothing", async ({
+    test("each built-in: the rack's switch-off entry is on and opens the usage dialog, the cover's is off because it is always added, every delete entry says it comes with the catalogue, no count is claimed outside the dialog, and pressing a deletion sends nothing", async ({
       page,
     }) => {
       const words = wordsOf("ro");
@@ -500,18 +500,29 @@ test.describe("the accessory screens on a phone, 390 x 844", () => {
       for (const accessoryId of BUILT_IN_ACCESSORIES) {
         const row = rowOf(page, accessoryId);
         await menuButtonOf(row).tap();
-        for (const which of ["switch-off", "delete"] as const) {
-          const entry = menuEntryOf(row, words, which);
-          await expect(entry, `${accessoryId} ${which}`).toHaveAttribute(
+        const isSinkCover = accessoryId === SINK_COVER;
+        const switchOff = menuEntryOf(row, words, "switch-off");
+        if (isSinkCover) {
+          await expect(switchOff, `${accessoryId} switch-off`).toHaveAttribute(
             "aria-disabled",
             "true",
           );
-          await entry.tap({ force: true });
+          await switchOff.tap({ force: true });
+        } else {
+          await expect(
+            switchOff,
+            `${accessoryId} switch-off is judged`,
+          ).not.toHaveAttribute("aria-disabled", "true");
         }
-        await expect(row.getByTestId("menu-reason")).toHaveText([
-          accessoryId === SINK_COVER ? alwaysPresent : cannotJudge,
-          accessoryId === SINK_COVER ? alwaysPresentDelete : builtIn,
-        ]);
+        const deletion = menuEntryOf(row, words, "delete");
+        await expect(deletion, `${accessoryId} delete`).toHaveAttribute(
+          "aria-disabled",
+          "true",
+        );
+        await deletion.tap({ force: true });
+        await expect(row.getByTestId("menu-reason")).toHaveText(
+          isSinkCover ? [alwaysPresent, alwaysPresentDelete] : [builtIn],
+        );
       }
       await expect(itemDialogOf(page)).toHaveCount(0);
       expect(
@@ -521,18 +532,30 @@ test.describe("the accessory screens on a phone, 390 x 844", () => {
       await shootForReview(page, "390-d6a-production-menu");
 
       await openAccessory(page, DRYING_RACK);
-      await expect(activeSwitch(page, words)).toHaveAttribute(
+      await expect(activeSwitch(page, words)).not.toHaveAttribute(
         "aria-disabled",
         "true",
       );
-      await expect(editPageOf(page).getByText(cannotJudge)).toHaveCount(1);
-      await activeSwitch(page, words).tap({ force: true });
+      await expect(editPageOf(page).getByText(cannotJudge)).toHaveCount(0);
+      const requestsBeforeDeletion = requests.length;
       await deleteAccessoryButton(page, words).tap({ force: true });
       await expect(itemDialogOf(page)).toHaveCount(0);
       expect(
-        requests,
-        "no request was made by pressing an off control",
+        requests.slice(requestsBeforeDeletion),
+        "no request was made by pressing the off deletion",
       ).toEqual([]);
+      await activeSwitch(page, words).tap();
+      await expect(
+        itemDialogOf(page),
+        "the switch-off asks first",
+      ).toBeVisible();
+      await itemDialogOf(page)
+        .getByRole("button", {
+          name: romanian("priceDashboard.common.cancel"),
+          exact: true,
+        })
+        .tap();
+      await expect(itemDialogOf(page)).toHaveCount(0);
       await shootForReview(page, "390-d6b-production-off");
     });
   });

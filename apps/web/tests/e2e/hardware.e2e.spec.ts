@@ -737,10 +737,10 @@ test.describe("the hardware screens on a phone, 390 x 844", () => {
     });
   });
 
-  test.describe("a production build (CI): the lifecycle is drawn off, honestly", () => {
+  test.describe("a production build (CI): the switch-off is judged, the deletion stays off", () => {
     test.skip(!SERVER_IS_PRODUCTION_BUILD, CI_ONLY_REASON);
 
-    test("Hettich and Blum: the menu entries and the class page's switch and deletion are off with the reason, no count is claimed anywhere, and pressing sends nothing", async ({
+    test("Hettich and Blum: the switch-off entry and the class page's switch are on and open the usage dialog, the deletion stays off with the reason, no count is claimed outside the dialog, and pressing the deletion sends nothing", async ({
       page,
     }) => {
       const words = wordsOf("ro");
@@ -751,18 +751,17 @@ test.describe("the hardware screens on a phone, 390 x 844", () => {
       for (const tierId of [HETTICH, BLUM]) {
         const row = rowOf(page, tierId);
         await menuButtonOf(row).tap();
-        for (const which of ["switch-off", "delete"] as const) {
-          const entry = menuEntryOf(row, words, which);
-          await expect(entry, `${tierId} ${which}`).toHaveAttribute(
-            "aria-disabled",
-            "true",
-          );
-          await entry.tap({ force: true });
-        }
-        await expect(row.getByTestId("menu-reason")).toHaveText([
-          cannotJudge,
-          cannotJudge,
-        ]);
+        await expect(
+          menuEntryOf(row, words, "switch-off"),
+          `${tierId} switch-off`,
+        ).not.toHaveAttribute("aria-disabled", "true");
+        const deletion = menuEntryOf(row, words, "delete");
+        await expect(deletion, `${tierId} delete`).toHaveAttribute(
+          "aria-disabled",
+          "true",
+        );
+        await deletion.tap({ force: true });
+        await expect(row.getByTestId("menu-reason")).toHaveText([cannotJudge]);
       }
       await expect(itemDialogOf(page)).toHaveCount(0);
       expect(
@@ -771,8 +770,23 @@ test.describe("the hardware screens on a phone, 390 x 844", () => {
       ).not.toMatch(SAYS_SAVED_KITCHENS_USE_IT);
       await shootForReview(page, "390-d4f-production-menu");
 
+      const row = rowOf(page, HETTICH);
+      await menuButtonOf(row).tap();
+      await menuEntryOf(row, words, "switch-off").tap();
+      await expect(
+        itemDialogOf(page),
+        "the switch-off asks first",
+      ).toBeVisible();
+      await itemDialogOf(page)
+        .getByRole("button", {
+          name: romanian("priceDashboard.common.cancel"),
+          exact: true,
+        })
+        .tap();
+      await expect(itemDialogOf(page)).toHaveCount(0);
+
       await openClass(page, HETTICH);
-      await expect(activeSwitch(page, words)).toHaveAttribute(
+      await expect(activeSwitch(page, words)).not.toHaveAttribute(
         "aria-disabled",
         "true",
       );
@@ -780,13 +794,13 @@ test.describe("the hardware screens on a phone, 390 x 844", () => {
         "aria-disabled",
         "true",
       );
-      await expect(editPageOf(page).getByText(cannotJudge)).toHaveCount(2);
-      await activeSwitch(page, words).tap({ force: true });
+      await expect(editPageOf(page).getByText(cannotJudge)).toHaveCount(1);
+      const requestsBeforeDeletion = requests.length;
       await deleteClassButton(page, words).tap({ force: true });
       await expect(itemDialogOf(page)).toHaveCount(0);
       expect(
-        requests,
-        "no request was made by pressing an off control",
+        requests.slice(requestsBeforeDeletion),
+        "no request was made by pressing the off deletion",
       ).toEqual([]);
       await shootForReview(page, "390-d4b-production-off");
     });
