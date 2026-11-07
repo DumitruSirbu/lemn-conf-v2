@@ -6,6 +6,7 @@ import {
   isRevisionShape,
   SAMPLE_PRICE_BOOK,
   type ItemRef,
+  type PriceBook,
 } from "@lemnaria/configurator-domain";
 
 import {
@@ -275,7 +276,7 @@ describe("the facts read again, against the real routes", () => {
       const { stores } = currentPriceDashboardWorld();
       const active = await stores.priceBook.readActive();
       if (active.kind !== "found") throw new Error("no active version");
-      await publishNextVersion(staff, active.version.book);
+      await publishNextVersion(staff, active.version.book as PriceBook);
     };
 
     const facts = await FETCHING_KITCHEN_DEFAULTS_CLIENT.readAgain();

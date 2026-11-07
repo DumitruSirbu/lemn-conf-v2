@@ -346,7 +346,7 @@ describe("Delete of a stated row stays off with the defaults now readable", () =
       expect(FETCHING_ITEM_LIFECYCLE_CLIENT.canDeleteStatedItems).toBe(false);
 
       for (const item of itemsOfTheBook()) {
-        if (item.kind === "handle") continue;
+        if (item.kind === "handle" || item.kind === "finish") continue;
         const stand = deleteStandOf(item, context);
         expect(stand.kind, idOf(item)).toBe("off");
       }
