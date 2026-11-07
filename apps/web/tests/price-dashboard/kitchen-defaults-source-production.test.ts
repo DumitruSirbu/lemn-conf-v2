@@ -21,6 +21,7 @@ import {
   administrator,
   saveDefaults,
   switchItem,
+  writeWithoutJudgement,
   type Administrator,
 } from "../support/availability-route-world";
 import {
@@ -53,6 +54,7 @@ vi.mock("@/lib/server/price-stores", () =>
 
 const VENEER = { kind: "material", tierId: "material.veneer" } as const;
 const PAINTED = { kind: "material", tierId: "material.painted-mdf" } as const;
+const MELAMINE = { kind: "material", tierId: "material.melamine" } as const;
 const NO_USAGE = { canDeleteStatedItems: false, canWrite: true } as const;
 
 let prices: PriceDashboardWorld;
@@ -179,12 +181,18 @@ describe("an item screen's switch-off in a production build", () => {
   });
 
   it("keeps the refusal for the fixed default when nothing is saved", async () => {
-    const stand = await standOfSwitchingOff({
-      kind: "material",
-      tierId: "material.melamine",
-    });
+    const stand = await standOfSwitchingOff(MELAMINE);
 
     expect(stand).toEqual({ kind: "off", reason: "item-is-fixed-default" });
+  });
+
+  it("keeps the refusal for the last option that is on, which switching the others off leaves as the only one", async () => {
+    await writeWithoutJudgement(admin, MELAMINE, false);
+    await writeWithoutJudgement(admin, PAINTED, false);
+
+    expect(await standOfSwitchingOff(VENEER)).toEqual({
+      kind: "last-active-option",
+    });
   });
 
   it("stays cannot-judge when the saved row does not parse: nothing is turned on", async () => {
