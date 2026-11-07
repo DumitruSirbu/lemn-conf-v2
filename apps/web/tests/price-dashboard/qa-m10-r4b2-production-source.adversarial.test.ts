@@ -313,6 +313,13 @@ describe("the defaults screen's read fails by one rule whichever store fails", (
     },
   );
 
+  it("is unavailable, never a screen of invented values, while no version was ever published, and no item page is ready", async () => {
+    prices = await freshPriceDashboardWorld({ isPublished: false });
+
+    expect(await readKitchenDefaults()).toEqual({ kind: "unavailable" });
+    expect(await readPage()).toEqual({ kind: "unavailable" });
+  });
+
   it("shows no driver text in the console when a store's own failure is absorbed", async () => {
     vi.spyOn(prices.defaults, "read").mockRejectedValue(
       Object.assign(
