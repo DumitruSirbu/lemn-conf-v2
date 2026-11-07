@@ -34,12 +34,6 @@ export interface KitchenDefaultsClient {
   readAgain(): Promise<KitchenDefaultsPageInput | undefined>;
 }
 
-/** The client of a build with no server behind the screen: it answers `failed` and writes nothing. */
-export const UNAVAILABLE_KITCHEN_DEFAULTS_CLIENT: KitchenDefaultsClient = {
-  save: () => Promise.resolve({ kind: "failed" }),
-  readAgain: () => Promise.resolve(undefined),
-};
-
 /** A client loaded by its first call, so the module behind `load` is fetched only if something is written. */
 export function lazyClient(
   load: () => Promise<KitchenDefaultsClient>,

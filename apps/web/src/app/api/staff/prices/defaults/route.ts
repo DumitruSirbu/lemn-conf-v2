@@ -9,9 +9,9 @@ import {
   crossSiteResponse,
 } from "@/lib/server/account/account-responses";
 import { isCrossSiteRequest } from "@/lib/server/cross-site-request";
+import { dashboardConflictResponse } from "@/lib/server/price-dashboard/dashboard-responses";
 import { saveKitchenDefaultsAsStaff } from "@/lib/server/price-dashboard/kitchen-defaults-save";
 import { readKitchenDefaultsForAdmittedPage } from "@/lib/server/price-dashboard/new-kitchen-defaults";
-import { dashboardConflictResponse } from "@/lib/server/price-dashboard/dashboard-responses";
 import {
   answerReadForStaff,
   PRICE_DRAFT_EVENT,
@@ -29,10 +29,8 @@ export const dynamic = "force-dynamic";
 const ALLOWED_METHODS = "GET, PUT";
 
 /**
- * The saved new-kitchen defaults for an administrator, completed from the fixed fallbacks, with the revision and the
- * availability head a save is made against (ADR 0178). It is admitted, limited and audited as `GET /api/staff/prices`
- * is: a `price-catalogue-viewed` row for the defaults commits first, and the account's read bucket fails closed. It holds
- * no tier offers and no switched-off items; those are the dashboard state's.
+ * The saved defaults, completed from the fixed fallbacks, with the revisions a save is made against. Admitted, limited
+ * and audited exactly as `GET /api/staff/prices` is, and it holds no tier offers (ADR 0178).
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   if (isCrossSiteRequest(request)) return crossSiteResponse();

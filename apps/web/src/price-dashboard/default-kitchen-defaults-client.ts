@@ -5,9 +5,8 @@ import {
 } from "./kitchen-defaults-client";
 import type { KitchenDefaultsPageInput } from "./kitchen-defaults-model";
 
-// The screen's client when none is handed in: the one that asks the server in a production build, an in-memory one seeded
-// with what the page showed elsewhere in any other. The test is spelled out here, not asked of `is-production-build.ts`,
-// which says why.
+// The screen's client when none is handed in: the server's in a production build, an in-memory one otherwise. The
+// `NODE_ENV` test stays literal here so the bundler drops the stand-in; `is-production-build.ts` says why.
 
 export function defaultKitchenDefaultsClient(
   seed: KitchenDefaultsPageInput,

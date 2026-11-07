@@ -6,11 +6,8 @@ import { readAdmitted } from "./admitted-state-read";
 import { isProductionBuild } from "./is-production-build";
 import type { KitchenDefaultsPageInput } from "./kitchen-defaults-model";
 
-// The one place the defaults screen's facts come from, for a page whose own staff gate has admitted the reader. They are
-// two reads: the saved defaults with the two revisions a save expects, and the tiers on offer with what is switched off
-// (the active book and the availability head), taken together from one head. A production build reads the stores and
-// answers `unavailable` when they cannot be read, never a sample, so no invented value is ever claimed. The sample is
-// loaded on a non-production read only, not when this module loads.
+// The defaults screen's facts, for a page whose staff gate has admitted the reader. A production build answers
+// `unavailable` when the stores cannot be read, never a sample, so no invented value is claimed (ADR 0178).
 
 export type KitchenDefaultsRead =
   | { readonly kind: "ready"; readonly input: KitchenDefaultsPageInput }

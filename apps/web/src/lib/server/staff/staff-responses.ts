@@ -90,8 +90,7 @@ export function staffAuditInvalidQueryResponse(
 }
 
 /** `405`: the answer to `HEAD` on a staff read. The framework would otherwise run `GET` for it, with its audit row and
- *  its bucket, and send no body; this runs nothing. `Allow` names every method the route supports (RFC 9110, 15.5.6),
- *  `GET` alone unless the route takes more. */
+ *  its bucket, and send no body; this runs nothing. `Allow` names every method the route supports (RFC 9110, 15.5.6). */
 export function staffHeadRefusedResponse(allowedMethods = "GET"): NextResponse {
   return new NextResponse(null, {
     status: 405,

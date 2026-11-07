@@ -35,10 +35,8 @@ import {
 } from "./price-dashboard-wire-contract";
 import { FETCHING_PRICE_DRAFT_CLIENT } from "./price-draft-client";
 
-// The defaults client of a build with a server behind the screen. A save goes to `PUT /api/staff/prices/defaults`. The
-// facts are read again from two routes: the defaults, with the revisions a save expects, from `GET …/defaults`, and the
-// tiers on offer and what is switched off from the dashboard's state. Each answer is believed only when it is the route's
-// own: anything else is `failed` for a save and nothing for a read.
+// The defaults client of a build with a server: only an answer that is the route's own is believed, anything else is
+// `failed` for a save and nothing for a read. Answer mapping: `kitchen-defaults-client.ts`.
 
 const DEFAULTS_ADDRESS = "/api/staff/prices/defaults";
 
@@ -161,7 +159,9 @@ async function readDefaultsPageAgain(): Promise<
   const defaults = await readDefaultsState();
   if (defaults === undefined) return undefined;
   const dashboard = await FETCHING_PRICE_DRAFT_CLIENT.readState();
-  return dashboard === undefined ? undefined : joined(defaults, dashboard);
+  return dashboard === undefined
+    ? undefined
+    : joinWhenHeadsAgree(defaults, dashboard);
 }
 
 async function readDefaultsState(): Promise<
@@ -173,7 +173,7 @@ async function readDefaultsState(): Promise<
     : undefined;
 }
 
-function joined(
+function joinWhenHeadsAgree(
   state: KitchenDefaultsStateWire,
   { active }: DashboardStateWire,
 ): KitchenDefaultsPageInput | undefined {
