@@ -24,6 +24,7 @@ import {
   loadOwnedByIdAlone,
   ownerVisitorCookiePair,
 } from "../../../support/owned-design-lookup";
+import { SEEDED_MINT_DESIGN } from "../../../support/seeded-mint-design";
 
 const FIRST_REVISION = "1";
 
@@ -128,7 +129,7 @@ describe("Step 1 design — real API save/load round trip", () => {
       };
       const cookie = (mint.headers.get("set-cookie") ?? "").split(";")[0] ?? "";
 
-      expect(fakeRepository.designAt(id)).toEqual(KITCHEN_L_DESIGN);
+      expect(fakeRepository.designAt(id)).toEqual(SEEDED_MINT_DESIGN);
       const payload = JSON.stringify(chosen);
       expect(Object.keys(JSON.parse(payload) as object)).not.toContain(
         "locale",

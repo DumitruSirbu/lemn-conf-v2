@@ -1,6 +1,7 @@
 export {
   NewKitchenSettingsError,
   readStoredNewKitchenSettings,
+  stampedDesignOf,
   stampedSettingsOf,
   type NewKitchenSettings,
   type StoredSettingsReading,

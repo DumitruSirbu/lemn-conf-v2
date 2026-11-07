@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 
 import { routing } from "@/i18n/routing";
+import { readNewKitchenDefaults } from "@/lib/server/price-dashboard/new-kitchen-defaults";
 import { RoomScreen } from "@/room/room-screen";
 
 export default async function RoomPage({
@@ -28,5 +29,8 @@ export default async function RoomPage({
   // nobody used, which the next reader would have deleted as dead and silently made the route
   // static. `next build`'s route table is the check, not this comment.
   await connection();
-  return <RoomScreen />;
+  // The six settings a kitchen created from this load starts with (A-9), read after the locale is judged. The read never
+  // throws and never blocks: a store that cannot answer gives the fixed fallbacks.
+  const newKitchenSettings = await readNewKitchenDefaults();
+  return <RoomScreen newKitchenSettings={newKitchenSettings} />;
 }

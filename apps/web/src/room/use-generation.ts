@@ -13,14 +13,19 @@
 // and reports no per-row progress: `generateKitchen` is one synchronous call.
 import {
   boundedFailureReason,
+  buildKitchenLBodyCatalog,
+  cabinetDepthMmOf,
   createBodyProbeLease,
   generateKitchen,
+  setCabinetDepth,
+  stampedDesignOf,
   wallCarcassDepthMm,
   type BodyProbeFactory,
   type Design,
   type DesignId,
   type DesignRoom,
   type GenerationLog,
+  type NewKitchenSettings,
 } from "@lemnaria/configurator-domain";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -114,7 +119,13 @@ interface ShownRun {
 
 const NO_RUN: ShownRun = { token: 0, state: IDLE };
 
-export function useGeneration(): GenerationRun {
+/**
+ * `newKitchenSettings` are the dashboard's defaults as of the page load, handed down by the room page: a generated
+ * kitchen is created with them (A-9). Absent, the kitchen is the reference kitchen's.
+ */
+export function useGeneration(
+  newKitchenSettings?: NewKitchenSettings,
+): GenerationRun {
   const [state, setState] = useState<GenerationRunState>(IDLE);
   // The run as the screen holds it, readable from a handler that was not re-created for it: a `setState` updater
   // is the wrong place to look up the attempt, since it must be pure and StrictMode invokes it twice.
@@ -211,7 +222,7 @@ export function useGeneration(): GenerationRun {
     (room: DesignRoom) => {
       const token = mintRunToken();
       show(token, { phase: "composing", room, rows: pendingGenerationRows() });
-      void composeKitchen(room).then((composed) => {
+      void composeKitchen(room, newKitchenSettings).then((composed) => {
         // A composition settles onto a screen or not at all: building the attempt mints a row, so a run whose
         // screen is gone, or that the customer left with *Înapoi*, is dropped here.
         if (!screenIsShowing.current) return;
@@ -231,7 +242,7 @@ export function useGeneration(): GenerationRun {
         handOff(attempt, token);
       });
     },
-    [attemptFor, handOff, mintRunToken, show],
+    [attemptFor, handOff, mintRunToken, newKitchenSettings, show],
   );
 
   const retryHandoff = useCallback(() => {
@@ -285,13 +296,21 @@ const COPY_IDLE: PresetCopyStatus = "idle";
  * One attempt per preset per visit, kept in a ref and made at first use. That is the exception to rule 4's "never in a
  * handler", and it is safe for the reason the rule exists: a second tap finds the attempt and reuses it, so a tap is
  * never a second row. `reset` forgets them, so a Step 1 visit begun afresh copies afresh.
+ *
+ * The copy is also a new kitchen, so it is stamped with `newKitchenSettings` (A-9): the five settings by the commands,
+ * and the depth by `setCabinetDepth` when the preset stands at another one, which needs a probe and so an `await`. What
+ * the ref holds is therefore the promise of the attempt, made synchronously on the first tap: a second tap finds the
+ * same promise, so a preset at another depth is still one row. The promise never rejects for the depth, since a copy
+ * is never refused for it (DEVELOPMENT-SPEC section 2/4): a depth that cannot be moved to keeps the preset's own.
  */
-export function usePresetCopy(): PresetCopy {
+export function usePresetCopy(
+  newKitchenSettings?: NewKitchenSettings,
+): PresetCopy {
   const [status, setStatus] = useState<PresetCopyStatus>(COPY_IDLE);
   // Read from the handler, which must not close over a stale status: the first tap and a fast second tap are two calls
   // of one callback.
   const currentStatus = useRef<PresetCopyStatus>(COPY_IDLE);
-  const attempts = useRef(new Map<string, DesignCreationAttempt>());
+  const attempts = useRef(new Map<string, Promise<DesignCreationAttempt>>());
   // Which visit's copy is current: bumped by `reset` only, never by a tap, so an attempt asked again after a failure
   // still opens the editor, and an attempt from a visit that was left never does.
   const visit = useRef(0);
@@ -311,28 +330,26 @@ export function usePresetCopy(): PresetCopy {
   }, []);
 
   const attemptFor = useCallback(
-    (selection: PresetSelection): DesignCreationAttempt => {
+    (selection: PresetSelection): Promise<DesignCreationAttempt> => {
       const known = attempts.current.get(selection.presetId);
       if (known !== undefined) return known;
       const now = new Date().toISOString();
       const copyVisit = visit.current;
-      const attempt = createDesignCreationAttempt({
-        design: {
-          ...selection.design,
-          presetId: selection.presetId,
-          createdAt: now,
-          updatedAt: now,
-        },
-        navigateToDesign: (id) => {
-          if (!screenIsShowing.current) return;
-          if (visit.current !== copyVisit) return;
-          openDesign(id);
-        },
-      });
+      const attempt = copyOf(selection, now, newKitchenSettings).then(
+        (design) =>
+          createDesignCreationAttempt({
+            design,
+            navigateToDesign: (id) => {
+              if (!screenIsShowing.current) return;
+              if (visit.current !== copyVisit) return;
+              openDesign(id);
+            },
+          }),
+      );
       attempts.current.set(selection.presetId, attempt);
       return attempt;
     },
-    [openDesign],
+    [newKitchenSettings, openDesign],
   );
 
   const select = useCallback(
@@ -342,7 +359,11 @@ export function usePresetCopy(): PresetCopy {
       const copyVisit = visit.current;
       show("saving");
       void attemptFor(selection)
-        .run()
+        .then((attempt) => {
+          // A visit left while the depth was being moved writes nothing: no row was begun, and nobody is waiting.
+          if (visit.current !== copyVisit) return undefined;
+          return attempt.run();
+        })
         .then(
           () => undefined,
           (error: unknown) => {
@@ -368,6 +389,52 @@ export function usePresetCopy(): PresetCopy {
   return { status, select, dismissFailure, reset };
 }
 
+/**
+ * The document a copy of `selection` is written as: the offer's own adapted design with the preset's id and fresh
+ * stamps, stamped with the new-kitchen settings, then moved to their depth when it stands at another. Without
+ * settings it is the offer as it was. Rejects only for a settings container no design may hold.
+ */
+async function copyOf(
+  selection: PresetSelection,
+  now: string,
+  newKitchenSettings: NewKitchenSettings | undefined,
+): Promise<Design> {
+  const fresh: Design = {
+    ...selection.design,
+    presetId: selection.presetId,
+    createdAt: now,
+    updatedAt: now,
+  };
+  if (newKitchenSettings === undefined) return fresh;
+  const stamped = stampedDesignOf(fresh, newKitchenSettings);
+  const depthMm = newKitchenSettings.cabinetDepthMm;
+  if (depthMm === undefined || depthMm === cabinetDepthMmOf(stamped)) {
+    return stamped;
+  }
+  return (await atDepthOrAsItStands(stamped, depthMm)) ?? stamped;
+}
+
+/** `design` moved to `cabinetDepthMm` by the editor's own depth command, or `undefined` when it cannot be: refused by
+ *  the command, or the adapter's chunk or the probe failing. A copy keeps the depth it has rather than not exist. */
+async function atDepthOrAsItStands(
+  design: Design,
+  cabinetDepthMm: number,
+): Promise<Design | undefined> {
+  try {
+    const probeAt = await loadProbeFactory();
+    const moved = setCabinetDepth({
+      design,
+      catalogAt: buildKitchenLBodyCatalog,
+      cabinetDepthMm,
+      probeAt,
+      occurredAt: design.updatedAt,
+    });
+    return moved.ok ? moved.design : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /** The composed kitchen as the screen holds it. Separate from the run's state: the hand-off's fields are the
  *  hook's to add, since the engine knows nothing about an attempt. */
 interface ComposedKitchen {
@@ -383,21 +450,28 @@ type Composition =
   | { readonly outcome: "refused" };
 
 /** The run's one error boundary: a throw is the same dead end as a refusal, with no mint and no navigation. */
-async function composeKitchen(room: DesignRoom): Promise<Composition> {
+async function composeKitchen(
+  room: DesignRoom,
+  newKitchenSettings: NewKitchenSettings | undefined,
+): Promise<Composition> {
   try {
-    return await composeOrThrow(room);
+    return await composeOrThrow(room, newKitchenSettings);
   } catch {
     return { outcome: "refused" };
   }
 }
 
-async function composeOrThrow(room: DesignRoom): Promise<Composition> {
+async function composeOrThrow(
+  room: DesignRoom,
+  newKitchenSettings: NewKitchenSettings | undefined,
+): Promise<Composition> {
   const probeAt = await loadProbeFactory();
   await theNextPaint();
   const composed = generateKitchen({
     room,
     occurredAt: new Date().toISOString(),
     probeAt,
+    newKitchenSettings,
   });
   if (!composed.ok) return { outcome: "refused" };
   return {

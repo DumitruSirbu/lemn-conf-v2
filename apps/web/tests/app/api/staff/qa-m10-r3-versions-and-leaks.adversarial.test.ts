@@ -556,6 +556,11 @@ describe("a draft or an archive reaches no customer (R-d)", () => {
       // page's own `price.edit` gate, through `readAdmitted`, with no audit row. It names the directory above for that
       // one read, which is the defaults and never the draft or the archive. `qa-m10-u6-sources` names its importers.
       /^price-dashboard\/kitchen-defaults-source\.ts$/,
+      // The two creation paths that stamp a new kitchen (R4b3): the room page and the seeded mint import the customer
+      // read of the saved defaults, `new-kitchen-defaults.ts`. It reads the active book, the availability head and the
+      // saved defaults, and never the draft or an archive; `stamping-new-kitchens-sources.test.ts` pins that.
+      /^app\/api\/designs\/route\.ts$/,
+      /^app\/\[locale\]\/configurator\/room\/page\.tsx$/,
     ];
 
     const readers = sourceFilesMatching(READS_DRAFT_OR_ARCHIVE).filter(
