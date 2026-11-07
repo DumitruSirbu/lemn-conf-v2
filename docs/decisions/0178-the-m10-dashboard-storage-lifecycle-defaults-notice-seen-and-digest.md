@@ -543,3 +543,15 @@ vendor's documentation, which was not re-read in this session. Reasoning marked 
   The plan queues this as OQ-33, with this default built.
 - A disable is unaffected. Its count of kitchens is a warning (ADR 0062 Amendment 3 item 3), and a racing save only
   makes that count stale; no rule is broken.
+
+## Amendment — 2026-11-08: staff page renders that read the saved defaults are not audited (security review of R4b2, finding low) [relayed from the coordinator; reviewers' reports; the scribe ran nothing]
+
+**An exception to "every staff read and write is audited and fails closed".** Staff page renders admitted through a
+page's own `price.edit` gate that read the saved defaults write no audit row and spend no bucket. That covers D9 and
+every item page, through `kitchen-defaults-source.ts` and `item-page-read.ts`.
+
+**Reason.** A render must not write (R4b1 row 4). The rows hold no personal data: six settings and two revisions. It is
+the same accepted residual as R4a6's unbucketed `deletionFacts` page read.
+
+**Not an exception:** re-reading after a save conflict (`readAgain`) writes two audit rows (sections `defaults` and
+`catalogue`) and spends two read tokens, by design.

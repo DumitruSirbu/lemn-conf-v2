@@ -2857,8 +2857,22 @@ R4b1's reviews (2026-11-05) hand on the following.
 
 **To R4b2:**
 - **Make the repair of an unreadable saved row reachable.** The `PUT` repairs such a row, but nothing hands out its revision. The page read throws on it, D9 shows the unavailable screen, and the 409 bodies carry only `{status}`. Either give the revision out alongside the unreadable answer, or record that the repair has no UI.
+  **Discharged 2026-11-08 [relayed from the coordinator; logic reviewer's ruling; the scribe ran nothing]: an ACCEPTED RESIDUAL**, not a blocker and not an R4c item. An unreadable saved defaults row fails closed everywhere: D9 shows unavailable, item screens keep `cannot-judge`, the `GET` answers 503, the customer read falls back, and the server switch-off refuses. Only an out-of-band write can create such a row (the `PUT` stamps first). The repair is a database operation, and it is to get a one-line runbook entry (owed, not yet written).
 - **The page read is gated only by its caller.** `readKitchenDefaultsForAdmittedPage` has no gate of its own. Confirm that the `GET` and D9 call it under the staff gate.
 - `readKitchenDefaultsForAdmittedPage` and `readNewKitchenDefaults` have no production caller at R4b1. They are R4b2's and R4b3's inputs.
+
+**R4b2 built and reviewed (branch `m10/r4b2`, not merged), 2026-11-08 [relayed from the coordinator; reviewers' reports; the scribe ran nothing].**
+- **Built:** the five punch-list items.
+- **QA:** verdict RED, then fixed. D1: a `HEAD` on the defaults route now answers an `Allow` header of `GET, PUT`.
+- **Review:** logic, clean-code and security passed. Security found none exploitable; its one low finding is recorded as an Amendment in ADR 0178.
+- **Residuals:**
+  - `readAgain` depends on a readable draft. A conflict on a corrupt draft ends in "save failed" and fails closed.
+  - The item screens' defaults are render-time only; the server's re-read and the CAS keep it safe.
+  - Page renders have no bucket.
+  - The R-d allow-list for `kitchen-defaults-source.ts` is safe only while QA's pin tests in `qa-m10-r4b2-production-source.adversarial.test.ts` stay. Treat them as load-bearing.
+- **Backlog candidates (clean-code):** shared test helpers duplicated across the new test files; the `readItemRef` core in four places; the `tierOffersOf` mapping.
+- **e2e, unrun:** six Playwright specs (hardware, materials, accessories, each mobile and desktop) are predicted red under `CI=1`, because switch-off is now judged. To be updated and run where `TEST_DATABASE_URL` exists. The comment at `tests/e2e/support/lifecycle-server-spec.ts:60` is stale.
+- **Not yet done:** visual pass, e2e, merge.
 
 **To R4b3:**
 - **The customer read has no bound.** If it runs on the public room page's render, every anonymous request costs three uncached database reads. During an outage, each such request also writes one log line. Read it behind the creation path's limiter, or memoise it per availability-head revision or with a short TTL, and rate-limit the log line.

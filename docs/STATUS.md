@@ -140,6 +140,8 @@ nothing:** OQ-5a (is a lift door's third hinge from 500 mm or above it; built st
 coordinator's reading that creating an accessory linked to a cabinet type is in scope). Close-only questions: plan §6.2.
 **No amount or percentage in the plan, mockup or briefs is approved.** ADR 0173 stays Proposed; its acceptance is owed.
 
+**2026-11-08 (M10 R4b2) [relayed from the coordinator; reviewers' reports; the scribe ran nothing].** R4b2 is built and reviewed on branch `m10/r4b2`, **unmerged**; the wave is not complete until it merges. Visual pass and e2e are not done. Detail: the *R4b2 built and reviewed* block in [`M10-price-dashboard.md`](milestones/M10-price-dashboard.md).
+
 ## 2. Phase table
 
 Read column: **No** = do not open. A row marked **UNCLEAR** would be a contradiction inside the history, left
