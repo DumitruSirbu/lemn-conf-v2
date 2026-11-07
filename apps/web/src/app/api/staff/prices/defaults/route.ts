@@ -25,6 +25,9 @@ import type { KitchenDefaultsStateWire } from "@/price-dashboard/price-dashboard
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/** What a `HEAD` is told the route takes: its `GET` and its `PUT`. */
+const ALLOWED_METHODS = "GET, PUT";
+
 /**
  * The saved new-kitchen defaults for an administrator, completed from the fixed fallbacks, with the revision and the
  * availability head a save is made against (ADR 0178). It is admitted, limited and audited as `GET /api/staff/prices`
@@ -44,7 +47,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 /** Declared so the framework does not run `GET` for it: that would spend a bucket and write a row for a request that
  *  wants no body. */
 export function HEAD(): NextResponse {
-  return staffHeadRefusedResponse();
+  return staffHeadRefusedResponse(ALLOWED_METHODS);
 }
 
 /**
