@@ -552,6 +552,10 @@ describe("a draft or an archive reaches no customer (R-d)", () => {
       // own `price.edit` gate, with no audit row. It is named by those two sources and by nothing a customer reaches
       // (`qa-m10-u4a-sources`).
       /^price-dashboard\/admitted-state-read\.ts$/,
+      // The defaults screen's source (R4b2): in a production build it reads the saved defaults for a page after that
+      // page's own `price.edit` gate, through `readAdmitted`, with no audit row. It names the directory above for that
+      // one read, which is the defaults and never the draft or the archive. `qa-m10-u6-sources` names its importers.
+      /^price-dashboard\/kitchen-defaults-source\.ts$/,
     ];
 
     const readers = sourceFilesMatching(READS_DRAFT_OR_ARCHIVE).filter(
