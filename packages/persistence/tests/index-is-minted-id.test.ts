@@ -5,8 +5,8 @@ import { isMintedId as isMintedIdOfShapes } from "../src/dashboard-store-shapes.
 import { isMintedId } from "../src/index.js";
 
 /**
- * M10 wave S7 item 5: the package exports `isMintedId` so the route that acknowledges a price version checks exactly
- * the shape the store will. It must be the store's own function, not a copy, and the table's check
+ * The package exports the store's own `isMintedId`, not a copy, so a route checks exactly the shape the store will; the
+ * table's check
  * (`^[A-Za-z0-9_-]{21}$`, `0012`, `0015`) is its whole meaning.
  */
 const TABLE_CHECK = /^[A-Za-z0-9_-]{21}$/;

@@ -32,11 +32,9 @@ vi.mock("@neondatabase/serverless", async (importOriginal) =>
 );
 
 /**
- * M10 wave S7, adversarial QA of `loadEditable` with the driver mocked. The wave's claim is a parity: a design is
- * readable if and only if a save under the same credential is authorised. The implementer's file pins the read's text
- * as a literal, which cannot notice the save moving. The first describe here derives the read's predicate from the
- * save's own statement, so tightening or loosening either side alone turns it red. The live file shows what the text
- * does to rows; this file shows what the text is and that nothing else can change it.
+ * A design is readable if and only if a save under the same credential is authorised. A literal pin of the read's text
+ * cannot notice the save moving, so the first describe derives the read's predicate from the save's own statement:
+ * tightening or loosening either side alone turns it red. The live file shows what the text does to rows.
  */
 const DESIGN_ID = "design-under-test";
 const WRITE_TOKEN_HASH = "1".repeat(64);
@@ -141,7 +139,7 @@ afterEach(() => {
   resetQueryDriver();
 });
 
-describe("S7-a by derivation: the read's predicate is the save's, read off the save's own statement", () => {
+describe("the read's predicate is the save's, read off the save's own statement", () => {
   it.each(ARMS)(
     "the %s arm reads exactly the save's `authorised` predicate, with the same two bound values",
     async (_arm, credential) => {
@@ -190,7 +188,7 @@ describe("S7-a by derivation: the read's predicate is the save's, read off the s
   });
 });
 
-describe("S7-d: the statement is one read and nothing that can write or lock", () => {
+describe("the statement is one read and nothing that can write or lock", () => {
   it.each(ARMS)(
     "the %s arm is a lone select with no lock, no returning, no clock, no CTE and no second statement",
     async (_arm, credential) => {
@@ -228,7 +226,7 @@ describe("S7-d: the statement is one read and nothing that can write or lock", (
   );
 });
 
-describe("S7-e: whatever a caller supplies is a bound value, and the text never depends on it", () => {
+describe("whatever a caller supplies is a bound value, and the text never depends on it", () => {
   const anyText = fc.oneof(
     fc.string({ maxLength: 40 }),
     fc.string({ unit: "grapheme", maxLength: 20 }),
@@ -307,7 +305,7 @@ describe("S7-e: whatever a caller supplies is a bound value, and the text never 
   });
 });
 
-describe("S7-b, S7-c: the answer is the one row, shaped exactly", () => {
+describe("the answer is the one row, shaped exactly", () => {
   it("none carries the kind and nothing else, on both arms", async () => {
     for (const [, credential] of ARMS) {
       answerQueryWith([]);

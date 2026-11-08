@@ -215,24 +215,20 @@ export interface EditableDesignLookup {
   readonly credential: SaveCredential;
 }
 
-/** Tagged like `LoadOwnedOutcome`. A wrong credential, a hidden or deleted design, a design no account has claimed and a
- *  missing one are all `"none"`: one outcome of one statement, so no caller can tell which it was. */
+/** A wrong credential, a hidden or deleted design, a missing one, and on the account arm a design no account has claimed
+ *  are all `"none"`, so no caller can tell which it was. (On the token arm an unclaimed design is the normal found case.) */
 export type LoadEditableOutcome =
   | {
       readonly kind: "found";
       readonly design: Design;
       readonly revision: DesignRevision;
-      /** `sent_at is not null`, read in the statement that authorised. Once sent, always sent: editing a sent kitchen
-       *  clears nothing (ADR 0178, price-notice Amendment of 2026-11-08, ruling 8). */
+      /** Once sent, always sent: editing a sent kitchen clears nothing (ADR 0178 Amendment 2026-11-08, items 1 and 6). */
       readonly isSent: boolean;
     }
   | { readonly kind: "none" };
 
-/**
- * The read under exactly a save's credential (ADR 0178, price-notice Amendment of 2026-11-08, rulings 1 and 8): a
- * design is readable here if and only if a `saveAuthorized` with the same credential would be authorised to write it.
- * A port of its own, like `AuthorizedDesignRepository`, so no existing test double has to fake it.
- */
+/** A design is readable here if and only if a `saveAuthorized` with the same credential would be authorised to write it
+ *  (ADR 0178 Amendment 2026-11-08, items 1 and 6). */
 export interface EditableDesignRepository {
   loadEditable(lookup: EditableDesignLookup): Promise<LoadEditableOutcome>;
 }
@@ -625,15 +621,12 @@ export class NeonConfigurationRepository
   }
 
   /**
-   * The read under exactly a save's credential: the `authorised` predicate of `updateByWriteToken` or `updateByAccount`,
-   * term for term, plus `sent_at`. The token arm asks for the write-token hash alone and no visitor, so a browser whose
-   * visitor value another tab rotated away is found here as it is saved; the account arm asks for the owning account.
-   * A hidden or deleted design, an unclaimed one, a NULL-hash one and a missing one are the one `"none"`.
+   * Authorised exactly as the `authorised` predicate of `updateByWriteToken` / `updateByAccount`: the token arm names
+   * the write-token hash and no visitor, so a browser whose visitor value was rotated away is still found.
    *
-   * As `saveAuthorized`, deliberately no `requireSha256Digest` or account-id shape check: a wrong-shaped credential is
-   * simply not the right one and answers `"none"`, never a crash. Being a read, it is retried on a transient failure.
-   * `migrateDesign` runs only on a match, so `InvalidDesignError` is reachable by the design's editor alone. It writes
-   * nothing: `revision` and `updated_at` are as they were.
+   * No shape check, as in the save: a well-formed but wrong credential answers `"none"`. The route validates the id
+   * shape first (R5b), because a value Postgres cannot store (a NUL byte) makes the statement raise, and a rejected
+   * promise is never a third outcome. `InvalidDesignError` is raised on a match, to the design's editor alone.
    */
   async loadEditable({
     id,

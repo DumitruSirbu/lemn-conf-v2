@@ -229,7 +229,7 @@ const EXPECTED_CLASSIFICATION: Readonly<
     gate: "live test database",
     lock: "shared",
     reason:
-      "plants designs under random ids it mints (with marks, sent instants and credentials the parity table needs), saves them only through the repository, deletes them by those ids when it finishes, asserts no whole-table figure and needs the schema intact (M10 wave S7)",
+      "plants designs under random ids it mints, deletes them by those ids when it finishes, asserts no whole-table figure and needs the schema intact",
   },
   "neon-staff-audit-store.live.test.ts": {
     gate: "live test database",

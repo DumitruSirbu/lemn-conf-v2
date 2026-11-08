@@ -34,9 +34,8 @@ const SUITE_NAME =
 if (!isLiveTestDatabaseConfigured) announceSkippedLiveSuite(SUITE_NAME);
 
 /**
- * `loadEditable` against the test database (M10 wave S7). The port reads a design under exactly the credential a save
- * would use, so its truth is `saveAuthorized`'s: the first describe holds the two to one table and asserts each row's
- * expected outcome by name, so a fixture that made both sides refuse would fail on the expectation rather than agree.
+ * `loadEditable` reads under the save's credential, so its truth is `saveAuthorized`'s: the first describe holds the two
+ * to one table and names each row's expected outcome, so a fixture that made both refuse fails instead of agreeing.
  *
  * A Neon HTTP statement commits, so nothing here can be rolled back. Every row names a design id this file minted at
  * random, and `afterAll` deletes by those ids only, on the test database alone (ADR 0151). The database is shared, so
@@ -265,7 +264,7 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
     };
   }
 
-  describe("S7-a: found if and only if a save with the same credential lands", () => {
+  describe("the read's predicate is the save's: found if and only if a save with the same credential lands", () => {
     it.each(PARITY_TABLE.map((row) => [row.label, row] as const))(
       "%s",
       async (_label, { spec, credentialFor, expected }) => {
@@ -303,7 +302,7 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
     });
   });
 
-  describe("S7-b: the token arm asks for no visitor", () => {
+  describe("the token arm asks for no visitor", () => {
     it.each([
       ["a visitor that matches no cookie", randomHash()],
       ["no visitor at all", null],
@@ -345,7 +344,7 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
     });
   });
 
-  describe("S7-c: isSent is sent_at is not null, and a sent mark is never cleared", () => {
+  describe("isSent is sent_at is not null, and a sent mark is never cleared", () => {
     it("is false before markSent and true after it, on both arms", async () => {
       const accountId = randomAccountId();
       const row = await plant({ accountId });
@@ -420,7 +419,7 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
     });
   });
 
-  describe("S7-d: loadEditable writes nothing", () => {
+  describe("loadEditable writes nothing", () => {
     it.each([
       [
         "a match by token",
@@ -444,7 +443,7 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
     );
   });
 
-  describe("S7-e: a wrong-shaped id, hash or account id answers none and never throws", () => {
+  describe("a storable but wrong-shaped id, hash or account id answers none, as a save is forbidden", () => {
     it.each(
       HOSTILE_SHAPES.map(
         (shape) => [JSON.stringify(shape.slice(0, 24)), shape] as const,
