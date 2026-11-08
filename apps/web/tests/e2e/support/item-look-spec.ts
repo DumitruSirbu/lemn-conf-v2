@@ -187,9 +187,10 @@ export function describeItemLook(viewport: Viewport): void {
       "the default class's switch is always off",
     ).toBeGreaterThan(0);
     if (SERVER_IS_PRODUCTION_BUILD) {
-      expect(offCount, "a production build draws every switch off").toBe(
-        screens.length,
-      );
+      expect(
+        offCount,
+        "a production build judges the switch-off from the saved defaults, so only the default class stays off",
+      ).toBe(1);
     }
   });
 
