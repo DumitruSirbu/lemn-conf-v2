@@ -9,6 +9,7 @@ import {
   FakeKitchenDefaultsStore,
   FakeHeldDesigns,
   FakePriceBookStore,
+  FakePriceNoticeStore,
   FakeRevisionHead,
   FakeSessionStore,
   generateAccountId,
@@ -40,8 +41,10 @@ const FIRST_SEQUENCE_EXPECTED = 0;
 
 /**
  * Fake stores holding the sample book as published version 1. One defaults fake serves both the defaults and the usage
- * ports, over the ledger and the availability head the seed holds. A publisher is a fake administrator with a live fake
- * session, because the fake store, like the real one, takes the actor of a write from a live session.
+ * ports, over the ledger and the availability head the seed holds. The notice fake is built over the raw price book and
+ * availability fakes, so an acknowledgement is judged against the versions and head the editor prices under.
+ * A publisher is a fake administrator with a live fake session, because the fake store, like the real one, takes the
+ * actor of a write from a live session.
  */
 export async function seedFakePriceStores(): Promise<PriceStores> {
   const accountId = generateAccountId();
@@ -109,6 +112,7 @@ export async function seedFakePriceStores(): Promise<PriceStores> {
     availability,
     defaults,
     usage: defaults,
+    notices: new FakePriceNoticeStore({ priceBook, availability }),
   };
 }
 

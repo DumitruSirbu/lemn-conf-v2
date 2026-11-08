@@ -52,6 +52,7 @@ const SEEDED_STORES: PriceStores = {
   availability: Object.freeze({}) as PriceStores["availability"],
   defaults: Object.freeze({}) as PriceStores["defaults"],
   usage: Object.freeze({}) as PriceStores["usage"],
+  notices: Object.freeze({}) as PriceStores["notices"],
 };
 
 const { getPriceStores, PRICE_STORES_GLOBAL_KEY } = await import(
