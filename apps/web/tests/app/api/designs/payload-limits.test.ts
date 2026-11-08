@@ -25,6 +25,7 @@ import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { flattenLogArguments } from "../../../support/console-log-line";
+import { SEEDED_MINT_DESIGN } from "../../../support/seeded-mint-design";
 import {
   loadOwnedByIdAlone,
   ownerVisitorCookiePair,
@@ -258,14 +259,14 @@ describe("PUT /api/designs/[id] payload limits", () => {
       routeParams(id),
     );
     expect(forbidden.status).toBe(403);
-    expect(fakeRepository.storedDesign(id)).toEqual(KITCHEN_L_DESIGN);
+    expect(fakeRepository.storedDesign(id)).toEqual(SEEDED_MINT_DESIGN);
 
     const conflicted = await PUT(
       saveRequest(id, { body, cookie, revision: "999" }),
       routeParams(id),
     );
     expect(conflicted.status).toBe(409);
-    expect(fakeRepository.storedDesign(id)).toEqual(KITCHEN_L_DESIGN);
+    expect(fakeRepository.storedDesign(id)).toEqual(SEEDED_MINT_DESIGN);
 
     const saved = await PUT(saveRequest(id, { body, cookie }), routeParams(id));
     expect(saved.status).toBe(200);
@@ -293,7 +294,7 @@ describe("PUT /api/designs/[id] payload limits", () => {
     );
 
     expect(response.status).toBe(400);
-    expect(fakeRepository.storedDesign(id)).toEqual(KITCHEN_L_DESIGN);
+    expect(fakeRepository.storedDesign(id)).toEqual(SEEDED_MINT_DESIGN);
   });
 
   it("does not leak hostile values when a fatal body issue accompanies overflow", async () => {
@@ -330,7 +331,7 @@ describe("PUT /api/designs/[id] payload limits", () => {
     expect(responseBody).not.toContain(canary);
     expect(logLine).toContain("UNKNOWN_BUILD_ID");
     expect(logLine).not.toContain(canary);
-    expect(fakeRepository.storedDesign(id)).toEqual(KITCHEN_L_DESIGN);
+    expect(fakeRepository.storedDesign(id)).toEqual(SEEDED_MINT_DESIGN);
   });
 
   it("answers 413 for a chunked body over the limit, without buffering it whole", async () => {
@@ -353,7 +354,7 @@ describe("PUT /api/designs/[id] payload limits", () => {
     // the stream's own read-ahead.
     const chunksToExceedLimit = Math.floor(MAX_DESIGN_BYTES / CHUNK_BYTES) + 1;
     expect(pulledChunks()).toBeLessThanOrEqual(chunksToExceedLimit + 1);
-    expect(fakeRepository.storedDesign(id)).toEqual(KITCHEN_L_DESIGN);
+    expect(fakeRepository.storedDesign(id)).toEqual(SEEDED_MINT_DESIGN);
   });
 
   it("answers 413 rather than 400 — the size gate runs before the schema", async () => {
@@ -395,7 +396,7 @@ describe("PUT /api/designs/[id] payload limits", () => {
     // the amplification the byte limit exists to remove.
     expect(warn).not.toHaveBeenCalled();
     expect(error).not.toHaveBeenCalled();
-    expect(fakeRepository.storedDesign(id)).toEqual(KITCHEN_L_DESIGN);
+    expect(fakeRepository.storedDesign(id)).toEqual(SEEDED_MINT_DESIGN);
   });
 
   it("answers 400, not a framework 500, when the request stream breaks mid-body", async () => {
@@ -425,7 +426,7 @@ describe("PUT /api/designs/[id] payload limits", () => {
     const logged = warn.mock.calls.map(flattenLogArguments).join("\n");
     expect(logged).not.toContain("at ");
     expect(logged).not.toContain("aborted by peer");
-    expect(fakeRepository.storedDesign(id)).toEqual(KITCHEN_L_DESIGN);
+    expect(fakeRepository.storedDesign(id)).toEqual(SEEDED_MINT_DESIGN);
   });
 
   it("answers 400 with a stable code for a design naming an unknown body", async () => {
@@ -453,7 +454,7 @@ describe("PUT /api/designs/[id] payload limits", () => {
       code: "DESIGN_INVALID",
       error: "Design payload failed validation.",
     });
-    expect(fakeRepository.storedDesign(id)).toEqual(KITCHEN_L_DESIGN);
+    expect(fakeRepository.storedDesign(id)).toEqual(SEEDED_MINT_DESIGN);
   });
 
   it("answers 400 for duplicate placement ids", async () => {
@@ -470,7 +471,7 @@ describe("PUT /api/designs/[id] payload limits", () => {
     );
 
     expect(response.status).toBe(400);
-    expect(fakeRepository.storedDesign(id)).toEqual(KITCHEN_L_DESIGN);
+    expect(fakeRepository.storedDesign(id)).toEqual(SEEDED_MINT_DESIGN);
   });
 
   it("answers 400 for a 40 mm body", async () => {
@@ -490,7 +491,7 @@ describe("PUT /api/designs/[id] payload limits", () => {
     );
 
     expect(response.status).toBe(400);
-    expect(fakeRepository.storedDesign(id)).toEqual(KITCHEN_L_DESIGN);
+    expect(fakeRepository.storedDesign(id)).toEqual(SEEDED_MINT_DESIGN);
   });
 
   it("answers 400 for a negative room dimension", async () => {
@@ -506,7 +507,7 @@ describe("PUT /api/designs/[id] payload limits", () => {
     );
 
     expect(response.status).toBe(400);
-    expect(fakeRepository.storedDesign(id)).toEqual(KITCHEN_L_DESIGN);
+    expect(fakeRepository.storedDesign(id)).toEqual(SEEDED_MINT_DESIGN);
   });
 
   // ADR 0044 at the **write seam itself**, which is where a hostile or hand-edited document arrives.
@@ -540,7 +541,7 @@ describe("PUT /api/designs/[id] payload limits", () => {
       code: "DESIGN_INVALID",
       error: "Design payload failed validation.",
     });
-    expect(fakeRepository.storedDesign(id)).toEqual(KITCHEN_L_DESIGN);
+    expect(fakeRepository.storedDesign(id)).toEqual(SEEDED_MINT_DESIGN);
   });
 
   // The boundary the refusal above must not swallow: ADR 0046 **merges** two spaces that touch, so
@@ -588,7 +589,7 @@ describe("PUT /api/designs/[id] payload limits", () => {
     );
 
     expect(response.status).toBe(400);
-    expect(fakeRepository.storedDesign(id)).toEqual(KITCHEN_L_DESIGN);
+    expect(fakeRepository.storedDesign(id)).toEqual(SEEDED_MINT_DESIGN);
   });
 });
 
@@ -744,6 +745,6 @@ describe("PUT /api/designs/[id] — a packed U at the byte cap (M7B U1, AC5)", (
     );
 
     expect(response.status).toBe(413);
-    expect(fakeRepository.storedDesign(id)).toEqual(KITCHEN_L_DESIGN);
+    expect(fakeRepository.storedDesign(id)).toEqual(SEEDED_MINT_DESIGN);
   });
 });

@@ -2,10 +2,24 @@
 // `settings`. A saved kitchen never reads them again, and a document that names no tier keeps the fixed pricing
 // fallback. With no request the settings are the reference kitchen's and nothing else (ADR 0111).
 import {
+  withSettings,
+  type CommandResult,
+} from "../commands/command-result.js";
+import { setKitchenHandle } from "../commands/set-kitchen-handle.js";
+import {
+  setGlobalFinish,
+  setHardwareTier,
+  setMaterialTier,
+  type WholeKitchenTierInput,
+} from "../commands/set-whole-kitchen-settings.js";
+import {
   cabinetDepthMmOf,
   DesignSettingsSchema,
+  type Design,
   type DesignSettings,
+  type Handle,
 } from "../design.js";
+import { designOffersFinish, materialOfDesign } from "../design-material.js";
 import { KITCHEN_L_DESIGN } from "../fixtures/kitchen-l-design.js";
 import {
   DEFAULT_MATERIAL_ID,
@@ -67,6 +81,100 @@ export function stampedSettingsOf(
   if (request === undefined) return { cabinetDepthMm: REFERENCE_DEPTH_MM };
   refuseARequestNoDesignMayHold(request);
   return containerOf(request, finishTheMaterialOffers(request));
+}
+
+/**
+ * A design stamped with the new-kitchen settings through the public commands, on the design's own clock; the depth is
+ * never written, since only `setCabinetDepth` can rebuild bodies for it. The colour is judged once, against the
+ * material the design ends up wearing. A refusal here is a programming error and throws.
+ */
+export function stampedDesignOf(
+  design: Design,
+  request: NewKitchenSettings,
+): Design {
+  refuseARequestNoDesignMayHold(request);
+  const withTiers = withStampedTiers(design, request);
+  const withColourAndHandle = withStampedColourAndHandle(withTiers, request);
+  return request.topRowHandle === undefined
+    ? withColourAndHandle
+    : withTopRowHandle(withColourAndHandle, request.topRowHandle);
+}
+
+function withStampedTiers(
+  design: Design,
+  { materialTierId, hardwareTierId }: NewKitchenSettings,
+): Design {
+  const occurredAt = design.updatedAt;
+  const withMaterial =
+    materialTierId === undefined
+      ? design
+      : settled(
+          setMaterialTier({
+            design,
+            ...onlyOffered(materialTierId),
+            occurredAt,
+          }),
+        );
+  return hardwareTierId === undefined
+    ? withMaterial
+    : settled(
+        setHardwareTier({
+          design: withMaterial,
+          ...onlyOffered(hardwareTierId),
+          occurredAt,
+        }),
+      );
+}
+
+/** The tier as the one id the command is told is offered: the request was judged against the book and the head. */
+function onlyOffered(
+  tierId: string,
+): Pick<WholeKitchenTierInput, "tierId" | "availableTierIds"> {
+  return { tierId, availableTierIds: [tierId] };
+}
+
+function withStampedColourAndHandle(
+  design: Design,
+  { finish, handle }: NewKitchenSettings,
+): Design {
+  const occurredAt = design.updatedAt;
+  const coloured =
+    finish === undefined
+      ? design
+      : settled(
+          setGlobalFinish({
+            design,
+            finish: finishTheDesignOffers(design, finish),
+            occurredAt,
+          }),
+        );
+  return handle === undefined
+    ? coloured
+    : settled(setKitchenHandle({ design: coloured, handle, occurredAt }));
+}
+
+/** Judged against the material the design wears after its tier command, which is the stamped one except when the
+ *  request names no material: a design of another material keeps that material's colour rule. */
+function finishTheDesignOffers(design: Design, finish: Finish): Finish {
+  if (designOffersFinish(design, finish)) return { ...finish };
+  const lookup = materialOfDesign(design);
+  return lookup.kind === "declared"
+    ? { ...lookup.material.defaultFinish }
+    : finish;
+}
+
+/** No command writes the top row's handle: the customer has no kitchen-level control for it (H-3). */
+function withTopRowHandle(design: Design, topRowHandle: Handle): Design {
+  return withSettings(
+    design,
+    { ...design.settings, topRowHandle },
+    design.updatedAt,
+  );
+}
+
+function settled(result: CommandResult): Design {
+  if (result.ok) return result.design;
+  throw new Error(`stampedDesignOf: a command refused (${result.reason.code})`);
 }
 
 /** What a stored row of defaults is read as: the settings it holds, or a row that is not settings at all. */
@@ -143,7 +251,8 @@ function depthOf(request: NewKitchenSettings): number {
  *  so must a key this request does not define or a `null` standing where a value is optional. */
 function refuseARequestNoDesignMayHold(request: NewKitchenSettings): void {
   const given: unknown = request;
-  const isAnObject = typeof given === "object" && given !== null;
+  const isAnObject =
+    typeof given === "object" && given !== null && !Array.isArray(given);
   if (
     !isAnObject ||
     !Object.keys(request).every((key) => KNOWN_KEYS.has(key)) ||

@@ -41,6 +41,13 @@ import {
 } from "@/price-dashboard/kitchen-defaults-model";
 import type { KitchenDefaultsWire } from "@/price-dashboard/price-dashboard-wire-contract";
 
+/** How long a creation waits on the stores before it takes the fixed fallbacks. */
+const READ_DEADLINE_MS = 1500;
+
+/** A store that stays down is a few log lines per cause per window, not one per render. */
+const FALLBACK_LOG_WINDOW_MS = 60_000;
+const FALLBACK_LOG_LINES_PER_WINDOW = 3;
+
 /** The two tier ids only the active book can name. Both are absent when there is no book. */
 interface FixedTiers {
   readonly materialTierId?: string;
@@ -159,40 +166,117 @@ function tierOffersOf(group: TierGroup<TierIdentity>): readonly TierOffer[] {
  * The six settings a new kitchen is created with. A saved value whose item the active book and the availability head do
  * not offer is replaced by its fixed fallback, which is never switched off; the colour is judged after the material.
  *
- * It never throws and never blocks a creation. A store that cannot answer, or a saved row that is not settings, gives
- * the fixed fallbacks and one log line that names the cause and no value. With no active book there is no tier id to
- * give, so the two tiers are absent and the other four are the fixed fallbacks.
+ * It never throws. A store that cannot answer in time, or a saved row that is not settings, gives the fixed fallbacks and
+ * a log line that names the cause and no value; with no active book the two tiers are absent. The last whole reading is
+ * reused while the availability head's revision is unchanged (ADR 0178), and a fallback is never reused.
  */
 export async function readNewKitchenDefaults(): Promise<CompletedSettings> {
+  const deadline = { isOver: false };
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timedOut = new Promise<CompletedSettings>((resolve) => {
+    timer = setTimeout(() => {
+      deadline.isOver = true;
+      reportFallback("store-unavailable");
+      resolve(completionOf({}, {}));
+    }, READ_DEADLINE_MS);
+  });
+  try {
+    return await Promise.race([readWithinTheDeadline(deadline), timedOut]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function readWithinTheDeadline(deadline: {
+  readonly isOver: boolean;
+}): Promise<CompletedSettings> {
   const stores = await attempt(getPriceStores);
   if (stores.kind === "failed") return completionOf({}, {});
   const head = await attempt(() => readDashboardAvailability(stores.value));
-  const book = await bookOf(stores.value, head);
-  if (book === undefined) return completionOf({}, {});
-  const tiers = fixedTiersOf(book);
-  if (head.kind === "failed") return completionOf({}, tiers);
-  const saved = await attempt(() => readSavedDefaults(stores.value));
-  if (saved.kind === "failed") return completionOf({}, tiers);
+  const remembered = rememberedFor(head);
+  if (remembered !== undefined) return remembered;
+  const reading = await readAgainstTheStores(stores.value, head);
+  if (reading.isRememberable && head.kind === "read" && !deadline.isOver) {
+    remember(head.value.revision, reading.settings);
+  }
+  return reading.settings;
+}
+
+/** What one reading of the stores gave, and whether it is the answer for its head: a book was present and the saved
+ *  defaults answered. */
+interface Reading {
+  readonly settings: CompletedSettings;
+  readonly isRememberable: boolean;
+}
+
+async function readAgainstTheStores(
+  stores: PriceStores,
+  head: Attempt<CatalogueAvailability>,
+): Promise<Reading> {
+  const book = await bookOf(stores, head);
+  if (book.kind === "failed" || book.value === undefined) {
+    return fellBack(completionOf({}, {}));
+  }
+  const tiers = fixedTiersOf(book.value);
+  if (head.kind === "failed") return fellBack(completionOf({}, tiers));
+  const saved = await attempt(() => readSavedDefaults(stores));
+  if (saved.kind === "failed") return fellBack(completionOf({}, tiers));
   const offered = offeredPartOf(saved.value, {
-    book,
+    book: book.value,
     availability: head.value,
   });
-  return completionOf(offered, tiers);
+  return { settings: completionOf(offered, tiers), isRememberable: true };
+}
+
+function fellBack(settings: CompletedSettings): Reading {
+  return { settings, isRememberable: false };
 }
 
 /**
  * The active book, read after the head. A read that failed after the head's own failure is not told again: one cause
- * is one line.
+ * is one line. No version ever published is an answer (`undefined`), a failed read is not.
  */
 async function bookOf(
   stores: PriceStores,
   head: Attempt<CatalogueAvailability>,
-): Promise<PriceBook | undefined> {
+): Promise<Attempt<PriceBook | undefined>> {
   if (head.kind === "failed") {
-    return readActiveBook(stores).catch(() => undefined);
+    return readActiveBook(stores).then(
+      (value): Attempt<PriceBook | undefined> => ({ kind: "read", value }),
+      (): Attempt<PriceBook | undefined> => ({ kind: "failed" }),
+    );
   }
-  const reading = await attempt(() => readActiveBook(stores));
-  return reading.kind === "read" ? reading.value : undefined;
+  return attempt(() => readActiveBook(stores));
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// What is remembered between renders
+
+/**
+ * The six values of the last whole reading, under the head revision they were read at. A defaults save, a publish and a
+ * switch move the head, so they end its reuse; the owner-run seed does not, which is why a reading with no book is never
+ * kept.
+ */
+let rememberedReading:
+  | { revision: string; settings: CompletedSettings }
+  | undefined;
+
+function rememberedFor(
+  head: Attempt<CatalogueAvailability>,
+): CompletedSettings | undefined {
+  if (head.kind !== "read") return undefined;
+  if (rememberedReading?.revision !== head.value.revision) return undefined;
+  return structuredClone(rememberedReading.settings);
+}
+
+function remember(revision: string, settings: CompletedSettings): void {
+  rememberedReading = { revision, settings: structuredClone(settings) };
+}
+
+/** For the tests that build a fresh world of stores: the head revision of one world is the head revision of another. */
+export function resetNewKitchenDefaultsBoundsForTests(): void {
+  rememberedReading = undefined;
+  windowByCause.clear();
 }
 
 interface OfferContext {
@@ -283,8 +367,27 @@ function causeOf(failure: unknown): FallbackCause {
     : "unexpected";
 }
 
+/** The window each cause is being counted in. */
+const windowByCause = new Map<
+  FallbackCause,
+  { readonly startedAt: number; readonly written: number }
+>();
+
+function takeLogLineFromBudget(cause: FallbackCause): boolean {
+  const now = Date.now();
+  const counted = windowByCause.get(cause);
+  const current =
+    counted !== undefined && now - counted.startedAt < FALLBACK_LOG_WINDOW_MS
+      ? counted
+      : { startedAt: now, written: 0 };
+  if (current.written >= FALLBACK_LOG_LINES_PER_WINDOW) return false;
+  windowByCause.set(cause, { ...current, written: current.written + 1 });
+  return true;
+}
+
 /** The write may not throw: a diagnostic that can fail would replace the creation it explains. */
 function reportFallback(cause: FallbackCause): void {
+  if (!takeLogLineFromBudget(cause)) return;
   try {
     console.error("[new-kitchen-defaults]", {
       event: "fixed-fallbacks",
