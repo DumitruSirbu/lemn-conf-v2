@@ -555,3 +555,60 @@ the same accepted residual as R4a6's unbucketed `deletionFacts` page read.
 
 **Not an exception:** re-reading after a save conflict (`readAgain`) writes two audit rows (sections `defaults` and
 `catalogue`) and spends two read tokens, by design.
+
+## Amendment — 2026-11-08: the price-notice routes, their credential, buckets and comparison, and what "sent" means (architect's ruling, under A-11 and F8)
+
+**Evidence tier.** Source-verified at `m10-price-dashboard` @ `bf9bc188`, with file and line in the plan's *R5 split*
+(Lane R), where the full rulings, sub-waves and criteria live. Nothing is built or run. This amendment narrows A-11's
+"Route rules (F8)"; it overturns nothing above.
+
+**Why now.** R5's implementer stopped. The row's "authorised exactly like a save" named no port that can do it, no
+production notice store existed, nothing read `sent_at` for one design, and X0's `PriceNoticeWire` carried no `isSent`.
+
+1. **The credential is the save's choice, with the cross-site refusal first.** It is the write-token hash alone,
+   never with the visitor cookie, as the save's token arm; or else a client session that may edit. A cross-site
+   request is refused on both arms before any cookie is read (the save asks only on its account arm). A staff session
+   gives no credential, since `design.read.own` is a client's. The design is read under that credential, by one new
+   narrow port that mirrors the save's `authorised` predicates (`loadEditable`, wave S7), before any marker call.
+   - *Rejected:* `loadAuthorized`, which also demands the visitor. That is stricter than a save, so a browser whose
+     visitor was rotated (ADR 0114 H1) keeps saving but never sees its notice. `loadOwned`, which is read-level: a
+     visitor whose write token expired could write markers.
+2. **Every refusal for lack of edit authority is the byte-identical `404` a missing design gets**, as on the share
+   and preset routes under the same path (ADR 0114 G4). *Rejected:* the save's `403`, which serves the save client's
+   own reload-or-overwrite flow; the notice client is gated by `canWrite` and never needs the distinction.
+3. **Buckets: reuse, no new figure.** The `GET` is counted first under `read-by-block`, failing open, as the design
+   `GET`. Its only write is insert-once per design, for an authorised caller, and designs are bounded by the mint
+   (ADR 0147), so ADR 0019 decision 5's "writes fail closed" (which bounds writes that grow with calls) is not
+   breached. The `POST` spends the save's buckets (`design-save-by-block`, then `-by-credential` or `-by-account`)
+   after the credential, failing closed. *Rejected:* new buckets (two provisional figures with no measured need); the
+   `GET` under the save buckets (a limiter outage would blank every open's notice and sent note).
+4. **The acknowledgement records the page's displayed pair**, shape-checked before the store (`400` naming the member;
+   never a 5xx), and the store's `unknown-version` and `revision-ahead` are `400`, as §8.4(d) froze them.
+5. **The comparison.** No active book: answer with `isSent` only, and read or write no marker. No marker: record the
+   current pair, insert-if-absent, and show nothing. Otherwise price the **active** side first: any refusal there means
+   no notice, because the replacement sheet (`REPLACEMENT_REQUIRED`) or the editor's own refusal owns that moment.
+   Then a seen side that refuses, or whose stored version or availability cannot be read or parsed, means **the notice
+   shows**. A store failure is `503`, never a notice. The seen side is read whenever the marker differs, so the removed
+   accessories are reported beside a pending replacement.
+   - *Why the seen side shows it.* The seen pair never changes, and once a marker exists only the customer moves it.
+     Answering "no notice" would silence the notice for that kitchen for good. Showing it once costs one "Am înțeles",
+     which moves the marker and heals the state. Owner-visible: the plan queues it as OQ-40, with this default.
+   - *Rejected:* "no notice" for a seen-side refusal (permanent silence); letting the `GET` move the marker (it would
+     re-decide A-11's list of marker writers).
+6. **"Sent" is `designs.sent_at is not null`, and a kitchen sent and then edited is still sent.** `markSent` sets the
+   mark once and nothing clears it, and ADR 0062 Amendment 5 keeps a sent kitchen editable (point 1) with a note that
+   presumes edits after sending (point 3). It is read in the statement that authorises. Kitchens sent before the mark
+   existed stay unmarked (ADR 0172 O11). *Rejected:* the sent-reference lookup at the current revision (it answers
+   "not sent" once the kitchen is edited); a join to `contact_submissions` (a second store, against ADR 0153's narrow
+   grants, and not needed).
+7. **The wire.** `PriceNoticeWire` gains `isSent` and becomes a union with a `no-active-version` arm. Each removed
+   accessory carries the authored name of a linked row: the active book's, else the seen book's (this record's
+   Amendment of 2026-11-04 names a deleted one "from the seen book", which only the server holds).
+8. **Accepted residual: check, then write.** The marker write follows a separate authorisation read. A hide or delete
+   landing between the two leaves a marker for a closed design, which changes no design, price or request: `0028`'s
+   accepted residual, unchanged. ADR 0019 decision 1 rejects that window for a design write, and this is not one.
+   *Rejected:* folding the credential into S5's merged marker statements.
+
+**Consequences.** R5 is split into R5a (the store wiring and this wire), S7 (lane S: the editable read) and R5b (the two
+routes). Q3 and Q4 may start against R5a's wire and merge after R5b. An editor open spends one more `read-by-block`
+token; that figure stays the owner's to retune.

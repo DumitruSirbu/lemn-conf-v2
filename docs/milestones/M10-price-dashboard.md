@@ -768,6 +768,7 @@ the stated default and needs only a yes or a correction.
 | OQ-38 | Two places count a created class differently. The header chip and the publish button count it once ("1 preț de publicat"), as OQ-30's proposal does. The publish page's group heading counts its lines ("6 modificări"). Should the heading follow OQ-30 too? | As built | R4a4, U5c (OQ-30) |
 | OQ-39 | When the saved defaults set a cabinet depth that a preset cannot take (`setCabinetDepth` refuses it), the preset's copy keeps the preset's own depth. Should the new-kitchen screen offer only the presets that fit at the saved depth? | Every preset offered, and a copy that cannot take the depth keeps its own | R4b3 (R4b split, rule 5); also named OQ-R4b-1 (same question, not to be queued twice; noted 2026-11-08) |
 | OQ-11f | The `cannot-judge` note on Switch off and Delete ends "Încearcă din nou mai târziu". From R4a5 on, production's Delete of a stated row (until R4c) and its Switch off (until R4b) are a standing state, and retrying will not help. New wording? | As drafted | R4a5 |
+| OQ-40 | (added 2026-11-08, *R5 split*) The "Prețurile s-au actualizat" notice compares a kitchen's prices under the pair its owner last acknowledged with today's. If the kitchen can no longer be priced under the old pair, typically because the customer added something that did not exist then, the two cannot be compared. Should the notice show? | **Shown**, once; "Am înțeles" clears it. Not showing would turn the notice off for that kitchen for good, since nothing else moves the customer's marker (ADR 0178, price-notice Amendment of 2026-11-08, item 5; *R5 split*, ruling 6) | R5b, Q3 |
 | OQ-28c | P6 leaves the seeded default kitchen's hardware total unchanged (its push fronts are top-row doors, no drawers); only push-to-open drawers move | Recorded, no question | P6 |
 | OQ-33 | ADR 0062's third Amendment, item 2, forbids deleting an item any saved kitchen uses (owner, as relayed: "Deleting no, disabling yes"). That holds for every kitchen the publish can see. A kitchen can still come to name a deleted item: a save in the very moment of publishing, or a page left open since before the publish. What does that customer see? | **The same as for a switched-off item** (items 3 and 4): a notice, a required choice from the remaining options, and no price until they choose. A deleted accessory is removed with the notice. Architect's reading, ADR 0178, Amendment of 2026-11-04 | S2c, R4a, Q3 |
 
@@ -863,7 +864,7 @@ Below, only the additions to that rule are listed.
 | **M** | Dashboard model (pure) | `configurator-domain/src/price-dashboard/**` (after X0) | `pricing/**` (reads and imports only); `apps/web` | Full |
 | **S** | Persistence, **the sole writer of `packages/persistence/` in M10** | `packages/persistence/**`, including the census, the privilege test, `index.ts` and migrations `0023`–`0029` (renumbered 2026-10-27, ruling A) | `packages/configurator-domain`; `apps/web` | Full + security |
 | **T** | Copy | `apps/web/src/messages/*`; `i18n/content.ts`; the copy-lock tests | Every component; the `depthNote` reference (Q1's) | Light |
-| **R** | Web server routes and the one book root | `lib/server/active-price-book.ts`; `lib/server/price-dashboard/**`; `lib/server/price-notice.ts`; `lib/server/catalogue-availability.ts`; `app/api/staff/prices/**` (including `…/availability/**`); `app/api/designs/**/price-notice/**`; the R1 window in §9.1; the mint path (R4b) | `staff/**` components; `price-dashboard/**` components; `lib/server/staff/**` except where K2 hands over (none planned) | Full + security |
+| **R** | Web server routes and the one book root | `lib/server/active-price-book.ts`; `lib/server/price-dashboard/**`; `lib/server/price-notice.ts`; `lib/server/price-notice-request.ts` (added 2026-11-08, *R5 split*); `lib/server/catalogue-availability.ts`; `app/api/staff/prices/**` (including `…/availability/**`); `app/api/designs/**/price-notice/**`; the R1 window in §9.1; the mint path (R4b) | `staff/**` components; `price-dashboard/**` components; `lib/server/staff/**` except where K2 hands over (none planned) | Full + security |
 | **U** | Dashboard UI D1–D9 | `apps/web/src/price-dashboard/**` (except the X0 wire contract); `app/[locale]/staff/catalog/**`; `proxy.ts`; `staff-shell.tsx`, `staff-nav-sheet.tsx`, `staff-paths.ts` (except the K4 window); `apps/web/public/cabinets/**` | `staff/staff-kitchen*`, `staff-kitchens*` (K's); `lib/server/**` | Light + visual (U5 Full) |
 | **K** | D10 and the digest | `configurator-domain/src/staff-changes/**`; `staff-kitchens-rows.tsx`, `staff-kitchen-filters.tsx`, `staff-kitchen-view.tsx`, `use-staff-kitchen.ts`, `kitchen-version-switch.tsx`, `use-changed-kitchen-count.ts`; `app/api/staff/kitchens/**`; `lib/server/staff/staff-kitchens.ts`, `staff-kitchen-actions.ts`; `app/api/cron/staff-change-digest/**`; `lib/server/mail/staff-change-digest.ts`; `vercel.json`; the K4 window in §9.1 | `lib/server/mail/mail-sender.ts` and the existing senders (consume only) | K1 Full; K2 and K4 Full + security; K3 Light + visual |
 | **Q** | Customer side C1–C5 | `price-breakdown.tsx`, `price-bar.tsx`, `settings/global-settings.tsx`; after MP-3, also `price-breakdown-model.ts`, `whole-kitchen-tiers.ts`, `starting-price.ts`, `settings/global-settings-model.ts`, `store/whole-kitchen-apply.ts`; new `replacement-sheet.tsx`, `price-notice-banner.tsx`, `use-price-notice.ts`, `sent-kitchen-note.tsx` | `lib/server/**`; `staff/**`; `price-dashboard/**` | Q1 and Q3 Full; Q2, Q4, Q5 Light; every wave visual |
@@ -910,6 +911,9 @@ unchanged by the 2026-10-26 amendment, and no owner question gates any of them.
 - after P3 (MP-3): M2, U2, U3, Q2, T2;
 - after P4a: Q3 (also R5, which needs P4b);
 - after P4b: M3, M4, U4a/U4b/U4c (through M3 and M4), R5, P5.
+
+**R5 is three sub-waves (amended 2026-11-08, *R5 split*, Lane R).** Read the graph's `R5` node as R5a ∥ S7, then R5b.
+Q3 and Q4 may **start** once R5a has merged, building against its wire, and **merge** only after R5b.
 
 Q2 waits for MP-3 because Q1 holds `global-settings.tsx` until then.
 
@@ -1178,6 +1182,8 @@ The `action` column is a shape check [src: `0020` header], so no migration is ow
 | `price-breakdown.tsx`, `settings/global-settings.tsx` | **Q1** until MP-3. Then lane **Q** (Q2 onward) | — |
 | `settings/global-settings-model.ts`, `store/whole-kitchen-apply.ts` | Lane **Q**, from Q2 (after MP-3) | — |
 | `vercel.json` | **K4** | — |
+| `apps/web/src/price-dashboard/price-dashboard-wire-contract.ts`, the price-notice section only | **R5a** (2026-11-08, *R5 split*: `isSent`, the two-arm union, `RemovedAccessoryWire`) | Q3 and Q4 read it only |
+| `apps/web/src/lib/server/repository.ts` (a pre-M10 file with no M10 owner) | **R5b**, for one getter, `getEditableDesignRepository()` (2026-11-08, *R5 split*) | — |
 | `docs/**`, including the runbook | The **scribe**, in the main tree, after each wave's commit. Implementers put runbook text in their report, and the scribe pastes it | No implementer edits `docs/` |
 | `docs/design/mockups/cabinets/*.svg`, copied to `apps/web/public/…` | **U1** copies; the source is never edited | — |
 | QA-owned pins (`qa-*.adversarial.test.ts`, `pricing-seams.test.ts`, `qa-m6-wave-b-book-ingress`, `qa-8c-model-purity`) | A wave that moves a pinned fact reports it, and **QA** edits the pin | Implementers never edit a QA pin |
@@ -1917,9 +1923,11 @@ P4b), so it runs last and holds nothing up. Migration numbers follow §9.2, not 
 | **S2c** the publish refuses a deletion that gained a user (added 2026-11-04; ADR 0178, Amendment on a deletion that gains a user) | The publish CTE gains an in-use branch over the deleted items, using S3's predicate text from one shared fragment. The store answers `item-in-use {items}`, and the fake mirrors it. No DDL. Items and criterion S-j are in *Publish and a deletion that gains a user*, below the table | `price-book-statements.ts`, `neon-price-book-store.ts`, `fake-price-book-store.ts`, `m10-ports.ts` (the publish outcome and request), the shared predicate fragment (moved out of S3's `kitchen-usage-statements.ts`) | S3 merged | That block; ADR 0178's Amendment; S-b; S-e; S3's `kitchen-usage-statements.ts` |
 | **S3** defaults and usage | `0029` (ex-`0027`); `NeonKitchenDefaultsStore`; `NeonKitchenUsageReader` (jsonb paths; client-deleted rows excluded) with a **parity test against M3's `usesItem`** over shared fixture designs. For a linked accessory, the reader is given the set of build ids that price as the linked row (computed by the domain through `resolveCatalogEquivalent`), never a hand list | 1 migration, `neon-kitchen-defaults-store.ts`, `neon-kitchen-usage-reader.ts`, `kitchen-usage-statements.ts` | S5, M3 | A-9; M3's `item-usage.ts`; `design.ts:170-195` (the settings paths); `0016` (`deleted_by_client_at`) |
 | **S6** backup (OQ-13) | Price-book versions, the availability log and the defaults added to the scheduled export | `backup` statement (one file) | S3 | ADR 0012; `apps/web/src/lib/server/backup-designs.ts` (read only; its route is not S's) |
+| **S7** the editable read (added 2026-11-08, *R5 split*) | `loadEditable({id, credential})`: a design read under exactly a save's credential (the write-token hash alone, or the owning account), with `isSent`. No DDL. Items and criteria S7-a to S7-f are in *R5 split*, Lane R | `neon-configuration-repository.ts`, `index.ts` | merged only; beside R5a | *R5 split* (S7's row) |
 
-**S5 hand-off to R5** (S5 logic and security reviews, 2026-11-04; inference until R5 reads them). The port is safe only
-if the routes do all of this:
+**S5 hand-off to R5** (S5 logic and security reviews, 2026-11-04; inference until R5 reads them; **read by the architect
+2026-11-08: where each item lands is tabled in *R5 split*, Lane R**). The port is safe only if the routes do all of
+this:
 1. The first-open pair is the server's own, taken from the same read that prices the page, never from the request.
    `recordIfAbsent` judges nothing in SQL. With no active version, skip it rather than invent a pair.
 2. Both routes authorise the design exactly like a save (write token or owning account), the `GET` included, because
@@ -2359,7 +2367,7 @@ reviewers of each wave: the same as their implementer, plus the wave's criteria 
 | **R3** publish, history, restore | `POST …/publish` (expected draft revision, label, note, provisional flag; the domain judges the candidate book whole first, `judgeBookAgainstCatalog`); `GET …/versions`, `GET …/versions/{id}`; `POST …/versions/{id}/restore`. **Restore acceptance (2026-10-27, M1 logic review):** `restoreChanges(archived, active)` is exact only relative to its second argument. If the draft already edits a field (active 100, draft 120, archived 100) it emits nothing for it and the candidate keeps 120. R3 therefore passes the candidate `apply(active, draft)` and adds reverts where archived equals active, or replaces the draft wholesale; D8C "puts the old prices in the draft" must reproduce archived. **Confirmed 2026-10-27 (ruling U5-Q6):** R3 implements this restore-against-candidate rule **server-side**. U5 did it client-side for its in-memory client only, which is not an authority. Restored values replace pending ones for the same address, as REST's copy says ("dacă unul e deja acolo, valoarea din 2026-10 o înlocuiește"). **Label and note:** the label is required (non-empty after trim, ≤ 80, **counted in code points via `countCharacters`, not UTF-16 units; ruling from U5's QA, 2026-10-27**); **the publish route's version-name rule is the domain text rule: NFC-compose, strip `\p{Cf}`, refuse control, line-separator and lone-surrogate characters (the contact fields' rule, `input-checks.ts` `readTypedText`). U5's in-memory sample client is not an authority: it counts units and neither strips nor composes**; **the note is optional**, and an empty note is accepted (≤ 240), because the frame draws no note field. R3 refuses an empty **label**, never an empty note. **The store stamps `book.version = versionId` on publish (the id is minted inside `publish()`; S2 ruling F1, 2026-10-27); R3 does not stamp** (R-a) | 3 route files, service (mod) | R2, M2 | A-15; M2's `judge-book.ts`; frames D7A–G, D8A–C [mock L871-880]. **Acceptance for R2 and R3 (2026-10-27):** a required test that a non-administrator is refused `price.edit` on **every** dashboard route (the store's actor check is defence in depth only); the route applies the domain text rule (NFC, control and bidi-override characters refused; ADR 0178 F5) to the version label and note, because the store checks only length and NUL; stored drafts and books are untrusted and parsed before use |
 | **R4a** availability and the creation and deletion guards (amended 2026-10-26) | (1) `POST /api/staff/prices/availability`: **immediate** (A-17), judged by M3's `judgeAvailabilityChange`, written through `CatalogueAvailabilityStore` with its `catalogue-item-active-changed` audit row, `price.edit`, expected revision, `409 changed-meanwhile`; (2) `GET` usage counts (`KitchenUsageReader`); (3) creation and deletion arrive as draft changes through R2's endpoint; R4a adds their server judgements (M4's `judgeBookAgainstCatalog` link check, and a usage pre-check on delete with its `409`); (4) publish (R3) calls `judgeDeletionsAtPublish` with fresh counts. **R2 review (2026-10-27):** re-putting a change moves it to the end of the draft (X0-4), so once the creation kinds apply, dependants of a moved creation would be refused at older indexes; R4a replaces in place or treats the dependants as new. **Amended 2026-11-04 (ADR 0178, Amendment on a deletion that gains a user):** item (4) counts inside the publish request, never from a page load or the body; R4a holds R3's merged publish route and service for it. R4a merges with `item-deleted` still refused; a gated step, **R4c**, turns it on once S2c and Q3 are merged. Items and criteria R-i and R-j are in Lane S, *Publish and a deletion that gains a user*. **Split 2026-11-04 into R4a1–R4a6 (architect): dispatch the sub-waves, never this row whole. Items, files, order, tiers and criteria are in *R4a split*, below R acceptance** | 2 route files, `lib/server/catalogue-availability.ts`, service (mod); per sub-wave in *R4a split* | R3, M3, M4, S2 (availability, ex-S2b), S3; R4a6 also S2c | A-17, A-18, A-19; frames D4E/F, D5C/D/G, D6C [mock L779-781]; ADR 0062 Amendment 3 and the 2026-10-26 Amendment |
 | **R4b** defaults and stamping new kitchens | `GET`/`PUT` defaults (immediate, audited `kitchen-defaults-saved`); the mint and generation pass the saved defaults into H2's request. **U6-a is carried here (ruling 2026-10-27):** after a defaults save, the customer's next **new** kitchen starts with the saved values and an already-saved kitchen is unchanged; U6 cannot meet this alone, since production answers "unavailable" until the defaults route exists. **Ruling 2026-10-27 (H2):** a preset "use a copy" and the seeded mint are creations of a new design, so they are stamped with the new-kitchen defaults too (A-9). They do not go through `generateKitchen`, so R4b reuses the domain's exported `stampedSettingsOf` on those paths. **R4b also judges availability itself** (a disabled tier): the domain checks shape only. **Two criteria (H2 logic review, 2026-10-27):** (a) the depth of a preset copy or the seeded mint changes **only** through `setCabinetDepth`, never by spreading `stampedSettingsOf`'s `cabinetDepthMm` over 600-built geometry (ADR 0089's 80 mm and 31 mm corner intersections, which the validator does not report); test: a preset copy stamped at 700 equals `setCabinetDepth(copy, 700)`. (b) Every design created through the mint, generation, a preset copy or the seeded mint carries **all six** settings keys (material, hardware, depth, colour, handle, top-row handle): `NewKitchenSettings` makes them optional while `KitchenDefaultsWire` requires them. **Split 2026-11-05 into R4b1–R4b4 (architect): dispatch the sub-waves, never this row whole. Items, files, order, tiers, rulings and criteria (including a criterion (c)) are in *R4b split*, below *R4a5 merged*** | 1 route file, service (mod), the mint path; per sub-wave in *R4b split* | R4a (R4a1 only, per *R4a split*, 2026-11-04), H2, S3 | A-9; ADR 0111 (the mint path); `generation/shell-design.ts` (H2's request type, read only); frames D9A–C |
-| **R5** customer notice and sent state | `GET /api/designs/{id}/price-notice` (whether to show C1, removed accessories since the acknowledged availability revision, `isSent`); `POST …/price-notice/acknowledge`, authorised exactly like a save (write token or owning account), never moving `revision` | 2 route files, `lib/server/price-notice.ts` | R1, P4b, S5 | A-11 (the version and availability pair), A-17; P4b's `price-change-notice.ts`, P4a's `replacements.ts`; ADR 0114 (visitor cookie), ADR 0172 D8 (a claimed design on any device); `lib/server/load-owned-design.ts`, `write-token.ts` |
+| **R5** customer notice and sent state | `GET /api/designs/{id}/price-notice` (whether to show C1, removed accessories since the acknowledged availability revision, `isSent`); `POST …/price-notice/acknowledge`, authorised exactly like a save (write token or owning account), never moving `revision`. **Split 2026-11-08 into R5a, S7 and R5b (architect), after the implementer stopped on this row: no production notice store, no read of a design under exactly a save's credential, no per-design sent read, and a frozen wire without `isSent`. Dispatch the sub-waves, never this row whole. Items, files, order, tiers, rulings and criteria are in *R5 split*, below *R4b split*** | 2 route files, `lib/server/price-notice.ts`; per sub-wave in *R5 split* | R1, P4b, S5; per sub-wave in *R5 split* | A-11 (the version and availability pair), A-17; P4b's `price-change-notice.ts`, P4a's `replacements.ts`; ADR 0114 (visitor cookie), ADR 0172 D8 (a claimed design on any device); `lib/server/load-owned-design.ts`, `write-token.ts` |
 
 **Rulings of 2026-10-27 on R2's questions:**
 
@@ -2474,6 +2482,8 @@ reviewers of each wave: the same as their implementer, plus the wave's criteria 
   - an acknowledgement of a version that does not exist, or of an availability revision above the head, is `400`, and
     nothing is written;
   - no staff audit row is written (F3).
+  - **Extended 2026-11-08 by *R5 split*** (criteria R5a-a to R5b-m): the refusal is the byte-identical `404`, a
+    cross-site request is refused on both credential arms, and the acknowledgement's shape refusals are named there.
 
 **QA reading:** the base reading plus `apps/web/tests/api/staff/**` and `tests/price/**`. **Review reading:** logic:
 §5 and the routes; security: ADR 0019, 0153, 0156, 0161, 0172 D7, 0173; clean-code: the diff.
@@ -3192,6 +3202,335 @@ R4b1 creates the defaults route file and R4b2 adds its `GET`, in sequence, never
 - **Clean-code review:** the diff, `engineering-conventions.md`, and `price-dashboard-service.ts`'s header (the order
   of checks every route keeps).
 - **Visual review (R4b2, R4b3, R4b4):** the frames in each row, and `browser-and-visual-qa.md`.
+
+**R5 split** (architect, 2026-11-08; plan step for R5 at `m10-price-dashboard` @ `bf9bc188`; nothing run, nothing
+built). R5's implementer stopped on dispatch. The row names "2 route files, `lib/server/price-notice.ts`", but three
+things those files need do not exist. This block splits R5 into three sub-waves, **R5a**, **S7** and **R5b**, and
+records the rulings the row left open. The row's items, R-e and the S5 hand-off all stand; this block says which
+sub-wave delivers each one, and how. The durable rulings are in ADR 0178, price-notice Amendment of 2026-11-08.
+
+*Evidence.* Every source claim below was read at `bf9bc188` (source-verified), with its line. **[inf]** marks an
+inference and says what would falsify it.
+
+*What the row missed (the implementer's stop, re-checked here).*
+1. **No production notice store.** `PriceStores` holds `priceBook`, `availability`, `defaults` and `usage` only
+   (`price-stores.ts:27-32`). Nothing in `apps/web` constructs `NeonPriceNoticeStore` or `FakePriceNoticeStore`: a grep
+   for `PriceNoticeStore|price-notice` finds them in `packages/persistence` alone. The fake needs the raw
+   `FakePriceBookStore`, because it asks `hasHeldVersion` (`fake-price-notice-store.ts:26, :74`). The obstacle is
+   smaller than reported: inside `seedFakePriceStores` the raw fake exists (`price-book-test-seed.ts:77`) before it is
+   wrapped (`:108`), so the notice fake is built there. → **R5a**.
+2. **No per-design sent read.** `loadOwned` and `loadAuthorized` select no `sent_at`
+   (`neon-configuration-repository.ts:540-545, :573-579`). `SentMarkStore` only writes (`account-kitchen-store.ts:254-260`).
+   `findSentReference` answers one design at one revision (`contact-submission-store.ts:83-129`), so a kitchen sent and
+   then edited reads `none`. → **S7**.
+3. **No read under exactly a save's credential.** The save's token arm authorises on the write-token hash alone
+   (`neon-configuration-repository.ts:427-430`), and its account arm on `account_id` (`:473-476`). `loadAuthorized`
+   also demands the visitor hash (`:576-577`), which a save does not. `loadOwned` is read-level: visitor or account
+   (`:543`). → **S7**, one narrow port that answers 2 and 3.
+4. **Unruled:** the buckets, the refusal status, the acknowledgement's refusals, and the mapping of
+   `PriceChangeNotComparableError`. → rulings 2–6 below.
+5. **The frozen wire disagrees with the row.** X0's `PriceNoticeWire` (`price-dashboard-wire-contract.ts:561-566`)
+   holds `current`, `pricesChanged`, `replacementsRequired` and `removedAccessories`, and **no `isSent`**. The row has
+   `isSent` and omits `replacementsRequired`. No file but the contract names `PriceNoticeWire` or `PriceStampWire` (grep
+   over `apps/web/src` and `apps/web/tests`), so amending it now costs no consumer. → ruling 7, in **R5a**.
+
+*Rulings (architect, 2026-11-08; recorded in ADR 0178, price-notice Amendment of 2026-11-08).*
+
+1. **The credential is the save's choice, with the cross-site refusal first.**
+   - A write-token cookie for the design gives its hash, **never with the visitor cookie**: the save's token arm
+     (`app/api/designs/[id]/route.ts:206-216`; predicate `neon-configuration-repository.ts:427-430`). Otherwise, a client
+     session that may edit (`editingAccountIdOf`, `design-reader.ts:54`). Otherwise, no credential.
+   - Unlike the save, a cross-site request is refused on **both** arms, before any cookie is read (R-e; S5 hand-off 5).
+     The save asks `isCrossSiteRequest` on the account arm only (`route.ts:214`), so it accepts a token cross-site. The
+     notice routes do not.
+   - A staff session gives no account credential: `readingAccountOf` needs `design.read.own`, which only a client holds
+     (`design-reader.ts:32-41`). A share-link view reads no cookie and calls no API (ADR 0114 G5).
+   - The cookie reaches both routes. It is scoped `Path=/api/designs/{id}` (`write-token.ts:49, :115`), a path prefix of
+     `/api/designs/{id}/price-notice`. The preset route relies on the same scoping (its header comment).
+   - The design is then read under that credential by S7's `loadEditable`, before any marker read or write (S5
+     hand-off 3).
+   - *Rejected:*
+     - `loadAuthorized` (token **and** visitor). It is stricter than a save. A browser whose visitor value another tab
+       rotated away (ADR 0114 Amendment H1) keeps saving, but would never see its notice.
+     - `loadOwned` with `isOwnedByAccount`. That serves the account arm only. Its visitor arm is read-level, so a
+       browser whose write token expired (30 days, `write-token.ts:18`), and which cannot save, could write markers.
+     - Extracting `saveCredentialOf` from the save route. That file is not lane R's. R5b rebuilds the choice from the
+       exported helpers (`readWriteTokenHash`, `isCrossSiteRequest`, `editingAccountIdOf`), and a parity test holds it
+       to the save's (R5b-b).
+2. **Every refusal for lack of edit authority is the byte-identical `404`** (`designNotFoundResponse`, with its
+   headers). That covers no credential, a wrong or foreign credential, a cross-site request, an unknown or malformed
+   id, a hidden or deleted design, a staff session and a share token.
+   - Precedent: the routes under the design's own path. ADR 0114 G4, for share: "Every refusal is the byte-identical
+     404 a missing design gets". The preset route answers the same (`preset/route.ts`, its `POST`).
+   - *Rejected:* the save's `403` (`writeForbiddenResponse`). It serves the save client's reload-or-overwrite flow.
+     The notice client never needs to tell "not yours" from "absent", because `canWrite` already gates the call.
+3. **Buckets: reuse, and no new figure.**
+   - `GET`: `refusalOfReadLimit` (`read-by-block`, 600 an hour per block; `limit-policy.ts:83-84, :298`). It is asked
+     first, before any cookie or lookup, as the design `GET` asks it (`route.ts:102`), and it fails open. The `GET`'s
+     only write is `recordIfAbsent`: at most one row per design for the design's whole life (`on conflict do nothing`,
+     `price-notice-statements.ts:41`), written only for an edit-authorised caller. Designs themselves are bounded by
+     the mint (ADR 0147). ADR 0019 decision 5's "writes fail closed" guards a write that adds rows or spends a resource
+     on every call; this write cannot.
+   - `POST`: `refusalOfSaveLimit(headers, credential)`: `design-save-by-block`, 600 an hour, then
+     `design-save-by-credential` or `design-save-by-account`, 300 an hour (`limit-policy.ts:73-75`). It is asked after
+     the credential and before the body, as the save asks it (`route.ts:167`), and it fails closed (`503`). An
+     acknowledgement spends one save token. A person acknowledges at most once per notice.
+   - Consequence: an editor open spends one more `read-by-block` token than before, for the notice `GET` **[inf: the
+     page interceptor and the design `GET` already count there, ADR 0156's title; falsified if the page is counted
+     elsewhere]**. `READS_PER_BLOCK_FIGURE` stays the owner's to retune.
+   - *Rejected:* new buckets (two more provisional figures to retune, with no measured need); and counting the `GET`
+     under the save buckets (a limiter outage would blank every open's notice and sent note, to bound a write that
+     already writes once).
+4. **The order of checks.**
+   - `GET`: the read limiter, then the id's shape (`isDesignId`), then cross-site, then the credential, then
+     `loadEditable`, then the judgement (ruling 6).
+   - `POST`: the id's shape, then cross-site, then the credential, then the save limiter, then the media type (`415`),
+     then the body bound (`413`; 1 KiB **[inf: the two members fit in under 100 bytes]**), then the members (`400`),
+     then `loadEditable`, then `recordAcknowledged`.
+   - No refusal before `loadEditable` reads the designs, price or notice stores (the limiter's own counter aside). An
+     unauthorised `POST` spends no save token.
+   - Neither route calls `touchCurrentSession`. The design `GET` of the same open already does (`route.ts:108-110`),
+     and this keeps the notice routes from writing session rows.
+5. **The acknowledgement.**
+   - The body is exactly `{versionId, availabilityRevision}` (`PriceNoticeAcknowledgeRequestWire`).
+     - Not an object, or a member beyond those two: `400 invalid-request`, nothing echoed (the draft routes'
+       `MALFORMED`, through `membersOf`, `draft-requests.ts:423`).
+     - A member absent or not a string: `400 invalid-input`, `MISSING_VALUE`, naming the member.
+     - The wrong shape: a version id the store's own `isMintedId` refuses (exactly 21 of `[A-Za-z0-9_-]`,
+       `dashboard-store-shapes.ts:213-217`), or a revision the domain's `isRevisionShape` refuses (R2b, merged:
+       `configurator-domain/src/revision-shape.ts:14`, exported at `index.ts:309`). That is `400 invalid-input`,
+       `UNKNOWN_VALUE`, naming the member, before the store (S5 hand-off 4).
+     - **Not the dashboard's `isVersionId`** (`identifier-shape.ts:24`): it admits 1 to `MAX_IDENTIFIER_LENGTH`
+       characters, so a 20-character id would pass it and make the store throw `invalid-request`, a 5xx. `isMintedId`
+       is not exported from `@lemnaria/persistence` at `bf9bc188` (its `index.ts` names neither shape check), so S7
+       exports it (S7 item 5). As defence in depth, R5b also answers a store `invalid-request` from
+       `recordAcknowledged` as that same `400`, never a 5xx.
+   - The store's refusals: `400 {status: "unknown-version"}` and `400 {status: "revision-ahead"}` (§8.4(d), m5).
+     Success: `200 {acknowledged: pair}` (`PriceNoticeAcknowledgedWire`).
+   - It never touches `designs`, and writes no audit row (F3).
+   - **Which pair.** The client sends the pair the page displayed: the editor root's
+     `{versionId, availability.revision}` (R1's server prop). Never the `GET`'s `current` (A-11; the wire's own
+     comment at `:568-569`).
+6. **The judgement in `price-notice.ts`, and the mapping of `PriceChangeNotComparableError`.**
+   1. Read `readActivePriceBook`: R1's root, the reader that prices the page (S5 hand-off 1). On `NO_PRICE_BOOK`,
+      answer the `no-active-version` arm with `isSent`. **No marker is read or written.**
+   2. Compute `replacementsRequired` over the stored design, the active book and current availability.
+      `NoReplacementOptionError` is a defect: `500` with a closed body, one log line, and nothing written. Never an
+      empty sheet.
+   3. Read `readAcknowledged`. On `NEVER_RECORDED`, call `recordIfAbsent(current)`, and answer `pricesChanged: false`
+      with `removedAccessories: []`.
+   4. If the marker equals `current` in both members, answer `false` and `[]`, with no read of the seen side.
+   5. Otherwise (the marker differs from `current`), **always read the seen side**: `readVersion(marker.versionId)`
+      through `readBookOf` (seam 1: parse, project and the version check), and `readAt(marker.availabilityRevision)`
+      through `projectAvailability`. The seen side is **readable** when both succeed. It is **unreadable** when the
+      version is not found, does not parse or fails the version check, or when `projectAvailability` refuses
+      (`too-large` or `unreadable`); each of those writes one log line, since none is reachable without a forged
+      marker (`0028`'s residual). A `DashboardStoreError` from either read, as from `readAcknowledged` or
+      `recordIfAbsent`, is `503`, with nothing written after it, and is **never** read as unreadable: an outage must
+      not light the notice on every open.
+   6. `pricesChanged`, in this order:
+      - **price the active side first**, with `priceDesign`. Any refusal answers `false`. `REPLACEMENT_REQUIRED`
+        belongs to the sheet (step 2's rows). Any other code is the editor's own refusal, which already shows no
+        figure, and C1's copy ("Prețul afișat este cel actual") presumes one. The route makes this check itself:
+        `pricesChangedBetween` prices the seen side first, so its error's `side` cannot show that the active side
+        priced;
+      - the active side priced and the seen side unreadable: **`true`**;
+      - both readable: `pricesChangedBetween`'s answer, and **`true`** on its `PriceChangeNotComparableError` (which
+        can then only be the seen side's).
+   7. `removedAccessories`, **whenever the marker differs from `current`**, whatever the active side answered (C4D
+      shows the info row beside a pending replacement): `removedAccessoriesSince({design, catalog, seenBook,
+      activeBook, seen, current})` when the seen side is readable, and `[]` when it is unreadable or on
+      `UnknownBodyError`. Each entry is the accessory's id, plus an `authoredName` for a linked row only: the active
+      book's if it states the row, otherwise the seen book's. ADR 0178's Amendment of 2026-11-04 (item 1) already says
+      a deleted linked accessory is "named from the seen book", and only the server holds that book. Built-ins carry
+      no name; the client names them from its messages.
+   - *Why the seen side answers `true`.* The seen pair never changes: versions are append-only, and so is the
+     availability log. Once a marker exists, A-11 lets only the customer move it, by dismissing the notice or
+     completing the sheet. So a seen-side refusal never clears by itself. `false` would silence the notice for that
+     design for good, through every later real change. `true` costs one notice, perhaps partly spurious, and
+     acknowledging it moves the marker and heals the state. It is also what P4b's error exists for: answering "no
+     change" for it "would hide a price that moved" (`price-change-notice.ts:32-33`). The active side differs: its
+     refusal clears without the marker moving. Completing the sheet writes the marker, and any other code clears when
+     the book or the design changes. **Owner-visible; queued as OQ-40, with this default.**
+   - *Rejected:* `false` for a seen-side refusal (it silences the notice permanently); letting the `GET` move the
+     marker on a seen-side refusal (it re-decides A-11's list of writers, F8, and swallows a real change).
+7. **The wire, amended (R5a).** `PriceNoticeWire` becomes a union of two arms:
+   - `{kind: "active-version", isSent, current, pricesChanged, replacementsRequired, removedAccessories}`;
+   - `{kind: "no-active-version", isSent}`;
+   - `removedAccessories` is `RemovedAccessoryWire[]`, where `RemovedAccessoryWire` is `{accessoryId, authoredName?}`
+     (closed keys; `authoredName` only for a linked row).
+   - `PriceStampWire`, the acknowledgement's request and answer, `PRICE_NOTICE_REFUSALS` and `PriceNoticeInvalidWire`
+     are unchanged.
+   - Bodies are built member by member, never spread. Every `200` carries `PER_CREDENTIAL_HEADERS`, as the design
+     `GET`'s does (`route.ts:126`).
+   - *Why `isSent` goes here, not on the design `GET` beside `canWrite`:* that route file is not lane R's, and the row
+     names the notice `GET`. *Why a union:* with no book there is no `current`, yet `isSent` must still reach Q4.
+8. **`isSent` is `designs.sent_at is not null`, read by S7 in the statement that authorises.**
+   - Once sent, always sent. `markSent` sets `sent_at` once and nothing clears it (`account-kitchen-store.ts:255-259`;
+     the statement, `neon-account-kitchen-store.ts:436-437`). The account list reads the same predicate (`:104`).
+   - **A kitchen sent and then edited is still sent.** That is the case C5A exists for. ADR 0062 Amendment 5 keeps a
+     sent kitchen editable (point 1) and gives it the note "Modificările se văd și la noi" (point 3), which presumes
+     edits after sending.
+   - A hidden or deleted design is refused before `isSent` is read. A duplicate starts unsent
+     (`neon-account-kitchen-store.ts:253`).
+   - A request stored before the sent mark existed leaves its kitchen unmarked. That is ADR 0172's O11 (no backfill),
+     already ruled, so it raises no new question.
+   - *Rejected:* `findSentReference` at the current revision (it reads `none` once the kitchen is edited, against
+     point 3); a join to `contact_submissions` (a second store, and ADR 0153 keeps the application role from that
+     table's personal columns; the join is not needed).
+9. **Check-then-write, recorded.** The marker write follows a separate authorisation read: `loadEditable`, then
+   `recordIfAbsent` or `recordAcknowledged`. ADR 0019 decision 1 rejects that window for a **design** write. Here it is
+   accepted: a hide or delete landing between the two leaves a marker for a closed design, which changes no design, no
+   price and no request. That is `0028`'s accepted residual, and the table has no foreign key on purpose. *Rejected:*
+   folding the credential into the marker statements. It would reopen S5's merged port, statements and contract
+   suite, for nothing the residual does not already accept.
+
+*Sub-waves.* All three are Full + security: lane R's header for R5a and R5b, lane S's for S7. R5a's security reading is
+narrow (the store selection that fails closed).
+
+| Sub-wave | Items (≤ 5) | Production files | Depends on | Tier | Off in production until | Reading |
+| --- | --- | --- | --- | --- | --- | --- |
+| **R5a** the notice store and the wire (runs beside S7) | (1) `PriceStores` gains `notices: PriceNoticeStore`. Production makes `NeonPriceNoticeStore` on first use, as it makes the other four (`price-stores.ts:96-111`). With no `DATABASE_URL`, production holds `UNAVAILABLE_PRICE_NOTICE_STORE`. (2) `UNAVAILABLE_PRICE_NOTICE_STORE`: each of its three methods rejects `DashboardStoreError(operation, "unavailable")`, with the operations `NeonPriceNoticeStore` names (`neon-price-notice-store.ts:36-38`). (3) The seeded world builds one `FakePriceNoticeStore({priceBook, availability})` over the **raw** fakes it already holds, before `stampedWithItsVersionId` wraps the price book. So an acknowledgement is judged against the same versions and head the editor prices under. (4) The wire amendment (ruling 7), in the contract's price-notice section only. (5) The sites that build a whole `PriceStores`. The typecheck names them. Seven test files did so at `bf9bc188` (`tests/support/price-dashboard-world.ts`, `tests/lib/server/price-stores-defaults-and-usage.test.ts`, and five `qa-*` files: `qa-m10-r4b3-creation-paths`, `qa-m10-k2b-kitchen-estimates-route`, `qa-m10-m2-bulk-route.real-planner`, `qa-m10-r4a6-page-and-stores`, `qa-m10-w1-price-stores-wiring`). The implementer edits the first two, and in the five `qa-*` files adds **only** the `notices` member to the fixture literal, changing no assertion, and lists each file for QA to confirm. That is a recorded exception to §9.1's "implementers never edit a QA pin", with a precedent: R4a1's own commit added `defaults` and `usage` to three of these files (`47456e6f`). Without it the branch cannot compile. The implementer reports the count | `price-stores.ts`, `unavailable-price-stores.ts`, `price-book-test-seed.ts`, `price-dashboard/price-dashboard-wire-contract.ts` (the price-notice section). Four | merged only (S5, W1, R4a1) | Full + security | Nothing reads `notices` until R5b | This block (the stop list, ruling 7, the S5 hand-off table); §8.4(c) `PriceNoticeStore` (L1056); *R4a split*, R4a1 item 1 (the precedent for widening `PriceStores`); `price-stores.ts`; `unavailable-price-stores.ts`; `price-book-test-seed.ts`; persistence `fake-price-notice-store.ts`, `neon-price-notice-store.ts`, `m10-ports.ts:586-637`; wire `:541-592` |
+| **S7** the editable read (lane S; runs beside R5a) | (1) A narrow port beside `AuthorizedDesignRepository`: `EditableDesignRepository.loadEditable({id, credential: SaveCredential})` answers `{kind: "found", design, revision, isSent}` or `{kind: "none"}`. `NeonConfigurationRepository` implements it, and `index.ts` exports the types. (2) The token arm: `select schema_version, document, revision::text as revision, (sent_at is not null) as is_sent from designs where id = $id and write_token_hash = $hash and hidden_by_client_at is null and deleted_by_client_at is null`. The account arm is the same with `account_id = $a`. These are exactly the `authorised` CTEs of `updateByWriteToken` and `updateByAccount` (`:427-430`, `:473-476`), plus `sent_at`, with no visitor term. (3) As `saveAuthorized` does: no shape check, since a wrong-shaped credential is just the wrong one and answers `none`. It retries a transient failure, being a read. `migrateDesign` runs only on a match, so `InvalidDesignError` reaches the owner alone. (4) Tests: a live parity table against `saveAuthorized` (S7-a), a mocked-driver test of the sent text, and the S4 gate census (`s4-gate-predicate-census.test.ts`), which gains two templates with one gate pair each. That census pin moves, and QA is told. (5) No DDL and no grant: `sent_at` has existed since `0016`, and the same role already reads it (`neon-account-kitchen-store.ts:104`) **[inf: the privilege test was not re-read; falsified if any arm of it changes]**. No fake: `getRepository()` is Neon in every environment (`repository.ts:55-56`), and web route tests stub the port, as they stub `getAuthorizedDesignRepository`. `index.ts` also exports `isMintedId` (`dashboard-store-shapes.ts:215`), the store's own version-id shape, so R5b's acknowledgement checks exactly what the store will (ruling 5): one line, no behaviour | `neon-configuration-repository.ts`, `index.ts`. Two | merged only | Full + security | No caller until R5b | This block (rulings 1, 8 and 9); `neon-configuration-repository.ts:80-241, :370-501, :533-590`; `account-kitchen-store.ts:249-260`; `neon-account-kitchen-store.ts:100-110, :250-255, :416-440`; `s4-gate-predicate-census.test.ts`; ADR 0114 decision 5, H2, G4; ADR 0172 D9 and Amendment G item 3 (the sent mark); ADR 0019 decision 1 |
+| **R5b** the two routes (after R5a and S7) | (1) `GET /api/designs/{id}/price-notice` (rulings 2–4, 6 and 7). (2) `POST /api/designs/{id}/price-notice/acknowledge` (rulings 2–5). (3) `lib/server/price-notice.ts`: the judgement (ruling 6) and the acknowledgement, over `PriceStores` and the editable read. It builds no `NextResponse`. (4) `lib/server/price-notice-request.ts`: the credential (ruling 1), the acknowledgement's body reader (ruling 5), and the responses. (5) `getEditableDesignRepository()` in `lib/server/repository.ts`: the shared instance behind S7's port, as `getAuthorizedDesignRepository` is (`repository.ts:51-57`) | the two route files (new), `price-notice.ts` (new), `price-notice-request.ts` (new), `repository.ts` (one getter, a stated window: the file has no M10 owner). Five | R5a, S7 (R1, P4b and S5 are merged) | Full + security | Live at this merge, but nothing calls it until Q3 (`use-price-notice.ts`) and Q4. Until the Z gate applies `0023`–`0029` in production, there is no active book there, so the `GET` answers the `no-active-version` arm and touches no marker | This block (every ruling; the S5 hand-off table); the R5 row; R-e; A-11 (L382-401); §8.4(c) L1056, (d) L1090; ADR 0178 A-11, F8, and its price-notice Amendment of 2026-11-08; ADR 0114 G4, G5, H1; ADR 0172 D9; ADR 0062 Amendment 5, points 1–3; `app/api/designs/[id]/route.ts` (whole: the save's order and credential); `preset/route.ts` (its `POST`) and `share/route.ts` (the `404` precedent); `write-token.ts`; `account/design-reader.ts`; `cross-site-request.ts`; `account/account-request.ts` (`readGuardedBody`, the media-type check); `price-dashboard/draft-requests.ts:415-440` (`membersOf`); `active-price-book.ts`; `project-availability.ts`; domain `pricing/price-change-notice.ts`, `pricing/earned-accessories.ts:49-100`, `queries/replacements-required.ts`; `judge-read-request.ts`; `judge-save-request.ts` |
+
+*Order.*
+1. **R5a ∥ S7, now.** Their files are disjoint, and so are their packages.
+2. **R5b**, once both have merged.
+3. **Q3 and Q4 may start once R5a merges**, building against R5a's wire with a stubbed fetch, and **merge only after
+   R5b**. This is a recorded departure from §8.2's "merged before it starts", as Q1 was built on P3's branch. It keeps
+   Q3, and so R4c, off R5b's critical path for everything but the merge. The path to R4c is R5a ∥ S7 → R5b → Q3's merge
+   → R4c (which also needs S2c).
+
+*What Q3 and Q4 need from R5 (hand-offs; they bind those waves).*
+- **Q3:**
+  - `use-price-notice.ts` calls the `GET` only when `canWrite` is true, and never on the share view (its sentinel id).
+    A `404`, `429`, `500` or `503` shows nothing and acknowledges nothing.
+  - C1 standalone: the `active-version` arm with `pricesChanged: true` and `replacementsRequired: []`.
+  - The sheet: `replacementsRequired` is the answer at open, for the stored design. Q3 may compute it live from the
+    store with the same domain function, which Q3 already holds. The accessory info rows come from
+    `removedAccessories`, named by `authoredName` or by the built-in's message.
+  - **C4C's merged sentence (Q3-c) cannot be known while the active side refuses** (ruling 6, step 5). So after the
+    last choice, Q3 waits for the replacement save's `200`, calls the `GET` again, and carries the sentence if and only
+    if that answer's `pricesChanged` is `true`. Only then does it acknowledge.
+  - Q3 acknowledges the **displayed** pair (ruling 5). If the `GET`'s `current` differs from it, a publish or an
+    availability change landed after the page loaded, and the page is stale. Default: show no C1 and acknowledge
+    nothing on that view; the next open compares again, and the marker is untouched. Q3 may add a reload offer.
+  - On `400 unknown-version` or `revision-ahead`, keep the notice for that view. No retry loop.
+- **Q4:** `isSent`, on both arms. Nothing else. Closing the note is per view (Q4-a) and writes nothing.
+
+*Acceptance.*
+- **R5a:**
+  - **R5a-a:** in production with no `DATABASE_URL`, `notices` is `UNAVAILABLE_PRICE_NOTICE_STORE`, and each method
+    rejects a `DashboardStoreError` whose `failure` is `unavailable`. With one, it is a `NeonPriceNoticeStore` made on
+    first use, never at import (the existing `price-stores` tests' pattern);
+  - **R5a-b, one world:** in the seeded world, an acknowledgement naming the version `priceBook.readActive()` reports
+    and the head `availability.readCurrent()` reports is `ok`. After a second version is published through the seeded
+    `priceBook`, an acknowledgement naming it is `ok` too. **Must-not:** a notice fake built over a second
+    `FakePriceBookStore`, which would answer `unknown-version` to the second publish;
+  - **R5a-c:** in the seeded world, an unknown version is `unknown-version` and the head plus one is `revision-ahead`;
+    a refusal changes nothing `readAcknowledged` returns;
+  - **R5a-d, must-not:** at this merge, no production module but the stores' wiring names `notices` (grep);
+  - every existing test stays green; the count of test files edited is reported, with the QA pins listed.
+- **S7:**
+  - **S7-a, parity, live:** over the table below, `loadEditable` answers `found` if and only if a `saveAuthorized`
+    with the same credential at the row's revision lands, and `none` if and only if that save answers
+    `DesignWriteForbiddenError`. The rows: the right token; another design's token; a wrong token; the right token on
+    a hidden row; on a deleted row; a row whose `write_token_hash` is null; the owning account; an account on an
+    unclaimed row; another account's row; the owning account on a hidden row and on a deleted row. Sabotage: dropping
+    the hidden half from one arm turns the table red;
+  - **S7-b:** the token arm asks for no visitor. A row whose `visitor_hash` matches no cookie is `found` by its token,
+    where `loadAuthorized` answers `none`;
+  - **S7-c:** `isSent` is `false` before `markSent` and `true` after it; it stays `true` after a later
+    `saveAuthorized` (sent, then edited); a duplicate of a sent design reads `false`;
+  - **S7-d, must-not:** `loadEditable` writes. `revision` and `updated_at` are unchanged across it (live);
+  - **S7-e:** a wrong-shaped id, hash or account id answers `none` and never throws, as `saveAuthorized` does;
+  - **S7-f:** the S4 gate census counts `loadEditable`'s two templates, with one pair each. No migration file and no
+    privilege-test arm changes.
+- **R5b** (these extend R-e):
+  - **R5b-a, the authorisation table, both routes:** no credential is `404`; a wrong token is `404`; the right token
+    with no visitor cookie is served; the owning client session is served; a non-owning one is `404`; an operator or
+    administrator session with no token is `404`. **A cross-site request carrying a valid token, and a same-site sibling
+    (`Sec-Fetch-Site: same-site`) carrying one, are `404`, with no store call.** A malformed id is `404` with no store
+    call. Every `404` is byte-identical, body and headers, to `GET /api/designs/{unknown}`'s;
+  - **R5b-b, parity:** on a same-site request, for every combination of a token cookie (present or absent) and a session
+    (editing client, reading-only client, staff, none), `price-notice-request.ts` chooses the credential the save route
+    passes to `saveAuthorized`;
+  - **R5b-c, order:** a `GET` limiter refusal precedes every cookie read and store call. An unauthorised `POST` spends
+    no save token, and a limiter refusal reads no body. With the limiter unavailable, the `POST` is `503` and the `GET`
+    is served;
+  - **R5b-d, the body:** with a valid credential, a non-JSON media type is `415` and a body past the bound is `413`.
+    `400 invalid-request` for a non-object, and for an extra member (`designId` among them). `400 MISSING_VALUE` for a
+    missing member. `400 UNKNOWN_VALUE` for a version id off its shape, and over the revision sweep (`-1`, `01`, `1.0`,
+    ` 1`, 20 digits, `9223372036854775808`), and for a version id of 20 characters that the dashboard's `isVersionId`
+    would admit. For each of these, the store is not called. `400 unknown-version` and
+    `400 revision-ahead` leave `readAcknowledged`'s answer unchanged. A `200` answers the pair, which
+    `readAcknowledged` then returns;
+  - **R5b-e, must-not:** either route changes `designs.revision` or calls a design write (the stubbed port has no write
+    to call, and S7-d holds the read). Neither writes a staff audit row: the fake world's ledger is unchanged;
+  - **R5b-f, the first open:** `recordIfAbsent` receives the root's pair. An acknowledgement of P followed by a `GET`
+    leaves P. Two concurrent first `GET`s leave one marker;
+  - **R5b-g:** with no active version, the answer is the `no-active-version` arm with `isSent`, and no marker method is
+    called;
+  - **R5b-h, the mapping (ruling 6), one test per row:** marker equal to `current`; an active `REPLACEMENT_REQUIRED`;
+    an active ordinary refusal; the seen side refused; the seen version not found or unparseable (one log line); a
+    store failure in `readVersion` or `readAt` (`503`); equal prices under a different pair (`false`); different
+    prices (`true`). **Must-not:** a store `unavailable` on the seen read answers `true`. **Must-not:** an active
+    ordinary refusal answers `true`. **Property** (fast-check; the `javascript-testing-expert` skill applies): for any
+    design priceable under both pairs, built from P4b's fixtures, `pricesChanged` equals `pricesChangedBetween`'s
+    answer, so the route adds no rule of its own;
+  - **R5b-i, healing:** a design whose seen side refuses answers `true`; after the displayed pair is acknowledged, the
+    next `GET` answers `false`;
+  - **R5b-j:** `removedAccessories` lists exactly `removedAccessoriesSince`'s ids. `authoredName` appears on linked rows
+    only, from the active book when it states the row. With a replacement pending, the list is still filled;
+  - **R5b-j2:** an active `REPLACEMENT_REQUIRED` together with an earned accessory switched off since the marker answers
+    `pricesChanged: false`, a non-empty `replacementsRequired` and a non-empty `removedAccessories`. A seen availability
+    that `projectAvailability` refuses answers `true` and `removedAccessories: []`, with one log line;
+  - **R5b-k:** `NoReplacementOptionError` is `500` with a closed body and one log line, and nothing is written;
+  - **R5b-l, closed keys:** each answer's keys equal its wire arm's exactly. No answer holds a design document, a
+    version label or note, an account, an e-mail, or a serialised error cause. Every `200` carries
+    `PER_CREDENTIAL_HEADERS`. R-d's sweep finds no draft or archived version id in either answer;
+  - **R5b-m:** `isSent` is present on both arms and under both credentials; sent, then edited, reads `true`.
+
+*Risks and residuals.*
+- **The first-open race.** A publish between the page load and the first `GET` records the newer pair, so that one
+  change is never announced. It is bounded to each design's first open after R5b. Accepted: S5 hand-off 1 forbids
+  taking the pair from the request.
+- **Check-then-write** (ruling 9). **One more read token per open** (ruling 3).
+- **Latency.** The `GET` runs up to seven reads, unmeasured **[inf]**. `readAcknowledged` may run beside the root
+  read.
+- **A seen-side `true` may be partly spurious** (OQ-40).
+- **Before the Z gate**, production has no active book: the `no-active-version` arm, and nothing touches `0028`.
+
+*Verification, per sub-wave.*
+- Route tests over the fake world (`tests/support/price-dashboard-world`), with S7's port stubbed through
+  `@/lib/server/repository`.
+- S7's live arms on the test database. They add no migration, so the ledger does not move.
+- `pnpm check` on each merge, and `pnpm ci:local` before any push.
+- No browser arm in R5. Q3 and Q4 own the browser; the `CI=1` server is a production build over the seeded fakes
+  (`price-stores.ts:46-56`), so their specs reach the real routes and R5a's seeded notice store.
+
+*Where the S5 hand-off lands* (S5 logic and security reviews, 2026-11-04; read here 2026-11-08):
+
+| Hand-off item | Lands in |
+| --- | --- |
+| 1. The first-open pair is the server's own; skip it with no active version | Ruling 6, steps 1 and 3; R5b-f, R5b-g |
+| 2. Both routes authorise like a save, the `GET` included | Rulings 1 and 2; R5b-a, R5b-b |
+| 3. Load the design under that authorisation before writing | Ruling 1; S7; ruling 4's order |
+| 4. A malformed version id is `400`, never 5xx | Ruling 5; R5b-d |
+| 5. Refuse cross-site and non-JSON (`415`); never serialise an error's cause | Rulings 1, 2 and 4; R5b-a, R5b-d, R5b-l |
+
+*Reading, QA and reviewers.*
+- **QA of each sub-wave:** its row's Reading, and that sub-wave's acceptance bullets above. R5a adds
+  `apps/web/tests/lib/server/price-stores*`. S7 adds `packages/persistence/tests/neon-configuration-repository*` and
+  `s4-gate-predicate-census.test.ts`. R5b adds `apps/web/tests/app/api/designs/**` (the save's authorisation tests:
+  `write-authorization.adversarial.test.ts`, `read-and-share-limiter.test.ts`) and `tests/price/**`.
+- **Logic review:** the row's Reading, plus §5 A-11, A-16 and A-17, ADR 0062 Amendment 5, and rulings 5–8 above.
+- **Security review:** the row's Reading, plus ADR 0019 (decisions 1 and 5), 0147, 0153 d1, 0156, 0172 D7 and D9,
+  and 0114 (decision 5, H1, G4, G5). S7's reviewer also reads the runbook section for `0028` and the privilege test's
+  `designs` arm.
+- **Clean-code review:** the diff, `engineering-conventions.md`, and the save route's header comments (the order of
+  checks R5b mirrors).
 
 ### Lane U — Dashboard UI D1–D9 (Light + visual; U5 Full, because it publishes)
 
