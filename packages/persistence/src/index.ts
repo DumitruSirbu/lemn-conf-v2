@@ -27,6 +27,9 @@ export type {
   DesignAccessor,
   DesignClaimRepository,
   DesignVersion,
+  EditableDesignLookup,
+  EditableDesignRepository,
+  LoadEditableOutcome,
   LoadOwnedOutcome,
   MintDesign,
   MintVisitor,
@@ -40,6 +43,7 @@ export type {
   VisitorResumeLookup,
   VisitorResumeRepository,
 } from "./neon-configuration-repository.js";
+export { isMintedId } from "./dashboard-store-shapes.js";
 export { isDesignRevision } from "./design-revision.js";
 export type { DesignRevision } from "./design-revision.js";
 export { NeonShareLinkRepository } from "./share-link-repository.js";

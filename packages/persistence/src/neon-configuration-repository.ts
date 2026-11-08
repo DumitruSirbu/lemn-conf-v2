@@ -22,6 +22,11 @@ interface DesignRow {
   revision: DesignRevision;
 }
 
+/** What the editable read selects beyond a plain row: whether the design has ever been sent. */
+interface EditableDesignRow extends DesignRow {
+  is_sent: boolean;
+}
+
 /** What the gated read selects beyond a plain row: whether the accessor's account is the row's owner, from the same row
  *  the read matched. */
 interface OwnedDesignRow extends DesignRow {
@@ -203,6 +208,35 @@ export interface OwnedDesignRepository {
   loadOwned(lookup: OwnedDesignLookup): Promise<LoadOwnedOutcome>;
 }
 
+/** `loadEditable`'s argument, grouped so the credential cannot be swapped with the id at a call site. It is the save's
+ *  credential and nothing wider: the token arm carries no visitor, and the account arm names the editing account. */
+export interface EditableDesignLookup {
+  readonly id: DesignId;
+  readonly credential: SaveCredential;
+}
+
+/** Tagged like `LoadOwnedOutcome`. A wrong credential, a hidden or deleted design, a design no account has claimed and a
+ *  missing one are all `"none"`: one outcome of one statement, so no caller can tell which it was. */
+export type LoadEditableOutcome =
+  | {
+      readonly kind: "found";
+      readonly design: Design;
+      readonly revision: DesignRevision;
+      /** `sent_at is not null`, read in the statement that authorised. Once sent, always sent: editing a sent kitchen
+       *  clears nothing (ADR 0178, price-notice Amendment of 2026-11-08, ruling 8). */
+      readonly isSent: boolean;
+    }
+  | { readonly kind: "none" };
+
+/**
+ * The read under exactly a save's credential (ADR 0178, price-notice Amendment of 2026-11-08, rulings 1 and 8): a
+ * design is readable here if and only if a `saveAuthorized` with the same credential would be authorised to write it.
+ * A port of its own, like `AuthorizedDesignRepository`, so no existing test double has to fake it.
+ */
+export interface EditableDesignRepository {
+  loadEditable(lookup: EditableDesignLookup): Promise<LoadEditableOutcome>;
+}
+
 /** What one mint inserts, once the id is drawn and the optional account is settled to a value or its absence. */
 interface MintedRow {
   readonly id: DesignId;
@@ -248,7 +282,8 @@ export class NeonConfigurationRepository
     VisitorResumeRepository,
     OwnedDesignRepository,
     DesignClaimRepository,
-    AuthorizedDesignRepository
+    AuthorizedDesignRepository,
+    EditableDesignRepository
 {
   private readonly sql;
 
@@ -587,6 +622,65 @@ export class NeonConfigurationRepository
       design: migrateDesign(row.schema_version, row.document),
       revision: row.revision,
     };
+  }
+
+  /**
+   * The read under exactly a save's credential: the `authorised` predicate of `updateByWriteToken` or `updateByAccount`,
+   * term for term, plus `sent_at`. The token arm asks for the write-token hash alone and no visitor, so a browser whose
+   * visitor value another tab rotated away is found here as it is saved; the account arm asks for the owning account.
+   * A hidden or deleted design, an unclaimed one, a NULL-hash one and a missing one are the one `"none"`.
+   *
+   * As `saveAuthorized`, deliberately no `requireSha256Digest` or account-id shape check: a wrong-shaped credential is
+   * simply not the right one and answers `"none"`, never a crash. Being a read, it is retried on a transient failure.
+   * `migrateDesign` runs only on a match, so `InvalidDesignError` is reachable by the design's editor alone. It writes
+   * nothing: `revision` and `updated_at` are as they were.
+   */
+  async loadEditable({
+    id,
+    credential,
+  }: EditableDesignLookup): Promise<LoadEditableOutcome> {
+    const rows =
+      credential.kind === "write-token"
+        ? await this.selectEditableByWriteToken(id, credential.hash)
+        : await this.selectEditableByAccount(id, credential.accountId);
+
+    const row = rows[0];
+    if (!row) return { kind: "none" };
+
+    return {
+      kind: "found",
+      design: migrateDesign(row.schema_version, row.document),
+      revision: row.revision,
+      isSent: row.is_sent,
+    };
+  }
+
+  private async selectEditableByWriteToken(
+    id: DesignId,
+    writeTokenHash: string,
+  ): Promise<EditableDesignRow[]> {
+    return (await retryOnTransientFailure(
+      () => this.sql`
+      select schema_version, document, revision::text as revision, (sent_at is not null) as is_sent
+      from designs
+      where id = ${id} and write_token_hash = ${writeTokenHash}
+        and hidden_by_client_at is null and deleted_by_client_at is null
+    `,
+    )) as EditableDesignRow[];
+  }
+
+  private async selectEditableByAccount(
+    id: DesignId,
+    accountId: string,
+  ): Promise<EditableDesignRow[]> {
+    return (await retryOnTransientFailure(
+      () => this.sql`
+      select schema_version, document, revision::text as revision, (sent_at is not null) as is_sent
+      from designs
+      where id = ${id} and account_id = ${accountId}
+        and hidden_by_client_at is null and deleted_by_client_at is null
+    `,
+    )) as EditableDesignRow[];
   }
 
   /**
