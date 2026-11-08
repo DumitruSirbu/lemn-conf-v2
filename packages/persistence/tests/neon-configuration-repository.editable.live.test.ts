@@ -127,6 +127,32 @@ const PARITY_TABLE: readonly ParityRow[] = [
     expected: "none",
   },
   {
+    label: "an empty token on a row whose write_token_hash is null",
+    spec: { hasWriteToken: false },
+    credentialFor: () => ({ kind: "write-token", hash: "" }),
+    expected: "none",
+  },
+  {
+    label: "a null token on a row whose write_token_hash is null",
+    spec: { hasWriteToken: false },
+    credentialFor: () =>
+      ({ kind: "write-token", hash: null }) as unknown as SaveCredential,
+    expected: "none",
+  },
+  {
+    label: "an empty account id on an unclaimed row",
+    spec: {},
+    credentialFor: () => ({ kind: "account", accountId: "" }),
+    expected: "none",
+  },
+  {
+    label: "a null account id on an unclaimed row",
+    spec: {},
+    credentialFor: () =>
+      ({ kind: "account", accountId: null }) as unknown as SaveCredential,
+    expected: "none",
+  },
+  {
     label: "the owning account",
     spec: { accountId: randomAccountId() },
     credentialFor: ownAccount,
