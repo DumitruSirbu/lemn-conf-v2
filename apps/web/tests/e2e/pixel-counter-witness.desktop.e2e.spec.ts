@@ -130,7 +130,13 @@ async function storeAKitchenWearing(
           ...design.room,
           widthMm: target.roomWidthMm ?? design.room.widthMm,
         },
-        settings: { ...design.settings, materialTierId: target.materialTierId },
+        // The stamped whole-kitchen colour (R4b3) belongs to the melamine tier; each body wears its own finish here, so
+        // the global one is left out (JSON drops `undefined`) as it was when a new kitchen carried none.
+        settings: {
+          ...design.settings,
+          materialTierId: target.materialTierId,
+          finish: undefined,
+        },
         placements: design.placements.map((placement) => ({
           ...placement,
           body: { ...placement.body, finish: target.finish },

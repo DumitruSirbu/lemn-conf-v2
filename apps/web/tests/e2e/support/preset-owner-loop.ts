@@ -18,6 +18,7 @@ import {
 import { expect, type Page, type Route } from "@playwright/test";
 
 import { ro } from "../../support/romanian-content.e2e";
+import { SEEDED_MINT_DESIGN } from "../../support/seeded-mint-design";
 import { chooseAnotherMaterialAndSave } from "./design-return";
 import { expectEditorTopBarShown } from "./editor-top-bar";
 
@@ -99,7 +100,12 @@ export async function runPresetOwnerLoop(
   expect(copy.design.room.widthMm).toBe(OTHER_WALL_A_MM);
   expect(copy.design.room.heightMm).toBe(HEIGHT_MM);
   expect(copy.design.placements.length).toBeGreaterThan(0);
-  expect(copy.design.settings).toEqual(stored.design.settings);
+  // A copy is a new kitchen, so it is stamped with the new-kitchen settings (nothing saved: the fixed fallbacks), over the
+  // preset's own material and colour; the preset's depth is kept (R4b3, criterion (a)).
+  expect(copy.design.settings).toEqual(SEEDED_MINT_DESIGN.settings);
+  expect(copy.design.settings?.cabinetDepthMm).toBe(
+    stored.design.settings?.cabinetDepthMm,
+  );
 
   await editTheCopyAndKeepThePreset(page, copyId, copy);
 

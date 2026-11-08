@@ -271,6 +271,8 @@ test("applies the chosen tier, and the pill and the total follow it", async ({
     .innerText();
   await dearestTierIn(page, "material").check();
   await page.getByTestId("global-settings-apply").tap();
+  // The stamped whole-kitchen colour (R4b3) makes a material change ask first.
+  await page.getByTestId("global-settings-confirm").tap();
 
   await expect(page.getByTestId("global-settings-surface")).toHaveCount(0);
   expect(await summary.innerText()).not.toBe(before);

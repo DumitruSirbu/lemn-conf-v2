@@ -111,6 +111,23 @@ async function pressApplyAndAwaitClose(page: Page): Promise<void> {
   await expect(page.getByTestId("global-settings-surface")).toHaveCount(0);
 }
 
+/** A new kitchen is stamped with a whole-kitchen colour (R4b3), so changing its material asks to give the colour up
+ *  first; the change is applied only once the question is confirmed. */
+async function applyMaterialChangeAndAwaitSave(
+  page: Page,
+  seededDesign: SeededDesign,
+): Promise<void> {
+  const saved = page.waitForResponse(
+    (response) =>
+      response.request().method() === "PUT" &&
+      new URL(response.url()).pathname === `/api/designs/${seededDesign.id}`,
+  );
+  await page.getByTestId("global-settings-apply").tap();
+  await page.getByTestId("global-settings-confirm").tap();
+  await expect(page.getByTestId("global-settings-surface")).toHaveCount(0);
+  expect((await saved).status()).toBe(200);
+}
+
 /** The tier id the sheet paints as checked in a group, read off the rendered radios rather than off
  *  the model — the whole defect was the two disagreeing. */
 async function displayedTierIn(
@@ -185,7 +202,7 @@ test("commits a material and a depth in one press, as one write", async ({
     .locator("input:not(:checked)")
     .first()
     .tap();
-  await applyAndAwaitSave(page, seededDesign);
+  await applyMaterialChangeAndAwaitSave(page, seededDesign);
 
   await openSeededDesign(page, seededDesign);
   await page.waitForTimeout(SCENE_SETTLE_MS);
