@@ -5,24 +5,38 @@ import { describe, expect, it } from "vitest";
 
 import {
   cabinetDepthMmOf,
+  DEFAULT_FINISH,
+  DEFAULT_HANDLE,
   freeColourFinish,
+  generateKitchen,
+  KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
+  kitchenHandleSettingsOf,
   lookUpMaterial,
   MATERIALS,
+  materialOfDesign,
   materialOffersFinish,
   NewKitchenSettingsError,
   PALETTE_ENTRY_IDS,
   paletteFinish,
+  priceDesign,
+  resolvedFinishOf,
+  resolvedHandleOf,
+  SAMPLE_PRICE_BOOK,
   setGlobalFinish,
   setHardwareTier,
   setKitchenHandle,
   setMaterialTier,
   stampedDesignOf,
+  TOP_ROW_HANDLE,
   type Design,
   type Finish,
   type Handle,
   type NewKitchenSettings,
 } from "../../src/index.js";
+import { NOTHING_DISABLED } from "../support/availability.js";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows.js";
+import { createFakeProbeFactory } from "../support/fake-probe.js";
 
 const EVERY_HANDLE: readonly Handle[] = ["steel", "black", "push"];
 
@@ -317,4 +331,96 @@ describe("stampedDesignOf over every handle", () => {
       expect(stamped.placements).toBe(KITCHEN_L_DESIGN.placements);
     },
   );
+});
+
+/** What a kitchen with nothing saved resolves to when its settings are absent: the fixed fallbacks, written as keys. */
+const FIXED_FALLBACKS: NewKitchenSettings = {
+  materialTierId: SAMPLE_PRICE_BOOK.material.defaultTierId,
+  hardwareTierId: SAMPLE_PRICE_BOOK.hardware.defaultTierId,
+  cabinetDepthMm: 600,
+  finish: DEFAULT_FINISH,
+  handle: DEFAULT_HANDLE,
+  topRowHandle: TOP_ROW_HANDLE,
+};
+
+function priceOf(design: Design) {
+  return priceDesign({
+    deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
+    design,
+    catalog: KITCHEN_L_BODY_CATALOG,
+    book: SAMPLE_PRICE_BOOK,
+    pricingVersion: SAMPLE_PRICE_BOOK.version,
+  });
+}
+
+describe("with nothing saved, the stamped kitchen prices and renders exactly as the unstamped one (golden)", () => {
+  const stamped = stampedDesignOf(KITCHEN_L_DESIGN, FIXED_FALLBACKS);
+
+  it("is priced to the same lines and the same total", () => {
+    const unstampedPrice = priceOf(KITCHEN_L_DESIGN);
+
+    expect(unstampedPrice.ok).toBe(true);
+    expect(priceOf(stamped)).toEqual(unstampedPrice);
+  });
+
+  it("resolves the same material and the same colour for every cabinet", () => {
+    expect(materialOfDesign(stamped)).toEqual(
+      materialOfDesign(KITCHEN_L_DESIGN),
+    );
+    for (const placement of stamped.placements) {
+      expect(resolvedFinishOf(placement, stamped)).toEqual(
+        resolvedFinishOf(placement, KITCHEN_L_DESIGN),
+      );
+    }
+  });
+
+  it.each([true, false])(
+    "resolves the same handle for a cabinet that takes one, with top row %s",
+    (isTopRow) => {
+      const resolvedBy = (design: Design) =>
+        resolvedHandleOf({
+          ownHandle: undefined,
+          kitchenSettings: kitchenHandleSettingsOf(design.settings ?? {}),
+          canHandle: true,
+          isTopRow,
+        });
+
+      expect(resolvedBy(stamped)).toBe(resolvedBy(KITCHEN_L_DESIGN));
+    },
+  );
+});
+
+describe("with nothing saved, a generated kitchen is the unstamped one with the fixed fallbacks as explicit keys (golden)", () => {
+  const room = {
+    shape: "L",
+    widthMm: 3600,
+    depthMm: 3000,
+    heightMm: 2600,
+  } as const;
+
+  function generatedWith(newKitchenSettings: NewKitchenSettings | undefined) {
+    const result = generateKitchen({
+      room,
+      occurredAt: "2026-11-08T10:00:00.000Z",
+      probeAt: createFakeProbeFactory(),
+      newKitchenSettings,
+    });
+    if (!result.ok) throw new Error("the room generates");
+    return result.design;
+  }
+
+  it("differs from the unstamped design by its settings alone, and prices and resolves the same", () => {
+    const unstamped = generatedWith(undefined);
+    const stamped = generatedWith(FIXED_FALLBACKS);
+
+    expect({ ...stamped, settings: unstamped.settings }).toEqual(unstamped);
+    expect(stamped.settings).toEqual(FIXED_FALLBACKS);
+    expect(priceOf(stamped)).toEqual(priceOf(unstamped));
+    for (const placement of stamped.placements) {
+      expect(resolvedFinishOf(placement, stamped)).toEqual(
+        resolvedFinishOf(placement, unstamped),
+      );
+    }
+  });
 });

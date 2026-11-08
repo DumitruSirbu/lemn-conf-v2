@@ -70,6 +70,10 @@ async function storedDesign(
   }));
 }
 
+/** The handle the seeded mint carries since M10 R4b3: the default kitchen handle, stamped as a key while nothing is saved.
+ *  These tests say the document is unchanged by what they abandon, and it holds that handle, not none. */
+const MINTED_HANDLE = "steel";
+
 /** The handle the database holds for this design, read by the route the editor loads from; `undefined` is a document
  *  that chose none. Same-origin from inside the page so the visitor and write-token cookies travel with it. */
 async function handleInDatabase(
@@ -280,7 +284,7 @@ test("choosing a handle changes nothing until apply, and cancel writes nothing",
 }) => {
   const savesSent = countSaves(page);
   const before = await storedDesign(page);
-  expect(await handleInDatabase(page, seededDesign)).toBeUndefined();
+  expect(await handleInDatabase(page, seededDesign)).toBe(MINTED_HANDLE);
 
   await openSheet(page);
   const figureBefore = await figureOf(page);
@@ -297,7 +301,7 @@ test("choosing a handle changes nothing until apply, and cancel writes nothing",
   await page.waitForTimeout(1500);
 
   expect(await storedDesign(page)).toEqual(before);
-  expect(await handleInDatabase(page, seededDesign)).toBeUndefined();
+  expect(await handleInDatabase(page, seededDesign)).toBe(MINTED_HANDLE);
   expect(savesSent()).toBe(0);
 
   // The abandoned choice is not remembered by the next opening.
@@ -317,7 +321,7 @@ test("writes nothing when apply is pressed with no handle chosen", async ({
   await page.waitForTimeout(1500);
 
   expect(await storedDesign(page)).toEqual(before);
-  expect(await handleInDatabase(page, seededDesign)).toBeUndefined();
+  expect(await handleInDatabase(page, seededDesign)).toBe(MINTED_HANDLE);
   expect(savesSent()).toBe(0);
 });
 

@@ -101,12 +101,50 @@ import {
   type PresetCopy,
 } from "@/room/use-generation";
 
+import { completedDefaultsOf } from "@/lib/server/price-dashboard/new-kitchen-defaults";
+
 import {
   createFakeBodyProbe,
   createFakeProbeFactory,
 } from "../support/fake-body-probe";
+import { ANCHORED_BOOK } from "../support/price-dashboard-world";
 
 const NOW = "2026-11-08T10:00:00.000Z";
+
+/** Every partial saved row: each of the six keys present or absent, so the empty row is one of them. */
+const PARTIAL_ROWS = fc.record(
+  {
+    materialTierId: fc.constantFrom(
+      "material.melamine",
+      "material.painted-mdf",
+      "material.veneer",
+    ),
+    hardwareTierId: fc.constantFrom("hardware.standard", "hardware.premium"),
+    cabinetDepthMm: fc.constantFrom(600, 700),
+    finish: fc.constantFrom(
+      paletteFinish("pal.alb"),
+      paletteFinish("veneer.stejar"),
+      freeColourFinish("#336699"),
+    ),
+    handle: fc.constantFrom("steel", "black", "push"),
+    topRowHandle: fc.constantFrom("steel", "black", "push"),
+  },
+  { requiredKeys: [] },
+);
+
+const SIX_KEYS = [
+  "materialTierId",
+  "hardwareTierId",
+  "cabinetDepthMm",
+  "finish",
+  "handle",
+  "topRowHandle",
+] as const;
+
+/** What the room page hands the screen for a saved row: the customer read's completion, not the row. */
+function completionOf(saved: NewKitchenSettings): NewKitchenSettings {
+  return completedDefaultsOf(saved, ANCHORED_BOOK);
+}
 const ROOM: DesignRoom = {
   shape: "L",
   widthMm: 3600,
@@ -263,37 +301,16 @@ describe("a preset copy is stamped, then moved to the saved depth by setCabinetD
     },
   );
 
-  it("equals it over every partial saved row and every pair of depths, the empty row included", async () => {
-    const partialRows = fc.record(
-      {
-        materialTierId: fc.constantFrom(
-          "material.melamine",
-          "material.painted-mdf",
-          "material.veneer",
-        ),
-        hardwareTierId: fc.constantFrom(
-          "hardware.standard",
-          "hardware.premium",
-        ),
-        cabinetDepthMm: fc.constantFrom(600, 700),
-        finish: fc.constantFrom(
-          paletteFinish("pal.alb"),
-          paletteFinish("veneer.stejar"),
-          freeColourFinish("#336699"),
-        ),
-        handle: fc.constantFrom("steel", "black", "push"),
-        topRowHandle: fc.constantFrom("steel", "black", "push"),
-      },
-      { requiredKeys: [] },
-    );
+  it("equals it, with all six keys, over the completion of every partial saved row and both depths, the empty row included", async () => {
     const presets = [presetDesignAt(600), presetDesignAt(700)] as const;
 
     await fc.assert(
       fc.asyncProperty(
-        partialRows,
+        PARTIAL_ROWS,
         fc.constantFrom(0, 1),
-        async (saved: NewKitchenSettings, which: 0 | 1) => {
+        async (row: NewKitchenSettings, which: 0 | 1) => {
           attempts.designs.length = 0;
+          const saved = completionOf(row);
           const preset = presets[which];
           const copy = mountPresetCopy(saved);
 
@@ -305,6 +322,9 @@ describe("a preset copy is stamped, then moved to the saved depth by setCabinetD
           expect(writtenDesign()).toEqual(
             expectedCopy(preset, "preset-1", saved),
           );
+          for (const key of SIX_KEYS) {
+            expect(writtenDesign().settings?.[key]).toBeDefined();
+          }
         },
       ),
       { numRuns: 12 },
@@ -456,36 +476,58 @@ describe("a generated kitchen is created with the new-kitchen settings (item 3)"
     expect(design.settings).toEqual({ cabinetDepthMm: 600 });
   });
 
-  it("carries all six keys over every whole row the page can hand it (criterion (b))", async () => {
-    const wholeRows = fc.record({
-      materialTierId: fc.constantFrom(
-        "material.melamine",
-        "material.painted-mdf",
-        "material.veneer",
-      ),
-      hardwareTierId: fc.constantFrom("hardware.standard", "hardware.premium"),
-      cabinetDepthMm: fc.constantFrom(600, 700),
-      finish: fc.constantFrom(
-        paletteFinish("pal.alb"),
-        paletteFinish("veneer.stejar"),
-        freeColourFinish("#336699"),
-      ),
-      handle: fc.constantFrom("steel", "black", "push"),
-      topRowHandle: fc.constantFrom("steel", "black", "push"),
-    });
-
+  it("carries all six keys over the completion of every partial saved row, the empty row included (criterion (b))", async () => {
     await fc.assert(
-      fc.asyncProperty(wholeRows, async (saved: NewKitchenSettings) => {
+      fc.asyncProperty(PARTIAL_ROWS, async (row: NewKitchenSettings) => {
+        const saved = completionOf(row);
+
         const { settings } = await composedWith(saved);
 
-        for (const key of Object.keys(saved)) {
-          expect(settings?.[key as keyof NewKitchenSettings]).toBeDefined();
-        }
-        expect(cabinetDepthMmOf({ ...KITCHEN_L_DESIGN, settings })).toBe(
-          saved.cabinetDepthMm,
-        );
+        for (const key of SIX_KEYS) expect(settings?.[key]).toBeDefined();
+        expect(settings?.cabinetDepthMm).toBe(saved.cabinetDepthMm);
       }),
-      { numRuns: 6 },
+      { numRuns: 8 },
     );
+  });
+});
+
+describe("a creation with no active book still stamps the four settings it has (rule 3's exception)", () => {
+  const WITHOUT_TIERS: NewKitchenSettings = {
+    cabinetDepthMm: 700,
+    finish: paletteFinish("pal.alb"),
+    handle: "black",
+    topRowHandle: "steel",
+  };
+
+  it("copies a veneer preset without throwing, with four keys, the colour its own material makes, and the saved depth", async () => {
+    const veneerPreset = stampedDesignOf(KITCHEN_L_DESIGN, {
+      materialTierId: "material.veneer",
+    });
+    const copy = mountPresetCopy(WITHOUT_TIERS);
+
+    act(() => {
+      copy().select({ presetId: "preset-1", design: veneerPreset });
+    });
+    await untilWritten(1);
+
+    expect(writtenDesign().settings).toEqual({
+      materialTierId: "material.veneer",
+      cabinetDepthMm: 700,
+      finish: paletteFinish("veneer.stejar"),
+      handle: "black",
+      topRowHandle: "steel",
+    });
+    expect(copy().status).not.toBe("failed");
+  });
+
+  it("generates with the four keys and no tier", async () => {
+    attempts.designs.length = 0;
+    const run = mountGeneration(WITHOUT_TIERS);
+    act(() => {
+      run().compose(ROOM);
+    });
+    await untilWritten(1);
+
+    expect(writtenDesign().settings).toEqual(WITHOUT_TIERS);
   });
 });

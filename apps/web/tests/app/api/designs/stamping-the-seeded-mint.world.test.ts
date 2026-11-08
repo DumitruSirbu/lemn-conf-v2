@@ -37,7 +37,11 @@ import { UNUSED_STORE_READS } from "../../../support/unused-store-reads";
 const FAKE_SECRET =
   "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
 
-const minted = vi.hoisted(() => ({ designs: [] as Design[] }));
+const minted = vi.hoisted(() => ({
+  designs: [] as Design[],
+  /** The rows by id, with the visitor each was minted for, so the owner's read can find them. */
+  rows: new Map<string, { design: Design; visitorHash: string | undefined }>(),
+}));
 
 vi.mock("@/lib/server/account/session-store-instance", () =>
   import("../../../support/account-world").then((world) =>
@@ -56,10 +60,32 @@ vi.mock("@/lib/server/price-stores", () =>
 );
 vi.mock("@/lib/server/repository", () => ({
   getRepository: () => ({
-    mint: (request: { design: Design }) => {
+    mint: (request: {
+      design: Design;
+      visitor: { visitorHash: string | undefined };
+    }) => {
       minted.designs.push(request.design);
+      const id = `design-${String(minted.designs.length)}`;
+      minted.rows.set(id, {
+        design: request.design,
+        visitorHash: request.visitor.visitorHash,
+      });
+      return Promise.resolve({ id, revision: "1" });
+    },
+    loadOwned: ({
+      id,
+      accessor,
+    }: {
+      id: string;
+      accessor: { visitorHash?: string };
+    }) => {
+      const row = minted.rows.get(id);
+      if (row === undefined || row.visitorHash !== accessor.visitorHash) {
+        return Promise.resolve({ kind: "none" });
+      }
       return Promise.resolve({
-        id: `design-${String(minted.designs.length)}`,
+        kind: "found",
+        design: row.design,
         revision: "1",
       });
     },
@@ -73,6 +99,7 @@ vi.mock("@/lib/server/rate-limit/rate-limit-store-instance", () => ({
 }));
 
 const { POST } = await import("../../../../src/app/api/designs/route");
+const { GET } = await import("../../../../src/app/api/designs/[id]/route");
 
 const FINISHES: readonly Finish[] = [
   ...MATERIALS.flatMap((material) => paletteEntriesOf(material)).map(
@@ -130,6 +157,7 @@ async function mintOne(): Promise<Design> {
 
 beforeEach(async () => {
   minted.designs.length = 0;
+  minted.rows.clear();
   freshAccountWorld();
   freshStaffWorld();
   await freshPriceDashboardWorld();
@@ -199,5 +227,50 @@ describe("U6-a at the route: a save reaches the next new kitchen and no kitchen 
       handle: "black",
       topRowHandle: "steel",
     });
+  });
+});
+
+describe("RK-7: a kitchen written before a save reads back byte-identical after it", () => {
+  /** The cookies a mint set, as the browser sends them back. */
+  function cookiesOf(response: Response): string {
+    return response.headers
+      .getSetCookie()
+      .map((line) => line.split(";")[0] ?? "")
+      .join("; ");
+  }
+
+  async function readBytes(id: string, cookie: string): Promise<string> {
+    const response = await GET(
+      new NextRequest(`https://lemnaria.test/api/designs/${id}`, {
+        headers: { cookie },
+      }),
+      { params: Promise.resolve({ id }) },
+    );
+    expect(response.status).toBe(200);
+    return await response.text();
+  }
+
+  it("serves a legacy unstamped kitchen as it was, whatever the defaults now are", async () => {
+    const staff = await administrator();
+    const response = await POST(mintRequest());
+    const { id } = (await response.json()) as { id: string };
+    const row = minted.rows.get(id);
+    if (row === undefined) throw new Error("the mint wrote no row");
+    minted.rows.set(id, { ...row, design: KITCHEN_L_DESIGN });
+    const cookie = cookiesOf(response);
+    const before = await readBytes(id, cookie);
+
+    await saveDefaults(staff, {
+      materialTierId: "material.painted-mdf",
+      hardwareTierId: "hardware.premium",
+      cabinetDepthMm: 700,
+      finish: freeColourFinish("#336699"),
+      handle: "black",
+      topRowHandle: "steel",
+    });
+    const after = await readBytes(id, cookie);
+
+    expect(JSON.parse(before)).toMatchObject({ design: KITCHEN_L_DESIGN });
+    expect(after).toBe(before);
   });
 });
