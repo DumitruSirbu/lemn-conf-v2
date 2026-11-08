@@ -8,9 +8,7 @@ import type {
   RemovedAccessoryWire,
 } from "@/price-dashboard/price-dashboard-wire-contract";
 
-// Adversarial QA for M10 wave R5a (criterion: the wire union). The `@ts-expect-error` lines are checked by `pnpm typecheck`
-// (the web tsconfig includes `tests/**`): each one fails the build if the shape beside it starts to compile. `vitest run`
-// alone cannot see them, so the runtime halves only prove the fixtures are well-formed values of the arms.
+// Adds: `@ts-expect-error` pins of the price notice union, checked by `pnpm typecheck` and not by `vitest run`.
 
 const THE_PAIR: PriceStampWire = {
   versionId: "V".repeat(21),

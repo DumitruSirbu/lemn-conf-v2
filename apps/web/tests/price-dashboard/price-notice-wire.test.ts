@@ -7,9 +7,8 @@ import type {
   RequiredReplacementWire,
 } from "@/price-dashboard/price-dashboard-wire-contract";
 
-// The price notice's wire after the R5 split (ADR 0178, price-notice Amendment of 2026-11-08, ruling 7): a union of two
-// arms, both carrying `isSent`, with closed keys. The type-level checks run in `pnpm typecheck`; the bodies below fail to
-// compile if an arm gains, loses or renames a member.
+// The price notice's wire: a union of two arms, both carrying `isSent`, with closed keys (see ADR 0178). The type-level
+// checks run in `pnpm typecheck`.
 
 type ActiveVersionNotice = Extract<PriceNoticeWire, { kind: "active-version" }>;
 type NoActiveVersionNotice = Extract<

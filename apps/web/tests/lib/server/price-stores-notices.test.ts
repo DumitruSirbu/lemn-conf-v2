@@ -17,9 +17,8 @@ import {
   forgetHeldPriceStores,
 } from "../../support/held-price-stores";
 
-// The price-notice store beside the other four (R5a, S5): production makes the database's on first use, once for the
-// process; without a connection it answers "unavailable" to every call; the seeded world holds the persistence package's
-// fake. Nothing reads `notices` until R5b, so these are the only readers of it.
+// The price-notice store beside the other four: the database's on first use, "unavailable" without a connection, the
+// persistence package's fake in the seeded world. See ADR 0178.
 
 const made = vi.hoisted(() => ({ notices: [] as object[] }));
 
@@ -61,7 +60,7 @@ describe("production with a database", () => {
     stubProductionEnvironment(AN_UNREACHABLE_DATABASE_URL);
   });
 
-  it("makes no notice store at import, and one on the first use", async () => {
+  it("makes one on the first use", async () => {
     expect(made.notices).toHaveLength(0);
 
     const stores = await getPriceStores();

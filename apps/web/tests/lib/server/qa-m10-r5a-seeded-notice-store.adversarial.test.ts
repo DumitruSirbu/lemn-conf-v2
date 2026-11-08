@@ -18,9 +18,7 @@ import type { PriceStores } from "@/lib/server/price-stores";
 import { aDesignId, freshAccountWorld } from "../../support/account-world";
 import { signedInAs } from "../../support/staff-world";
 
-// Adversarial QA for M10 wave R5a (R5a-b, R5a-c): the seeded world's notice store judges an acknowledgement against the
-// versions and the availability head the editor prices under, and those move. A fake made over a second price book or a
-// second availability log agrees with the seed on the first day and disagrees as soon as either moves.
+// Adds: the seeded notice store judges acknowledgements against a price book and availability head that move.
 
 vi.mock("@/lib/server/account/session-store-instance", () =>
   import("../../support/account-world").then((world) =>

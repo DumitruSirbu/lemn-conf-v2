@@ -9,9 +9,8 @@ import type { PriceStores } from "@/lib/server/price-stores";
 import { aDesignId, freshAccountWorld } from "../../support/account-world";
 import { signedInAs } from "../../support/staff-world";
 
-// The seeded world's notice store judges an acknowledgement against the versions and the availability head the editor
-// prices under (R5a-b, R5a-c): one fake price book, wrapped for the reader and read raw by the notice store, never a second
-// one. A second version published through the seeded `priceBook` is therefore known to the notice store.
+// The seeded world's notice store judges an acknowledgement against the same price book and availability head the editor
+// prices under, so a version published later is known to it. See ADR 0178.
 
 vi.mock("@/lib/server/account/session-store-instance", () =>
   import("../../support/account-world").then((world) =>

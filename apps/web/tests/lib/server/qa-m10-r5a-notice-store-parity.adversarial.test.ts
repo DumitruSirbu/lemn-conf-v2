@@ -12,10 +12,7 @@ import { UNAVAILABLE_PRICE_NOTICE_STORE } from "@/lib/server/unavailable-price-s
 
 import { AN_UNREACHABLE_DATABASE_URL } from "../../support/held-price-stores";
 
-// Adversarial QA for M10 wave R5a (R5a-a, R5a-c): the three notice stores a process can hold agree. The Neon store is made
-// over a host no resolver answers and is only ever called with input it refuses before any statement, so nothing connects.
-// The operation names of the unavailable store are read off the Neon store's own refusals, not copied from its source; and
-// the seeded fake, which is the stand-in the e2e server prices under, refuses exactly what the Neon store refuses.
+// Adds: the unavailable, fake and Neon notice stores refuse the same input with the same operation names.
 
 const A_VALID_PAIR: AcknowledgedPrices = {
   versionId: "V".repeat(21),

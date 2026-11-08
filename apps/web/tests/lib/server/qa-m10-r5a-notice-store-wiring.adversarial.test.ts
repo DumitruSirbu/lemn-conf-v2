@@ -16,11 +16,7 @@ import {
   forgetHeldPriceStores,
 } from "../../support/held-price-stores";
 
-// Adversarial QA for M10 wave R5a (criterion R5a-a): which notice store a process holds. Production makes the database's on
-// first use and never at import, however the first use is met; without a connection it holds the store that answers
-// "unavailable"; a seeded world holds the persistence package's fake. The constructions are counted by a spy on the
-// constructor, and the module is imported anew under the production environment so that an import-time construction is
-// counted too (the existing wiring test imports it once, then clears its count).
+// Adds: which notice store a process holds, with the constructor counted across a fresh module graph.
 
 const constructions = vi.hoisted(() => ({
   notices: [] as object[],
