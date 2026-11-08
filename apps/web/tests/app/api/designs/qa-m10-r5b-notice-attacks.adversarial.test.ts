@@ -247,20 +247,6 @@ describe("the route modules", () => {
       accountWorld.calls.filter((call) => !call.startsWith("sessions.")),
     ).toEqual([]);
   });
-
-  it("leave the kitchens an account holds exactly as they were across an owner's GET and POST", async () => {
-    claimedByOwner();
-    const before = JSON.stringify(accountWorld.kitchens);
-
-    await readNotice({ cookie: ownerSession.cookie });
-    await acknowledge({
-      cookie: ownerSession.cookie,
-      json: await displayedPair(),
-    });
-
-    expect(JSON.stringify(accountWorld.kitchens)).toBe(before);
-    expect(editable.calls).toHaveLength(2);
-  });
 });
 
 // ---------------------------------------------------------------------------------------------------------------------

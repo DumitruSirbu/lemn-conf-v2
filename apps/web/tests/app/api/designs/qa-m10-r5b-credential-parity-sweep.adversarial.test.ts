@@ -81,7 +81,7 @@ const TOKEN_COOKIES: Record<string, string | undefined> = {
   "an empty token": `${WRITE_COOKIE_NAME}=`,
   "a token named for another design": OTHER_DESIGN_COOKIE,
   "the token under an upper-case name": OWNER_WRITE_COOKIE.toUpperCase(),
-  "the token twice, once with a visitor": cookieOf(
+  "the token cookie sent twice": cookieOf(
     OWNER_WRITE_COOKIE,
     OWNER_WRITE_COOKIE,
   ),

@@ -6,7 +6,10 @@ import {
 } from "@lemnaria/configurator-domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { sourceFilesMatching } from "../../../lib/server/server-source-support";
+import {
+  readSource,
+  sourceFilesMatching,
+} from "../../../lib/server/server-source-support";
 import {
   administrator,
   allRows,
@@ -306,7 +309,7 @@ describe("no text of the seen version reaches a customer", () => {
     expect(logText()).not.toContain("CNRY");
   });
 
-  it("keeps every canary out of the 503, the 500 and the 404 a failure or a stranger gets", async () => {
+  it("keeps every canary out of the 503s and the 404 a failure or a stranger gets", async () => {
     await setUpSeenArchive("without-removed");
     const corpus: string[] = [];
     corpus.push(await (await readNotice({})).text());
@@ -518,12 +521,26 @@ describe("the allowance the R3 pin makes for the notice modules cannot widen uns
     expect(readers).toEqual(["lib/server/price-notice.ts"]);
   });
 
-  it("lets price-notice-request.ts name the dashboard's request readers and nothing else of that directory", () => {
-    const imports = sourceFilesMatching(
-      /lib\/server\/price-dashboard\//,
+  it("lets price-notice-request.ts import exactly three modules of the dashboard's directory, all request parsers and answers", () => {
+    const specifiers = [
+      ...readSource("lib/server/price-notice-request.ts").matchAll(
+        /"@\/lib\/server\/price-dashboard\/([a-z-]+)"/g,
+      ),
+    ].map(([, module]) => module);
+
+    expect([...new Set(specifiers)].sort()).toEqual([
+      "dashboard-responses",
+      "draft-requests",
+      "revision-shape",
+    ]);
+  });
+
+  it("lets no other notice module import anything of the dashboard's directory", () => {
+    const importers = sourceFilesMatching(
+      /@\/lib\/server\/price-dashboard\//,
     ).filter((path) => path.includes("price-notice"));
 
-    expect(imports).toEqual(["lib/server/price-notice-request.ts"]);
+    expect(importers).toEqual(["lib/server/price-notice-request.ts"]);
   });
 
   it("is called through the notice store by price-notice.ts alone, which only the two routes import", () => {
