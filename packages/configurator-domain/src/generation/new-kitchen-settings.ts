@@ -93,24 +93,25 @@ export function stampedSettingsOf(
  * the bodies (a `cabinetDepthMm` spread over geometry built at another depth is the defect that command exists to
  * prevent). A tier left out of the request is left as the design has it, the case of a creation with no active book.
  * The request must already be judged against what is on offer, so each tier is the one id its command is given as
- * offered. A colour the design's material does not offer is that material's default colour, as in `stampedSettingsOf`.
- * A refusal at this seam is a programming error and throws.
+ * offered. The colour is judged once, against the material the design wears after its tier command (the request's if
+ * it names one, else the design's own), and one that material does not offer is that material's default colour. A
+ * refusal at this seam is a programming error and throws.
  */
 export function stampedDesignOf(
   design: Design,
   request: NewKitchenSettings,
 ): Design {
-  const stamped = stampedSettingsOf(request);
-  const withTiers = withStampedTiers(design, stamped);
-  const withColourAndHandle = withStampedColourAndHandle(withTiers, stamped);
-  return stamped.topRowHandle === undefined
+  refuseARequestNoDesignMayHold(request);
+  const withTiers = withStampedTiers(design, request);
+  const withColourAndHandle = withStampedColourAndHandle(withTiers, request);
+  return request.topRowHandle === undefined
     ? withColourAndHandle
-    : withTopRowHandle(withColourAndHandle, stamped.topRowHandle);
+    : withTopRowHandle(withColourAndHandle, request.topRowHandle);
 }
 
 function withStampedTiers(
   design: Design,
-  { materialTierId, hardwareTierId }: StampedKitchenSettings,
+  { materialTierId, hardwareTierId }: NewKitchenSettings,
 ): Design {
   const occurredAt = design.updatedAt;
   const withMaterial =
@@ -143,7 +144,7 @@ function onlyOffered(
 
 function withStampedColourAndHandle(
   design: Design,
-  { finish, handle }: StampedKitchenSettings,
+  { finish, handle }: NewKitchenSettings,
 ): Design {
   const occurredAt = design.updatedAt;
   const coloured =
@@ -164,7 +165,7 @@ function withStampedColourAndHandle(
 /** Judged against the material the design wears after its tier command, which is the stamped one except when the
  *  request names no material: a design of another material keeps that material's colour rule. */
 function finishTheDesignOffers(design: Design, finish: Finish): Finish {
-  if (designOffersFinish(design, finish)) return finish;
+  if (designOffersFinish(design, finish)) return { ...finish };
   const lookup = materialOfDesign(design);
   return lookup.kind === "declared"
     ? { ...lookup.material.defaultFinish }
@@ -259,7 +260,8 @@ function depthOf(request: NewKitchenSettings): number {
  *  so must a key this request does not define or a `null` standing where a value is optional. */
 function refuseARequestNoDesignMayHold(request: NewKitchenSettings): void {
   const given: unknown = request;
-  const isAnObject = typeof given === "object" && given !== null;
+  const isAnObject =
+    typeof given === "object" && given !== null && !Array.isArray(given);
   if (
     !isAnObject ||
     !Object.keys(request).every((key) => KNOWN_KEYS.has(key)) ||

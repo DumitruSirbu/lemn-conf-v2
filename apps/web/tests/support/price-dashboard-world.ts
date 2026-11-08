@@ -82,6 +82,11 @@ export async function freshPriceDashboardWorld({
   isPublished = true,
   book = ANCHORED_BOOK,
 }: PriceDashboardWorldOptions = {}): Promise<PriceDashboardWorld> {
+  // A fresh world's head revision is another world's: what the customer read remembered for one is not true of this.
+  const { resetNewKitchenDefaultsBoundsForTests } = await import(
+    "@/lib/server/price-dashboard/new-kitchen-defaults"
+  );
+  resetNewKitchenDefaultsBoundsForTests();
   const { sessions, now } = currentAccountWorld();
   const ledger = new FakeDashboardAuditLedger({ sessions, now });
   const availability = new FakeCatalogueAvailabilityStore({

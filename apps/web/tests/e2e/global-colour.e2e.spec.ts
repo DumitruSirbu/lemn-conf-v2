@@ -219,7 +219,9 @@ test("writes the kitchen's colour and grows the document no cabinet key at all",
   await openAndSettle(page, seededDesign);
 
   const before = await storedColour(page);
-  expect(before.globalFinish).toBe("");
+  // Since M10 R4b3 the seeded mint stamps the kitchen colour (the fixed fallback, PAL's Alb, while nothing is saved), so the
+  // document names a global colour from the start; `selection-debug.tsx` (`data-global-finish`) reads it as its signature.
+  expect(before.globalFinish).toBe("palette-entry:pal.alb");
   expect(before.overridingFinishes).toBe(0);
 
   await applyGlobalColour(page, "pal.antracit");

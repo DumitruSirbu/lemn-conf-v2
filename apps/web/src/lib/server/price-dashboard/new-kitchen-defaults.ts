@@ -41,6 +41,12 @@ import {
 } from "@/price-dashboard/kitchen-defaults-model";
 import type { KitchenDefaultsWire } from "@/price-dashboard/price-dashboard-wire-contract";
 
+/** A store that stays down writes at most `FALLBACK_LOG_LINES_PER_WINDOW` lines per cause in each window, not one line
+ *  per page render. Three, not one: two reads that fail in a row for one cause are both written down, and a burst is
+ *  still bounded. */
+const FALLBACK_LOG_WINDOW_MS = 60_000;
+const FALLBACK_LOG_LINES_PER_WINDOW = 3;
+
 /** The two tier ids only the active book can name. Both are absent when there is no book. */
 interface FixedTiers {
   readonly materialTierId?: string;
@@ -162,37 +168,104 @@ function tierOffersOf(group: TierGroup<TierIdentity>): readonly TierOffer[] {
  * It never throws and never blocks a creation. A store that cannot answer, or a saved row that is not settings, gives
  * the fixed fallbacks and one log line that names the cause and no value. With no active book there is no tier id to
  * give, so the two tiers are absent and the other four are the fixed fallbacks.
+ *
+ * The availability head is read first, once, and the result of the last whole reading is reused while the head's
+ * revision is unchanged: a defaults save and every publish move the head (see `rememberedReading`), so what is reused
+ * is exactly what a fresh reading would give. A reading that fell back is never remembered.
  */
 export async function readNewKitchenDefaults(): Promise<CompletedSettings> {
   const stores = await attempt(getPriceStores);
   if (stores.kind === "failed") return completionOf({}, {});
   const head = await attempt(() => readDashboardAvailability(stores.value));
-  const book = await bookOf(stores.value, head);
-  if (book === undefined) return completionOf({}, {});
-  const tiers = fixedTiersOf(book);
-  if (head.kind === "failed") return completionOf({}, tiers);
-  const saved = await attempt(() => readSavedDefaults(stores.value));
-  if (saved.kind === "failed") return completionOf({}, tiers);
+  const remembered = rememberedFor(head);
+  if (remembered !== undefined) return remembered;
+  const reading = await readAgainstTheStores(stores.value, head);
+  if (reading.isWhole && head.kind === "read") {
+    remember(head.value.revision, reading.settings);
+  }
+  return reading.settings;
+}
+
+/** What one reading of the stores gave, and whether every read it needed answered, so that it is the answer for its head. */
+interface Reading {
+  readonly settings: CompletedSettings;
+  readonly isWhole: boolean;
+}
+
+async function readAgainstTheStores(
+  stores: PriceStores,
+  head: Attempt<CatalogueAvailability>,
+): Promise<Reading> {
+  const book = await bookOf(stores, head);
+  if (book.kind === "failed") return fellBack(completionOf({}, {}));
+  if (book.value === undefined) {
+    return { settings: completionOf({}, {}), isWhole: true };
+  }
+  const tiers = fixedTiersOf(book.value);
+  if (head.kind === "failed") return fellBack(completionOf({}, tiers));
+  const saved = await attempt(() => readSavedDefaults(stores));
+  if (saved.kind === "failed") return fellBack(completionOf({}, tiers));
   const offered = offeredPartOf(saved.value, {
-    book,
+    book: book.value,
     availability: head.value,
   });
-  return completionOf(offered, tiers);
+  return { settings: completionOf(offered, tiers), isWhole: true };
+}
+
+function fellBack(settings: CompletedSettings): Reading {
+  return { settings, isWhole: false };
 }
 
 /**
  * The active book, read after the head. A read that failed after the head's own failure is not told again: one cause
- * is one line.
+ * is one line. No version ever published is an answer (`undefined`), a failed read is not.
  */
 async function bookOf(
   stores: PriceStores,
   head: Attempt<CatalogueAvailability>,
-): Promise<PriceBook | undefined> {
+): Promise<Attempt<PriceBook | undefined>> {
   if (head.kind === "failed") {
-    return readActiveBook(stores).catch(() => undefined);
+    return readActiveBook(stores).then(
+      (value): Attempt<PriceBook | undefined> => ({ kind: "read", value }),
+      (): Attempt<PriceBook | undefined> => ({ kind: "failed" }),
+    );
   }
-  const reading = await attempt(() => readActiveBook(stores));
-  return reading.kind === "read" ? reading.value : undefined;
+  return attempt(() => readActiveBook(stores));
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// What is remembered between renders
+
+/**
+ * The six values of the last whole reading, under the head revision they were read at, and nothing else: no error, no
+ * store, no timestamp. It is correct to reuse them while the head is where it was because everything the reading depends
+ * on moves the head: a defaults save advances it with the defaults row (`kitchen-defaults-statements.ts`, `moved_head`;
+ * the fake, `fake-kitchen-defaults-store.ts` `save`), a publish advances it with the new version
+ * (`price-book-statements.ts`, `moved_head`; the fake, `fake-price-book-store.ts` `logCreatedItems`), and a switch
+ * advances it with the availability row (`catalogue-availability-statements.ts`; the fake,
+ * `fake-catalogue-availability-store.ts` `append`). The head is read first, so what was read after it is at least as new
+ * as its revision. Per process; a test that builds a fresh world clears it with `resetNewKitchenDefaultsBoundsForTests`.
+ */
+let rememberedReading:
+  | { revision: string; settings: CompletedSettings }
+  | undefined;
+
+function rememberedFor(
+  head: Attempt<CatalogueAvailability>,
+): CompletedSettings | undefined {
+  if (head.kind !== "read") return undefined;
+  if (rememberedReading?.revision !== head.value.revision) return undefined;
+  return structuredClone(rememberedReading.settings);
+}
+
+function remember(revision: string, settings: CompletedSettings): void {
+  rememberedReading = { revision, settings: structuredClone(settings) };
+}
+
+/** For the tests that build a fresh world of stores: the head revision of one world is the head revision of another. */
+export function resetNewKitchenDefaultsBoundsForTests(): void {
+  rememberedReading = undefined;
+  windowByCause.clear();
 }
 
 interface OfferContext {
@@ -283,8 +356,27 @@ function causeOf(failure: unknown): FallbackCause {
     : "unexpected";
 }
 
+/** The window each cause is being counted in, so a store that stays down is a few lines per window and not one per render. */
+const windowByCause = new Map<
+  FallbackCause,
+  { readonly startedAt: number; readonly written: number }
+>();
+
+function isWithinTheLineBudget(cause: FallbackCause): boolean {
+  const now = Date.now();
+  const counted = windowByCause.get(cause);
+  const current =
+    counted !== undefined && now - counted.startedAt < FALLBACK_LOG_WINDOW_MS
+      ? counted
+      : { startedAt: now, written: 0 };
+  if (current.written >= FALLBACK_LOG_LINES_PER_WINDOW) return false;
+  windowByCause.set(cause, { ...current, written: current.written + 1 });
+  return true;
+}
+
 /** The write may not throw: a diagnostic that can fail would replace the creation it explains. */
 function reportFallback(cause: FallbackCause): void {
+  if (!isWithinTheLineBudget(cause)) return;
   try {
     console.error("[new-kitchen-defaults]", {
       event: "fixed-fallbacks",

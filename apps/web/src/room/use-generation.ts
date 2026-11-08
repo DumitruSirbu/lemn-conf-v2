@@ -360,8 +360,10 @@ export function usePresetCopy(
       show("saving");
       void attemptFor(selection)
         .then((attempt) => {
-          // A visit left while the depth was being moved writes nothing: no row was begun, and nobody is waiting.
+          // A visit left, or a screen unmounted, while the depth was being moved writes nothing and spends no mint
+          // bucket: no row was begun, and nobody is waiting.
           if (visit.current !== copyVisit) return undefined;
+          if (!screenIsShowing.current) return undefined;
           return attempt.run();
         })
         .then(
