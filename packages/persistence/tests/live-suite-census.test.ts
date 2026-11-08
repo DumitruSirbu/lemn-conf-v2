@@ -225,6 +225,12 @@ const EXPECTED_CLASSIFICATION: Readonly<
     reason:
       "adversarial QA of the staff list's seen instant: writes accounts, kitchens, seen marks and requests under random ids it mints, deletes them by those ids when it finishes, asserts no whole-table figure and needs the schema intact",
   },
+  "neon-configuration-repository.editable.live.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "plants designs under random ids it mints, deletes them by those ids when it finishes, asserts no whole-table figure and needs the schema intact",
+  },
   "neon-staff-audit-store.live.test.ts": {
     gate: "live test database",
     lock: "shared",

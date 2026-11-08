@@ -22,6 +22,11 @@ interface DesignRow {
   revision: DesignRevision;
 }
 
+/** What the editable read selects beyond a plain row: whether the design has ever been sent. */
+interface EditableDesignRow extends DesignRow {
+  is_sent: boolean;
+}
+
 /** What the gated read selects beyond a plain row: whether the accessor's account is the row's owner, from the same row
  *  the read matched. */
 interface OwnedDesignRow extends DesignRow {
@@ -203,6 +208,31 @@ export interface OwnedDesignRepository {
   loadOwned(lookup: OwnedDesignLookup): Promise<LoadOwnedOutcome>;
 }
 
+/** `loadEditable`'s argument, grouped so the credential cannot be swapped with the id at a call site. It is the save's
+ *  credential and nothing wider: the token arm carries no visitor, and the account arm names the editing account. */
+export interface EditableDesignLookup {
+  readonly id: DesignId;
+  readonly credential: SaveCredential;
+}
+
+/** A wrong credential, a hidden or deleted design, a missing one, and on the account arm a design no account has claimed
+ *  are all `"none"`, so no caller can tell which it was. (On the token arm an unclaimed design is the normal found case.) */
+export type LoadEditableOutcome =
+  | {
+      readonly kind: "found";
+      readonly design: Design;
+      readonly revision: DesignRevision;
+      /** Once sent, always sent: editing a sent kitchen clears nothing (ADR 0178 Amendment 2026-11-08, items 1 and 6). */
+      readonly isSent: boolean;
+    }
+  | { readonly kind: "none" };
+
+/** A design is readable here if and only if a `saveAuthorized` with the same credential would be authorised to write it
+ *  (ADR 0178 Amendment 2026-11-08, items 1 and 6). */
+export interface EditableDesignRepository {
+  loadEditable(lookup: EditableDesignLookup): Promise<LoadEditableOutcome>;
+}
+
 /** What one mint inserts, once the id is drawn and the optional account is settled to a value or its absence. */
 interface MintedRow {
   readonly id: DesignId;
@@ -248,7 +278,8 @@ export class NeonConfigurationRepository
     VisitorResumeRepository,
     OwnedDesignRepository,
     DesignClaimRepository,
-    AuthorizedDesignRepository
+    AuthorizedDesignRepository,
+    EditableDesignRepository
 {
   private readonly sql;
 
@@ -587,6 +618,62 @@ export class NeonConfigurationRepository
       design: migrateDesign(row.schema_version, row.document),
       revision: row.revision,
     };
+  }
+
+  /**
+   * Authorised exactly as the `authorised` predicate of `updateByWriteToken` / `updateByAccount`: the token arm names
+   * the write-token hash and no visitor, so a browser whose visitor value was rotated away is still found.
+   *
+   * No shape check, as in the save: a well-formed but wrong credential answers `"none"`. The route validates the id
+   * shape first (R5b), because a value Postgres cannot store (a NUL byte) makes the statement raise, and a rejected
+   * promise is never a third outcome. `InvalidDesignError` is raised on a match, to the design's editor alone.
+   */
+  async loadEditable({
+    id,
+    credential,
+  }: EditableDesignLookup): Promise<LoadEditableOutcome> {
+    const rows =
+      credential.kind === "write-token"
+        ? await this.selectEditableByWriteToken(id, credential.hash)
+        : await this.selectEditableByAccount(id, credential.accountId);
+
+    const row = rows[0];
+    if (!row) return { kind: "none" };
+
+    return {
+      kind: "found",
+      design: migrateDesign(row.schema_version, row.document),
+      revision: row.revision,
+      isSent: row.is_sent,
+    };
+  }
+
+  private async selectEditableByWriteToken(
+    id: DesignId,
+    writeTokenHash: string,
+  ): Promise<EditableDesignRow[]> {
+    return (await retryOnTransientFailure(
+      () => this.sql`
+      select schema_version, document, revision::text as revision, (sent_at is not null) as is_sent
+      from designs
+      where id = ${id} and write_token_hash = ${writeTokenHash}
+        and hidden_by_client_at is null and deleted_by_client_at is null
+    `,
+    )) as EditableDesignRow[];
+  }
+
+  private async selectEditableByAccount(
+    id: DesignId,
+    accountId: string,
+  ): Promise<EditableDesignRow[]> {
+    return (await retryOnTransientFailure(
+      () => this.sql`
+      select schema_version, document, revision::text as revision, (sent_at is not null) as is_sent
+      from designs
+      where id = ${id} and account_id = ${accountId}
+        and hidden_by_client_at is null and deleted_by_client_at is null
+    `,
+    )) as EditableDesignRow[];
   }
 
   /**
