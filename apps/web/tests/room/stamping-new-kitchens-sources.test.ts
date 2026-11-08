@@ -1,8 +1,5 @@
-// Where the new-kitchen defaults are read from, as a claim about the source (M10 R4b3, rules 3, 6 and 8):
-// - only the two creation paths that stamp a customer's new kitchen read them for the customer, and the duplicate route
-//   reads them nowhere (a duplicate is not a new kitchen, A-9);
-// - the customer read touches no draft and no archive (R-d), which `qa-m10-r3-versions-and-leaks` allows these two
-//   importers on the strength of.
+// Who may read the new-kitchen defaults: the two creation paths and the dashboard, never a duplicate, and the customer
+// read touches no draft or archive.
 import { readFileSync } from "node:fs";
 import { relative, resolve } from "node:path";
 import { describe, expect, it } from "vitest";

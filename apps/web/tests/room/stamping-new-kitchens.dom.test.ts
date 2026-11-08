@@ -1,8 +1,6 @@
 // @vitest-environment happy-dom
-// M10 R4b3 items 3 and 4: a generated kitchen and the copy of a preset are created with the new-kitchen settings, through
-// the real `useGeneration` and `usePresetCopy`. The attempt is replaced by one that records the design it was given and
-// how often it was run, so "one row per preset" is counted where rows are made; the adapter is a fake kit over the
-// fake probe, so the depth the copy is moved to is the domain's own rebuild.
+// A generated kitchen and a preset copy are created with the new-kitchen settings, through the real hooks. The attempt
+// records the design and the runs, so rows are counted where they are made.
 import {
   buildKitchenLBodyCatalog,
   cabinetDepthMmOf,

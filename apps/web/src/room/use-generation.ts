@@ -297,11 +297,9 @@ const COPY_IDLE: PresetCopyStatus = "idle";
  * handler", and it is safe for the reason the rule exists: a second tap finds the attempt and reuses it, so a tap is
  * never a second row. `reset` forgets them, so a Step 1 visit begun afresh copies afresh.
  *
- * The copy is also a new kitchen, so it is stamped with `newKitchenSettings` (A-9): the five settings by the commands,
- * and the depth by `setCabinetDepth` when the preset stands at another one, which needs a probe and so an `await`. What
- * the ref holds is therefore the promise of the attempt, made synchronously on the first tap: a second tap finds the
- * same promise, so a preset at another depth is still one row. The promise never rejects for the depth, since a copy
- * is never refused for it (DEVELOPMENT-SPEC section 2/4): a depth that cannot be moved to keeps the preset's own.
+ * The copy is stamped with `newKitchenSettings` first, and moved to their depth after an `await`, so the ref holds the
+ * attempt's promise: a second tap finds it and a preset at another depth is still one row. A depth that cannot be
+ * moved to keeps the preset's own, and never fails the copy.
  */
 export function usePresetCopy(
   newKitchenSettings?: NewKitchenSettings,
@@ -329,27 +327,30 @@ export function usePresetCopy(
     };
   }, []);
 
+  const isStillCurrent = useCallback(
+    (copyVisit: number) =>
+      screenIsShowing.current && visit.current === copyVisit,
+    [],
+  );
+
   const attemptFor = useCallback(
     (selection: PresetSelection): Promise<DesignCreationAttempt> => {
       const known = attempts.current.get(selection.presetId);
       if (known !== undefined) return known;
-      const now = new Date().toISOString();
       const copyVisit = visit.current;
-      const attempt = copyOf(selection, now, newKitchenSettings).then(
+      const attempt = buildStampedCopy(selection, newKitchenSettings).then(
         (design) =>
           createDesignCreationAttempt({
             design,
             navigateToDesign: (id) => {
-              if (!screenIsShowing.current) return;
-              if (visit.current !== copyVisit) return;
-              openDesign(id);
+              if (isStillCurrent(copyVisit)) openDesign(id);
             },
           }),
       );
       attempts.current.set(selection.presetId, attempt);
       return attempt;
     },
-    [newKitchenSettings, openDesign],
+    [isStillCurrent, newKitchenSettings, openDesign],
   );
 
   const select = useCallback(
@@ -360,10 +361,8 @@ export function usePresetCopy(
       show("saving");
       void attemptFor(selection)
         .then((attempt) => {
-          // A visit left, or a screen unmounted, while the depth was being moved writes nothing and spends no mint
-          // bucket: no row was begun, and nobody is waiting.
-          if (visit.current !== copyVisit) return undefined;
-          if (!screenIsShowing.current) return undefined;
+          // Nothing is begun for a visit left, or a screen gone, while the depth was being moved.
+          if (!isStillCurrent(copyVisit)) return undefined;
           return attempt.run();
         })
         .then(
@@ -374,7 +373,7 @@ export function usePresetCopy(
           },
         );
     },
-    [attemptFor, show],
+    [attemptFor, isStillCurrent, show],
   );
 
   const dismissFailure = useCallback(() => {
@@ -392,15 +391,14 @@ export function usePresetCopy(
 }
 
 /**
- * The document a copy of `selection` is written as: the offer's own adapted design with the preset's id and fresh
- * stamps, stamped with the new-kitchen settings, then moved to their depth when it stands at another. Without
- * settings it is the offer as it was. Rejects only for a settings container no design may hold.
+ * The preset's offer as a new design made now, stamped with the settings and moved to their depth; the offer as it was
+ * without settings. Rejects when the stamp is refused, which is a programming error.
  */
-async function copyOf(
+async function buildStampedCopy(
   selection: PresetSelection,
-  now: string,
   newKitchenSettings: NewKitchenSettings | undefined,
 ): Promise<Design> {
+  const now = new Date().toISOString();
   const fresh: Design = {
     ...selection.design,
     presetId: selection.presetId,

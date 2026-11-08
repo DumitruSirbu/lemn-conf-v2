@@ -84,18 +84,9 @@ export function stampedSettingsOf(
 }
 
 /**
- * A design that already exists, stamped with the new-kitchen settings by the public commands and no other write: the
- * material (which resets every cabinet's own colour it does not offer, ADR 0057), the hardware, the kitchen colour and
- * handle, then the top row's handle (H-3), in that order. The clock of every command is the design's own `updatedAt`,
- * so the stamp moves no timestamp.
- *
- * It never writes the depth, whatever the request holds: a depth moves only through `setCabinetDepth`, which rebuilds
- * the bodies (a `cabinetDepthMm` spread over geometry built at another depth is the defect that command exists to
- * prevent). A tier left out of the request is left as the design has it, the case of a creation with no active book.
- * The request must already be judged against what is on offer, so each tier is the one id its command is given as
- * offered. The colour is judged once, against the material the design wears after its tier command (the request's if
- * it names one, else the design's own), and one that material does not offer is that material's default colour. A
- * refusal at this seam is a programming error and throws.
+ * A design stamped with the new-kitchen settings through the public commands, on the design's own clock; the depth is
+ * never written, since only `setCabinetDepth` can rebuild bodies for it. The colour is judged once, against the
+ * material the design ends up wearing. A refusal here is a programming error and throws.
  */
 export function stampedDesignOf(
   design: Design,

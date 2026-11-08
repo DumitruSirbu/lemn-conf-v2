@@ -79,9 +79,8 @@ function crossSiteMintRefusedResponse(): NextResponse {
 }
 
 /**
- * The seeded L-kitchen, stamped with the new-kitchen defaults (A-9) at the fixture's own depth: the server has no probe
- * to rebuild bodies at another one, and the attempt's first `PUT` replaces this row with the browser's design, stamped
- * at the saved depth. Read only here, past the cross-site guard and the limiter, so a refused mint reads nothing.
+ * The seeded L-kitchen stamped with the new-kitchen defaults, at the fixture's depth: only the browser can move a depth.
+ * Read after the guard and the limiter, so a refused mint reads nothing.
  */
 async function seededKitchen(): Promise<Design> {
   return stampedDesignOf(KITCHEN_L_DESIGN, await readNewKitchenDefaults());

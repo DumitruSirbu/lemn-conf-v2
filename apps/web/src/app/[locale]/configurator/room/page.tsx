@@ -29,8 +29,8 @@ export default async function RoomPage({
   // nobody used, which the next reader would have deleted as dead and silently made the route
   // static. `next build`'s route table is the check, not this comment.
   await connection();
-  // The six settings a kitchen created from this load starts with (A-9), read after the locale is judged. The read never
-  // throws and never blocks: a store that cannot answer gives the fixed fallbacks.
+  // The settings a kitchen created from this load starts with. The read waits at most its deadline, then gives the fixed
+  // fallbacks (ADR 0178).
   const newKitchenSettings = await readNewKitchenDefaults();
   return <RoomScreen newKitchenSettings={newKitchenSettings} />;
 }
