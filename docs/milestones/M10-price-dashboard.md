@@ -766,7 +766,7 @@ the stated default and needs only a yes or a correction.
 | OQ-36 | A production deployment with no `DATABASE_URL` shows no prices and refuses contact requests, rather than failing to start | As built | W1 |
 | OQ-37 | May a created hardware class or accessory have the same name as an existing one, for example a second "Blum" beside the shipped Blum? Customers would see two rows they cannot tell apart. Security review recommends refusing a name equal to another row's name, after NFC and case-folding. | Allowed, as built. Invisible format characters are refused from R4a4 on. | R4a4 (R-h) |
 | OQ-38 | Two places count a created class differently. The header chip and the publish button count it once ("1 preț de publicat"), as OQ-30's proposal does. The publish page's group heading counts its lines ("6 modificări"). Should the heading follow OQ-30 too? | As built | R4a4, U5c (OQ-30) |
-| OQ-39 | When the saved defaults set a cabinet depth that a preset cannot take (`setCabinetDepth` refuses it), the preset's copy keeps the preset's own depth. Should the new-kitchen screen offer only the presets that fit at the saved depth? | Every preset offered, and a copy that cannot take the depth keeps its own | R4b3 (R4b split, rule 5) |
+| OQ-39 | When the saved defaults set a cabinet depth that a preset cannot take (`setCabinetDepth` refuses it), the preset's copy keeps the preset's own depth. Should the new-kitchen screen offer only the presets that fit at the saved depth? | Every preset offered, and a copy that cannot take the depth keeps its own | R4b3 (R4b split, rule 5); also named OQ-R4b-1 (same question, not to be queued twice; noted 2026-11-08) |
 | OQ-11f | The `cannot-judge` note on Switch off and Delete ends "Încearcă din nou mai târziu". From R4a5 on, production's Delete of a stated row (until R4c) and its Switch off (until R4b) are a standing state, and retrying will not help. New wording? | As drafted | R4a5 |
 | OQ-28c | P6 leaves the seeded default kitchen's hardware total unchanged (its push fronts are top-row doors, no drawers); only push-to-open drawers move | Recorded, no question | P6 |
 | OQ-33 | ADR 0062's third Amendment, item 2, forbids deleting an item any saved kitchen uses (owner, as relayed: "Deleting no, disabling yes"). That holds for every kitchen the publish can see. A kitchen can still come to name a deleted item: a save in the very moment of publishing, or a page left open since before the publish. What does that customer see? | **The same as for a switched-off item** (items 3 and 4): a notice, a required choice from the remaining options, and no price until they choose. A deleted accessory is removed with the notice. Architect's reading, ADR 0178, Amendment of 2026-11-04 | S2c, R4a, Q3 |
@@ -2877,6 +2877,28 @@ R4b1's reviews (2026-11-05) hand on the following.
 **To R4b3:**
 - **The customer read has no bound.** If it runs on the public room page's render, every anonymous request costs three uncached database reads. During an outage, each such request also writes one log line. Read it behind the creation path's limiter, or memoise it per availability-head revision or with a short TTL, and rate-limit the log line.
 - **Rule 3's four-key result is wider than "no active book".** It is also what the read returns when the stores are unavailable or the book cannot be read, which is production's state until the Z gate. Criterion (b)'s property must allow for this.
+  **Discharged 2026-11-08:** criterion (b) and rule 3 amended in place (dated notes). The first hand-off (the unbounded read) is discharged by the R4b3 block below.
+
+**R4b3 built and reviewed (branch `m10/r4b3`, not merged), 2026-11-08 [relayed from the coordinator; reviewers' reports; the scribe ran nothing].**
+- **Built:** the five punch-list items. Production files: the six planned plus a seventh, `apps/web/src/lib/server/price-dashboard/new-kitchen-defaults.ts` (R4b1's customer read), which the coordinator authorised to discharge R4b1's *To R4b3* hand-off "the customer read has no bound". Also `tests/support/price-dashboard-world.ts`, for the test reset.
+- **QA:** verdict RED, then fixed. D1: an unmounted preset copy still minted a row. D2: the unbounded read. D3: an array request was not refused. D4: the colour was judged twice.
+- **Review:** logic, clean-code and security passed.
+- **The bound on the customer read** (the head is read each render; a defaults save, an in-app publish and an item switch each move it; source-verified by the developer and the logic reviewer):
+  - a module memo keyed by the availability-head revision;
+  - only a whole reading with a book present is remembered; failures and the no-book answer are never remembered;
+  - the outage log line is budgeted at 3 per cause per 60 s, not 1, because R4b1's adversarial test asserts two lines (logic reviewer's opinion: keep 3);
+  - a read deadline, with the fixed-fallback answer.
+- **Residuals:**
+  - the head query scans the availability log on every anonymous render, the same class as the existing `/d` and `/s` render read; accepted;
+  - a point-in-time database restore that rewinds the head could match an old revision against different contents (inference; falsified by showing the head cannot rewind);
+  - `seed-price-book` does not move the head, so a no-book reading is not remembered;
+  - while the stores are down every render still re-reads; only the log and, with the deadline, the latency are bounded;
+  - a preset copy hidden by `<Activity>` in the middle of a depth move can stay in "saving" (same class as the generation residual);
+  - rule 5's `atDepthOrAsItStands` swallows chunk and probe failures with no diagnostic (candidate: a bounded log line);
+  - OQ-R4b-1 is untouched. It is the same question as OQ-39 (section 6.4): one question under two names, not to be queued twice;
+  - the R-d allow-list gained `app/api/designs/route.ts` and the room `page.tsx`. That is safe only while `tests/app/qa-m10-r4b3-r-d-allow-list.adversarial.test.ts` and the `qa-m10-r4b2-production-source` pins stay; treat them as load-bearing. Nit: the allow-list comment should point at the QA pin.
+- **Backlog candidates (clean-code):** memo keyed on the stores object instead of a test reset; the repeated apply-if-given pattern in the domain stamp; `completionOf({}, {})` repeated; QA-wave-named test files to fold at the milestone-close audit; an optional `StampRefusedError`.
+- **Not yet done:** the `CI=1` e2e specs. `global-colour`, `kitchen-handle-row` and `seeded-design.qa` are edited but not run. The QA agent also listed: `global-settings*`, `design-return-*`, `qa-8g-leave-while-waiting`, `price-breakdown*`, `price-footer-growth`, `preset-owner-loop*`, `ceiling-row-tappable`, `kitchen-stage`, `overflow-mark`, `pixel-counter-witness*`, `mint-limit-production-policy`. Also not done: the visual pass and the merge. R4c is next.
 
 **Recorded:** an extra member in the defaults body answers `400 invalid-request` with no field, as every draft write does. This corrects the acceptance bullet's "naming the field".
 
@@ -2975,6 +2997,9 @@ this block were inserted above them).
    stamps the fixed fallbacks and writes one log line with no value in it. With **no active book** (A-10) there is no
    tier id to stamp, so the two tier keys stay absent and the other four are stamped. That is the one exception to
    criterion (b).
+   *Amended 2026-11-08 [relayed from the coordinator; the scribe ran nothing]:* the four-key result is not only the
+   no-book case. Per the R4b1 hand-off (*To R4b3*, below), the read returns it also when the stores are unavailable or
+   the saved row is unreadable.
 4. **The seeded mint keeps its fixture's depth.** The mint route stamps the other five keys by the commands' rules and
    keeps `cabinetDepthMm` from `KITCHEN_L_DESIGN`. Criterion (a) forbids spreading a depth, and the server has no
    probe. The row is replaced by the same attempt's first `PUT`, which carries the browser's design stamped at the
@@ -3105,7 +3130,8 @@ R4b1 creates the defaults route file and R4b2 adds its `GET`, in sequence, never
   - **(a), property:** for any preset copy and any saved depth *d*, the stamped copy equals
     `setCabinetDepth(stamp(copy), d)`. Sabotage: spreading `cabinetDepthMm` over the copy's settings turns it red;
   - **(b), property:** every design created through generation, a preset copy or the seeded mint carries all six keys,
-    over saved rows from `{}` to whole (rule 3's no-book exception aside);
+    over saved rows from `{}` to whole (rule 3's four-key exception aside: no active book, stores unavailable or the
+    saved row unreadable; amended 2026-11-08, see rule 3);
   - **(c), new, property:** for any design whose cabinets carry their own finishes and any stamped material, no cabinet
     keeps a finish the material does not offer, and the result equals rule 10's commands applied in its order, with the
     stamped tier as each tier command's only offered id. Its `createdAt` and `updatedAt` are the design's own;

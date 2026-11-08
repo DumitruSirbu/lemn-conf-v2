@@ -142,6 +142,8 @@ coordinator's reading that creating an accessory linked to a cabinet type is in 
 
 **2026-11-08 (M10 R4b2) [relayed from the coordinator; reviewers' reports; the scribe ran nothing].** R4b2 is built and reviewed on branch `m10/r4b2`, **unmerged**; the wave is not complete until it merges. Visual pass and e2e are not done. Detail: the *R4b2 built and reviewed* block in [`M10-price-dashboard.md`](milestones/M10-price-dashboard.md).
 
+**2026-11-08 (M10 R4b3) [relayed from the coordinator; reviewers' reports; the scribe ran nothing].** R4b3 is built and reviewed on branch `m10/r4b3`, **unmerged**; R4c is next. The `CI=1` e2e specs and the visual pass are not done. Detail: the *R4b3 built and reviewed* block in [`M10-price-dashboard.md`](milestones/M10-price-dashboard.md).
+
 ## 2. Phase table
 
 Read column: **No** = do not open. A row marked **UNCLEAR** would be a contradiction inside the history, left
