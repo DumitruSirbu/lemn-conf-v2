@@ -133,6 +133,11 @@ function pricesStoresThat(failWith: () => Error): PriceStores {
     },
     defaults: { read: never("read"), save: never("save") },
     usage: { countEach: never("countEach") },
+    notices: {
+      readAcknowledged: never("readAcknowledged"),
+      recordIfAbsent: never("recordIfAbsent"),
+      recordAcknowledged: never("recordAcknowledged"),
+    },
   };
 }
 

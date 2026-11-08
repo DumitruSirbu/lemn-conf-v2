@@ -9,6 +9,7 @@ import {
   FakeKitchenDefaultsStore,
   FakeHeldDesigns,
   FakePriceBookStore,
+  FakePriceNoticeStore,
   FakeRevisionHead,
   FakeSessionStore,
   generateAccountId,
@@ -109,6 +110,8 @@ export async function seedFakePriceStores(): Promise<PriceStores> {
     availability,
     defaults,
     usage: defaults,
+    // Over the raw fakes, so an acknowledgement is judged against the versions and head the editor prices under.
+    notices: new FakePriceNoticeStore({ priceBook, availability }),
   };
 }
 

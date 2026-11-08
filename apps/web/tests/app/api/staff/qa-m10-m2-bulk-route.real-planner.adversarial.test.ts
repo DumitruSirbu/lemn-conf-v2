@@ -16,6 +16,7 @@ import {
   FakeKitchenDefaultsStore,
   FakeHeldDesigns,
   FakePriceBookStore,
+  FakePriceNoticeStore,
   FakeRevisionHead,
 } from "@lemnaria/persistence";
 
@@ -128,6 +129,7 @@ async function publish(book: PriceBook): Promise<void> {
     availability,
     defaults,
     usage: defaults,
+    notices: new FakePriceNoticeStore({ priceBook, availability }),
   };
 }
 

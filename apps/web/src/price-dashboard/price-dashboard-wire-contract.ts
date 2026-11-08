@@ -552,18 +552,33 @@ export interface RequiredReplacementWire {
   readonly remaining: readonly ItemRef[];
 }
 
-/**
- * What a saved kitchen's owner is told when they open it. Served only to a request authorised to edit that design (F8),
- * and never on a share-link view or a staff open. `current` is the pair to acknowledge. `pricesChanged` is the
- * one calm notice (C1, merged into C4C). `replacementsRequired` holds the rows of the forced replacement, and while it
- * is not empty the price is not shown (A-16). `removedAccessories` is the C4 information row.
- */
-export interface PriceNoticeWire {
-  readonly current: PriceStampWire;
-  readonly pricesChanged: boolean;
-  readonly replacementsRequired: readonly RequiredReplacementWire[];
-  readonly removedAccessories: readonly ItemRef[];
+/** A chosen accessory the active book or the availability no longer offers (C4's information row). A linked row's
+ *  `authoredName` is the active book's if it states the row, otherwise the seen book's; a built-in has none. */
+export interface RemovedAccessoryWire {
+  readonly accessoryId: string;
+  readonly authoredName?: string;
 }
+
+/** What a saved kitchen's owner is told when they open it. While `replacementsRequired` is not empty the price is not
+ *  shown (A-16). */
+export type PriceNoticeWire =
+  | {
+      readonly kind: "active-version";
+      /** Stays true after a later edit (C5A). */
+      readonly isSent: boolean;
+      /** The pair to acknowledge. */
+      readonly current: PriceStampWire;
+      /** The one calm notice (C1, merged into C4C). */
+      readonly pricesChanged: boolean;
+      readonly replacementsRequired: readonly RequiredReplacementWire[];
+      /** The C4 information row. */
+      readonly removedAccessories: readonly RemovedAccessoryWire[];
+    }
+  | {
+      /** No book, so no pair to judge. */
+      readonly kind: "no-active-version";
+      readonly isSent: boolean;
+    };
 
 /** The pair the page displayed, recorded as acknowledged (A-11). It is never "the current pair": a publish that landed
  *  in between keeps the notice. */

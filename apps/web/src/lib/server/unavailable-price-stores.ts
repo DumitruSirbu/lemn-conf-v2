@@ -7,6 +7,7 @@ import {
   type KitchenDefaultsStore,
   type KitchenUsageReader,
   type PriceBookStore,
+  type PriceNoticeStore,
 } from "@lemnaria/persistence";
 
 // The stores production holds where no database connection can be made. Every call is the store's own refusal,
@@ -43,3 +44,10 @@ export const UNAVAILABLE_KITCHEN_USAGE_READER: KitchenUsageReader =
   Object.freeze({
     countEach: () => unavailable("count the kitchens using an item"),
   });
+
+export const UNAVAILABLE_PRICE_NOTICE_STORE: PriceNoticeStore = Object.freeze({
+  readAcknowledged: () => unavailable("read a design's acknowledged prices"),
+  recordIfAbsent: () => unavailable("record a design's first-open prices"),
+  recordAcknowledged: () =>
+    unavailable("record a design's acknowledged prices"),
+});

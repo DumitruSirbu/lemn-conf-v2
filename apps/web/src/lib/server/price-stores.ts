@@ -5,10 +5,12 @@ import {
   NeonKitchenDefaultsStore,
   NeonKitchenUsageReader,
   NeonPriceBookStore,
+  NeonPriceNoticeStore,
   type CatalogueAvailabilityStore,
   type KitchenDefaultsStore,
   type KitchenUsageReader,
   type PriceBookStore,
+  type PriceNoticeStore,
 } from "@lemnaria/persistence";
 
 import {
@@ -21,6 +23,7 @@ import {
   UNAVAILABLE_KITCHEN_DEFAULTS_STORE,
   UNAVAILABLE_KITCHEN_USAGE_READER,
   UNAVAILABLE_PRICE_BOOK_STORE,
+  UNAVAILABLE_PRICE_NOTICE_STORE,
 } from "@/lib/server/unavailable-price-stores";
 
 /** The stores a price reader or a dashboard write needs, whichever environment made them. */
@@ -29,6 +32,7 @@ export interface PriceStores {
   readonly availability: CatalogueAvailabilityStore;
   readonly defaults: KitchenDefaultsStore;
   readonly usage: KitchenUsageReader;
+  readonly notices: PriceNoticeStore;
 }
 
 /** What `selectPriceStores` reads of the environment, and nothing else. */
@@ -100,6 +104,7 @@ function productionPriceStores(databaseUrl: string | undefined): PriceStores {
       availability: UNAVAILABLE_CATALOGUE_AVAILABILITY_STORE,
       defaults: UNAVAILABLE_KITCHEN_DEFAULTS_STORE,
       usage: UNAVAILABLE_KITCHEN_USAGE_READER,
+      notices: UNAVAILABLE_PRICE_NOTICE_STORE,
     };
   }
   return {
@@ -107,6 +112,7 @@ function productionPriceStores(databaseUrl: string | undefined): PriceStores {
     availability: new NeonCatalogueAvailabilityStore(),
     defaults: new NeonKitchenDefaultsStore(),
     usage: new NeonKitchenUsageReader(),
+    notices: new NeonPriceNoticeStore(),
   };
 }
 

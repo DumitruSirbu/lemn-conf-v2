@@ -10,6 +10,7 @@ import {
   FakeKitchenDefaultsStore,
   FakeHeldDesigns,
   FakePriceBookStore,
+  FakePriceNoticeStore,
   FakeRevisionHead,
 } from "@lemnaria/persistence";
 
@@ -115,6 +116,7 @@ export async function freshPriceDashboardWorld({
       availability,
       defaults,
       usage: defaults,
+      notices: new FakePriceNoticeStore({ priceBook, availability }),
     },
     priceBook,
     defaults,
