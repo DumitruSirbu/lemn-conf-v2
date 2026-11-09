@@ -3,8 +3,18 @@
 import {
   isBuiltInAccessoryId,
   isDesignId,
+  type ReplacementRequired,
 } from "@lemnaria/configurator-domain";
-import { useCallback, useEffect, useRef, useState } from "react";
+import type { DesignRevision } from "@lemnaria/persistence";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 
 import { useContent } from "@/i18n/use-content";
 import type {
@@ -23,6 +33,11 @@ import {
 } from "./price-notice-client";
 import { usePriceBookRoot } from "./price-book-provider";
 import type { ActivePriceBook, PriceBookRoot } from "./price-book-root";
+import {
+  hasReplacementSaveLanded,
+  pendingReplacements,
+  type ChoosableKind,
+} from "./replacement-sheet-model";
 
 // The one reader of `GET /api/designs/{id}/price-notice` (ADR 0178 A-11). Everything that wants the answer, C1 today and
 // the sent-kitchen note and the replacement sheet after it, reads it from here, because each `GET` spends a limiter
@@ -31,6 +46,8 @@ import type { ActivePriceBook, PriceBookRoot } from "./price-book-root";
 // **"Once per open" means once per mount of the editor for a design.** The effect is latched on a ref, which a dev-mode
 // double effect keeps, so strict mode sends one request. A language switch remounts the screen and asks again; that is
 // harmless, since the marker is written at most once and the answer is judged afresh.
+
+const NO_REPLACEMENTS: readonly ReplacementRequired[] = [];
 
 interface HeldAnswer {
   readonly designId: string;
@@ -45,6 +62,27 @@ export interface PriceNoticeBanner {
   readonly accessoryNames: readonly string[];
 }
 
+/** One setting the customer replaced in the sheet, named for C4C's confirmation. */
+export interface ReplacementChange {
+  readonly kind: ChoosableKind;
+  readonly name: string;
+}
+
+/** The last choice, handed over for the hook to wait on: the revision the store stood at when it was applied, and what
+ *  was changed, for the confirmation to say. */
+export interface AwaitedReplacement {
+  readonly revisionAtChoice: DesignRevision | null;
+  readonly changes: readonly ReplacementChange[];
+}
+
+/** C4C: what the sheet's flow ends in. `alsoUpdated` is true exactly when the second `GET` said the prices moved, and
+ *  `accessoryNames` are accessories that answer names which the sheet never showed. */
+export interface ReplacementOutcome {
+  readonly changes: readonly ReplacementChange[];
+  readonly accessoryNames: readonly string[];
+  readonly alsoUpdated: boolean;
+}
+
 export interface PriceNotice {
   /** The route's answer for this design, when it gave one; nothing for a refusal, a failure or a call never made. */
   readonly answer: PriceNoticeWire | undefined;
@@ -54,6 +92,19 @@ export interface PriceNotice {
   readonly banner: PriceNoticeBanner | undefined;
   /** Records the pair this page displayed. Sends once per open, however often it is pressed. */
   readonly acknowledge: () => void;
+  /** What the kitchen must replace before it has a price, live from the store and the page's availability. **Empty
+   *  wherever the sheet may not open**, which is the `GET`'s own gate (the owner's screen, write access settled to `true`,
+   *  a real design id, an active book): the share view mounts the same screen, so the sheet cannot rely on the `GET`'s
+   *  gate having stopped it, and it holds this one. */
+  readonly owedReplacements: readonly ReplacementRequired[];
+  /** The accessories the kitchen lost that this page can name, for the sheet's information rows (C4D). */
+  readonly removedAccessoryNames: readonly string[];
+  /** After the last choice: waits for that choice's save to land, asks again, carries the prices sentence if and only if
+   *  the new answer says the prices moved, then acknowledges the displayed pair. */
+  readonly awaitReplacementSave: (replacement: AwaitedReplacement) => void;
+  /** C4C, once the flow has ended; C1 is never drawn beside it. */
+  readonly confirmation: ReplacementOutcome | undefined;
+  readonly dismissConfirmation: () => void;
 }
 
 export function usePriceNotice({ isOwner }: { isOwner: boolean }): PriceNotice {
@@ -61,16 +112,25 @@ export function usePriceNotice({ isOwner }: { isOwner: boolean }): PriceNotice {
   const content = useContent();
   const designId = useConfiguratorStore((state) => state.designId);
   const canWrite = useConfiguratorStore((state) => state.canWrite);
+  const design = useConfiguratorStore((state) => state.design);
+  const catalog = useConfiguratorStore((state) => state.catalog);
   const [held, setHeld] = useState<HeldAnswer | undefined>();
   const askedFor = useRef<string | undefined>(undefined);
   const acknowledgedFor = useRef<string | undefined>(undefined);
   const askableId = askableDesignId({ isOwner, designId, canWrite, root });
+  const owedReplacements = useMemo(
+    () =>
+      askableId !== undefined && root.kind === "active"
+        ? pendingReplacements(root, design, catalog)
+        : NO_REPLACEMENTS,
+    [askableId, root, design, catalog],
+  );
 
   useEffect(() => {
     if (askableId === undefined || askedFor.current === askableId) return;
     askedFor.current = askableId;
     void FETCHING_PRICE_NOTICE_CLIENT.read(askableId).then((read) => {
-      setHeld({ designId: askableId, read, hasAcknowledged: false });
+      setHeld((previous) => heldAfterFirstAnswer(previous, askableId, read));
     });
   }, [askableId]);
 
@@ -92,23 +152,47 @@ export function usePriceNotice({ isOwner }: { isOwner: boolean }): PriceNotice {
     );
   }, []);
 
+  // Takes the answer to vouch for as an argument. The sheet's flow asks again and acknowledges what the *new* answer
+  // vouches for; a callback closed over this render's `answer` would judge the first one, or none if that failed.
+  const acknowledgeAgainst = useCallback(
+    (vouching: PriceNoticeWire | undefined) => {
+      // Callers other than the banner (the sheet, the sent note) reach this too, so the stale-page rule is held here
+      // and not only in what the banner shows: a pair the answer does not vouch for is never recorded.
+      if (vouching?.kind !== "active-version" || displayed === undefined)
+        return;
+      if (!isSameStamp(vouching.current, displayed)) return;
+      if (acknowledgedFor.current === designId || designId === null) return;
+      // Latched before the request, so a second press while it is in flight sends nothing.
+      acknowledgedFor.current = designId;
+      void FETCHING_PRICE_NOTICE_CLIENT.acknowledge(designId, displayed).then(
+        (outcome) => {
+          if (outcome.kind === "acknowledged") hideNoticeFor(designId);
+          // A failure wrote nothing that anyone can vouch for, so a press may try again; a refusal of the route's own
+          // word (the pair is unknown or ahead of the head) will not change by asking again, and the latch stays.
+          if (outcome.kind === "failed") acknowledgedFor.current = undefined;
+        },
+      );
+    },
+    [displayed, designId, hideNoticeFor],
+  );
+
   const acknowledge = useCallback(() => {
-    // Callers other than the banner (the sheet, the sent note) reach this too, so the stale-page rule is held here and
-    // not only in what the banner shows: a pair the answer does not vouch for is never recorded.
-    if (answer?.kind !== "active-version" || displayed === undefined) return;
-    if (!isSameStamp(answer.current, displayed)) return;
-    if (acknowledgedFor.current === designId || designId === null) return;
-    // Latched before the request, so a second press while it is in flight sends nothing.
-    acknowledgedFor.current = designId;
-    void FETCHING_PRICE_NOTICE_CLIENT.acknowledge(designId, displayed).then(
-      (outcome) => {
-        if (outcome.kind === "acknowledged") hideNoticeFor(designId);
-        // A failure wrote nothing that anyone can vouch for, so a press may try again; a refusal of the route's own
-        // word (the pair is unknown or ahead of the head) will not change by asking again, and the latch stays.
-        if (outcome.kind === "failed") acknowledgedFor.current = undefined;
-      },
-    );
-  }, [answer, displayed, designId, hideNoticeFor]);
+    acknowledgeAgainst(answer);
+  }, [acknowledgeAgainst, answer]);
+
+  const removedAccessoryNames = removedAccessoryNamesOf({
+    answer,
+    displayed,
+    nameOf,
+  });
+  const awaited = useAwaitedReplacement({
+    askableId,
+    displayed,
+    nameOf,
+    shownAccessoryNames: removedAccessoryNames,
+    acknowledgeAgainst,
+    setHeld,
+  });
 
   const isShown = held?.hasAcknowledged !== true;
   return {
@@ -116,7 +200,184 @@ export function usePriceNotice({ isOwner }: { isOwner: boolean }): PriceNotice {
     isSent: answer?.isSent ?? false,
     banner: isShown ? bannerOf({ answer, displayed, nameOf }) : undefined,
     acknowledge,
+    owedReplacements,
+    removedAccessoryNames,
+    ...awaited,
   };
+}
+
+/**
+ * The sheet's flow after the last choice. It waits on the store and not on `saveStatus`: the revision must have moved past
+ * the one held when the choice was applied **and** the design on screen must be the one the server confirmed. Only then is
+ * the `GET` asked again: before that the active side may still refuse, and the answer would judge the old design. There is
+ * no timeout. A save that never lands (a conflict, a limit, a refusal) never confirms and never acknowledges, and the next
+ * open judges afresh.
+ */
+function useAwaitedReplacement({
+  askableId,
+  displayed,
+  nameOf,
+  shownAccessoryNames,
+  acknowledgeAgainst,
+  setHeld,
+}: {
+  readonly askableId: string | undefined;
+  readonly displayed: PriceStampWire | undefined;
+  readonly nameOf: (accessory: RemovedAccessoryWire) => string | undefined;
+  readonly shownAccessoryNames: readonly string[];
+  readonly acknowledgeAgainst: (answer: PriceNoticeWire | undefined) => void;
+  readonly setHeld: Dispatch<SetStateAction<HeldAnswer | undefined>>;
+}): Pick<
+  PriceNotice,
+  "awaitReplacementSave" | "confirmation" | "dismissConfirmation"
+> {
+  const revision = useConfiguratorStore((state) => state.revision);
+  const isEverythingSaved = useConfiguratorStore(
+    (state) => state.design === state.savedDesign,
+  );
+  const [awaited, setAwaited] = useState<AwaitedReplacement | undefined>();
+  const [confirmation, setConfirmation] = useState<
+    ReplacementOutcome | undefined
+  >();
+
+  useEffect(() => {
+    if (awaited === undefined) return;
+    const hasLanded = hasReplacementSaveLanded({
+      revisionAtChoice: awaited.revisionAtChoice,
+      revision,
+      isEverythingSaved,
+    });
+    if (!hasLanded) return;
+    // Latched before the request: this effect runs again on every change of the store while the answer is awaited.
+    setAwaited(undefined);
+    void askAgainAndConfirm({
+      awaited,
+      askableId,
+      displayed,
+      nameOf,
+      shownAccessoryNames,
+      acknowledgeAgainst,
+      setHeld,
+      setConfirmation,
+    });
+  }, [
+    awaited,
+    revision,
+    isEverythingSaved,
+    askableId,
+    displayed,
+    nameOf,
+    shownAccessoryNames,
+    acknowledgeAgainst,
+    setHeld,
+  ]);
+
+  const dismissConfirmation = useCallback(() => {
+    setConfirmation(undefined);
+  }, []);
+  return {
+    awaitReplacementSave: setAwaited,
+    confirmation,
+    dismissConfirmation,
+  };
+}
+
+async function askAgainAndConfirm({
+  awaited,
+  askableId,
+  displayed,
+  nameOf,
+  shownAccessoryNames,
+  acknowledgeAgainst,
+  setHeld,
+  setConfirmation,
+}: {
+  readonly awaited: AwaitedReplacement;
+  readonly askableId: string | undefined;
+  readonly displayed: PriceStampWire | undefined;
+  readonly nameOf: (accessory: RemovedAccessoryWire) => string | undefined;
+  readonly shownAccessoryNames: readonly string[];
+  readonly acknowledgeAgainst: (answer: PriceNoticeWire | undefined) => void;
+  readonly setHeld: Dispatch<SetStateAction<HeldAnswer | undefined>>;
+  readonly setConfirmation: (confirmation: ReplacementOutcome) => void;
+}): Promise<void> {
+  const read =
+    askableId === undefined
+      ? undefined
+      : await FETCHING_PRICE_NOTICE_CLIENT.read(askableId);
+  const fresh = read?.kind === "notice" ? read.notice : undefined;
+  if (askableId !== undefined && read !== undefined) {
+    // Held as already acknowledged: the confirmation says what C1 would, so C1 must not flash up between this answer and
+    // the acknowledgement landing.
+    setHeld((previous) => heldAfterAskingAgain(previous, askableId, read));
+  }
+  // An accessory is acknowledged only once it has been said: the sheet showed the first answer's, and this answer's other
+  // names are said here, so the marker never moves past one the customer was not told about.
+  const unshownNames = removedAccessoryNamesOf({
+    answer: fresh,
+    displayed,
+    nameOf,
+  }).filter((name) => !shownAccessoryNames.includes(name));
+  setConfirmation({
+    changes: awaited.changes,
+    accessoryNames: unshownNames,
+    alsoUpdated: pricesMovedOnThisPage(fresh, displayed),
+  });
+  if (isFullyResolved(fresh)) acknowledgeAgainst(fresh);
+}
+
+/**
+ * What is held when the first answer arrives. A first answer never replaces a newer one held for this design (the sheet's
+ * flow may have asked again), except a failed read: that held nothing to say, so the first answer takes its place and keeps
+ * its acknowledged state.
+ */
+function heldAfterFirstAnswer(
+  previous: HeldAnswer | undefined,
+  designId: string,
+  read: NoticeRead,
+): HeldAnswer {
+  if (previous?.designId !== designId) {
+    return { designId, read, hasAcknowledged: false };
+  }
+  return previous.read.kind === "notice" ? previous : { ...previous, read };
+}
+
+/**
+ * What is held once the sheet's flow has asked again. A failed second ask (a limit, a `404`, the network) must not wipe the
+ * first answer: `isSent` and the accessory names are read from it, and the sent-kitchen note would vanish. Only an answer
+ * replaces it. Either way the notice counts as shown, for the reason `askAgainAndConfirm` gives.
+ */
+function heldAfterAskingAgain(
+  previous: HeldAnswer | undefined,
+  designId: string,
+  read: NoticeRead,
+): HeldAnswer {
+  const keepsEarlierAnswer =
+    read.kind !== "notice" && previous?.designId === designId;
+  return {
+    designId,
+    read: keepsEarlierAnswer ? previous.read : read,
+    hasAcknowledged: true,
+  };
+}
+
+/** An answer with nothing left to replace: acknowledging a pair while a replacement is owed would hide the sheet's reason. */
+function isFullyResolved(answer: PriceNoticeWire | undefined): boolean {
+  return (
+    answer?.kind === "active-version" &&
+    answer.replacementsRequired.length === 0
+  );
+}
+
+/** The merged sentence's one condition: the answer is for the pair this page displays, and says the prices moved. */
+function pricesMovedOnThisPage(
+  answer: PriceNoticeWire | undefined,
+  displayed: PriceStampWire | undefined,
+): boolean {
+  if (answer?.kind !== "active-version" || displayed === undefined) {
+    return false;
+  }
+  return isSameStamp(answer.current, displayed) && answer.pricesChanged;
 }
 
 /** The design to ask about, or nothing where the call must not be made: not the owner's screen (the share view mounts the
@@ -171,8 +432,29 @@ export function bannerOf({
   if (!isSameStamp(answer.current, displayed)) return undefined;
   if (answer.replacementsRequired.length > 0) return undefined;
   const { pricesChanged } = answer;
+  const accessoryNames = removedAccessoryNamesOf({ answer, displayed, nameOf });
+  // An accessory with no name to say is left out, never shown by its id; with nothing else to say there is no notice.
+  if (!pricesChanged && accessoryNames.length === 0) return undefined;
+  return { pricesChanged, accessoryNames };
+}
+
+/**
+ * The names of the accessories the kitchen lost, for C1's lines and the sheet's information rows. Nothing on a stale page,
+ * for the reason C1 says nothing there: the answer is about a pair this page does not display.
+ */
+export function removedAccessoryNamesOf({
+  answer,
+  displayed,
+  nameOf,
+}: {
+  readonly answer: PriceNoticeWire | undefined;
+  readonly displayed: PriceStampWire | undefined;
+  readonly nameOf: (accessory: RemovedAccessoryWire) => string | undefined;
+}): readonly string[] {
+  if (answer?.kind !== "active-version" || displayed === undefined) return [];
+  if (!isSameStamp(answer.current, displayed)) return [];
   // Two accessories that read alike are said once: the line would be the same word twice.
-  const accessoryNames = [
+  return [
     ...new Set(
       answer.removedAccessories.flatMap((accessory) => {
         const name = nameOf(accessory);
@@ -180,9 +462,6 @@ export function bannerOf({
       }),
     ),
   ];
-  // An accessory with no name to say is left out, never shown by its id; with nothing else to say there is no notice.
-  if (!pricesChanged && accessoryNames.length === 0) return undefined;
-  return { pricesChanged, accessoryNames };
 }
 
 /**

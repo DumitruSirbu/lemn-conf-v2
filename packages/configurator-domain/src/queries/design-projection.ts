@@ -132,6 +132,11 @@ export function projectDesignForDisplay(
   return groupInDisplayOrder(entries);
 }
 
+/** The bodies a customer can see in a projection: what a whole-kitchen setting applies to. */
+export function countDisplayedBodies(groups: readonly DisplayGroup[]): number {
+  return groups.reduce((count, group) => count + group.entries.length, 0);
+}
+
 function toDisplayEntry(
   placement: DesignPlacement,
   catalog: BodyCatalog,
