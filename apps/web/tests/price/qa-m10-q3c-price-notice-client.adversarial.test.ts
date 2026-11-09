@@ -297,50 +297,7 @@ describe("reading: a 200 that is not the wire's shape is unavailable", () => {
   });
 });
 
-describe("reading: a 200 with a member beyond the wire's keys is not the route's own answer", () => {
-  // R5b-l: "each answer's keys equal its wire arm's exactly". The client reads member by member and rebuilds fresh
-  // objects, so unknown keys are dropped silently and the notice still shows. The counter-argument, for whoever
-  // overrules: tolerating extras survives a future widening of the wire (OQ-41). These stay red until a ruling.
-  it.each([
-    [
-      "the active arm's top level",
-      withMember(VALID_ACTIVE, "designDocument", {}),
-    ],
-    ["current", withMember(VALID_ACTIVE, "current", { ...PAIR, label: "v7" })],
-    [
-      "a replacement",
-      withMember(VALID_ACTIVE, "replacementsRequired", [
-        {
-          item: { kind: "material", tierId: "a" },
-          remaining: [],
-          name: "Melamine",
-        },
-      ]),
-    ],
-    [
-      "a replacement's item",
-      withMember(VALID_ACTIVE, "replacementsRequired", [
-        { item: { kind: "material", tierId: "a", label: "x" }, remaining: [] },
-      ]),
-    ],
-    [
-      "a removed accessory",
-      withMember(VALID_ACTIVE, "removedAccessories", [
-        { accessoryId: "dishDryingRack", price: 12 },
-      ]),
-    ],
-    [
-      "the no-active-version arm (a current it cannot have)",
-      { kind: "no-active-version", isSent: false, current: PAIR },
-    ],
-  ])("reads %s with an unknown member as unavailable", async (_where, body) => {
-    answerWithJson(200, body);
-
-    expect(await FETCHING_PRICE_NOTICE_CLIENT.read(DESIGN_ID)).toEqual(
-      UNAVAILABLE,
-    );
-  });
-
+describe("reading: a 200 with a member beyond the wire's keys (tolerated by ruling, so a wire widening does not blind the client)", () => {
   it("never lets an unknown member reach what it does return", async () => {
     answerWithJson(200, withMember(VALID_ACTIVE, "designDocument", { a: 1 }));
 
