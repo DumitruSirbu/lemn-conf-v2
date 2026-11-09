@@ -715,7 +715,7 @@ describe("a tier that costs nothing is a line, and a missing rule is never a zer
     expect(wholeKitchen).toHaveLength(2);
   });
 
-  it("refuses a selection naming a tier the book does not hold", () => {
+  it("refuses a selection naming a tier the book does not hold as a replacement, naming that tier (Q3a)", () => {
     const result = priceDesign({
       deepeningRows: MEASURED_DEEPENING_ROWS,
       availability: NOTHING_DISABLED,
@@ -729,8 +729,30 @@ describe("a tier that costs nothing is a line, and a missing rule is never a zer
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.failure).toMatchObject({
+      code: "REPLACEMENT_REQUIRED",
+      items: [{ kind: "material", tierId: "material.invented" }],
+    });
+    expect(result).not.toHaveProperty("priced");
+  });
+
+  it("still refuses UNKNOWN_TIER for a book whose own fallback tier is missing and a selection that chose nothing", () => {
+    const result = priceDesign({
+      deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
+      design: designOf([placedAt({ id: "x" })]),
+      catalog: CATALOG,
+      book: {
+        ...BOOK,
+        material: { ...BOOK.material, defaultTierId: "material.retired" },
+      },
+      pricingVersion: BOOK.version,
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.failure).toMatchObject({
       code: "UNKNOWN_TIER",
-      id: "material.invented",
+      id: "material.retired",
     });
   });
 });

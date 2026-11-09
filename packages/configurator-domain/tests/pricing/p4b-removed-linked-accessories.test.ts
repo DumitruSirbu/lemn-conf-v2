@@ -161,9 +161,12 @@ describe("an accessory is reported only if the customer had it when they last lo
     ).toEqual([earned]);
   });
 
-  it("does not name one the active book no longer states: it was deleted, not switched off", () => {
+  it("names one the active book no longer states, though nothing switched it off: it was deleted after the kitchen earned it (Q3a)", () => {
+    expect(
+      removedUnder({ seenBook: BOOK, activeBook: before, current: [] }),
+    ).toEqual([earned]);
     expect(
       removedUnder({ seenBook: BOOK, activeBook: before, current: [earned] }),
-    ).toEqual([]);
+    ).toEqual([earned]);
   });
 });

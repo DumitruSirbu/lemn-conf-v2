@@ -114,17 +114,21 @@ describe("a tier the design chose, switched off, refuses the price (P4a-a)", () 
     expect(result.ok).toBe(true);
   });
 
-  it("leaves a tier the book does not hold to UNKNOWN_TIER, whatever availability says", () => {
+  it("refuses a tier the book does not hold as a replacement naming it once, whatever availability says (Q3a)", () => {
     const design = withSettings({
       cabinetDepthMm: 600,
       materialTierId: "material.unobtainium",
     });
+    const unobtainium = material("material.unobtainium");
 
-    const failure = refusalOf(
-      priceUnder(availabilityOf([material("material.unobtainium")]), design),
-    );
+    for (const switchedOff of [[], [unobtainium]]) {
+      const failure = refusalOf(
+        priceUnder(availabilityOf(switchedOff), design),
+      );
 
-    expect(failure.code).toBe("UNKNOWN_TIER");
+      expect(failure.code).toBe("REPLACEMENT_REQUIRED");
+      expect(itemsOf(failure)).toEqual([unobtainium]);
+    }
   });
 
   it("fails whole: a refusal carries no price", () => {
