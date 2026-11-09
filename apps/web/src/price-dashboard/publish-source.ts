@@ -67,7 +67,15 @@ async function readDeletionFactsOrNothing({
   draft,
 }: DashboardStateWire): Promise<DeletionFacts | undefined> {
   const read = await readAdmitted(() =>
-    readDeletionFactsOfPage({ book: active.book, changes: draft.changes }),
+    readDeletionFactsOfPage({
+      book: active.book,
+      changes: draft.changes,
+      memoKey: {
+        draftRevision: draft.draftRevision,
+        activeSequence: active.sequenceNumber,
+        availabilityRevision: active.availability.revision,
+      },
+    }),
   );
   return read.kind === "read" ? read.value : undefined;
 }

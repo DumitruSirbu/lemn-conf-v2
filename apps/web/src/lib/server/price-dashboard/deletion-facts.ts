@@ -30,7 +30,8 @@ import { MAX_USAGE_ITEMS } from "@/price-dashboard/price-dashboard-wire-contract
 // What a draft's deletions are judged by: the deleted rows the active book holds, and the facts about them (how many saved
 // designs use each, and the saved defaults) read in the request that judges, never carried from an earlier one. Reading
 // them writes nothing and spends no bucket, so a page render can ask. Only the SQL probes are ever asked: the walk over
-// every design is never started from here.
+// every design is never started from here. A publish and a draft write read them fresh; only a page's render may remember
+// them, for a short while (`readDeletionFactsOfPage`).
 
 /** Nothing to ask: no deleted row the book states, so no usage and no default can refuse a deletion. */
 const NO_DELETION_FACTS: DeletionFacts = Object.freeze({
@@ -101,32 +102,116 @@ export async function readDeletionFacts({
   if (asked.length === 0) return NO_DELETION_FACTS;
   return withinUsageDeadline(async (signal) => {
     const { defaults } = await readSavedDefaults(stores);
-    const usage = await countInChunks(probesOf(asked, book), stores, signal);
-    signal.throwIfAborted();
+    const usage = await countDeletedItems(
+      { stores, book, deleted: asked },
+      signal,
+    );
     return { usage, defaults };
   });
+}
+
+/**
+ * The usage of each deleted row, in SQL alone, under the caller's deadline (`signal`). It reads no defaults: a caller that
+ * must not count a default reads them first. `deleted` is counted as given, so the caller keeps to the rows the book states.
+ */
+export async function countDeletedItems(
+  { stores, book, deleted }: DeletionBasis,
+  signal: AbortSignal,
+): Promise<readonly ItemUsage[]> {
+  const usage = await countInChunks(probesOf(deleted, book), stores, signal);
+  signal.throwIfAborted();
+  return usage;
+}
+
+/** What a count of the page's deletions was read at: it changes whenever a count could, or the draft, the book or the
+ *  defaults it is judged by do. */
+export interface DeletionMemoKey {
+  readonly draftRevision: string;
+  readonly activeSequence: number;
+  readonly availabilityRevision: string;
 }
 
 export interface DraftDeletions {
   readonly book: PriceBook;
   readonly changes: readonly DraftChange[];
+  readonly memoKey: DeletionMemoKey;
+}
+
+/**
+ * PROVISIONAL: how long a page's count is remembered. A saved design moves no key, so this is how stale a page's figure
+ * may be: it only displays, and a publish counts again.
+ */
+export const DELETION_FACTS_MEMO_TTL_MS = 60_000;
+
+/** What was read, where from, and when: the stores are part of the key, since a count is a fact about the store it was
+ *  read from. */
+interface RememberedFacts {
+  readonly key: string;
+  readonly stores: Pick<PriceStores, "defaults" | "usage">;
+  readonly facts: DeletionFacts;
+  readonly readAtMs: number;
+}
+
+/** The one latest answer, so the memory it holds is bounded whatever the pages ask. */
+let remembered: RememberedFacts | undefined;
+
+/** For tests: forgets what the page's count remembers. */
+export function forgetRememberedDeletionFacts(): void {
+  remembered = undefined;
+}
+
+function memoKeyText({
+  draftRevision,
+  activeSequence,
+  availabilityRevision,
+}: DeletionMemoKey): string {
+  return JSON.stringify([draftRevision, activeSequence, availabilityRevision]);
+}
+
+function rememberedFactsFor(
+  key: string,
+  stores: Pick<PriceStores, "defaults" | "usage">,
+): DeletionFacts | undefined {
+  if (remembered === undefined) return undefined;
+  const isSameRead =
+    remembered.key === key &&
+    remembered.stores.defaults === stores.defaults &&
+    remembered.stores.usage === stores.usage;
+  const isFresh = Date.now() - remembered.readAtMs < DELETION_FACTS_MEMO_TTL_MS;
+  return isSameRead && isFresh ? remembered.facts : undefined;
 }
 
 /**
  * The facts for a page, which only displays them: `undefined` where the count passes its deadline, so the page judges
- * nothing rather than guess. A store that fails is thrown, for the page's own read to absorb.
+ * nothing rather than guess. A store that fails is thrown, for the page's own read to absorb. A whole answer is kept for
+ * `DELETION_FACTS_MEMO_TTL_MS` under the key it was read at; a late or failed read is never kept. Only a page reads this:
+ * the publish and a draft write count in their own request.
  */
 export async function readDeletionFactsOfPage({
   book,
   changes,
+  memoKey,
 }: DraftDeletions): Promise<DeletionFacts | undefined> {
   const stores = await getPriceStores();
+  const key = memoKeyText(memoKey);
+  const kept = rememberedFactsFor(key, stores);
+  if (kept !== undefined) return kept;
+  const facts = await readFactsOrNothing({
+    stores,
+    book,
+    deleted: deletedItemsOf(changes, book),
+  });
+  if (facts !== undefined) {
+    remembered = { key, stores, facts, readAtMs: Date.now() };
+  }
+  return facts;
+}
+
+async function readFactsOrNothing(
+  basis: DeletionBasis,
+): Promise<DeletionFacts | undefined> {
   try {
-    return await readDeletionFacts({
-      stores,
-      book,
-      deleted: deletedItemsOf(changes, book),
-    });
+    return await readDeletionFacts(basis);
   } catch (failure) {
     if (failure instanceof UsageReadDeadlineError) return undefined;
     throw failure;

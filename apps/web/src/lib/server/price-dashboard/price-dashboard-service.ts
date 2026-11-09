@@ -56,6 +56,7 @@ import {
   type DashboardStateReading,
 } from "@/lib/server/price-dashboard/dashboard-state";
 import { refusalOfDeletions } from "@/lib/server/price-dashboard/deletion-refusal";
+import { refusalOfDeletionWrite } from "@/lib/server/price-dashboard/draft-deletion-check";
 import {
   planBulk,
   planChange,
@@ -353,11 +354,16 @@ export interface StaffWrite<Input> {
 type DraftWrite<Input extends { readonly expectedDraftRevision: string }> =
   StaffWrite<Input>;
 
-type PlanOf<Input> = (input: Input, state: ActiveDashboardState) => DraftPlan;
+type PlanOf<Input> = (
+  input: Input,
+  state: ActiveDashboardState,
+  stores: PriceStores,
+) => DraftPlan | Promise<DraftPlan>;
 
 const CHANGE_WRITE: DraftWrite<DraftChangeRequest> = {
   judge: readDraftChangeRequest,
-  perform: (input, cookies) => performPlanned(input, cookies, planChange),
+  perform: (input, cookies) =>
+    performPlanned(input, cookies, planCheckedChange),
 };
 
 const REVERT_WRITE: DraftWrite<RevertOrDiscardRequest> = {
@@ -538,10 +544,28 @@ async function performPlanned<
   const stale = refusalOfStaleRevision(state, input.expectedDraftRevision);
   if (stale !== undefined) return stale;
   return writePlanned(stores, {
-    plan: planOf(input, state),
+    plan: await planOf(input, state, stores),
     expectedDraftRevision: input.expectedDraftRevision,
     cookies,
   });
+}
+
+/**
+ * The change the plan accepts, unless it deletes a row of the active book that is a saved default or that a saved
+ * design uses. That is read after the plan, so a change the plan refuses costs no read.
+ */
+async function planCheckedChange(
+  input: DraftChangeRequest,
+  state: ActiveDashboardState,
+  stores: PriceStores,
+): Promise<DraftPlan> {
+  const plan = planChange(input, state);
+  if (plan.kind === "refused") return plan;
+  const refusal = await refusalOfDeletionWrite(input, {
+    stores,
+    book: state.book,
+  });
+  return refusal === undefined ? plan : { kind: "refused", response: refusal };
 }
 
 type StateForWrite =
