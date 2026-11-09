@@ -130,7 +130,9 @@
   border: 2px solid var(--accent);
 }
 
-.row[data-resolved="false"] .rowValue {
+/* Only a name is struck: the generic sentence for a tier the page cannot name would read as denied. A name is the value
+ * that is followed by its status. */
+.row[data-resolved="false"] .rowValue:has(+ .rowStatus) {
   text-decoration: line-through;
 }
 
@@ -143,16 +145,17 @@
   color: #2d5016;
 }
 
-.row[data-resolved="true"] .rowKind::before {
-  display: inline-block;
-  width: 16px;
-  height: 16px;
-  margin-right: 8px;
-  font: 700 10px/16px var(--font-ui);
+/* The check is the row's own first item, never the kind's generated content: the kind labels the button, and a glyph
+ * inside it would be read as part of the button's name. */
+.row[data-resolved="true"]::before {
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+  font: 700 11px/20px var(--font-ui);
   color: var(--paper);
   text-align: center;
-  letter-spacing: 0;
   content: "\2713";
+  content: "\2713" / "";
   background: #2d5016;
   border-radius: 50%;
 }

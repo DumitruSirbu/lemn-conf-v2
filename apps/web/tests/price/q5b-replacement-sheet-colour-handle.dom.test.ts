@@ -254,10 +254,15 @@ describe("a lone switched-off colour", () => {
     );
     await settle();
     expect(world.savesWaiting()).toBe(1);
+    expect(byTestId(editor, "price-bar-total")).not.toBeNull();
+    expect(requestsOf(world, "GET")).toHaveLength(1);
+    expect(requestsOf(world, "POST")).toEqual([]);
 
     await landSavesUntilConfirmed(editor, world);
 
     expect(requestsOf(world, "PUT")).toHaveLength(1);
+    expect(requestsOf(world, "GET")).toHaveLength(2);
+    expect(requestsOf(world, "POST")).toHaveLength(1);
     expect(byTestId(editor, "replacement-sheet")).toBeNull();
     expect(byTestId(editor, "price-bar-total")).not.toBeNull();
     expect(confirmationLines(editor)).toEqual([
@@ -292,6 +297,7 @@ describe("a lone switched-off handle", () => {
       design.placements.slice(0, 2).map((placement) => placement.body.handle),
     ).toEqual(["push", "steel"]);
     expect(requestsOf(world, "PUT")).toHaveLength(1);
+    expect(requestsOf(world, "POST")).toHaveLength(1);
     expect(confirmationLines(editor)).toEqual([
       full("changedHandle", ro.panel.handleLabels.push),
     ]);
