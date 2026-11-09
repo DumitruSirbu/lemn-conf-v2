@@ -1,11 +1,11 @@
-// M10 Q3d (frames C4A-C4D): the replacement sheet as values. Rows come from the same domain query the route's `GET` uses,
+// The replacement sheet as values. Rows come from the same domain query the route's `GET` uses,
 // run on the design and the page's availability, so a tier switched off and a tier the book no longer holds are both rows;
-// a name comes only from a book row the page still holds, and otherwise the generic line says it, never an id (OQ-41).
+// a name comes only from a book row the page still holds, and otherwise the generic line says it, never an id.
 import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
-  projectDesignForDisplay,
   SAMPLE_PRICE_BOOK,
+  type Design,
   type ReplacementRequired,
 } from "@lemnaria/configurator-domain";
 import { createTranslator } from "next-intl";
@@ -32,20 +32,11 @@ import {
   MATERIAL_DEFAULT_TIER_ID,
   offerThroughRoot,
   switchedOffTiers,
+  tierName,
 } from "../support/tier-offer-world";
 
 const say = createTranslator({ locale: "ro", messages: roMessages });
 const copy = resolveReplacementSheetCopy(say);
-
-/** What the page calls a tier of the sample book, read from the book row through its message leaf, as the sheet reads it. */
-function tierName(tierId: string): string {
-  const tier = [
-    ...SAMPLE_PRICE_BOOK.material.tiers,
-    ...SAMPLE_PRICE_BOOK.hardware.tiers,
-  ].find((candidate) => candidate.tierId === tierId);
-  if (tier === undefined) throw new Error(`the sample book has no ${tierId}`);
-  return ro.bookText(tier.name, tier.nameKey);
-}
 
 /** "Material · MDF vopsit mat": a kind and a name, as the body lists an unavailable item. */
 function itemPhraseOf(kind: "material" | "hardware", tierId: string): string {
@@ -120,7 +111,7 @@ describe("the rows the sheet is owed", () => {
     ]);
   });
 
-  it("goes when availability comes back before any choice (Q3-e): nothing is owed and the price is unchanged", () => {
+  it("goes when availability comes back before any choice: nothing is owed and the price is unchanged", () => {
     const carrying = kitchenCarrying({ materialTierId: SWITCHED_OFF_MATERIAL });
 
     const whileOff = worldOf(carrying, {
@@ -168,7 +159,7 @@ describe("naming a row", () => {
     );
   });
 
-  it("gives a tier the book no longer holds the generic line, and never its id (OQ-41)", () => {
+  it("gives a tier the book no longer holds the generic line, and never its id", () => {
     const view = sheetOf(
       kitchenCarrying({ materialTierId: VANISHED_MATERIAL }),
     );
@@ -217,7 +208,7 @@ describe("naming a row", () => {
     );
   });
 
-  it("draws an accessory removed with nothing to choose as information, never as a row (C4D)", () => {
+  it("draws an accessory removed with nothing to choose as information, never as a row", () => {
     const { live, vocabulary } = worldOf(
       kitchenCarrying({ materialTierId: SWITCHED_OFF_MATERIAL }),
       { material: [SWITCHED_OFF_MATERIAL] },
@@ -238,7 +229,30 @@ describe("naming a row", () => {
   });
 });
 
-describe("a row the customer has resolved (C4D)", () => {
+describe("a row the customer has resolved", () => {
+  it("has no value to show when the kitchen no longer names anything for its kind, instead of an empty text", () => {
+    const { vocabulary } = worldOf(KITCHEN_L_DESIGN);
+    const handleRow: ReplacementRequired = {
+      item: { kind: "handle", handle: "black" },
+      remaining: [{ kind: "handle", handle: "steel" }],
+    };
+    const withNoHandle: Design = {
+      ...KITCHEN_L_DESIGN,
+      settings: { ...KITCHEN_L_DESIGN.settings, handle: undefined },
+    };
+
+    const view = describeReplacementSheet({
+      seen: [handleRow],
+      live: [],
+      design: withNoHandle,
+      accessoryNames: [],
+      vocabulary,
+    });
+
+    expect(view.rows[0]?.isResolved).toBe(true);
+    expect(view.rows[0]?.valueText).toBeUndefined();
+  });
+
   it("stays drawn, as resolved, naming what they chose, and offers the change label and not the choose label", () => {
     const carrying = kitchenCarrying({
       materialTierId: SWITCHED_OFF_MATERIAL,
@@ -295,7 +309,7 @@ describe("a row the customer has resolved (C4D)", () => {
   });
 });
 
-describe("the chooser (C4B)", () => {
+describe("the chooser", () => {
   function chooserFor(off: { material?: string[] }, carries: string) {
     const design = kitchenCarrying({ materialTierId: carries });
     const { live, vocabulary } = worldOf(design, off);
@@ -361,17 +375,13 @@ describe("the chooser (C4B)", () => {
     expect(chooser?.heading).toBe(
       roMessages.globalSettings.groupHeadings.material,
     );
-    const bodyCount = projectDesignForDisplay(
-      kitchenCarrying({ materialTierId: SWITCHED_OFF_MATERIAL }),
-      KITCHEN_L_BODY_CATALOG,
-    ).reduce((count, group) => count + group.entries.length, 0);
-    expect(bodyCount).toBeGreaterThan(1);
+    // The sample kitchen draws its 26 placements, one entry each, whatever the choice is.
     expect(chooser?.appliesTo).toBe(
-      say("replacementSheet.chooserAppliesTo", { bodyCount }),
+      say("replacementSheet.chooserAppliesTo", { bodyCount: 26 }),
     );
   });
 
-  it("is not drawn for a colour or a handle: choosing those is Q5's", () => {
+  it("is not drawn for a colour or a handle: choosing those is not offered", () => {
     const view = describeChooser({
       row: {
         item: { kind: "handle", handle: "steel" },
@@ -386,7 +396,7 @@ describe("the chooser (C4B)", () => {
   });
 });
 
-describe("whether the last choice's save has landed (ruling 8)", () => {
+describe("whether the last choice's save has landed", () => {
   const cases = [
     {
       revisionAtChoice: "3",
@@ -428,7 +438,7 @@ describe("whether the last choice's save has landed (ruling 8)", () => {
   );
 });
 
-describe("the confirmation (C4C)", () => {
+describe("the confirmation", () => {
   const name = tierName(MATERIAL_DEFAULT_TIER_ID);
   const changes = [{ kind: "material" as const, name }];
   const changedSentence = say("replacementSheet.changedMaterial", { name });

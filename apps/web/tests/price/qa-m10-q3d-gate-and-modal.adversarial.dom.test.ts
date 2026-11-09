@@ -1,10 +1,9 @@
 // @vitest-environment happy-dom
 //
-// Adversarial QA of M10 wave Q3d, the sheet's gate and its modality (Q3d "must-not: the sheet opens, or flashes, where its flow
-// cannot complete" and the accessibility bullet). `q3d-replacement-sheet.dom.test.ts` asserts the gate after the screen has
-// settled; a flash that came and went inside the settle passes that. Here a `MutationObserver` installed BEFORE the mount
-// records every node the sheet or its pending bar was ever drawn as, so a sheet that opened for one frame is a failure. The
-// ways out are tried the way a browser delivers them (a bubbling key on the focused element, a click on the scrim itself).
+// The sheet's gate and its modality. The sheet never opens, not even for a frame, where its flow cannot complete: a
+// `MutationObserver` installed BEFORE the mount records every node the sheet or its pending bar was ever drawn as, so a flash
+// that came and went inside a settle is caught. The ways out are tried the way a browser delivers them: a bubbling key on the
+// focused element, a click on the scrim itself, the back link's question, and the browser's Back.
 import { SAMPLE_PRICE_BOOK } from "@lemnaria/configurator-domain";
 import { act } from "react";
 
@@ -71,8 +70,14 @@ import {
   SWITCHED_OFF_MATERIAL,
   type Editor,
   type World,
+  carryingMdf,
+  carryingMdfAndPremium,
+  HETTICH_NAME,
+  MELAMINE_NAME,
+  rerenderUnder,
+  ROOT_NOTHING_OFF_AT_PAIR,
 } from "../support/replacement-sheet-world";
-import { kitchenCarrying } from "../support/tier-offer-world";
+import { tierName } from "../support/tier-offer-world";
 
 const TEXT = roMessages.replacementSheet;
 const SHEET_TELLTALES = [
@@ -80,14 +85,6 @@ const SHEET_TELLTALES = [
   '[data-testid="price-bar-replacement-pending"]',
   '[data-testid="review-cta"][aria-disabled="true"]',
 ] as const;
-
-const carryingMdf = () =>
-  kitchenCarrying({ materialTierId: SWITCHED_OFF_MATERIAL });
-const carryingMdfAndPremium = () =>
-  kitchenCarrying({
-    materialTierId: SWITCHED_OFF_MATERIAL,
-    hardwareTierId: SWITCHED_OFF_HARDWARE,
-  });
 
 let watching: MutationObserver | undefined;
 
@@ -140,7 +137,7 @@ afterEach(async () => {
   await endTest();
 });
 
-describe("where the sheet's flow cannot complete it never opens, not even for a moment (Q3d must-not)", () => {
+describe("where the sheet's flow cannot complete it never opens, not even for a moment", () => {
   interface Refusal {
     readonly name: string;
     readonly variant?: ConfigureScreenVariant;
@@ -407,13 +404,7 @@ describe("the browser's Back while the sheet is up", () => {
     const editor = await mountEditor({
       priceRoot: ROOT_WITH_MDF_AND_PREMIUM_OFF,
     });
-    await chooseTier(
-      editor,
-      ro.bookText(
-        SAMPLE_PRICE_BOOK.material.tiers[0]?.name ?? "",
-        SAMPLE_PRICE_BOOK.material.tiers[0]?.nameKey,
-      ),
-    );
+    await chooseTier(editor, tierName("material.melamine"));
     expect(readEditorOrigin().guardedPathname).toBe(editorPath);
     const sheet = required(editor, "replacement-sheet");
 
@@ -457,7 +448,7 @@ describe("the sheet's rows, chooser and focus", () => {
     );
     expect(announced).toEqual([
       "MDF vopsit mat nu mai este disponibil",
-      `${ro.bookText(SAMPLE_PRICE_BOOK.hardware.tiers[2]?.name ?? "", SAMPLE_PRICE_BOOK.hardware.tiers[2]?.nameKey)} nu mai este disponibil`,
+      `${tierName("hardware.premium")} nu mai este disponibil`,
     ]);
     const [first, second] = choosable(editor);
     expect(document.activeElement).toBe(first);
@@ -531,13 +522,7 @@ describe("the sheet's rows, chooser and focus", () => {
       priceRoot: ROOT_WITH_MDF_AND_PREMIUM_OFF,
     });
 
-    await chooseTier(
-      editor,
-      ro.bookText(
-        SAMPLE_PRICE_BOOK.material.tiers[0]?.name ?? "",
-        SAMPLE_PRICE_BOOK.material.tiers[0]?.nameKey,
-      ),
-    );
+    await chooseTier(editor, tierName("material.melamine"));
 
     const rows = [
       ...editor.container.querySelectorAll<HTMLElement>(
@@ -585,5 +570,104 @@ describe("the bar and the review control while a replacement is owed", () => {
     expect(review.tagName).toBe("SPAN");
     expect(review.getAttribute("aria-disabled")).toBe("true");
     expect(review.hasAttribute("href")).toBe(false);
+  });
+});
+
+describe("where focus goes when the sheet closes", () => {
+  it("lands on the review control, not on the body, after the last choice of one row", async () => {
+    serveWorld({ notices: [notice()] });
+    hydrate(carryingMdf());
+    const editor = await mountEditor();
+
+    await chooseTier(editor, MELAMINE_NAME);
+
+    expect(byTestId(editor, "replacement-sheet")).toBeNull();
+    const review = required(editor, "review-cta");
+    expect(review.tagName).toBe("A");
+    expect(document.activeElement).toBe(review);
+    expect(document.activeElement).not.toBe(document.body);
+  });
+
+  it("lands on the review control after the last of two rows, and stays inside the sheet until then", async () => {
+    serveWorld({ notices: [notice(), notice()] });
+    hydrate(carryingMdfAndPremium());
+    const editor = await mountEditor({
+      priceRoot: ROOT_WITH_MDF_AND_PREMIUM_OFF,
+    });
+
+    await chooseTier(editor, MELAMINE_NAME);
+    expect(
+      required(editor, "replacement-sheet").contains(document.activeElement),
+    ).toBe(true);
+    await chooseTier(editor, HETTICH_NAME);
+
+    expect(byTestId(editor, "replacement-sheet")).toBeNull();
+    expect(document.activeElement).toBe(required(editor, "review-cta"));
+  });
+
+  it("lands on the review control when availability comes back before any choice", async () => {
+    serveWorld({ notices: [notice()] });
+    hydrate(carryingMdf());
+    const editor = await mountEditor();
+
+    await rerenderUnder(ROOT_NOTHING_OFF_AT_PAIR);
+
+    expect(byTestId(editor, "replacement-sheet")).toBeNull();
+    expect(document.activeElement).toBe(required(editor, "review-cta"));
+  });
+});
+
+describe("the review control and the pending bar while a replacement is owed", () => {
+  it("is a link that says it is disabled while a choice is owed, with no address, and a plain live link after", async () => {
+    serveWorld({ notices: [notice()] });
+    hydrate(carryingMdf());
+    const editor = await mountEditor();
+
+    const whileOwed = required(editor, "review-cta");
+    expect(whileOwed.getAttribute("role")).toBe("link");
+    expect(whileOwed.getAttribute("aria-disabled")).toBe("true");
+    expect(whileOwed.hasAttribute("href")).toBe(false);
+
+    await chooseTier(editor, MELAMINE_NAME);
+
+    const after = required(editor, "review-cta");
+    expect(after.tagName).toBe("A");
+    expect(after.hasAttribute("href")).toBe(true);
+    expect(after.hasAttribute("aria-disabled")).toBe(false);
+    expect(after.getAttribute("role")).toBeNull();
+  });
+
+  it("mounts the pending bar's live region empty and puts its words in afterwards, so they are announced", async () => {
+    serveWorld({ notices: [notice()] });
+    hydrate(carryingMdf());
+    const region = '[data-testid="price-bar-replacement-pending"]';
+    let wasMountedEmpty = false;
+    let wereWordsAddedLater = false;
+    const isRegion = (node: Node): node is Element =>
+      node instanceof Element && node.matches(region);
+    watching = new MutationObserver((records) => {
+      for (const record of records) {
+        for (const added of record.addedNodes) {
+          if (
+            isRegion(added) ||
+            (added instanceof Element && added.querySelector(region) !== null)
+          ) {
+            wasMountedEmpty = true;
+          }
+        }
+        if (isRegion(record.target) && record.addedNodes.length > 0) {
+          wereWordsAddedLater = true;
+        }
+      }
+    });
+    watching.observe(document.body, { subtree: true, childList: true });
+
+    const editor = await mountEditor();
+
+    expect(wasMountedEmpty).toBe(true);
+    expect(wereWordsAddedLater).toBe(true);
+    expect(required(editor, "price-bar-replacement-pending").textContent).toBe(
+      TEXT.priceAfterChoosing,
+    );
   });
 });

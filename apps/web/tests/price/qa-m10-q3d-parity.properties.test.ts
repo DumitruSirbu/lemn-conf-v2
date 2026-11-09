@@ -1,7 +1,9 @@
-// Properties of M10 wave Q3d's model (fast-check): the sheet's rows ARE the refusal's items, for any availability that leaves
-// every group an active option and any kitchen, vanished tiers included; and no row names a tier id the page cannot honestly
-// read. The implementer's examples fix a handful of kitchens; the parity is the claim ("the rows and the refusal are the same
-// set", `replacements-required.ts`) so it is swept.
+// @vitest-environment happy-dom
+//
+// Properties of the sheet's model (fast-check): its rows ARE the refusal's items, for any availability that keeps an
+// active option per group and any stored kitchen, vanished tiers included; and no row names a tier id the page cannot honestly
+// read. The example tests fix a handful of kitchens; the parity is the claim ("the rows and the refusal are the same set",
+// `replacements-required.ts`), so it is swept.
 //
 // A generated tier id carries a unique prefix so that a short id cannot be found in ordinary text by accident, and markup so
 // that a row which printed an id would also inject it.

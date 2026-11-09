@@ -1,14 +1,16 @@
 // @vitest-environment happy-dom
 //
-// Adversarial QA of M10 wave Q3d, the flow after the last choice (ruling 8, Q3-b, Q3-c). `q3d-replacement-sheet.dom.test.ts`
-// holds the save open and lands it; the cases here are the ones it leaves: a save that is refused, a second answer that fails
-// in each way the route can fail, a second answer for another pair or version or arm, an unrelated edit queued behind the
-// choice, a double press, and a server that remembers the marker so that "reopen shows neither sheet nor C1" is observed.
+// The flow after the last choice: the page waits for the choice's save, asks the notice again, says the prices sentence and
+// any accessory it was not already showing, and acknowledges the displayed pair. Covered here: a save that is refused or
+// dropped, a second answer that fails in each way the route can fail, a second answer for another pair, version or arm, an
+// unrelated edit queued behind the choice, a double press, a first answer that arrives late or never, and a server that
+// remembers the marker so that "reopening shows neither the sheet nor the notice" is observed.
 //
-// **The revision half of the save-landed predicate.** `design === savedDesign` and `revision !== revisionAtChoice` are both
-// needed (`hasReplacementSaveLanded`). The implementer's DOM tests reach only the design half: no public action makes the
-// design equal the saved one with the revision unmoved. The test that does is marked SIMULATED: it calls `applySaved`, the
-// coalescer's own hook, with the unmoved revision and the design on screen.
+// Both halves of the save-landed predicate (`hasReplacementSaveLanded`) are pinned: `design === savedDesign` and
+// `revision !== revisionAtChoice`. No ordinary flow makes the design equal the saved one with the revision unmoved, so the
+// revision half is pinned by a test marked SIMULATED that calls `applySaved`, the coalescer's own hook, with the unmoved
+// revision and the design on screen.
+import { createTranslator } from "next-intl";
 import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -40,8 +42,8 @@ vi.mock("next/navigation", async (importOriginal) => ({
 import { useConfiguratorStore } from "@/store/configurator-store";
 
 import roMessages from "../../src/messages/ro.json";
-import { ro } from "../support/romanian-content";
 import {
+  accessoryName,
   beginTest,
   byTestId,
   advanceClock,
@@ -67,23 +69,17 @@ import {
   type Editor,
   type NoticeAnswer,
   type SentRequest,
+  carryingMdf,
+  MELAMINE_NAME,
 } from "../support/replacement-sheet-world";
-import { kitchenCarrying } from "../support/tier-offer-world";
-import { SAMPLE_PRICE_ROOT } from "../support/sample-price-root";
+import { kitchenCarrying, tierName } from "../support/tier-offer-world";
 
 const SENTENCE = roMessages.customerPriceNotice.alsoUpdated;
-const MELAMINE_NAME = ro.bookText(
-  SAMPLE_PRICE_ROOT.book.material.tiers[0]?.name ?? "",
-  SAMPLE_PRICE_ROOT.book.material.tiers[0]?.nameKey,
-);
 const OTHER_PAIR = { ...OFF_PAIR, availabilityRevision: "2" };
 const OTHER_VERSION = { ...OFF_PAIR, versionId: "another-version" };
 const STILL_OWED = [
   { item: { kind: "material", tierId: "material.veneer" }, remaining: [] },
 ];
-
-const carryingMdf = () =>
-  kitchenCarrying({ materialTierId: SWITCHED_OFF_MATERIAL });
 
 beforeEach(() => {
   beginTest();
@@ -168,7 +164,7 @@ describe("a choice whose save does not land", () => {
   });
 });
 
-describe("the save-landed predicate, both halves (Q3-c)", () => {
+describe("the save-landed predicate, both halves", () => {
   it("SIMULATED: a design equal to the saved one with the revision unmoved sends no GET (the revision half)", async () => {
     const { world } = await openAndChoose([
       notice(),
@@ -454,10 +450,9 @@ describe("the second answer, in every way it can come", () => {
 });
 
 describe("a first answer that is still on its way when the flow ends", () => {
-  // FINDING (low): `use-price-notice.ts` `useEffect` -> `setHeld({ designId, read, hasAcknowledged: false })` replaces whatever
-  // is held, including the second answer `askAgainAndConfirm` held as already acknowledged. A first `GET` slower than the
-  // customer's choice and the save therefore brings C1 back beside the confirmation that already said its sentence, and
-  // the acknowledge control then does nothing (`acknowledgedFor` is latched), so the card cannot be dismissed.
+  // Regression pin: a first `GET` slower than the customer's choice and its save must not replace the second answer the flow
+  // held as already acknowledged. If it did, the notice card would come back beside the confirmation that already said its
+  // sentence, and its acknowledge control would do nothing (`acknowledgedFor` is latched), so the card could not be dismissed.
   async function endTheFlowBeforeTheFirstAnswerArrives(): Promise<{
     readonly editor: Editor;
     readonly world: ReturnType<typeof serveWorld>;
@@ -487,11 +482,10 @@ describe("a first answer that is still on its way when the flow ends", () => {
     };
   }
 
-  // PRECONDITION of the two reds below: the first answer must say "prices moved" with nothing left to replace, so the server must
-  // have evaluated that first `GET` after the choice's `PUT` committed, while the response is still in flight (or queued) when
-  // the customer has chosen, saved, and the second answer has come back. A first `GET` the server evaluated BEFORE the save still
-  // lists the owed row and draws no C1 (the green test that follows), so the race needs a slow response, not a slow server read.
-  it("CONTROL: a late first answer that still lists the owed row draws no C1", async () => {
+  // The race needs a first answer that says "prices moved" with nothing left to replace: the server evaluated that first `GET`
+  // after the choice's `PUT` committed, and its response is still in flight when the second answer has come back. A first
+  // `GET` evaluated BEFORE the save still lists the owed row and draws no notice (the control test below).
+  it("a late first answer that still lists the owed row draws no C1", async () => {
     const { editor, arrive } = await endTheFlowBeforeTheFirstAnswerArrives();
 
     await arrive(
@@ -531,7 +525,7 @@ describe("a first answer that is still on its way when the flow ends", () => {
   });
 });
 
-describe("reopening after the flow (Q3-b)", () => {
+describe("reopening after the flow", () => {
   /** A server that remembers: the notice reads "prices moved" until the pair has been acknowledged. One that cannot write the
    *  marker (`isMarkerWritable: false`) reads "prices moved" for ever. */
   function rememberingNotices(
@@ -597,13 +591,7 @@ describe("reopening after the flow (Q3-b)", () => {
     expect(requestsOf(world, "POST")).toEqual([]);
 
     await advanceClock(1_000);
-    await chooseTier(
-      editor,
-      ro.bookText(
-        SAMPLE_PRICE_ROOT.book.hardware.tiers[0]?.name ?? "",
-        SAMPLE_PRICE_ROOT.book.hardware.tiers[0]?.nameKey,
-      ),
-    );
+    await chooseTier(editor, tierName("hardware.standard"));
     await world.landSave("3");
 
     expect(requestsOf(world, "GET")).toHaveLength(2);
@@ -628,5 +616,178 @@ describe("the design the flow settles on is the one the customer chose", () => {
     expect(sent?.materialTierId).toBe("material.melamine");
     expect(sent?.hardwareTierId).toBe("hardware.soft-close");
     expect(currentDesignId()).toBe(useConfiguratorStore.getState().designId);
+  });
+});
+
+const say = createTranslator({ locale: "ro", messages: roMessages });
+const RACK = { accessoryId: "dishDryingRack" } as const;
+const COVER = { accessoryId: "sinkProtectiveCover" } as const;
+const RACK_LINE = say("replacementSheet.accessoryRemoved", {
+  name: accessoryName("dishDryingRack"),
+});
+const COVER_LINE = say("replacementSheet.accessoryRemoved", {
+  name: accessoryName("sinkProtectiveCover"),
+});
+const CHANGED_LINE = say("replacementSheet.changedMaterial", {
+  name: MELAMINE_NAME,
+});
+
+function confirmationLines(editor: Editor): string[] {
+  return [
+    ...editor.container.querySelectorAll(
+      '[data-testid="replacement-confirmation"] span',
+    ),
+  ].map((line) => line.textContent);
+}
+
+/** The first `GET` is held until the test lets it arrive, or never; the later ones answer from `second`. */
+async function chooseWithFirstAnswerHeld(second: NoticeAnswer): Promise<{
+  readonly editor: Editor;
+  readonly world: ReturnType<typeof serveWorld>;
+  readonly arrive: (late: Record<string, unknown>) => Promise<void>;
+}> {
+  let release: (answer: NoticeAnswer) => void = () => undefined;
+  const first = new Promise<NoticeAnswer>((resolve) => {
+    release = resolve;
+  });
+  const world = serveWorld({ notices: (nth) => (nth === 0 ? first : second) });
+  hydrate(carryingMdf());
+  const editor = await mountEditor();
+  await chooseTier(editor, MELAMINE_NAME);
+  await world.landSave("2");
+  return {
+    editor,
+    world,
+    arrive: async (late) => {
+      release(late);
+      await settle();
+    },
+  };
+}
+
+describe("an accessory the kitchen lost is acknowledged only once it has been said", () => {
+  const removedRack = { removedAccessories: [RACK], pricesChanged: true };
+
+  it.each([
+    ["a limit", 429],
+    ["a fault", 500],
+    ["a dropped network", "network-down"],
+  ] as const)(
+    "when the first read failed with %s, the confirmation says the accessory the second answer names, between the change and the prices sentence, and the marker is written then",
+    async (_name, failure) => {
+      const { editor, world } = await openAndChoose([
+        failure,
+        notice(removedRack),
+      ]);
+      expect(requestsOf(world, "POST")).toEqual([]);
+
+      await world.landSave("2");
+
+      expect(confirmationLines(editor)).toEqual([
+        CHANGED_LINE,
+        RACK_LINE,
+        SENTENCE,
+      ]);
+      expect(requestsOf(world, "POST")).toHaveLength(1);
+    },
+  );
+
+  it("when the first answer never arrives, the second answer's accessory is said once, and a late first answer neither repeats it nor draws the notice", async () => {
+    const { editor, world, arrive } = await chooseWithFirstAnswerHeld(
+      notice(removedRack),
+    );
+    expect(confirmationLines(editor)).toEqual([
+      CHANGED_LINE,
+      RACK_LINE,
+      SENTENCE,
+    ]);
+
+    await arrive(notice(removedRack));
+
+    expect(confirmationLines(editor)).toHaveLength(3);
+    expect(byTestId(editor, "price-notice")).toBeNull();
+    expect(requestsOf(world, "POST")).toHaveLength(1);
+  });
+
+  it("an accessory the sheet showed from the first answer is said by the sheet alone", async () => {
+    const world = serveWorld({
+      notices: [
+        notice({ removedAccessories: [RACK] }),
+        notice({ removedAccessories: [RACK] }),
+      ],
+    });
+    hydrate(carryingMdf());
+    const editor = await mountEditor();
+    expect(required(editor, "replacement-info").textContent).toBe(RACK_LINE);
+    await chooseTier(editor, MELAMINE_NAME);
+
+    await world.landSave("2");
+
+    expect(confirmationLines(editor)).toEqual([CHANGED_LINE]);
+    expect(requestsOf(world, "POST")).toHaveLength(1);
+  });
+
+  it("one the sheet did not show is said, and one it did show is not repeated", async () => {
+    const world = serveWorld({
+      notices: [
+        notice({ removedAccessories: [RACK] }),
+        notice({ removedAccessories: [RACK, COVER] }),
+      ],
+    });
+    hydrate(carryingMdf());
+    const editor = await mountEditor();
+    await chooseTier(editor, MELAMINE_NAME);
+
+    await world.landSave("2");
+
+    expect(confirmationLines(editor)).toEqual([CHANGED_LINE, COVER_LINE]);
+    expect(requestsOf(world, "POST")).toHaveLength(1);
+  });
+
+  it("an accessory is said but no marker is written while the second answer still owes a replacement", async () => {
+    const { editor, world } = await openAndChoose([
+      notice(),
+      notice({ ...removedRack, replacementsRequired: STILL_OWED }),
+    ]);
+
+    await world.landSave("2");
+
+    expect(confirmationLines(editor)).toContain(RACK_LINE);
+    expect(requestsOf(world, "POST")).toEqual([]);
+  });
+
+  it("a second answer for another pair names nothing and writes nothing", async () => {
+    const { editor, world } = await openAndChoose([
+      notice(),
+      notice({ ...removedRack, current: OTHER_PAIR }),
+    ]);
+
+    await world.landSave("2");
+
+    expect(confirmationLines(editor)).toEqual([CHANGED_LINE]);
+    expect(requestsOf(world, "POST")).toEqual([]);
+  });
+});
+
+describe("a first answer that arrives after a failed second read", () => {
+  it("takes the held place and keeps the acknowledged state, so the sent kitchen's note returns and the notice does not", async () => {
+    const { editor, arrive } = await chooseWithFirstAnswerHeld(500);
+    expect(byTestId(editor, "sent-kitchen-note")).toBeNull();
+
+    await arrive(notice({ isSent: true, pricesChanged: true }));
+
+    expect(byTestId(editor, "sent-kitchen-note")).not.toBeNull();
+    expect(byTestId(editor, "price-notice")).toBeNull();
+  });
+
+  it("never replaces a notice that is already held: the second answer's sent state stands", async () => {
+    const { editor, arrive } = await chooseWithFirstAnswerHeld(
+      notice({ isSent: false }),
+    );
+
+    await arrive(notice({ isSent: true, pricesChanged: true }));
+
+    expect(byTestId(editor, "sent-kitchen-note")).toBeNull();
+    expect(byTestId(editor, "price-notice")).toBeNull();
   });
 });

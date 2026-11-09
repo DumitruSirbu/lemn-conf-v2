@@ -1,22 +1,20 @@
 // @vitest-environment happy-dom
 //
-// Adversarial QA of M10 wave Q3d, the owner-input case: a colour or a handle is the ONLY row owed, so the modal has no way
-// forward except the back link. The wave records this as an interim ("a colour row is drawn but not choosable until Q5"). These
-// tests establish whether a stored kitchen reaches it TODAY and what the customer is then given.
+// A colour or a handle is the ONLY row owed, so the modal has no control to resolve it and the back link is the only way out.
+// This is reachable today: the availability route can switch off a handle or a palette colour
+// (`tests/support/availability-route-items.ts`), customers store both, and `disabledItemsNamedBy` lists a stored one that is
+// switched off. The tests below pin what the customer is shown and what a resolved colour row says.
 //
-// **Reachable today, yes.** The availability route accepts a handle and a palette colour as items it can switch off
-// (`tests/support/availability-route-items.ts` STATED_ITEMS), a customer stores both (`settings.handle`, `settings.finish`), and
-// `disabledItemsNamedBy` lists a stored one that is switched off. Nothing in the sheet resolves it (`isChoosableKind`).
-//
-// Shape of the deferral (`docs/best-practices/engineering-conventions.md`, *A deferred test has two shapes*): Q5 is the named
-// wave that changes this, so the way-forward assertions are `it.fails` and go red the moment Q5 gives the row a control, which
-// is the instruction to flip them. The CHARACTERISATION tests pin what the customer sees now and are expected to move with Q5.
+// The way-forward assertion is `it.fails` (`docs/best-practices/engineering-conventions.md`, *A deferred test has two
+// shapes*): it goes red the moment the row gains a control, which is the instruction to flip it. The tests titled "offers no
+// control..." pin the dead end as it stands and move with that change.
 import {
   KITCHEN_L_DESIGN,
   paletteFinish,
   type Design,
   type ItemRef,
 } from "@lemnaria/configurator-domain";
+import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/scene/webgl-support", () => ({
@@ -45,6 +43,7 @@ vi.mock("next/navigation", async (importOriginal) => ({
 }));
 
 import type { PriceBookRoot } from "@/price/price-book-root";
+import { useConfiguratorStore } from "@/store/configurator-store";
 
 import roMessages from "../../src/messages/ro.json";
 import { ro } from "../support/romanian-content";
@@ -56,13 +55,16 @@ import {
   hydrate,
   mountEditor,
   notice,
+  present,
   press,
   required,
   requestsOf,
   SWITCHED_OFF_MATERIAL,
   serveWorld,
+  settle,
   type Editor,
 } from "../support/replacement-sheet-world";
+import { tierName } from "../support/tier-offer-world";
 import { SAMPLE_PRICE_ROOT } from "../support/sample-price-root";
 
 const TEXT = roMessages.replacementSheet;
@@ -124,7 +126,7 @@ describe.each([
     editor = await mountEditor({ priceRoot: root });
   });
 
-  it("CHARACTERISATION: the customer is shown the modal with the one row, named, and no price", () => {
+  it("the customer is shown the modal with the one row, named, and no price", () => {
     const sheet = required(editor, "replacement-sheet");
     const rows = sheet.querySelectorAll('[data-testid="replacement-row"]');
 
@@ -142,7 +144,7 @@ describe.each([
     );
   });
 
-  it("CHARACTERISATION: the only control in the sheet is the back link, focus is on the surface, and nothing can be applied", () => {
+  it("offers no control for a lone colour or handle row but the back link, with focus on the surface", () => {
     const sheet = required(editor, "replacement-sheet");
 
     expect(byTestId(editor, "replacement-choose")).toBeNull();
@@ -153,7 +155,7 @@ describe.each([
     expect(document.activeElement).toBe(sheet);
   });
 
-  it("CHARACTERISATION: the one way out asks before leaving, and Stay returns to the same dead end", () => {
+  it("the one way out asks before leaving, and Stay returns to the same dead end", () => {
     press(required(editor, "replacement-sheet-leave"));
     expect(byTestId(editor, "back-confirm-dialog")).not.toBeNull();
 
@@ -164,14 +166,14 @@ describe.each([
 
   // Q5 owes the flip: when the row gains a control these go red.
   it.fails(
-    "Q5 FLIP: offers a control to resolve the row, so the modal has a way forward other than leaving",
+    "offers a control to resolve the row, so the modal has a way forward other than leaving",
     () => {
       expect(byTestId(editor, "replacement-choose")).not.toBeNull();
     },
   );
 });
 
-describe("a colour row the material change resolves while another row is still owed (C4D)", () => {
+describe("a colour row the material change resolves while another row is still owed", () => {
   it("says what the kitchen wears now, instead of drawing the resolved row with nothing in it", async () => {
     serveWorld({ notices: [notice(), notice()] });
     hydrate(
@@ -192,13 +194,7 @@ describe("a colour row the material change resolves while another row is still o
       editor.container.querySelectorAll('[data-testid="replacement-row"]'),
     ).toHaveLength(3);
 
-    await chooseTier(
-      editor,
-      ro.bookText(
-        SAMPLE_PRICE_ROOT.book.material.tiers[0]?.name ?? "",
-        SAMPLE_PRICE_ROOT.book.material.tiers[0]?.nameKey,
-      ),
-    );
+    await chooseTier(editor, tierName("material.melamine"));
 
     const resolved = [
       ...editor.container.querySelectorAll<HTMLElement>(
@@ -210,6 +206,53 @@ describe("a colour row the material change resolves while another row is still o
       const value = row.querySelector('[data-testid="replacement-row-value"]');
       expect(value?.textContent.trim()).not.toBe("");
     }
+  });
+});
+
+describe("a resolved row with nothing to say", () => {
+  it("draws no value node at all, so no empty text is announced, while its kind is still named", async () => {
+    serveWorld({ notices: [notice(), notice()] });
+    hydrate(
+      kitchenWith({
+        materialTierId: SWITCHED_OFF_MATERIAL,
+        hardwareTierId: "hardware.premium",
+        handle: "black",
+      }),
+    );
+    const editor = await mountEditor({
+      priceRoot: rootSwitchingOff(
+        { kind: "material", tierId: SWITCHED_OFF_MATERIAL },
+        { kind: "hardware", tierId: "hardware.premium" },
+        SWITCHED_OFF_HANDLE_REF,
+      ),
+    });
+    await chooseTier(editor, tierName("material.melamine"));
+
+    // SIMULATED: the kitchen's handle is cleared behind the sheet's back, which the sheet cannot do itself.
+    act(() => {
+      const { design } = useConfiguratorStore.getState();
+      useConfiguratorStore.setState({
+        design: {
+          ...design,
+          settings: { ...design.settings, handle: undefined },
+        },
+      });
+    });
+    await settle();
+
+    const handleRow = [
+      ...editor.container.querySelectorAll<HTMLElement>(
+        '[data-testid="replacement-row"][data-resolved="true"]',
+      ),
+    ].find((row) =>
+      row.textContent.includes(ro.globalSettings.kitchenHandleHeading),
+    );
+    expect(present(handleRow, "the resolved handle row").textContent).toContain(
+      ro.globalSettings.kitchenHandleHeading,
+    );
+    expect(
+      handleRow?.querySelector('[data-testid="replacement-row-value"]'),
+    ).toBeNull();
   });
 });
 
@@ -240,13 +283,7 @@ describe("a colour or a handle owed beside a material", () => {
       ).length;
     expect(owedChoosers()).toBe(1);
 
-    await chooseTier(
-      editor,
-      ro.bookText(
-        SAMPLE_PRICE_ROOT.book.material.tiers[0]?.name ?? "",
-        SAMPLE_PRICE_ROOT.book.material.tiers[0]?.nameKey,
-      ),
-    );
+    await chooseTier(editor, tierName("material.melamine"));
 
     const rows = [
       ...editor.container.querySelectorAll<HTMLElement>(

@@ -23,7 +23,18 @@ import {
 } from "@/store/configurator-store";
 
 import roMessages from "../../src/messages/ro.json";
+import { ro } from "./romanian-content";
 import { SAMPLE_PRICE_ROOT } from "./sample-price-root";
+import {
+  kitchenCarrying,
+  MATERIAL_DEFAULT_TIER_ID,
+  tierName,
+} from "./tier-offer-world";
+
+export const MELAMINE_NAME = tierName(MATERIAL_DEFAULT_TIER_ID);
+export const VENEER_NAME = tierName("material.veneer");
+export const HETTICH_NAME = tierName("hardware.soft-close");
+export const STANDARD_HARDWARE_NAME = tierName("hardware.standard");
 
 export const SWITCHED_OFF_MATERIAL = "material.painted-mdf";
 export const SWITCHED_OFF_HARDWARE = "hardware.premium";
@@ -55,6 +66,25 @@ export const ROOT_NOTHING_OFF_AT_PAIR: PriceBookRoot = {
   ...SAMPLE_PRICE_ROOT,
   availability: { revision: "1", disabled: [] },
 };
+
+/** What the page calls a built-in accessory the kitchen lost: the book row through its message leaf. */
+export function accessoryName(
+  accessoryId: "dishDryingRack" | "sinkProtectiveCover",
+): string {
+  const { name, nameKey } = SAMPLE_PRICE_ROOT.book.accessories[accessoryId];
+  return ro.bookText(name, nameKey);
+}
+
+/** A saved kitchen whose material availability has switched off. */
+export const carryingMdf = (): Design =>
+  kitchenCarrying({ materialTierId: SWITCHED_OFF_MATERIAL });
+
+/** ...and one whose hardware has been switched off as well. */
+export const carryingMdfAndPremium = (): Design =>
+  kitchenCarrying({
+    materialTierId: SWITCHED_OFF_MATERIAL,
+    hardwareTierId: SWITCHED_OFF_HARDWARE,
+  });
 
 export interface SentRequest {
   readonly method: string;

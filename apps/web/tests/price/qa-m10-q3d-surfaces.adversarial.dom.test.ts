@@ -1,11 +1,10 @@
 // @vitest-environment happy-dom
 //
-// Adversarial QA of M10 wave Q3d, Q3-a ("while a row is unresolved no figure shows on the bar, the breakdown or the account
-// card") and Q3-e (availability flips with no new book version). The implementer's suite mocks the settings pill to nothing and
-// reads text only, with a pattern that knows `MDL` and not `lei`. Here the REAL settings pill, breakdown and bar are mounted,
-// everything a person or a screen reader is told (text, aria-label, title, alt) is scanned, and the figure-bearing hooks of the
-// panel's footer, the review and the account card's floor are probed under the same refusal, each beside a control that DOES
-// show a figure so that a probe that finds none because it is broken cannot pass for one that finds none by design.
+// No figure anywhere while a replacement is owed, and availability flipping under a mounted editor with no new book version.
+// The REAL settings pill, breakdown and bar are mounted, everything a person or a screen reader is told (text, aria-label,
+// title, alt) is scanned, and the figure-bearing hooks of the panel's footer, the review and the account card's floor are
+// probed under the same refusal, each beside a control that DOES show a figure so that a probe that finds none because it is
+// broken cannot pass for one that finds none by design.
 import { KITCHEN_L_DESIGN, tierRef } from "@lemnaria/configurator-domain";
 import { createElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -63,13 +62,12 @@ import {
   SWITCHED_OFF_HARDWARE,
   SWITCHED_OFF_MATERIAL,
   VANISHED_MATERIAL,
+  carryingMdf,
 } from "../support/replacement-sheet-world";
 import { SAMPLE_PRICE_ROOT } from "../support/sample-price-root";
 import { kitchenCarrying } from "../support/tier-offer-world";
 
 const TEXT = roMessages.replacementSheet;
-const carryingMdf = () =>
-  kitchenCarrying({ materialTierId: SWITCHED_OFF_MATERIAL });
 
 beforeEach(() => {
   beginTest();
@@ -79,7 +77,7 @@ afterEach(async () => {
   await endTest();
 });
 
-describe("no figure anywhere while a replacement is owed (Q3-a)", () => {
+describe("no figure anywhere while a replacement is owed", () => {
   const owed = [
     {
       name: "a tier availability has switched off",
@@ -216,7 +214,7 @@ describe("the other figure-bearing surfaces under the same refusal", () => {
   });
 });
 
-describe("availability flipping under a mounted editor, with no new book version (Q3-e)", () => {
+describe("availability flipping under a mounted editor, with no new book version", () => {
   it("opens the sheet when a tier is switched off, closes it when it is switched back on, and the price returns to exactly what it was", async () => {
     const world = serveWorld({ notices: [notice()] });
     hydrate(carryingMdf());

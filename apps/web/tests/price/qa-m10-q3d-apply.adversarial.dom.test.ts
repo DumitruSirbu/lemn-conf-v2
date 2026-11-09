@@ -1,10 +1,9 @@
 // @vitest-environment happy-dom
 //
-// Adversarial QA of M10 wave Q3d, the choice itself: "every choice applies via applyWholeKitchenSettings with exactly the chosen
-// tier, and a material change resets colour per ADR 0057", a refused or locked press, and a vanished tier id that is markup.
-// `q3d-replacement-sheet.dom.test.ts` reads the design after the press; here the store's action is wrapped so that the REQUEST
-// it was handed is asserted exactly (a sheet that also sent the other group, or an unoffered tier list, would still end in the
-// same design for these examples).
+// The choice itself: every press asks the store to apply exactly the chosen tier, a material change resets the colour
+// (ADR 0057), a refused or locked press is answered, and a vanished tier id that is markup never reaches the screen. The
+// store's action is wrapped so the REQUEST it was handed is asserted exactly: a sheet that also sent the other group, or an
+// unoffered tier list, would still end in the same design for these examples.
 import { fc } from "@fast-check/vitest";
 import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -68,22 +67,7 @@ import {
   type Editor,
 } from "../support/replacement-sheet-world";
 import { SAMPLE_PRICE_ROOT } from "../support/sample-price-root";
-import { kitchenCarrying } from "../support/tier-offer-world";
-
-const nameOfMaterial = (tierId: string): string => {
-  const tier = SAMPLE_PRICE_ROOT.book.material.tiers.find(
-    (held) => held.tierId === tierId,
-  );
-  if (tier === undefined) throw new Error(`no ${tierId}`);
-  return ro.bookText(tier.name, tier.nameKey);
-};
-const nameOfHardware = (tierId: string): string => {
-  const tier = SAMPLE_PRICE_ROOT.book.hardware.tiers.find(
-    (held) => held.tierId === tierId,
-  );
-  if (tier === undefined) throw new Error(`no ${tierId}`);
-  return ro.bookText(tier.name, tier.nameKey);
-};
+import { kitchenCarrying, tierName } from "../support/tier-offer-world";
 
 const ACTIVE_MATERIAL_IDS = ["material.melamine", "material.veneer"];
 const ALL_HARDWARE_IDS = [
@@ -112,7 +96,7 @@ describe("what the sheet asks the store to apply", () => {
     hydrate(kitchenCarrying({ materialTierId: SWITCHED_OFF_MATERIAL }));
     const editor = await mountEditor({ priceRoot: ROOT_WITH_MDF_OFF });
 
-    await chooseTier(editor, nameOfMaterial("material.veneer"));
+    await chooseTier(editor, tierName("material.veneer"));
 
     expect(applySpy).toHaveBeenCalledTimes(1);
     expect(applySpy.mock.calls[0]?.[0]).toStrictEqual({
@@ -136,7 +120,7 @@ describe("what the sheet asks the store to apply", () => {
       },
     });
 
-    await chooseTier(editor, nameOfHardware("hardware.standard"));
+    await chooseTier(editor, tierName("hardware.standard"));
 
     expect(applySpy).toHaveBeenCalledTimes(1);
     const [request] = applySpy.mock.calls[0] ?? [];
@@ -164,8 +148,8 @@ describe("what the sheet asks the store to apply", () => {
       priceRoot: ROOT_WITH_MDF_AND_PREMIUM_OFF,
     });
 
-    await chooseTier(editor, nameOfMaterial("material.veneer"));
-    await chooseTier(editor, nameOfHardware("hardware.standard"));
+    await chooseTier(editor, tierName("material.veneer"));
+    await chooseTier(editor, tierName("hardware.standard"));
 
     const askedFor = applySpy.mock.calls.map(([request]) =>
       Object.keys(request).filter(
@@ -183,7 +167,7 @@ describe("a material change resets the colour (ADR 0057)", () => {
     hydrate(before);
     const editor = await mountEditor({ priceRoot: ROOT_WITH_MDF_OFF });
 
-    await chooseTier(editor, nameOfMaterial("material.veneer"));
+    await chooseTier(editor, tierName("material.veneer"));
 
     const after = useConfiguratorStore.getState().design;
     expect(after.settings?.materialTierId).toBe("material.veneer");
@@ -202,7 +186,7 @@ describe("a material change resets the colour (ADR 0057)", () => {
     hydrate(before);
     const editor = await mountEditor({ priceRoot: ROOT_WITH_MDF_OFF });
 
-    await chooseTier(editor, nameOfMaterial("material.melamine"));
+    await chooseTier(editor, tierName("material.melamine"));
 
     const after = useConfiguratorStore.getState().design;
     expect(countMovedFinishes(before, after)).toBe(
