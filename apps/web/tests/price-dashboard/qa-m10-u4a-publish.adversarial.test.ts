@@ -142,21 +142,29 @@ describe("a class the hardware screens deleted, as the publish review reads the 
     ).toBe(true);
   });
 
-  it("is the one item a publish owes a usage count for, and the review offers no ↺ for it while the revert route takes no address of a deletion", () => {
+  it("is the one item a publish owes a usage count for, and the review offers one ↺ for it, by the address of the deletion, which empties the draft", () => {
     expect(deletedItemsOf(DELETES_HETTICH)).toEqual([
       { kind: "hardware", tierId: HETTICH },
     ]);
+    const deletion = DELETES_HETTICH[0]?.address ?? { kind: "provisional" };
     const offered = rowsOf(DELETES_HETTICH).flatMap((row) =>
       row.revert === undefined ? [] : [row.revert],
     );
 
-    expect(offered).toEqual([]);
-    expect(
-      revertChange(
-        DELETES_HETTICH,
-        DELETES_HETTICH[0]?.address ?? { kind: "provisional" },
-      ),
-    ).toEqual([]);
+    expect(offered).toEqual([{ kind: "change", address: deletion }]);
+    expect(revertChange(DELETES_HETTICH, deletion)).toEqual([]);
+    expect(deletedItemsOf(revertChange(DELETES_HETTICH, deletion))).toEqual([]);
+  });
+
+  it("offers no ↺ on any amount of the deleted class: the row's is the only one", () => {
+    const fieldRows = rowsOf(DELETES_HETTICH).filter(
+      (row) => row.kind === "field",
+    );
+
+    expect(fieldRows).toHaveLength(HARDWARE_RATE_FIELDS.length);
+    expect(fieldRows.map(({ revert }) => revert)).toEqual(
+      fieldRows.map(() => undefined),
+    );
   });
 
   it("is deleted whole even when its rates were edited first: the book has no such class, and no edit of one", () => {

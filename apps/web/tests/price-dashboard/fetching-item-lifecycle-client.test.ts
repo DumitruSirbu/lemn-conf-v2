@@ -103,9 +103,10 @@ afterEach(() => {
 });
 
 describe("what the client is", () => {
-  it("writes, and deletes nothing the active book states", () => {
+  it("writes, and leaves the deletion of a row the active book states to the draft route", () => {
     expect(FETCHING_ITEM_LIFECYCLE_CLIENT.canWrite).toBe(true);
-    expect(FETCHING_ITEM_LIFECYCLE_CLIENT.canDeleteStatedItems).toBe(false);
+    expect(FETCHING_ITEM_LIFECYCLE_CLIENT.canDeleteStatedItems).toBe(true);
+    expect(createFetchingItemLifecycleClient().canDeleteStatedItems).toBe(true);
   });
 });
 

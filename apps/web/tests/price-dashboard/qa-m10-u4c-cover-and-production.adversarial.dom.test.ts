@@ -31,6 +31,7 @@ import {
 import {
   accessoryItem,
   accessoryPageOf,
+  bookWithLinked,
   chipsOf,
   COVER_NAME,
   CREATED,
@@ -358,22 +359,32 @@ describe("a production build of the accessory screens", () => {
     }
   });
 
-  // The state saved defaults make readable: a page that has them still offers no deletion of an accessory the book states,
-  // and a switch-off it does offer is counted by the server, never from the page.
-  it("with the saved defaults read, offers no deletion of a stated accessory and counts a switch-off by what the server says", async () => {
+  // The state saved defaults make readable: the built-ins stay undeletable for what they are, the linked accessory a
+  // person created is offered its deletion and counted by the server first, and a switch-off is counted by the server too,
+  // never from the page.
+  it("with the saved defaults read, offers the deletion of the linked accessory alone and counts a switch-off by what the server says", async () => {
     const SERVER_COUNT_FOR_RACK = 4;
+    const SERVER_COUNT_FOR_LINKED = 2;
     const server = stubTheLifecycleServer({
       availability: { revision: "1", disabled: [] },
+      book: bookWithLinked([PUBLISHED_RULE]),
       usage: [
         {
           item: accessoryItem(DRYING_RACK),
           designCount: SERVER_COUNT_FOR_RACK,
         },
+        {
+          item: accessoryItem(PUBLISHED),
+          designCount: SERVER_COUNT_FOR_LINKED,
+        },
       ],
     });
     const { container, draftServer } = await mountProductionList({});
 
-    for (const [accessoryId, name] of EVERY_ENTRY) {
+    for (const [accessoryId, name] of [
+      [SINK_COVER, COVER_NAME],
+      [DRYING_RACK, RACK_NAME],
+    ] as const) {
       await openMenuOf(container, accessoryId, name);
       const entry = menuEntry(container, accessoryId, DELETE);
       await press(entry);
@@ -381,11 +392,28 @@ describe("a production build of the accessory screens", () => {
       expect(openDialog(), accessoryId).toBeNull();
     }
     expect(server.usageRequests).toEqual([]);
+    await openMenuOf(container, PUBLISHED, PUBLISHED_RULE.name);
+    const linkedEntry = menuEntry(container, PUBLISHED, DELETE);
+    await press(linkedEntry);
+    expect(linkedEntry.getAttribute("aria-disabled")).not.toBe("true");
+    expect(server.usageRequests).toEqual([[accessoryItem(PUBLISHED)]]);
+    expect(openDialog()?.textContent).toContain(
+      roCopy("priceDashboard.lifecycle.deleteBlockedAccessoryBody", {
+        name: PUBLISHED_RULE.name,
+        count: SERVER_COUNT_FOR_LINKED,
+      }),
+    );
+    const blocked = openDialog();
+    if (blocked === null) throw new Error("no dialog opened");
+    await press(dialogButton(blocked, roCopy("priceDashboard.common.cancel")));
 
     await openMenuOf(container, DRYING_RACK, RACK_NAME);
     await press(menuEntry(container, DRYING_RACK, DEACTIVATE));
 
-    expect(server.usageRequests).toEqual([[accessoryItem(DRYING_RACK)]]);
+    expect(server.usageRequests).toEqual([
+      [accessoryItem(PUBLISHED)],
+      [accessoryItem(DRYING_RACK)],
+    ]);
     expect(openDialog()?.textContent).toContain(
       roCopy("priceDashboard.lifecycle.usedByAccessory", {
         count: SERVER_COUNT_FOR_RACK,

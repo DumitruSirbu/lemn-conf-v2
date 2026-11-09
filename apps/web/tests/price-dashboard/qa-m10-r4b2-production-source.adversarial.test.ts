@@ -56,7 +56,10 @@ vi.mock("@/lib/server/price-stores", () =>
  * production read of the defaults source, and what switch-off still refuses over the defaults it now reads.
  */
 
-const NO_USAGE = { canDeleteStatedItems: false, canWrite: true } as const;
+const WHAT_THE_PRODUCTION_CLIENT_CAN_DO = {
+  canWrite: FETCHING_ITEM_LIFECYCLE_CLIENT.canWrite,
+  canDeleteStatedItems: FETCHING_ITEM_LIFECYCLE_CLIENT.canDeleteStatedItems,
+} as const;
 const MATERIALS = [
   "material.melamine",
   "material.veneer",
@@ -110,7 +113,7 @@ async function contextOfThePage(): Promise<LifecycleContext> {
     availability: state.active.availability,
     defaults,
     isCreatedInDraft: () => false,
-    ...NO_USAGE,
+    ...WHAT_THE_PRODUCTION_CLIENT_CAN_DO,
   };
 }
 
@@ -337,25 +340,60 @@ describe("the defaults screen's read fails by one rule whichever store fails", (
   });
 });
 
-describe("Delete of a stated row stays off with the defaults now readable", () => {
-  it("is not offered for any item the book states, saved defaults or not, and a row only the draft created is the one exception", async () => {
+describe("Delete of a stated row, with the defaults now readable and the client leaving it to the draft route", () => {
+  it("is judged by the defaults and nothing else: a fixed default is refused for what it is, every other class is counted first", async () => {
     for (const saved of [undefined, { handle: "black" as const }]) {
       if (saved !== undefined) await saveDefaults(admin, saved);
       const context = await contextOfThePage();
       expect(context.defaults).toBeDefined();
-      expect(FETCHING_ITEM_LIFECYCLE_CLIENT.canDeleteStatedItems).toBe(false);
+      expect(FETCHING_ITEM_LIFECYCLE_CLIENT.canDeleteStatedItems).toBe(true);
 
       for (const item of itemsOfTheBook()) {
         if (item.kind === "handle" || item.kind === "finish") continue;
         const stand = deleteStandOf(item, context);
-        expect(stand.kind, idOf(item)).toBe("off");
+        if (FIXED_DEFAULT_IDS.has(idOf(item))) {
+          expect(stand, idOf(item)).toEqual({
+            kind: "off",
+            reason: "item-is-fixed-default",
+          });
+        } else {
+          expect(stand, idOf(item)).toEqual({ kind: "count-first" });
+        }
       }
-      const created = deleteStandOf(
-        { kind: "hardware", tierId: "hardware.soft-close" },
-        { ...context, isCreatedInDraft: () => true },
-      );
-      expect(created.kind).toBe("count-first");
     }
+  });
+
+  it("is refused for a class the saved defaults name, and offered again once the defaults name another", async () => {
+    const savedHardware = { hardwareTierId: "hardware.soft-close" } as const;
+    await saveDefaults(admin, savedHardware);
+    const item = { kind: "hardware", tierId: "hardware.soft-close" } as const;
+
+    const whileSaved = deleteStandOf(item, await contextOfThePage());
+    await saveDefaults(admin, { hardwareTierId: "hardware.premium" });
+    const afterMoving = deleteStandOf(item, await contextOfThePage());
+
+    expect(whileSaved).toEqual({ kind: "off", reason: "item-is-default" });
+    expect(afterMoving).toEqual({ kind: "count-first" });
+  });
+
+  it("is offered a stated row only by a client that leaves it to the draft route, and a created row by any that can write", async () => {
+    const context = await contextOfThePage();
+    const item = { kind: "hardware", tierId: "hardware.soft-close" } as const;
+
+    expect(
+      deleteStandOf(item, { ...context, canDeleteStatedItems: false }),
+    ).toEqual({ kind: "off", reason: "cannot-judge" });
+    expect(
+      deleteStandOf(item, {
+        ...context,
+        canDeleteStatedItems: false,
+        isCreatedInDraft: () => true,
+      }),
+    ).toEqual({ kind: "count-first" });
+    expect(deleteStandOf(item, { ...context, canWrite: false })).toEqual({
+      kind: "off",
+      reason: "cannot-judge",
+    });
   });
 });
 
