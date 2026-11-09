@@ -1,9 +1,7 @@
 // M10 P4a QA: what the whole-kitchen tier offer does while a tier is switched off (A-17).
 //
-// Both `it.fails` below are KNOWN GAPS handed to Q3, not P4a defects. `whole-kitchen-tiers.ts` is Q3's file in the
-// milestone's row ("disabled tiers hidden or struck"), and nothing can switch a tier off until an availability writer
-// exists (R4a), so no customer reaches either. Each pin flips red-to-green the day Q3 closes it, and `it.fails` then
-// demands the marker be removed, so the gap cannot be closed silently.
+// P4a handed Q3 two gaps, pinned with `it.fails`: one switched-off tier blanked every delta, and a switched-off tier was
+// still in `tierIds`. Q3b closed both (the marker came off, the assertions did not move), so they are plain tests now.
 import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
@@ -48,35 +46,29 @@ function deltasOf(
   );
 }
 
-describe("the tier offer under availability (Q3 hand-off)", () => {
+describe("the tier offer under availability", () => {
   it("measures every delta when nothing is switched off, so the gaps below are the switch's doing", () => {
     expect(deltasOf(offerUnder(NOTHING_DISABLED))).not.toContain(undefined);
   });
 
-  it.fails(
-    "KNOWN GAP (Q3): one switched-off tier the kitchen did not choose blanks every delta, not only its own",
-    () => {
-      const offer = offerUnder(
-        aMaterialSwitchedOff(A_MATERIAL_THE_KITCHEN_DID_NOT_CHOOSE),
-      );
-      const stillOffered = offer.hardware.tiers.map((tier) => tier.deltaMinor);
+  it("one switched-off tier the kitchen did not choose blanks no delta of the other group", () => {
+    const offer = offerUnder(
+      aMaterialSwitchedOff(A_MATERIAL_THE_KITCHEN_DID_NOT_CHOOSE),
+    );
+    const stillOffered = offer.hardware.tiers.map((tier) => tier.deltaMinor);
 
-      expect(stillOffered).not.toContain(undefined);
-    },
-  );
+    expect(stillOffered).not.toContain(undefined);
+  });
 
-  it.fails(
-    "KNOWN GAP (Q3): a switched-off tier is still in tierIds, the list a command takes as availableTierIds",
-    () => {
-      const offer = offerUnder(
-        aMaterialSwitchedOff(A_MATERIAL_THE_KITCHEN_DID_NOT_CHOOSE),
-      );
+  it("a switched-off tier is not in tierIds, the list a command takes as availableTierIds", () => {
+    const offer = offerUnder(
+      aMaterialSwitchedOff(A_MATERIAL_THE_KITCHEN_DID_NOT_CHOOSE),
+    );
 
-      expect(offer.material.tierIds).not.toContain(
-        A_MATERIAL_THE_KITCHEN_DID_NOT_CHOOSE,
-      );
-    },
-  );
+    expect(offer.material.tierIds).not.toContain(
+      A_MATERIAL_THE_KITCHEN_DID_NOT_CHOOSE,
+    );
+  });
 
   it("keeps the fallback tier's own switch-off from hiding the offer, only its deltas", () => {
     const offer = offerUnder(aMaterialSwitchedOff(FALLBACK_MATERIAL));

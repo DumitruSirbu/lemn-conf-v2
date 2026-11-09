@@ -9,10 +9,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   NO_PRICE_BOOK,
+  NO_TIER_OFFER,
   offerTiersAgainstBook,
   priceAgainstBook,
   priceFloorOf,
-  UnreadablePriceBookError,
 } from "@/price/price-book-root";
 import { usePricedDesign } from "@/price/use-priced-design";
 
@@ -66,9 +66,9 @@ describe("pricing with no active price book", () => {
     expect(seen?.ok).toBe(false);
   });
 
-  it("has no tier offer to give, and says so as the book fault it is (the settings sheet's open question)", () => {
-    expect(() =>
+  it("has no tier offer to give, and says so as the one NO_TIER_OFFER value instead of throwing (R-b)", () => {
+    expect(
       offerTiersAgainstBook(NO_PRICE_BOOK, KITCHEN_L_DESIGN, CATALOG),
-    ).toThrow(UnreadablePriceBookError);
+    ).toBe(NO_TIER_OFFER);
   });
 });
