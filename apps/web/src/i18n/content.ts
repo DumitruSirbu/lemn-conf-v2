@@ -2733,6 +2733,13 @@ export function resolveContent(translate: ContentTranslator) {
       preheader: (parts: NoticePreheaderParts) =>
         resolveNoticePreheader(translate, parts),
     },
+    /** Only the leaf the settings pill reads while a material is owed: the sheet's own copy is resolved by its
+     *  model. The path is the catalogue's, so the leaf is one string, never two. */
+    replacementSheet: {
+      headerMaterialToChoose: translate(
+        "replacementSheet.headerMaterialToChoose",
+      ),
+    },
   };
 }
 
