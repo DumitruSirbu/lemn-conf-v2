@@ -33,6 +33,7 @@ import {
   kitchenCarrying,
   offerThroughRoot,
   switchedOffTiers,
+  tierName,
 } from "../support/tier-offer-world";
 
 const NO_BOOK_REFUSAL: PricingResult = {
@@ -271,21 +272,18 @@ describe("the tier the kitchen carries, switched off", () => {
     ).toEqual([]);
   });
 
-  it("is still the name the pill shows, because it is still what the kitchen carries", () => {
+  it("is no name on the pill: the material entry reads the leaf that says one is still to choose (Q5c)", () => {
     const offer = offerThroughRoot(carriedSwitchedOff, carrying);
-    const carriedName = SAMPLE_PRICE_BOOK.material.tiers.find(
-      (tier) => tier.tierId === CARRIED,
-    )?.name;
-
     const pill = describeSettingsPill({
       offer,
       applied: carrying.settings ?? {},
       content: ro,
     });
 
-    expect(carriedName).toBeDefined();
-    expect(pill.settings[0]?.label).toBe(
-      ro.globalSettings.pillMaterial(ro.bookText(carriedName ?? "", undefined)),
-    );
+    expect(pill.settings[0]).toEqual({
+      key: "material",
+      label: ro.replacementSheet.headerMaterialToChoose,
+    });
+    expect(pill.accessibleName).not.toContain(tierName(CARRIED));
   });
 });
