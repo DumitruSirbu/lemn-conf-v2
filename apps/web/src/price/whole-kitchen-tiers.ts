@@ -7,13 +7,16 @@
 // door, leaf or mechanism count: those are priced per mechanism inside `priceDesign`, and counting them here would
 // price a second time.
 import {
+  isItemDisabled,
   priceDesign,
+  tierRef,
   type BodyCatalog,
   type CatalogueAvailability,
   type Design,
   type PriceBook,
   type TierGroup,
   type TierIdentity,
+  type TierKind,
   type WholeKitchenSelections,
 } from "@lemnaria/configurator-domain";
 
@@ -39,16 +42,35 @@ export interface OfferedTier {
 /** One whole-kitchen choice: what the book offers, and — when the design can be priced — what each
  *  option does to the total. */
 export interface OfferedTierGroup {
-  /** Every id the book offers, in book order: what the 6E commands take as `availableTierIds`. Published here
-   *  so `setMaterialTier` has one answer to "what is on offer". */
+  /** Every id the book offers that availability has not switched off, in book order: what the 6E commands take as
+   *  `availableTierIds`. Published here so `setMaterialTier` has one answer to "what is on offer". */
   readonly tierIds: readonly string[];
   readonly defaultTierId: string;
+  /** The tiers `tierIds` names, measured. A switched-off tier is not here. */
   readonly tiers: readonly OfferedTier[];
+  /** The tiers the book still holds that availability has switched off, in book order and never measured. A tier a
+   *  kitchen already carries must stay nameable (the pill, a replacement chooser's struck row) without becoming
+   *  something a new choice may take. */
+  readonly switchedOffTiers: readonly OfferedTier[];
 }
 
 export interface WholeKitchenTierOffer {
   readonly material: OfferedTierGroup;
   readonly hardware: OfferedTierGroup;
+}
+
+/** There is no book to offer tiers from. Not an empty offer: a group with no tiers would invent a default. */
+export interface NoTierOffer {
+  readonly kind: "none";
+}
+
+/** What the tier offer answers: the offer, or that none can be made. */
+export type TierOfferAnswer = WholeKitchenTierOffer | NoTierOffer;
+
+export function isTierOffered(
+  answer: TierOfferAnswer,
+): answer is WholeKitchenTierOffer {
+  return !("kind" in answer);
 }
 
 /**
@@ -89,25 +111,56 @@ export interface OfferWholeKitchenTiersRequest {
   readonly selections?: WholeKitchenSelections | undefined;
   /** The priced-as rows that deepen, the one set the caller measured for `priceDesign` (ADR 0177 A-6). */
   readonly deepeningRows: ReadonlySet<string>;
-  /** What is switched off, as `priceDesign` takes it. Every evaluation here is made under it, so a switched-off tier
-   *  (or a switched-off fallback tier) makes each of them refuse `REPLACEMENT_REQUIRED` and every delta absent. */
+  /** What is switched off, as `priceDesign` takes it. Every evaluation here is made under it, and a switched-off tier
+   *  is neither offered nor evaluated. What the design itself carries still refuses `REPLACEMENT_REQUIRED` when it is
+   *  switched off, and that leaves every delta absent. */
   readonly availability: CatalogueAvailability;
 }
 
 /**
  * Every tier both whole-kitchen groups offer, each with what choosing it adds to the total. The list is answered
  * whenever the book can be read and only the deltas depend on pricing: a withdrawn tier makes `priceDesign` refuse,
- * and this list is the control that fixes it. Deltas are all-or-nothing across both groups (a withdrawn material id
- * fails every hardware evaluation but no material one, and that half-set would show two amounts measured against
- * different kitchens). A tier priced below its group's default is the one per-tier omission, not an exception.
+ * and this list is the control that fixes it. A tier availability has switched off is neither offered nor measured, so
+ * it blanks no other tier's delta; it is handed over beside the offer, unmeasured. Deltas are all-or-nothing across
+ * both groups (a withdrawn material id fails every hardware evaluation but no material one, and that half-set would
+ * show two amounts measured against different kitchens). A tier priced below its group's default is the one per-tier
+ * omission, not an exception.
  */
 export function offerWholeKitchenTiers(
   request: OfferWholeKitchenTiersRequest,
 ): WholeKitchenTierOffer {
-  const deltas = measureEveryDelta(request);
+  const material = splitByAvailability(request, "material");
+  const hardware = splitByAvailability(request, "hardware");
+  const deltas = measureEveryDelta(request, { material, hardware });
   return {
-    material: offeredGroup(request.book.material, deltas?.material),
-    hardware: offeredGroup(request.book.hardware, deltas?.hardware),
+    material: offeredGroup(material, deltas?.material),
+    hardware: offeredGroup(hardware, deltas?.hardware),
+  };
+}
+
+/** A group's tiers divided by availability, each part in book order. */
+interface TiersByAvailability {
+  readonly defaultTierId: string;
+  readonly active: readonly TierIdentity[];
+  readonly switchedOff: readonly TierIdentity[];
+}
+
+/** Refuses a book whose default is not one of its own tiers, before any arithmetic, so it still fires on a design
+ *  nothing could be priced for. The book's whole list is asked: a default that is merely switched off is held, and
+ *  yields no deltas rather than an error. */
+function splitByAvailability(
+  request: OfferWholeKitchenTiersRequest,
+  kind: TierKind,
+): TiersByAvailability {
+  const group: TierGroup<TierIdentity> = request.book[kind];
+  if (!group.tiers.some((tier) => tier.tierId === group.defaultTierId))
+    throw new UnofferedDefaultTierError(group.defaultTierId);
+  const isOff = (tier: TierIdentity): boolean =>
+    isItemDisabled(request.availability, tierRef(kind, tier.tierId));
+  return {
+    defaultTierId: group.defaultTierId,
+    active: group.tiers.filter((tier) => !isOff(tier)),
+    switchedOff: group.tiers.filter(isOff),
   };
 }
 
@@ -122,17 +175,24 @@ interface MeasuredDeltasByGroup {
   readonly hardware: ReadonlyMap<string, number>;
 }
 
+/** The two groups' tiers, split by availability. */
+interface TiersByGroup {
+  readonly material: TiersByAvailability;
+  readonly hardware: TiersByAvailability;
+}
+
 /** Every offered tier's delta, or `undefined` where any one of them could not be measured. */
 function measureEveryDelta(
   request: OfferWholeKitchenTiersRequest,
+  tiers: TiersByGroup,
 ): MeasuredDeltasByGroup | undefined {
   const material = measureGroup(
-    request.book.material,
+    tiers.material,
     (materialTierId) => totalAt(request, { materialTierId }),
     "refuse",
   );
   const hardware = measureGroup(
-    request.book.hardware,
+    tiers.hardware,
     (hardwareTierId) => totalAt(request, { hardwareTierId }),
     "offer-with-no-delta",
   );
@@ -176,14 +236,15 @@ interface MeasuredTier<TTier extends TierIdentity> {
   readonly totalMinor: number;
 }
 
-/** One group's deltas, or `undefined` where any tier in it could not be priced. */
-function measureGroup<TTier extends TierIdentity>(
-  group: TierGroup<TTier>,
+/** One group's deltas, or `undefined` where any active tier in it could not be priced, or where its default is
+ *  switched off: with no baseline to subtract, any delta would be against a tier the book did not make the default. */
+function measureGroup(
+  group: TiersByAvailability,
   totalFor: (tierId: string) => number | undefined,
   belowDefault: BelowDefaultTierRule,
 ): ReadonlyMap<string, number> | undefined {
-  const measured: MeasuredTier<TTier>[] = [];
-  for (const tier of group.tiers) {
+  const measured: MeasuredTier<TierIdentity>[] = [];
+  for (const tier of group.active) {
     const totalMinor = totalFor(tier.tierId);
     // One unpriceable tier makes the whole set unpriceable: five stated amounts and a missing sixth reads as a
     // tier the book stopped offering.
@@ -193,8 +254,7 @@ function measureGroup<TTier extends TierIdentity>(
   const baseline = measured.find(
     ({ tier }) => tier.tierId === group.defaultTierId,
   );
-  if (baseline === undefined)
-    throw new UnofferedDefaultTierError(group.defaultTierId);
+  if (baseline === undefined) return undefined;
   return additiveDeltas(measured, baseline.totalMinor, belowDefault);
 }
 
@@ -227,20 +287,20 @@ function exactDelta<TTier extends TierIdentity>(
   return undefined;
 }
 
-/** The book's own list, with a delta attached to each tier where one was measured. Takes this group's map and
- *  no other's (`MeasuredDeltasByGroup`). The undeclared-default refusal runs here, not beside the arithmetic,
- *  so it still fires on a design nothing could be priced for. */
-function offeredGroup<TTier extends TierIdentity>(
-  group: TierGroup<TTier>,
+/** A group's active tiers with a delta attached where one was measured, and its switched-off tiers with none. Takes
+ *  this group's map and no other's (`MeasuredDeltasByGroup`). */
+function offeredGroup(
+  group: TiersByAvailability,
   deltas: ReadonlyMap<string, number> | undefined,
 ): OfferedTierGroup {
-  if (!group.tiers.some((tier) => tier.tierId === group.defaultTierId))
-    throw new UnofferedDefaultTierError(group.defaultTierId);
   return {
-    tierIds: group.tiers.map((tier) => tier.tierId),
+    tierIds: group.active.map((tier) => tier.tierId),
     defaultTierId: group.defaultTierId,
-    tiers: group.tiers.map((tier) =>
+    tiers: group.active.map((tier) =>
       offeredTier(tier, deltas?.get(tier.tierId)),
+    ),
+    switchedOffTiers: group.switchedOff.map((tier) =>
+      offeredTier(tier, undefined),
     ),
   };
 }

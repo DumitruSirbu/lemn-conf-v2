@@ -1,10 +1,9 @@
 // @vitest-environment happy-dom
 //
-// Adversarial QA for the MP-3 fix round on the settings sheet: the depth note's percent now comes from
-// `requireDeepCabinetPercent` (price-book-root), the one place that knows the no-book error. A missing book is raised,
-// never answered with a 0 % that would say the depth is free, and the error is the one the tier offer raises (the
-// behaviour the sheet had before the move). `GlobalSettings` calls the tier offer first and both raise the identical
-// error, so a mount cannot tell which one threw: the function is attacked directly as well.
+// The depth note's percent and the function that refuses to invent one. `requireDeepCabinetPercent` raises on a missing
+// book, never answering a 0 % that would say the depth is free. The sheet does not call it: with no book the sheet opens
+// and its depth note says prices are unavailable (the exact line, never a percentage), and the function stays for any
+// caller that has no honest degraded answer.
 import { fc } from "@fast-check/vitest";
 import {
   DEEP_CABINET_DEPTH_MM,
@@ -138,12 +137,15 @@ describe("the settings sheet's depth note", () => {
     },
   );
 
-  it("still refuses to open without a book, with the same error as before the move", () => {
-    hydrateAt(DEFAULT_CABINET_DEPTH_MM);
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
+  it.each([DEFAULT_CABINET_DEPTH_MM, DEEP_CABINET_DEPTH_MM])(
+    "opens without a book and says prices are unavailable instead of a percentage, built at %i mm",
+    (builtAt) => {
+      hydrateAt(builtAt);
 
-    expect(() => noteOnTheSheet(NO_PRICE_BOOK)).toThrow(
-      new UnreadablePriceBookError(NO_PRICE_BOOK_DETAIL),
-    );
-  });
+      const note = noteOnTheSheet(NO_PRICE_BOOK);
+
+      expect(note).toBe(ro.globalSettings.pricesUnavailable);
+      expect(note).not.toMatch(/\d/u);
+    },
+  );
 });

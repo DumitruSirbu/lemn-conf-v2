@@ -137,13 +137,10 @@ describe("the surfaces that draw a figure draw none without a book", () => {
   });
 });
 
-describe("the editor's own surfaces, without a book (deferred to Q3, ruling R1-Q1, 2026-10-27)", () => {
-  // `useWholeKitchenTierOffer` throws `UnreadablePriceBookError` with no book (price-book-root.ts: "what the settings sheet
-  // should show when no book can be read is an open product question"). Both the settings pill and the top bar's fit hook
-  // call it, and the application has no error boundary, so the editor route renders no page at all. Deferred to Q3 (ruling
-  // R1-Q1, 2026-10-27): R-b's editor clause is recorded unmet at R1's merge, and Q3 gives the sheet a "no tier offer" state.
-  // Skipped, not deleted, so they come back red-or-green when Q3 lands.
-  it.skip("the settings pill renders", () => {
+describe("the editor's own surfaces, without a book", () => {
+  // Both the settings pill and the top bar's fit hook read the tier offer, and the application has no error boundary, so
+  // a throw there leaves the editor route with no page at all. With no book the offer is `NO_TIER_OFFER`, not a throw.
+  it("the settings pill renders", () => {
     expect(() =>
       mountUnder(
         createElement(GlobalSettings, { visibleCount: 4 }),
@@ -152,7 +149,7 @@ describe("the editor's own surfaces, without a book (deferred to Q3, ruling R1-Q
     ).not.toThrow();
   });
 
-  it.skip("the top bar's fit hook runs", () => {
+  it("the top bar's fit hook runs", () => {
     function Probe() {
       useTopBarFit();
       return null;

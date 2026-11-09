@@ -23,6 +23,8 @@ import {
 import { shippedDeepeningRows } from "./deepening-rows";
 import {
   offerWholeKitchenTiers,
+  type NoTierOffer,
+  type TierOfferAnswer,
   type WholeKitchenTierOffer,
 } from "./whole-kitchen-tiers";
 
@@ -51,10 +53,11 @@ export const NO_PRICE_BOOK: NoPriceBook = Object.freeze({ kind: "none" });
 export const NO_PRICE_BOOK_DETAIL = "No price book is active";
 
 /**
- * There is no book for the tier offer to read. Raised only by the tier offer, which has no honest degraded answer: an
- * empty group would make `global-settings-model.ts` throw `UnofferedDefaultTierError` anyway, and inventing a default
- * would decide what an unset kitchen costs. What the settings sheet should show when no book can be read is an open
- * product question. Every price surface answers with a refusal, rendered as no figure.
+ * There is no book to read a figure from. Raised only by `requireDeepCabinetPercent`, which has no honest degraded
+ * answer: 0 % would say the depth is free. The tier offer answers `NO_TIER_OFFER` instead, and every price surface
+ * answers with a refusal, rendered as no figure. No production code calls `requireDeepCabinetPercent` today (the
+ * settings sheet reads `deepCabinetPercentOf` and words its own absence); both are kept for a caller that must not
+ * proceed without a figure.
  */
 export class UnreadablePriceBookError extends Error {
   constructor(detail: string) {
@@ -86,24 +89,45 @@ export function priceAgainstBook(
   });
 }
 
-/** The depth percentage the root's book publishes. No book is raised: a missing figure must not read as 0 %. */
-export function requireDeepCabinetPercent(root: PriceBookRoot): number {
-  if (root.kind === "none")
-    throw new UnreadablePriceBookError(NO_PRICE_BOOK_DETAIL);
-  return root.book.depthRule.deepCabinetPercent;
+/** The depth percentage the root's book publishes, or nothing with no book. Nothing, never 0 %: that says it is free. */
+export function deepCabinetPercentOf(root: PriceBookRoot): number | undefined {
+  return root.kind === "none"
+    ? undefined
+    : root.book.depthRule.deepCabinetPercent;
 }
 
+/** The depth percentage the root's book publishes. No book is raised: a missing figure must not read as 0 %. */
+export function requireDeepCabinetPercent(root: PriceBookRoot): number {
+  const percent = deepCabinetPercentOf(root);
+  if (percent === undefined)
+    throw new UnreadablePriceBookError(NO_PRICE_BOOK_DETAIL);
+  return percent;
+}
+
+/** There is no book to offer tiers from. One value, so a surface can tell "no book" from any offer by what it is. */
+export const NO_TIER_OFFER: NoTierOffer = Object.freeze({ kind: "none" });
+
 /**
- * Every whole-kitchen tier the book offers, each measured against its group's default. Here, not in the settings
- * surface: a surface that named a book would make two modules name one, the drift ADR 0062 seam 1 closes.
+ * Every whole-kitchen tier the book offers that is not switched off, each measured against its group's default. Here,
+ * not in the settings surface: a surface that named a book would make two modules name one, the drift ADR 0062 seam 1
+ * closes. With no book the answer is `NO_TIER_OFFER`, not a throw: the editor mounts this on every render.
  */
+export function offerTiersAgainstBook(
+  root: ActivePriceBook,
+  design: Design,
+  catalog: BodyCatalog,
+): WholeKitchenTierOffer;
 export function offerTiersAgainstBook(
   root: PriceBookRoot,
   design: Design,
   catalog: BodyCatalog,
-): WholeKitchenTierOffer {
-  if (root.kind === "none")
-    throw new UnreadablePriceBookError(NO_PRICE_BOOK_DETAIL);
+): TierOfferAnswer;
+export function offerTiersAgainstBook(
+  root: PriceBookRoot,
+  design: Design,
+  catalog: BodyCatalog,
+): TierOfferAnswer {
+  if (root.kind === "none") return NO_TIER_OFFER;
   return offerWholeKitchenTiers({
     design,
     catalog,

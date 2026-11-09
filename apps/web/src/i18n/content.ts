@@ -2547,6 +2547,8 @@ export function resolveContent(translate: ContentTranslator) {
       depthOption: (cabinetDepthMm: number) =>
         translate("globalSettings.depthOption", { cabinetDepthMm }),
       depthWarning: translate("globalSettings.depthWarning"),
+      /** A whole-kitchen group's one line when no book can be read. Carries no figure. */
+      pricesUnavailable: translate("globalSettings.pricesUnavailable"),
       /** A zero `percent` reads as "the depth does not change the price", not as a surcharge of 0 %. */
       depthNotePriced: (cabinetDepthMm: number, percent: number) =>
         translate("globalSettings.depthNotePriced", {

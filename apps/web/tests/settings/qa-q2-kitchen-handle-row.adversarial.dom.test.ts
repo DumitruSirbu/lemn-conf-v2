@@ -531,12 +531,37 @@ describe("useCatalogueAvailability", () => {
     return seen.current;
   }
 
-  it("is undefined where no page supplied a book, so a sheet there draws no row", () => {
-    expect(availabilityUnder("no provider")).toBeUndefined();
+  const NOTHING_SWITCHED_OFF = { revision: "0", disabled: [] };
+
+  it("is an empty availability where no page supplied a book, so a sheet there draws every handle", () => {
+    expect(availabilityUnder("no provider")).toEqual(NOTHING_SWITCHED_OFF);
   });
 
-  it("is undefined under a root that holds no book", () => {
-    expect(availabilityUnder({ kind: "none" })).toBeUndefined();
+  it("is an empty availability under a root that holds no book", () => {
+    expect(availabilityUnder({ kind: "none" })).toEqual(NOTHING_SWITCHED_OFF);
+  });
+
+  it("is frozen under a root that holds no book, so no caller can switch a handle off for every page", () => {
+    expect(Object.isFrozen(availabilityUnder({ kind: "none" }))).toBe(true);
+  });
+
+  it("draws every handle on the sheet under a root that holds no book, in the declared order", () => {
+    mountUnder({ kind: "none" });
+    openSheet();
+
+    expect(offeredHandles()).toEqual(EVERY_HANDLE);
+  });
+
+  it("applies a handle chosen on the sheet under a root that holds no book", () => {
+    mountUnder({ kind: "none" });
+    openSheet();
+
+    press("push");
+    apply();
+
+    expect(useConfiguratorStore.getState().design.settings?.handle).toBe(
+      "push",
+    );
   });
 
   it("is the active root's own availability, by reference", () => {
