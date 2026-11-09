@@ -25,7 +25,7 @@ import {
   type DesignSettings,
   type Handle,
 } from "../design.js";
-import { sameFinish, type Finish } from "../materials.js";
+import { FinishSchema, sameFinish, type Finish } from "../materials.js";
 import {
   isValidOccurredAt,
   refuse,
@@ -53,9 +53,10 @@ export interface ReplaceHandleInput {
 
 /**
  * Rewrites `settings.finish` and each `body.finish` that is `from` to `to`. Refuses an invalid timestamp, then a
- * colour the design's material does not offer (`FINISH_NOT_OFFERED`, as `setGlobalFinish` does; an undeclared material
- * offers anything schema-valid, ADR 0078 decision 3), returning the design as given. Replacing a colour by itself, or
- * one the design does not store, is not a refusal and rewrites nothing.
+ * `from` that is no well-formed colour (a switched-off one is well-formed, and an absent one matches nothing) or a `to`
+ * the design's material does not offer (`FINISH_NOT_OFFERED`, as `setGlobalFinish` does; an undeclared material offers
+ * anything schema-valid, ADR 0078 decision 3), returning the design as given. Replacing a colour by itself, or one the
+ * design does not store, is not a refusal and rewrites nothing.
  */
 export function replaceColour(
   input: ReplaceColourInput,
@@ -63,7 +64,10 @@ export function replaceColour(
   if (!isValidOccurredAt(input.occurredAt)) {
     return refuse(input.design, { code: "INVALID_OCCURRED_AT", params: {} });
   }
-  if (!designOffersFinish(input.design, input.to)) {
+  if (
+    !FinishSchema.safeParse(input.from).success ||
+    !designOffersFinish(input.design, input.to)
+  ) {
     return refuse(input.design, { code: "FINISH_NOT_OFFERED", params: {} });
   }
   const { from, to } = input;
@@ -82,7 +86,8 @@ export function replaceColour(
 
 /**
  * Rewrites `settings.handle`, `settings.topRowHandle` and each `body.handle` that is `from` to `to`. Refuses an invalid
- * timestamp, then a value outside `HandleSchema` (`UNKNOWN_HANDLE`), returning the design as given. A top-row body
+ * timestamp, then a `from` or `to` outside `HandleSchema` (`UNKNOWN_HANDLE`; an absent `from` would otherwise match every
+ * absent handle), returning the design as given. A top-row body
  * with no handle of its own is untouched, so it keeps following `topRowHandle`, and a body that takes no handle stays
  * push and latched whatever is stored (H2-b).
  */
@@ -92,7 +97,10 @@ export function replaceHandle(
   if (!isValidOccurredAt(input.occurredAt)) {
     return refuse(input.design, { code: "INVALID_OCCURRED_AT", params: {} });
   }
-  if (!HandleSchema.safeParse(input.to).success) {
+  if (
+    !HandleSchema.safeParse(input.from).success ||
+    !HandleSchema.safeParse(input.to).success
+  ) {
     return refuse(input.design, { code: "UNKNOWN_HANDLE", params: {} });
   }
   const { from, to } = input;
