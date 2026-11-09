@@ -128,7 +128,13 @@ export function usePriceNotice({ isOwner }: { isOwner: boolean }): PriceNotice {
     if (askableId === undefined || askedFor.current === askableId) return;
     askedFor.current = askableId;
     void FETCHING_PRICE_NOTICE_CLIENT.read(askableId).then((read) => {
-      setHeld({ designId: askableId, read, hasAcknowledged: false });
+      // A late first answer never replaces what is already held for this design: the sheet's flow may have asked again,
+      // and its answer is the newer one, held as already acknowledged.
+      setHeld((previous) =>
+        previous?.designId === askableId
+          ? previous
+          : { designId: askableId, read, hasAcknowledged: false },
+      );
     });
   }, [askableId]);
 

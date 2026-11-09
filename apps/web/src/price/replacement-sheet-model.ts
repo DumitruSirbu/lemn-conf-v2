@@ -304,7 +304,13 @@ function chosenName(
   design: Design,
   { content, offer }: SheetVocabulary,
 ): string | undefined {
-  if (!isChoosableKind(kind)) return undefined;
+  if (kind === "finish") return currentColourName(design, content);
+  if (kind === "handle") {
+    const handle = design.settings?.handle;
+    return handle === undefined
+      ? undefined
+      : content.panel.handleLabels[handle];
+  }
   const tierId =
     kind === "material"
       ? design.settings?.materialTierId
@@ -312,6 +318,18 @@ function chosenName(
   return tierId === undefined
     ? undefined
     : nameOfHeldTier(kind, tierId, offer, content);
+}
+
+/** The colour that applies to the kitchen now: after a material change the colour has been reset to the material's own
+ *  default (ADR 0057), and a resolved colour row says which one it is. */
+function currentColourName(
+  design: Design,
+  content: Content,
+): string | undefined {
+  const finish = design.settings?.finish;
+  return finish?.kind === "palette-entry"
+    ? finishNameOf(finish.entryId, content)
+    : undefined;
 }
 
 function nameOfHeldTier(
