@@ -9,6 +9,7 @@
 // design's, or `describeReview` throws.
 import {
   cornerDirectionOf,
+  countDisplayedBodies,
   findOverflowingPlacementIds,
   holdsNothingLemnariaSupplies,
   judgeSubmissionEligibility,
@@ -239,7 +240,7 @@ function describeAvailableReview(
     kind: "available",
     title: content.review.title,
     roomLine: content.reviewRoomLine(
-      describeRoomLine(design, countBodies(groups)),
+      describeRoomLine(design, countDisplayedBodies(groups)),
     ),
     settingsRow: describeSettingsRow(priced, content),
     groups: rows.groups,
@@ -421,10 +422,6 @@ function describeDisclaimer(content: Content): ReviewDisclaimer {
     rounding: content.review.roundedUpNote,
     notice: content.priceBreakdown.note,
   };
-}
-
-function countBodies(groups: readonly DisplayGroup[]): number {
-  return groups.reduce((count, group) => count + group.entries.length, 0);
 }
 
 function describeRoomLine(design: Design, bodyCount: number): ReviewRoomLine {

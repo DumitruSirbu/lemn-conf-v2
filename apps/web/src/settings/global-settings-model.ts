@@ -5,6 +5,7 @@ import {
   DEEP_CABINET_DEPTH_MM,
   DEFAULT_CABINET_DEPTH_MM,
   DEFAULT_HANDLE,
+  countDisplayedBodies,
   DEFAULT_MATERIAL_ID,
   declaredCabinetDepthsMm,
   handleRef,
@@ -304,7 +305,7 @@ export function describeGlobalSettings(
     }),
     title: input.content.globalSettings.title,
     appliesTo: input.content.globalSettings.appliesTo(
-      countBodies(input.groups),
+      countDisplayedBodies(input.groups),
     ),
     groups: toTierGroupViews(input),
     depthGroup: toDepthGroupView({
@@ -480,7 +481,7 @@ export function describeApplyRefusal(
  * material other than the one the design is on, and a chosen colour would be lost. An absent applied
  * material resolves through `?? DEFAULT_MATERIAL_ID`, as in the query and the validator.
  *
- * It takes the loss as counts, not the input: `countBodies(input.groups)` is the wrong number here. It asks
+ * It takes the loss as counts, not the input: `countDisplayedBodies(input.groups)` is the wrong number here. It asks
  * `lookUpMaterial` and never `materialOffersFinish`: the domain alone decides what a chosen colour is.
  */
 function toMaterialResetConfirm(
@@ -914,9 +915,4 @@ function resolvedTierName(tier: OfferedTier, content: Content): string {
 function describeDelta(deltaMinor: number, content: Content): string {
   if (deltaMinor === 0) return content.priceBreakdown.included;
   return content.globalSettings.tierDelta(describeAddedAmount(deltaMinor));
-}
-
-/** The bodies the customer can see, which is what a whole-kitchen setting applies to. */
-function countBodies(groups: readonly DisplayGroup[]): number {
-  return groups.reduce((count, group) => count + group.entries.length, 0);
 }

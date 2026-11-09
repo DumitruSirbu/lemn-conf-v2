@@ -20,6 +20,7 @@ import {
 } from "@/price/whole-kitchen-tiers";
 
 import { MEASURED_DEEPENING_ROWS } from "./deepening-rows";
+import { ro } from "./romanian-content";
 import { SAMPLE_PRICE_ROOT } from "./sample-price-root";
 
 export const MATERIAL_TIER_IDS = SAMPLE_PRICE_BOOK.material.tiers.map(
@@ -120,6 +121,16 @@ function groupWithout<TTier extends TierIdentity>(
     ...group,
     tiers: group.tiers.filter((tier) => !removed.includes(tier.tierId)),
   };
+}
+
+/** What the page calls a tier of the sample book: the book row through its message leaf, as the sheet and the offer read it. */
+export function tierName(tierId: string): string {
+  const tier = [
+    ...SAMPLE_PRICE_BOOK.material.tiers,
+    ...SAMPLE_PRICE_BOOK.hardware.tiers,
+  ].find((candidate) => candidate.tierId === tierId);
+  if (tier === undefined) throw new Error(`the sample book has no ${tierId}`);
+  return ro.bookText(tier.name, tier.nameKey);
 }
 
 /** What each measured tier of a group states as its delta, in the order the group lists them. */

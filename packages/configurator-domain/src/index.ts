@@ -188,6 +188,7 @@ export * from "./commands/set-width.js";
 export * from "./queries/describe-selection.js";
 export {
   compareDisplayOrder,
+  countDisplayedBodies,
   projectDesignForDisplay,
   type DisplayEntry,
   type DisplayGroup,
