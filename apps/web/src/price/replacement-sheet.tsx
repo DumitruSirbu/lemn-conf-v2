@@ -588,12 +588,10 @@ function ReplacementRow({
       data-testid="replacement-row"
       data-resolved={row.isResolved}
     >
-      <div
-        className={styles.rowText}
-        {...(row.isResolved
-          ? {}
-          : { role: "group", "aria-label": row.announcement })}
-      >
+      {/* No name of its own: the three spans below are read in order, once, and the same way for every kind. A group
+          labelled with the row's announcement said the item twice (the label, then its own text), and said the
+          kind for a material only because a tier's name happens to contain it. */}
+      <div className={styles.rowText}>
         <span id={kindId} className={styles.rowKind}>
           {row.kindLabel}
         </span>
