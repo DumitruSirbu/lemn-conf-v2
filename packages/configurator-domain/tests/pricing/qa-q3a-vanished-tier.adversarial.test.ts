@@ -435,3 +435,61 @@ describe("itemsNamedBy keeps its meaning: a switchable item the book holds", () 
     ]);
   });
 });
+
+// Whether FINDING Q3a-F1 is Q3a's or older: a book that HOLDS a material tier no code declares (a created class) has the
+// same sheet defect with no vanished tier at all. Q3a does not touch a held tier, so this case behaves identically at the
+// base commit bcc93179 (run there by QA on 2026-11-09): F1 is a pre-existing defect that Q3a extends to vanished ids.
+describe("FINDING Q3a-F1 is older than Q3a: a HELD material no code declares has it too", () => {
+  const createdMaterial = {
+    ...BOOK.material.tiers[0],
+    tierId: "material.created",
+    ruleId: "material.created",
+    nameKey: undefined,
+    descriptionKey: undefined,
+  };
+  const bookHoldingIt = {
+    ...BOOK,
+    material: {
+      ...BOOK.material,
+      tiers: [...BOOK.material.tiers, createdMaterial],
+    },
+  } as unknown as PriceBook;
+  const wearingItWithAPaletteColour = withSettings({
+    cabinetDepthMm: 600,
+    materialTierId: "material.created",
+    finish: paletteFinish("pal.antracit"),
+  });
+
+  it("is a book the pricing engine accepts, and a kitchen that prices", () => {
+    expect(
+      priceUnder(NOTHING_DISABLED, wearingItWithAPaletteColour, bookHoldingIt)
+        .ok,
+    ).toBe(true);
+  });
+
+  it("is refused by the price for the switched-off colour alone", () => {
+    expect(
+      itemsOfRefusal(
+        priceUnder(
+          availabilityOf([colour("pal.antracit")]),
+          wearingItWithAPaletteColour,
+          bookHoldingIt,
+        ),
+      ),
+    ).toEqual([colour("pal.antracit")]);
+  });
+
+  it.fails(
+    "FINDING Q3a-F1 (older form): builds a sheet without throwing for a held, undeclared material wearing a switched-off palette colour",
+    () => {
+      expect(() =>
+        replacementsRequired({
+          design: wearingItWithAPaletteColour,
+          book: bookHoldingIt,
+          availability: availabilityOf([colour("pal.antracit")]),
+          catalog: CATALOG,
+        }),
+      ).not.toThrow();
+    },
+  );
+});

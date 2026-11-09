@@ -3,6 +3,7 @@ import {
   SAMPLE_PRICE_BOOK,
   paletteFinish,
   type Design,
+  type ItemRef,
   type PriceBook,
 } from "@lemnaria/configurator-domain";
 import { FakeContactSubmissionStore } from "@lemnaria/persistence";
@@ -15,7 +16,8 @@ import { CLIENT_NETWORK_SOURCE_VARIABLE } from "@/lib/server/rate-limit/network-
 import {
   administrator,
   publishNextVersion,
-  switchItem,
+  disabledNow,
+  writeWithoutJudgement,
   type Administrator,
 } from "../../../support/availability-route-world";
 import { freshAccountWorld } from "../../../support/account-world";
@@ -177,12 +179,11 @@ describe("a kitchen sent while it names a tier the active book does not hold", (
   });
 
   it("is refused when availability also lists the vanished tier, and leaves nothing behind", async () => {
+    const ghost: ItemRef = { kind: "material", tierId: "material.ghost" };
     fakes.design = aDesignWith({ materialTierId: "material.ghost" });
-    await switchItem(
-      admin.cookie,
-      { kind: "material", tierId: "material.ghost" },
-      false,
-    );
+    // The staff route would refuse an id no book holds, so the row is written past it, as the notice suite does.
+    await writeWithoutJudgement(admin, ghost, false);
+    expect(await disabledNow()).toContainEqual(ghost);
 
     await expectRefusedAsNotCurrent(await send(bodyOf()));
   });
