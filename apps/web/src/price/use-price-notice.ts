@@ -6,7 +6,15 @@ import {
   type ReplacementRequired,
 } from "@lemnaria/configurator-domain";
 import type { DesignRevision } from "@lemnaria/persistence";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 
 import { useContent } from "@/i18n/use-content";
 import type {
@@ -209,7 +217,7 @@ function useReplacementSettling({
   readonly askableId: string | undefined;
   readonly displayed: PriceStampWire | undefined;
   readonly acknowledgeAgainst: (answer: PriceNoticeWire | undefined) => void;
-  readonly setHeld: (held: HeldAnswer) => void;
+  readonly setHeld: Dispatch<SetStateAction<HeldAnswer | undefined>>;
 }): Pick<
   PriceNotice,
   "beginSettling" | "confirmation" | "dismissConfirmation"
@@ -269,7 +277,7 @@ async function askAgainAndConfirm({
   readonly askableId: string | undefined;
   readonly displayed: PriceStampWire | undefined;
   readonly acknowledgeAgainst: (answer: PriceNoticeWire | undefined) => void;
-  readonly setHeld: (held: HeldAnswer) => void;
+  readonly setHeld: Dispatch<SetStateAction<HeldAnswer | undefined>>;
   readonly setConfirmation: (confirmation: ReplacementConfirmation) => void;
 }): Promise<void> {
   const read =
@@ -280,13 +288,32 @@ async function askAgainAndConfirm({
   if (askableId !== undefined && read !== undefined) {
     // Held as already acknowledged: the confirmation says what C1 would, so C1 must not flash up between this answer and
     // the acknowledgement landing.
-    setHeld({ designId: askableId, read, hasAcknowledged: true });
+    setHeld((previous) => heldAfterAskingAgain(previous, askableId, read));
   }
   setConfirmation({
     changes: settling.changes,
     alsoUpdated: pricesMovedOnThisPage(fresh, displayed),
   });
   if (isFullyResolved(fresh)) acknowledgeAgainst(fresh);
+}
+
+/**
+ * What is held once the sheet's flow has asked again. A failed second ask (a limit, a `404`, the network) must not wipe the
+ * first answer: `isSent` and the accessory names are read from it, and the sent-kitchen note would vanish. Only an answer
+ * replaces it. Either way the notice counts as shown, for the reason `askAgainAndConfirm` gives.
+ */
+function heldAfterAskingAgain(
+  previous: HeldAnswer | undefined,
+  designId: string,
+  read: NoticeRead,
+): HeldAnswer {
+  const keepsEarlierAnswer =
+    read.kind !== "notice" && previous?.designId === designId;
+  return {
+    designId,
+    read: keepsEarlierAnswer ? previous.read : read,
+    hasAcknowledged: true,
+  };
 }
 
 /** An answer with nothing left to replace: acknowledging a pair while a replacement is owed would hide the sheet's reason. */

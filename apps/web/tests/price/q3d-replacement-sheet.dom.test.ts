@@ -68,6 +68,7 @@ const OFF_PAIR = {
   availabilityRevision: "1",
 };
 const TEXT = roMessages.replacementSheet;
+const TOO_MANY_REQUESTS = 429;
 
 /** The page's root once availability has come back: the same pair as the switched-off root, so a re-enable is a new open. */
 const SAMPLE_PRICE_ROOT_AT_PAIR: PriceBookRoot = {
@@ -109,8 +110,11 @@ let container: HTMLDivElement;
 let root: Root;
 let server: Server;
 
+/** A notice answer, or a status the route answers with and no notice (a limit, a missing design, a fault). */
+type NoticeAnswer = Record<string, unknown> | number;
+
 /** One notice answer per `GET`, in order; the last is repeated. Every `PUT` is held until `landSave`. */
-function serveNotices(answers: readonly Record<string, unknown>[]): void {
+function serveNotices(answers: readonly NoticeAnswer[]): void {
   const requests: SentRequest[] = [];
   const heldSaves: ((revision: string) => void)[] = [];
   let noticesGiven = 0;
@@ -135,7 +139,11 @@ function serveNotices(answers: readonly Record<string, unknown>[]): void {
       }
       const answer = answers[Math.min(noticesGiven, answers.length - 1)];
       noticesGiven += 1;
-      return Promise.resolve(jsonResponse(answer ?? {}));
+      return Promise.resolve(
+        typeof answer === "number"
+          ? new Response("{}", { status: answer })
+          : jsonResponse(answer ?? {}),
+      );
     }),
   );
   server = {
@@ -580,6 +588,24 @@ describe("after the last choice (C4C, Q3-b, Q3-c)", () => {
     expect(required("replacement-confirmation").textContent).toContain(
       roMessages.customerPriceNotice.alsoUpdated,
     );
+  });
+
+  it("keeps the first answer when the second ask fails: a sent kitchen keeps its note, nothing is acknowledged and no prices sentence is said", async () => {
+    serveNotices([notice({ isSent: true }), TOO_MANY_REQUESTS]);
+    await mountEditor();
+    await chooseTier(MELAMINE_NAME);
+
+    await server.landSave("2");
+
+    expect(requestsOf("GET")).toHaveLength(2);
+    expect(byTestId("sent-kitchen-note")).not.toBeNull();
+    expect(requestsOf("POST")).toEqual([]);
+    expect(byTestId("price-notice")).toBeNull();
+    const lines = required("replacement-confirmation").textContent;
+    expect(lines).toContain(
+      say("replacementSheet.changedMaterial", { name: MELAMINE_NAME }),
+    );
+    expect(lines).not.toContain(roMessages.customerPriceNotice.alsoUpdated);
   });
 
   it("acknowledges nothing and says no prices sentence on a stale page: the second answer is for another pair", async () => {

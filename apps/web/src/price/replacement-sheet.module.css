@@ -9,8 +9,8 @@
   inset: 0;
   z-index: 7;
 
-  /* The host takes no pointer: the screen behind is inert, and a scrim that took clicks would stand between the person
-   * and the top bar. The surface takes its own. */
+  /* The host takes no pointer and the surface takes its own. A press outside the sheet reaches nothing: the screen behind
+   * is inert (`useModalFocus`), and the scrim dismisses nothing. */
   pointer-events: none;
 }
 
