@@ -177,7 +177,8 @@ function rememberedFactsFor(
     remembered.key === key &&
     remembered.stores.defaults === stores.defaults &&
     remembered.stores.usage === stores.usage;
-  const isFresh = Date.now() - remembered.readAtMs < DELETION_FACTS_MEMO_TTL_MS;
+  const ageMs = Date.now() - remembered.readAtMs;
+  const isFresh = ageMs >= 0 && ageMs < DELETION_FACTS_MEMO_TTL_MS;
   return isSameRead && isFresh ? remembered.facts : undefined;
 }
 
