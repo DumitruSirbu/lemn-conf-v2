@@ -93,7 +93,10 @@ export function usePriceNotice({ isOwner }: { isOwner: boolean }): PriceNotice {
   }, []);
 
   const acknowledge = useCallback(() => {
-    if (answer === undefined || displayed === undefined) return;
+    // Callers other than the banner (the sheet, the sent note) reach this too, so the stale-page rule is held here and
+    // not only in what the banner shows: a pair the answer does not vouch for is never recorded.
+    if (answer?.kind !== "active-version" || displayed === undefined) return;
+    if (!isSameStamp(answer.current, displayed)) return;
     if (acknowledgedFor.current === designId || designId === null) return;
     // Latched before the request, so a second press while it is in flight sends nothing.
     acknowledgedFor.current = designId;
