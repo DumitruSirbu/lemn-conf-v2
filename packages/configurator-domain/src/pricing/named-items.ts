@@ -7,9 +7,12 @@
 // (`coloursAndHandlesNamedBy`). An accessory is never named by a design and never needs replacing: a switched-off one
 // is simply not billed (`earned-accessories.ts`).
 //
-// A tier the book does not hold is not listed, and a design that chose one is refused no replacement at all: that is
-// `UNKNOWN_TIER`'s. The order is the items' own (`distinctItemsInOrder`), so it does not depend on how the design or
-// `availability.disabled` was ordered.
+// A tier the book does not hold is not a switchable item (`itemsNamedBy` leaves it out), but a design that CHOSE one
+// names an item that is no longer offered, and `disabledItemsNamedBy` lists it beside the switched-off ones: it is a
+// replacement like any other (ADR 0178, Amendment of 2026-11-04, decision 1). A design that chose nothing, priced at a
+// fallback the book does not hold, names no choice that vanished: that is a book fault, and stays `UNKNOWN_TIER`'s. The
+// order is the items' own (`distinctItemsInOrder`), so it does not depend on how the design or `availability.disabled`
+// was ordered.
 import type { Design } from "../design.js";
 
 import {
@@ -46,31 +49,42 @@ export function itemsNamedBy(query: NamedItemsQuery): readonly ItemRef[] {
 }
 
 /**
- * The items the design names that `availability` switches off, once each, in `distinctItemsInOrder`'s order. The items
- * returned are the design's own references, so a result cannot carry anything availability merely lists.
+ * The items the design names that must be replaced, once each, in `distinctItemsInOrder`'s order: the ones
+ * `availability` switches off, and a material or hardware tier the design chose that the book does not hold (deleted
+ * since the customer chose it). The items returned are the design's own references, so a result cannot carry anything
+ * availability merely lists.
  *
- * Empty for a design whose chosen tier the book does not hold, whatever is switched off: that design is
- * `UNKNOWN_TIER`'s (the recovery path of ADR 0072), and a replacement sheet for it could not be built, since its
- * options are read from the tiers and the material it names.
+ * A design that chose no tier, whose fallback the book does not hold, lists no tier: that is a malformed book, not a
+ * choice that vanished, and `priceDesign` answers it `UNKNOWN_TIER`.
  */
 export function disabledItemsNamedBy(
   query: NamedItemsQuery,
   availability: CatalogueAvailability,
 ): readonly ItemRef[] {
-  if (namesATierTheBookDoesNotHold(query)) return [];
-  return itemsNamedBy(query).filter((item) =>
-    isItemDisabled(availability, item),
-  );
+  return distinctItemsInOrder([
+    ...vanishedTiersChosenBy(query),
+    ...itemsNamedBy(query).filter((item) => isItemDisabled(availability, item)),
+  ]);
 }
 
-function namesATierTheBookDoesNotHold({
+function vanishedTiersChosenBy({
   book,
   chosen,
-}: NamedItemsQuery): boolean {
-  return (
-    !holdsTier(book.material, chosen?.materialTierId) ||
-    !holdsTier(book.hardware, chosen?.hardwareTierId)
-  );
+}: NamedItemsQuery): readonly ItemRef[] {
+  return [
+    ...vanishedTier(book.material, chosen?.materialTierId, "material"),
+    ...vanishedTier(book.hardware, chosen?.hardwareTierId, "hardware"),
+  ];
+}
+
+/** The chosen tier as an item when the group does not hold it; nothing when none was chosen, whatever the fallback. */
+function vanishedTier(
+  group: TierGroup<TierIdentity>,
+  chosenTierId: string | undefined,
+  kind: TierKind,
+): readonly ItemRef[] {
+  if (chosenTierId === undefined || holdsTier(group, chosenTierId)) return [];
+  return [tierRef(kind, chosenTierId)];
 }
 
 function holdsTier(

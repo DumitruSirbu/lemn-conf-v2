@@ -62,9 +62,10 @@ export interface RemovedAccessoriesRequest {
  * that (published inactive, A-17) was never theirs to lose and is not reported; one already off when they looked is not
  * reported again; and one the kitchen does not earn (no sink, no rack host, no placement of the linked row) never was.
  *
- * A linked accessory that `activeBook` no longer states is not reported either. It has not been switched off but
- * deleted, which A-18 allows only for an accessory no kitchen uses; so for an earned one the case does not arise, and
- * the money it took off is the prices-updated notice's (`pricesChangedBetween`).
+ * A linked accessory that `activeBook` no longer states is reported too, whatever `current` says: it was deleted, and a
+ * kitchen can still have earned it (a save after the publish's usage count, ADR 0178 Amendment of 2026-11-04). The same
+ * "had it" test applies, so one already off when the customer looked stays unreported. The money it took off is the
+ * prices-updated notice's (`pricesChangedBetween`).
  *
  * It takes the catalogue because whether a kitchen earns a sink cover is a fact about its bodies. Like the projection
  * it reads, it throws `UnknownBodyError` for a body the catalogue does not hold: price the design first, which refuses it
@@ -86,9 +87,9 @@ export function removedAccessoriesSince({
     earnedAccessoryIds({ entries, catalog, book: seenBook })
       .filter(
         (accessoryId) =>
-          statedNow.has(accessoryId) &&
-          isAccessorySwitchedOff(current, accessoryId) &&
-          !isAccessorySwitchedOff(seen, accessoryId),
+          !isAccessorySwitchedOff(seen, accessoryId) &&
+          (!statedNow.has(accessoryId) ||
+            isAccessorySwitchedOff(current, accessoryId)),
       )
       .map((accessoryId): ItemRef => ({ kind: "accessory", accessoryId })),
   );

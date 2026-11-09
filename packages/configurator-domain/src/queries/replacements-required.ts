@@ -1,5 +1,6 @@
 // What a customer must replace before a kitchen has a price, and what they may replace it with (ADR 0062 Amendment 3,
-// A-16, A-17): one row per switched-off item the kitchen names, each with the options that remain.
+// A-16, A-17): one row per switched-off item the kitchen names, and per material or hardware tier it chose that the
+// book no longer holds (ADR 0178, Amendment of 2026-11-04), each with the options that remain.
 //
 // It sits beside the other queries, not under `pricing/`, because the colours a material offers are the palette's
 // (`materials.ts`), which nothing under `pricing/` may import (ADR 0071 decision 1). What it asks of pricing is the one
@@ -21,7 +22,8 @@ import { disabledItemsNamedBy } from "../pricing/named-items.js";
 import { lookUpMaterial, paletteEntriesOf } from "../materials.js";
 import type { BodyCatalog } from "../void-engine.js";
 
-/** One row of the replacement sheet: a switched-off item the kitchen names, and every active item that can stand in. */
+/** One row of the replacement sheet: a switched-off item the kitchen names, or a tier it chose that the book no longer
+ *  holds, and every active item that can stand in. */
 export interface ReplacementRequired {
   readonly item: ItemRef;
   /** In the order each group declares its options, never containing a switched-off item, never empty. */
@@ -52,8 +54,9 @@ export interface ReplacementsRequiredRequest {
 }
 
 /**
- * The switched-off items this design names (material, hardware class, colour, handle), each with its remaining options,
- * in the order `priceDesign` lists them. Empty when the design names none. A colour's options are the active entries of
+ * The switched-off items this design names (material, hardware class, colour, handle) and the chosen tiers the book no
+ * longer holds, each with its remaining options (a tier's are its group's active tiers, whatever the design chose), in
+ * the order `priceDesign` lists them. Empty when the design names none. A colour's options are the active entries of
  * the design's own material: a customer replaces a colour within the material they are on.
  */
 export function replacementsRequired({
