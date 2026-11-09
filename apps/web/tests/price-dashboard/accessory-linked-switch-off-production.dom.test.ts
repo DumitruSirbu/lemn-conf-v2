@@ -3,7 +3,6 @@
 // A linked accessory's switch-off in a production build, once the saved defaults are readable (R4b2): the dialog says how
 // many saved kitchens use it, as the server counted them over planted designs, and the confirmation switches it through
 // the availability route. The built-ins were pressed before (R4a5); the linked accessory, the one a person creates, was not.
-// Its deletion is offered too, since R4c3, and counts the saved kitchens before it is confirmed.
 import { createElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -129,7 +128,7 @@ describe("a linked accessory's switch-off in a production build with the saved d
     expect(dialogText).not.toMatch(/salvat/);
   });
 
-  it("offers the accessory's deletion now that the draft route takes one, counts first, and says the block when saved kitchens use it", async () => {
+  it("keeps the accessory's deletion off, a stated row's deletion being R4c's", async () => {
     const { container, server } =
       await mountLinkedAccessoryList(PLANTED_DESIGNS);
 
@@ -137,13 +136,8 @@ describe("a linked accessory's switch-off in a production build with the saved d
     const entry = menuEntry(container, PUBLISHED, DELETE);
     await press(entry);
 
-    expect(entry.getAttribute("aria-disabled")).toBeNull();
-    expect(server.usageRequests).toEqual([[accessoryItem(PUBLISHED)]]);
-    expect(openDialog()?.textContent).toContain(
-      roCopy("priceDashboard.lifecycle.deleteBlockedAccessoryBody", {
-        name: PUBLISHED_RULE.name,
-        count: PLANTED_DESIGNS,
-      }),
-    );
+    expect(entry.getAttribute("aria-disabled")).toBe("true");
+    expect(openDialog()).toBeNull();
+    expect(server.usageRequests).toEqual([]);
   });
 });

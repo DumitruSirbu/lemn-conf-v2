@@ -161,17 +161,11 @@ describe("a row the draft creates or deletes", () => {
     });
   });
 
-  it("is one line for a deleted row of the book with the prices set on it, reverted by the deletion's address in either order", () => {
+  it("is one line for a deleted row of the book with the prices set on it, and no revert", () => {
     const lines = linesOf([rateOfPublishedTier, deletion, STALE]);
-    const reversed = linesOf([deletion, rateOfPublishedTier, STALE]);
 
     expect(lines).toHaveLength(2);
-    expect(reversed).toHaveLength(2);
-    expect(lines[0]?.revert).toEqual({
-      kind: "change",
-      address: deletion.address,
-    });
-    expect(reversed[0]?.revert).toEqual(lines[0]?.revert);
+    expect(lines[0]?.revert).toBeUndefined();
     expect(lines[1]?.revert).toEqual({
       kind: "change",
       address: STALE.address,

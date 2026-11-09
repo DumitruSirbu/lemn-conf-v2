@@ -27,12 +27,15 @@ const NO_KITCHEN = 0;
 const KITCHENS_THAT_CAME = 3;
 const SAVED = { kind: "saved" } as const;
 
-function deskDeleting(answers: readonly FieldWriteResult[], countedAs = 0) {
+function deskDeleting(
+  answers: readonly FieldWriteResult[],
+  { isDraftOnly = false }: { readonly isDraftOnly?: boolean } = {},
+) {
   const lifecycle = recordingLifecycleClient({
     book: SAMPLE_PRICE_BOOK,
     availability: NOTHING_OFF,
     defaults: {},
-    usage: [{ item: HETTICH, designCount: countedAs }],
+    usage: [{ item: HETTICH, designCount: NO_KITCHEN }],
   });
   const remaining = [...answers];
   const deleteFromDraft = vi.fn(() =>
@@ -45,7 +48,7 @@ function deskDeleting(answers: readonly FieldWriteResult[], countedAs = 0) {
       defaults: {},
       client: lifecycle.client,
       deleteFromDraft,
-      isDraftOnly: () => false,
+      isDraftOnly: () => isDraftOnly,
     }),
   );
   return { lifecycle, deleteFromDraft, rendered };
@@ -122,6 +125,32 @@ describe.each([
       count: KITCHENS_THAT_CAME,
     });
     expect(deleteFromDraft).toHaveBeenCalledTimes(1);
+    rendered.unmount();
+  });
+});
+
+describe("a conflict on the deletion of a row only the draft holds", () => {
+  it("reopens the draft-only dialog with no count, since nothing published names the row, and the next Delete sends", async () => {
+    const { lifecycle, deleteFromDraft, rendered } = deskDeleting(
+      [{ kind: "conflict" }, SAVED],
+      { isDraftOnly: true },
+    );
+    act(() => {
+      rendered.result.current.requestDeletion(HETTICH);
+    });
+    await flushPromises(5);
+
+    await pressConfirm(rendered);
+
+    expect(usageReads(lifecycle.calls)).toBe(0);
+    expect(rendered.result.current.flow).toMatchObject({
+      kind: "delete",
+      isDraftOnly: true,
+      usage: { kind: "counted", count: NO_KITCHEN },
+    });
+    expect(rendered.result.current.failure).toEqual({ kind: "conflict" });
+    await pressConfirm(rendered);
+    expect(deleteFromDraft).toHaveBeenCalledTimes(2);
     rendered.unmount();
   });
 });

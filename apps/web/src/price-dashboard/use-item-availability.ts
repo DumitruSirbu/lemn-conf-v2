@@ -231,19 +231,28 @@ export function useItemAvailability({
     [context, moveOn, openAfterCounting],
   );
 
-  const requestDeletion = useCallback(
-    (item: DeletableItemRef) => {
-      moveOn();
-      if (deleteStandOf(item, context).kind === "off") return;
-      if (isDraftOnly(item)) {
+  /** The dialog a deletion opens under `facts`: none where it is off, the draft-only one for a row the draft created
+   *  (nothing to count), and the one drawn from a fresh count of the saved kitchens otherwise. */
+  const openDeletionDialog = useCallback(
+    async (item: DeletableItemRef, facts: LifecycleContext) => {
+      if (deleteStandOf(item, facts).kind === "off") return;
+      if (facts.isCreatedInDraft(item)) {
         setFlow(draftOnlyDeletionFlowOf(item));
         return;
       }
-      void openAfterCounting(item, (read) =>
-        deletionFlowOf(item, context, read),
+      await openAfterCounting(item, (read) =>
+        deletionFlowOf(item, contextRef.current, read),
       );
     },
-    [context, moveOn, openAfterCounting, isDraftOnly],
+    [openAfterCounting],
+  );
+
+  const requestDeletion = useCallback(
+    (item: DeletableItemRef) => {
+      moveOn();
+      void openDeletionDialog(item, context);
+    },
+    [context, moveOn, openDeletionDialog],
   );
 
   const settle = useCallback(
@@ -282,11 +291,9 @@ export function useItemAvailability({
     async (item: DeletableItemRef) => {
       setFlow(CLOSED);
       await readAvailabilityAgain();
-      await openAfterCounting(item, (read) =>
-        deletionFlowOf(item, contextRef.current, read),
-      );
+      await openDeletionDialog(item, contextRef.current);
     },
-    [readAvailabilityAgain, openAfterCounting],
+    [readAvailabilityAgain, openDeletionDialog],
   );
 
   const recountAfterUseRefusal = useCallback(

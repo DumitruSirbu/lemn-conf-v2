@@ -154,32 +154,18 @@ describe("a refused draft that also holds a valid change", () => {
   });
 });
 
-describe("a refused draft that deletes a row", () => {
-  it("offers one ↺ on the deletion's line, taking it back by the deletion's own address and no other", async () => {
-    const { container, client } = await mountRefused([DELETION, STALE], {
-      revert: () =>
-        Promise.resolve({
-          kind: "changed",
-          draft: { draftRevision: "8", changes: [STALE] },
-        }),
-    });
+describe("a refused draft with a change the revert route does not take", () => {
+  it("offers no ↺ on a deletion, says only the whole draft gives it up, and still reverts the change beside it", async () => {
+    const { container } = await mountRefused([DELETION, STALE]);
 
     const deletion = lineAt(container, 0);
-    expect(allIn(deletion, REVERT)).toHaveLength(1);
-    expect(deletion.textContent).not.toContain(
+    expect(allIn(deletion, REVERT)).toHaveLength(0);
+    expect(deletion.textContent).toContain(
       roCopy("priceDashboard.publish.staleChangeWholeDraftOnly", {
         name: isolated("Hettich"),
       }),
     );
-    click(requireIn(deletion, REVERT));
-    await settle();
-
-    expect(client.revert).toHaveBeenCalledTimes(1);
-    expect(client.revert.mock.calls[0]?.[0]).toStrictEqual({
-      expectedDraftRevision: "7",
-      target: { kind: "change", address: DELETION.address },
-    });
-    expect(lines(container)).toHaveLength(1);
+    expect(allIn(lineAt(container, 1), REVERT)).toHaveLength(1);
   });
 });
 
