@@ -1,7 +1,9 @@
-// Q5b's adversarial pass over the sheet as values. Counterexamples first: the closing sentence cut (`withoutPriceSentence`)
-// attacked with names and leaves of other shapes, a resolved row that names something that replaced nothing, the colour
-// reset read through the MDF default, then the sweeps: the whole flow driven to the end over generated kitchens (no dead end,
-// no row left owed), the waiting rule, and the choosers.
+// The sheet's colour and handle rows as values, attacked. Counterexamples first: the closing sentence cut
+// (`withoutPriceSentence`) against names and leaves of other shapes, a resolved row that names something that replaced nothing,
+// the colour reset read through the MDF default; then the sweeps: the whole flow driven to the end over generated kitchens (no
+// dead end, no row left owed), the waiting rule, and the choosers.
+// Facts these pin: an undeclared OLD material also leaves a colour row owed, which appears only after that material is
+// replaced; a resolved handle row the design no longer stores shows no value.
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import {
   HandleSchema,
@@ -31,19 +33,24 @@ import {
   pendingReplacements,
   replacedItemKey,
   resolveReplacementSheetCopy,
-  type SheetVocabulary,
 } from "@/price/replacement-sheet-model";
-import type { ActivePriceBook } from "@/price/price-book-root";
 import { preflightWholeKitchenSettings } from "@/store/whole-kitchen-apply";
 
 import roMessages from "../../src/messages/ro.json";
 import ruMessages from "../../src/messages/ru.json";
 import { ro } from "../support/romanian-content";
-import { SAMPLE_PRICE_ROOT } from "../support/sample-price-root";
+import {
+  kitchenWith,
+  OCCURRED_AT,
+  withCabinets,
+} from "../support/replacement-kitchens";
+import {
+  romanianSheetCopy as copyRo,
+  worldOf,
+} from "../support/replacement-sheet-view-world";
 import {
   HARDWARE_TIER_IDS,
   MATERIAL_TIER_IDS,
-  offerThroughRoot,
 } from "../support/tier-offer-world";
 
 type Kind = "material" | "hardware" | "finish" | "handle";
@@ -54,11 +61,7 @@ const LEAF_OF = {
   finish: "changedColour",
   handle: "changedHandle",
 } as const;
-const OCCURRED_AT = "2026-11-09T09:00:00.000Z";
 const NAME_PLACEHOLDER = "{name}";
-
-const sayRo = createTranslator({ locale: "ro", messages: roMessages });
-const copyRo = resolveReplacementSheetCopy(sayRo);
 
 const LOCALES = [
   { locale: "ro", messages: roMessages },
@@ -190,7 +193,7 @@ describe("the closing sentence cut: a leaf of another shape", () => {
   );
 });
 
-describe("C4C's lines: the price sentence is said once", () => {
+describe("the confirmation's lines: the price sentence is said once", () => {
   const changeArb = fc.record({
     kind: fc.constantFrom(...KINDS),
     name: fc
@@ -285,39 +288,6 @@ describe("C4C's lines: the price sentence is said once", () => {
   });
 });
 
-function kitchenWith(settings: NonNullable<Design["settings"]>): Design {
-  return {
-    ...KITCHEN_L_DESIGN,
-    settings: { ...KITCHEN_L_DESIGN.settings, ...settings },
-  };
-}
-
-function worldOf(design: Design, disabled: readonly ItemRef[]) {
-  const availability = { revision: "1", disabled };
-  const root: ActivePriceBook = { ...SAMPLE_PRICE_ROOT, availability };
-  const vocabulary: SheetVocabulary = {
-    content: ro,
-    copy: copyRo,
-    offer: offerThroughRoot(availability, design),
-  };
-  return { root, availability, vocabulary };
-}
-
-function withBodies(
-  design: Design,
-  bodies: readonly Partial<Design["placements"][number]["body"]>[],
-): Design {
-  return {
-    ...design,
-    placements: design.placements.map((placement, index) => {
-      const own = bodies[index];
-      return own === undefined
-        ? placement
-        : { ...placement, body: { ...placement.body, ...own } };
-    }),
-  };
-}
-
 describe("a resolved row names only what is stored now", () => {
   // The sheet is drawn only while some row is owed, so the row under test is resolved beside a material row that is still
   // owed: that is the state a customer can see (with nothing owed the session clears and the sheet is gone).
@@ -341,7 +311,7 @@ describe("a resolved row names only what is stored now", () => {
     );
 
   it("names a colour that availability gave back as the colour it still is, wherever it is stored", () => {
-    const stored = withBodies(
+    const stored = withCabinets(
       kitchenWith({ finish: paletteFinish("pal.antracit") }),
       [{ finish: paletteFinish("pal.alb") }],
     );
@@ -355,9 +325,9 @@ describe("a resolved row names only what is stored now", () => {
   // A handle stored only on a cabinet and switched off, then switched back on with the sheet open: nothing replaced it, so
   // the row cannot say the kitchen's own handle replaced it. The colour arm answers "as it was" (`nameOfColourInPlaceOf`);
   // the handle arm (`nameNowApplying`) reads `settings.handle` alone. The expected value is an INFERENCE from the colour arm:
-  // ruling 4 says only "names what replaced it", and nothing did.
+  // the rule only says a resolved row "names what replaced it", and nothing did.
   it("names a handle that availability gave back as the handle it still is, not as the kitchen's other handle", () => {
-    const stored = withBodies(kitchenWith({ handle: "steel" }), [
+    const stored = withCabinets(kitchenWith({ handle: "steel" }), [
       { handle: "black" },
     ]);
 
@@ -373,6 +343,15 @@ describe("a resolved row names only what is stored now", () => {
     const row = resolvedRowOf(stored, { kind: "handle", handle: "black" });
 
     expect(row?.valueText).toBe(ro.panel.handleLabels.black);
+  });
+
+  it("says nothing for a handle row when the design stores only another handle, which replaced nothing", () => {
+    const row = resolvedRowOf(kitchenWith({ handle: "steel" }), {
+      kind: "handle",
+      handle: "black",
+    });
+
+    expect(row?.valueText).toBeUndefined();
   });
 
   it("says nothing, with no value node to draw, for a handle row when no handle is stored anywhere", () => {
@@ -504,7 +483,7 @@ const storedKitchen = fc
         ? {}
         : { handle: drawn.cabinetHandles[at] }),
     }));
-    return withBodies(
+    return withCabinets(
       kitchenWith({
         materialTierId: drawn.materialTierId,
         hardwareTierId: drawn.hardwareTierId,

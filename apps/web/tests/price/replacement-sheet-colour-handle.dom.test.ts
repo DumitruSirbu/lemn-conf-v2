@@ -1,15 +1,10 @@
 // @vitest-environment happy-dom
 //
-// A colour or a handle owed in the replacement sheet is chosen there (A-16): the lone row opens the sheet and has its own
-// chooser, one press is one commit and one save, no level of the design names the switched-off item afterwards, and C4C says
-// what changed per item. A colour waits behind a material row, and the reset the material change causes is announced only when
-// it rewrote a stored colour, the kitchen's included.
-import {
-  KITCHEN_L_DESIGN,
-  paletteFinish,
-  type Design,
-  type ItemRef,
-} from "@lemnaria/configurator-domain";
+// A colour or a handle owed in the replacement sheet is chosen there: the lone row opens the sheet and has its own chooser,
+// one press is one commit and one save, no level of the design names the switched-off item afterwards, and the confirmation
+// says what changed per item. A colour waits behind a material row, and the reset the material change causes is announced only
+// when it rewrote a stored colour, the kitchen's included.
+import { paletteFinish } from "@lemnaria/configurator-domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/scene/webgl-support", () => ({
@@ -37,14 +32,33 @@ vi.mock("next/navigation", async (importOriginal) => ({
   }),
 }));
 
-import type { PriceBookRoot } from "@/price/price-book-root";
 import { useConfiguratorStore } from "@/store/configurator-store";
 
 import roMessages from "../../src/messages/ro.json";
 import { ro } from "../support/romanian-content";
 import {
+  ANTHRACITE,
+  ANTHRACITE_OFF,
+  BLACK_OFF,
+  kitchenWith,
+  rootSwitchingOff,
+  WHITE,
+  WHITE_OFF,
+  withCabinets,
+} from "../support/replacement-kitchens";
+import {
+  full,
+  reverted,
+  stem,
+} from "../support/replacement-confirmation-lines";
+import {
+  chooseOption,
+  confirmationLines,
+  landSavesUntilConfirmed,
+  rowsOf,
+} from "../support/replacement-sheet-flow";
+import {
   beginTest,
-  advanceClock,
   byTestId,
   chooseTier,
   driveEveryTimerFromTheTest,
@@ -61,69 +75,9 @@ import {
   type Editor,
   type World,
 } from "../support/replacement-sheet-world";
-import { SAMPLE_PRICE_ROOT } from "../support/sample-price-root";
 import { tierName } from "../support/tier-offer-world";
 
 const TEXT = roMessages.replacementSheet;
-/** The closing sentence every "changed to {name}" leaf carries, read from the leaf so no wording is written here. */
-const SENTENCE =
-  roMessages.replacementSheet.changedMaterial.split("{name}. ")[1] ?? "";
-
-type ChangedLeaf =
-  | "changedMaterial"
-  | "changedHardware"
-  | "changedColour"
-  | "changedHandle";
-
-/** What a change says in its leaf's own words: with the closing sentence, or without it. */
-function full(leaf: ChangedLeaf, name: string): string {
-  return replaceName(roMessages.replacementSheet[leaf], name);
-}
-function stem(leaf: ChangedLeaf, name: string): string {
-  return full(leaf, name).replace(` ${SENTENCE}`, "");
-}
-function reverted(colour: string): string {
-  return replaceName(roMessages.replacementSheet.colourReverted, colour);
-}
-function replaceName(leaf: string, name: string): string {
-  return leaf.replace(/\{(name|colour)\}/, name);
-}
-const WHITE = paletteFinish("pal.alb");
-const ANTHRACITE = paletteFinish("pal.antracit");
-const BLACK_OFF: ItemRef = { kind: "handle", handle: "black" };
-const WHITE_OFF: ItemRef = { kind: "finish", finishId: "pal.alb" };
-const ANTHRACITE_OFF: ItemRef = { kind: "finish", finishId: "pal.antracit" };
-
-function rootSwitchingOff(...items: readonly ItemRef[]): PriceBookRoot {
-  return {
-    ...SAMPLE_PRICE_ROOT,
-    availability: { revision: "1", disabled: items },
-  };
-}
-
-function kitchenWith(settings: NonNullable<Design["settings"]>): Design {
-  return {
-    ...KITCHEN_L_DESIGN,
-    settings: { ...KITCHEN_L_DESIGN.settings, ...settings },
-  };
-}
-
-/** The sample kitchen with its first cabinets given colours or handles of their own. */
-function withCabinets(
-  design: Design,
-  bodies: readonly Partial<Design["placements"][number]["body"]>[],
-): Design {
-  return {
-    ...design,
-    placements: design.placements.map((placement, index) => {
-      const own = bodies[index];
-      return own === undefined
-        ? placement
-        : { ...placement, body: { ...placement.body, ...own } };
-    }),
-  };
-}
-
 beforeEach(() => {
   beginTest();
   driveEveryTimerFromTheTest();
@@ -132,61 +86,6 @@ beforeEach(() => {
 afterEach(async () => {
   await endTest();
 });
-
-function rowsOf(editor: Editor): HTMLElement[] {
-  return [
-    ...editor.container.querySelectorAll<HTMLElement>(
-      '[data-testid="replacement-row"]',
-    ),
-  ];
-}
-
-function confirmationLines(editor: Editor): string[] {
-  return [
-    ...editor.container.querySelectorAll(
-      '[data-testid="replacement-confirmation"] span',
-    ),
-  ].map((line) => line.textContent);
-}
-
-function optionNamed(editor: Editor, name: string): HTMLButtonElement {
-  const found = [
-    ...editor.container.querySelectorAll<HTMLButtonElement>("[data-option]"),
-  ].find((option) => option.textContent.includes(name));
-  return present(found, `the option ${name}`);
-}
-
-/** Chooses the option with this name for the first row still owed, and applies it without landing the save. */
-function chooseOption(editor: Editor, name: string): void {
-  press(
-    present(
-      editor.container.querySelector<HTMLElement>(
-        '[data-testid="replacement-row"][data-resolved="false"] [data-testid="replacement-choose"]',
-      ),
-      "a row with a control",
-    ),
-  );
-  press(optionNamed(editor, name));
-  press(required(editor, "replacement-apply"));
-}
-
-/** Lands the saves the page makes, however many the coalescer spaces out, each at a revision of its own, and stops as
- *  soon as the confirmation shows: it goes by itself after a few seconds, so the clock must not run on past it. */
-async function landSavesUntilConfirmed(
-  editor: Editor,
-  world: World,
-): Promise<void> {
-  let revision = 2;
-  for (let attempt = 0; attempt < 10; attempt += 1) {
-    await advanceClock(1_000);
-    while (world.savesWaiting() > 0) {
-      await world.landSave(String(revision));
-      revision += 1;
-    }
-    if (byTestId(editor, "replacement-confirmation") !== null) return;
-  }
-  throw new Error("no confirmation was shown once the saves had landed");
-}
 
 describe("a lone switched-off colour", () => {
   let editor: Editor;

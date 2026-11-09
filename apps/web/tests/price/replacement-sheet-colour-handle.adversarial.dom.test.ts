@@ -1,15 +1,12 @@
 // @vitest-environment happy-dom
 //
-// Q5b's adversarial pass over the mounted sheet: a lone colour and a lone handle through the save-landed rule, the colour that
-// waits, the reset line in each arm of its rule (global colour only, a cabinet's only, none stored, offered by the new
-// material), two and three colours at once, and what is drawn (no id, a first option that is not a selection, no button on a
-// resolved colour).
-import {
-  KITCHEN_L_DESIGN,
-  paletteFinish,
-  type Design,
-  type ItemRef,
-} from "@lemnaria/configurator-domain";
+// The mounted replacement sheet, attacked: a lone colour and a lone handle through the save-landed rule, the colour that waits,
+// the reset line in each arm of its rule (global colour only, a cabinet's only, none stored, offered by the new material),
+// two and three colours at once, and what is drawn (no id, a first option that is not a selection, no button on a resolved
+// colour).
+// Facts these pin: an undeclared OLD material also leaves a colour row owed, which appears only after that material is
+// replaced; a resolved handle row the design no longer stores shows no value.
+import { KITCHEN_L_DESIGN, type Design } from "@lemnaria/configurator-domain";
 import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -38,11 +35,39 @@ vi.mock("next/navigation", async (importOriginal) => ({
   }),
 }));
 
-import type { PriceBookRoot } from "@/price/price-book-root";
 import { useConfiguratorStore } from "@/store/configurator-store";
 
-import roMessages from "../../src/messages/ro.json";
 import { ro } from "../support/romanian-content";
+import {
+  ANTHRACITE,
+  ANTHRACITE_OFF,
+  BLACK_OFF,
+  HAVANNA,
+  HAVANNA_OFF,
+  kitchenWith,
+  rootSwitchingOff,
+  VENEER_OAK,
+  VENEER_OFF,
+  WHITE,
+  WHITE_OFF,
+  withCabinets,
+} from "../support/replacement-kitchens";
+import {
+  full,
+  PRICE_SENTENCE,
+  reverted,
+  stem,
+} from "../support/replacement-confirmation-lines";
+import {
+  chooseInRow,
+  chooseOption,
+  confirmationLines,
+  controlOf,
+  landSavesUntilConfirmed,
+  optionNamed,
+  rowAbout,
+  rowsOf,
+} from "../support/replacement-sheet-flow";
 import {
   advanceClock,
   beginTest,
@@ -63,67 +88,10 @@ import {
   serveWorld,
   settle,
   type Editor,
-  type World,
 } from "../support/replacement-sheet-world";
-import { SAMPLE_PRICE_ROOT } from "../support/sample-price-root";
 import { tierName } from "../support/tier-offer-world";
 
-const SENTENCE =
-  roMessages.replacementSheet.changedMaterial.split("{name}. ")[1] ?? "";
-const WHITE = paletteFinish("pal.alb");
-const ANTHRACITE = paletteFinish("pal.antracit");
-const HAVANNA = paletteFinish("pal.gri-havanna");
-const VENEER_OAK = paletteFinish("veneer.stejar");
-const BLACK_OFF: ItemRef = { kind: "handle", handle: "black" };
-const WHITE_OFF: ItemRef = { kind: "finish", finishId: "pal.alb" };
-const ANTHRACITE_OFF: ItemRef = { kind: "finish", finishId: "pal.antracit" };
-const HAVANNA_OFF: ItemRef = { kind: "finish", finishId: "pal.gri-havanna" };
-const VENEER_OFF: ItemRef = { kind: "material", tierId: "material.veneer" };
 const VANISHED_MATERIAL = "material.created-and-since-deleted";
-
-type ChangedLeaf =
-  | "changedMaterial"
-  | "changedHardware"
-  | "changedColour"
-  | "changedHandle";
-function full(leaf: ChangedLeaf, name: string): string {
-  return roMessages.replacementSheet[leaf].replace("{name}", name);
-}
-function stem(leaf: ChangedLeaf, name: string): string {
-  return full(leaf, name).replace(` ${SENTENCE}`, "");
-}
-function reverted(colour: string): string {
-  return roMessages.replacementSheet.colourReverted.replace("{colour}", colour);
-}
-
-function rootSwitchingOff(...items: readonly ItemRef[]): PriceBookRoot {
-  return {
-    ...SAMPLE_PRICE_ROOT,
-    availability: { revision: "1", disabled: items },
-  };
-}
-
-function kitchenWith(settings: NonNullable<Design["settings"]>): Design {
-  return {
-    ...KITCHEN_L_DESIGN,
-    settings: { ...KITCHEN_L_DESIGN.settings, ...settings },
-  };
-}
-
-function withCabinets(
-  design: Design,
-  bodies: readonly Partial<Design["placements"][number]["body"]>[],
-): Design {
-  return {
-    ...design,
-    placements: design.placements.map((placement, index) => {
-      const own = bodies[index];
-      return own === undefined
-        ? placement
-        : { ...placement, body: { ...placement.body, ...own } };
-    }),
-  };
-}
 
 beforeEach(() => {
   beginTest();
@@ -134,72 +102,6 @@ afterEach(async () => {
   vi.restoreAllMocks();
   await endTest();
 });
-
-function rowsOf(editor: Editor): HTMLElement[] {
-  return [
-    ...editor.container.querySelectorAll<HTMLElement>(
-      '[data-testid="replacement-row"]',
-    ),
-  ];
-}
-
-function confirmationLines(editor: Editor): string[] {
-  return [
-    ...editor.container.querySelectorAll(
-      '[data-testid="replacement-confirmation"] span',
-    ),
-  ].map((line) => line.textContent);
-}
-
-function optionNamed(editor: Editor, name: string): HTMLButtonElement {
-  const found = [
-    ...editor.container.querySelectorAll<HTMLButtonElement>("[data-option]"),
-  ].find((option) => option.textContent.includes(name));
-  return present(found, `the option ${name}`);
-}
-
-/** The row about this kind of thing, by the label the screen draws on it, whatever order the domain lists the rows in. */
-function rowAbout(editor: Editor, kindLabel: string): HTMLElement | undefined {
-  return rowsOf(editor).find((row) => row.textContent.includes(kindLabel));
-}
-
-function controlOf(row: HTMLElement | undefined): HTMLElement | null {
-  return row?.querySelector('[data-testid="replacement-choose"]') ?? null;
-}
-
-/** Opens the chooser of this row, picks the option with this name and applies it, without landing the save. */
-function chooseInRow(
-  row: HTMLElement | undefined,
-  editor: Editor,
-  name: string,
-): void {
-  press(present(controlOf(row), "the row's control"));
-  press(optionNamed(editor, name));
-  press(required(editor, "replacement-apply"));
-}
-
-function chooseOption(editor: Editor, name: string): void {
-  const owed = rowsOf(editor).find(
-    (row) => row.dataset.resolved === "false" && controlOf(row) !== null,
-  );
-  chooseInRow(owed, editor, name);
-}
-
-async function landSavesUntilConfirmed(
-  editor: Editor,
-  world: World,
-): Promise<void> {
-  let revision = 2;
-  for (let attempt = 0; attempt < 10; attempt += 1) {
-    await advanceClock(1_000);
-    while (world.savesWaiting() > 0) {
-      await world.landSave(String(revision));
-      revision += 1;
-    }
-    if (byTestId(editor, "replacement-confirmation") !== null) return;
-  }
-  throw new Error("no confirmation was shown once the saves had landed");
-}
 
 const LONE_ROWS = [
   {
@@ -663,6 +565,77 @@ describe("the reset line, arm by arm", () => {
   });
 });
 
+describe("a material chosen again in the sheet", () => {
+  const PREMIUM_OFF = { kind: "hardware", tierId: "hardware.premium" } as const;
+
+  /** A veneer kitchen wearing a veneer colour, with hardware owed too so the sheet stays open after the material is chosen. */
+  async function chooseMelamineThenChooseItAgain() {
+    const world = serveWorld({ notices: [notice(), notice()] });
+    hydrate(
+      kitchenWith({
+        materialTierId: "material.veneer",
+        finish: VENEER_OAK,
+        hardwareTierId: "hardware.premium",
+      }),
+    );
+    const editor = await mountEditor({
+      priceRoot: rootSwitchingOff(VENEER_OFF, PREMIUM_OFF),
+    });
+    const materialLabel = ro.priceBreakdown.wholeKitchenCategories.material;
+    await chooseTier(editor, tierName("material.melamine"));
+    const designAfterFirstChoice = useConfiguratorStore.getState().design;
+
+    chooseInRow(
+      rowAbout(editor, materialLabel),
+      editor,
+      tierName("material.melamine"),
+    );
+    return { editor, world, designAfterFirstChoice };
+  }
+
+  it("offers a resolved material row a control to change it, and choosing the tier already applied commits nothing and saves nothing", async () => {
+    const { editor, world, designAfterFirstChoice } =
+      await chooseMelamineThenChooseItAgain();
+
+    expect(useConfiguratorStore.getState().design).toBe(designAfterFirstChoice);
+    expect(world.savesWaiting()).toBeLessThanOrEqual(1);
+    expect(rowsOf(editor).map((row) => row.dataset.resolved)).toEqual([
+      "true",
+      "false",
+    ]);
+  });
+
+  it("still reports it as one change line, once, harmlessly", async () => {
+    const { editor, world } = await chooseMelamineThenChooseItAgain();
+
+    await chooseTier(editor, tierName("hardware.standard"));
+    await landSavesUntilConfirmed(editor, world);
+
+    const lines = confirmationLines(editor);
+    expect(
+      lines.filter((line) => line.includes(tierName("material.melamine"))),
+    ).toHaveLength(1);
+    expect(lines).toContain(
+      stem("changedMaterial", tierName("material.melamine")),
+    );
+  });
+
+  // The line is kept because the reset did happen earlier in this sheet. It would be stale only for a later press into a
+  // material that offers the stored colour, which needs an undeclared tier in the book: barely reachable, so pinned as is.
+  it("keeps the line that the colour went back after a later press that resets nothing", async () => {
+    const { editor, world } = await chooseMelamineThenChooseItAgain();
+
+    await chooseTier(editor, tierName("hardware.standard"));
+    await landSavesUntilConfirmed(editor, world);
+
+    expect(confirmationLines(editor)).toEqual([
+      stem("changedMaterial", tierName("material.melamine")),
+      reverted(ro.finishName("pal.alb")),
+      full("changedHardware", tierName("hardware.standard")),
+    ]);
+  });
+});
+
 describe("a colour owed that the vanished material hid until it was replaced", () => {
   it("appears after the material is chosen, is chosen like any other, takes the material's change control away, and the reset is silent (the colour was kept)", async () => {
     const world = serveWorld({ notices: [notice(), notice()] });
@@ -724,7 +697,7 @@ describe("several colours and a handle in one sheet", () => {
     return { editor, world };
   }
 
-  it("draws one row per item and says, in C4C, a line per item in order (colours, then the handle) however they were chosen, with the sentence once at the end", async () => {
+  it("draws one row per item and says, in the confirmation, a line per item in order (colours, then the handle) however they were chosen, with the sentence once at the end", async () => {
     const { editor, world } = await openThreeColoursAndAHandle();
     expect(rowsOf(editor)).toHaveLength(4);
 
@@ -739,7 +712,9 @@ describe("several colours and a handle in one sheet", () => {
 
     const lines = confirmationLines(editor);
     expect(lines).toHaveLength(4);
-    expect(lines.filter((line) => line.includes(SENTENCE))).toEqual([lines[3]]);
+    expect(lines.filter((line) => line.includes(PRICE_SENTENCE))).toEqual([
+      lines[3],
+    ]);
     expect(lines[3]).toBe(full("changedHandle", ro.panel.handleLabels.push));
     expect(new Set(lines.slice(0, 3))).toEqual(
       new Set([
