@@ -1,6 +1,6 @@
-// Q5b's adversarial pass over the one-press preflight: which stored levels make a replacement real, what makes it dropped, the
-// order material -> replacement -> depth with the depth's frozen columns surviving, what a refusal is reported under, and
-// that a whole press is one commit and one save or nothing at all.
+// The one-press preflight, attacked: which stored levels make a replacement real, what makes it dropped, the order material ->
+// replacement -> depth with the depth's frozen columns surviving, what a refusal is reported under, and that a whole press is
+// one commit and one save or nothing at all.
 import {
   buildKitchenLBodyCatalog,
   cabinetDepthMmOf,
@@ -11,111 +11,47 @@ import {
   KITCHEN_L_DESIGN,
   paletteFinish,
   type Design,
-  type Finish,
   type Handle,
 } from "@lemnaria/configurator-domain";
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
 import { createConfiguratorStore } from "@/store/configurator-store";
-import {
-  preflightWholeKitchenSettings,
-  type AppearanceReplacement,
-  type WholeKitchenSettingsRequest,
-} from "@/store/whole-kitchen-apply";
 
 import { createFakeProbeFactory } from "../support/fake-body-probe";
+import {
+  ANTHRACITE,
+  HAVANNA,
+  kitchenWith,
+  OCCURRED_AT,
+  VENEER_OAK,
+  WHITE,
+  withCabinetAt,
+} from "../support/replacement-kitchens";
+import {
+  finishReplacement,
+  handleReplacement,
+  OFFERED_TIERS,
+  preflight,
+  ready,
+} from "../support/whole-kitchen-press";
 
-const OCCURRED_AT = "2026-11-09T09:00:00.000Z";
-const TIERS = {
-  availableMaterialTierIds: [
-    "material.melamine",
-    "material.veneer",
-    "material.painted-mdf",
-  ],
-  availableHardwareTierIds: ["hardware.standard"],
-} as const;
-const WHITE = paletteFinish("pal.alb");
-const ANTHRACITE = paletteFinish("pal.antracit");
-const HAVANNA = paletteFinish("pal.gri-havanna");
-const VENEER_OAK = paletteFinish("veneer.stejar");
 const DEEPER_DEPTH_MM = 700;
 const ANOTHER_DEPTH_MM =
   declaredCabinetDepthsMm().find(
     (depthMm) => depthMm !== cabinetDepthMmOf(KITCHEN_L_DESIGN),
   ) ?? 0;
 
-function withSettings(
-  settings: NonNullable<Design["settings"]>,
-  design: Design = KITCHEN_L_DESIGN,
-): Design {
-  return { ...design, settings: { ...design.settings, ...settings } };
-}
-
-function withBody(
-  design: Design,
-  index: number,
-  body: Partial<Design["placements"][number]["body"]>,
-): Design {
-  return {
-    ...design,
-    placements: design.placements.map((placement, at) =>
-      at === index
-        ? { ...placement, body: { ...placement.body, ...body } }
-        : placement,
-    ),
-  };
-}
-
-function preflight(
-  request: Partial<WholeKitchenSettingsRequest>,
-  design: Design,
-) {
-  return preflightWholeKitchenSettings(
-    { ...TIERS, ...request },
-    {
-      design,
-      catalogAt: buildKitchenLBodyCatalog,
-      probeAt: createFakeProbeFactory(),
-      occurredAt: OCCURRED_AT,
-    },
-  );
-}
-
-function ready(outcome: ReturnType<typeof preflight>): Design {
-  if (outcome.outcome !== "ready") {
-    throw new Error(`expected ready, got ${outcome.outcome}`);
-  }
-  return outcome.result.design;
-}
-
-const finishReplacement = (
-  from: Finish,
-  to: Finish,
-): AppearanceReplacement => ({
-  kind: "finish",
-  from,
-  to,
-});
-const handleReplacement = (
-  from: Handle,
-  to: Handle,
-): AppearanceReplacement => ({
-  kind: "handle",
-  from,
-  to,
-});
-
 describe("a replacement is real exactly when the replaced item is stored at some level", () => {
   it.each([
-    ["the kitchen's colour only", withSettings({ finish: WHITE })],
+    ["the kitchen's colour only", kitchenWith({ finish: WHITE })],
     [
       "one cabinet's colour only",
-      withBody(KITCHEN_L_DESIGN, 3, { finish: WHITE }),
+      withCabinetAt(KITCHEN_L_DESIGN, 3, { finish: WHITE }),
     ],
     [
       "the last cabinet's colour only",
-      withBody(KITCHEN_L_DESIGN, KITCHEN_L_DESIGN.placements.length - 1, {
+      withCabinetAt(KITCHEN_L_DESIGN, KITCHEN_L_DESIGN.placements.length - 1, {
         finish: WHITE,
       }),
     ],
@@ -129,11 +65,11 @@ describe("a replacement is real exactly when the replaced item is stored at some
   });
 
   it.each([
-    ["the kitchen's handle only", withSettings({ handle: "black" })],
-    ["the top row's handle only", withSettings({ topRowHandle: "black" })],
+    ["the kitchen's handle only", kitchenWith({ handle: "black" })],
+    ["the top row's handle only", kitchenWith({ topRowHandle: "black" })],
     [
       "one cabinet's handle only",
-      withBody(KITCHEN_L_DESIGN, 2, { handle: "black" }),
+      withCabinetAt(KITCHEN_L_DESIGN, 2, { handle: "black" }),
     ],
   ])("runs for a handle stored at %s, and rewrites it", (_where, design) => {
     const after = ready(
@@ -145,7 +81,7 @@ describe("a replacement is real exactly when the replaced item is stored at some
   });
 
   it("is dropped, as unchanged, for a colour the design stores only as other colours", () => {
-    const design = withBody(withSettings({ finish: ANTHRACITE }), 1, {
+    const design = withCabinetAt(kitchenWith({ finish: ANTHRACITE }), 1, {
       finish: VENEER_OAK,
     });
 
@@ -155,7 +91,7 @@ describe("a replacement is real exactly when the replaced item is stored at some
   });
 
   it("is dropped when the stored colour is a free one that differs by value from the replaced palette entry", () => {
-    const design = withSettings({
+    const design = kitchenWith({
       finish: { kind: "free-colour", value: "#ffffff" },
     });
 
@@ -165,7 +101,7 @@ describe("a replacement is real exactly when the replaced item is stored at some
   });
 
   it("runs for a free colour that equals the replaced one by value (sameFinish, not identity)", () => {
-    const design = withSettings({
+    const design = kitchenWith({
       finish: { kind: "free-colour", value: "#ff0000" },
     });
 
@@ -190,7 +126,7 @@ describe("a replacement is real exactly when the replaced item is stored at some
   ])(
     "a handle swapped for itself, or for anything when nothing stores it, is never a command (unchanged)",
     (from, to) => {
-      const design = withSettings({ handle: "steel" });
+      const design = kitchenWith({ handle: "steel" });
 
       const outcome = preflight(
         { replacement: handleReplacement(from, to) },
@@ -205,7 +141,7 @@ describe("a replacement is real exactly when the replaced item is stored at some
 
   it("no request, no replacement and no setting is unchanged, whatever the kitchen stores", () => {
     expect(
-      preflight({}, withSettings({ finish: WHITE, handle: "black" })),
+      preflight({}, kitchenWith({ finish: WHITE, handle: "black" })),
     ).toEqual({ outcome: "unchanged" });
     expect(preflight({ replacement: undefined }, KITCHEN_L_DESIGN)).toEqual({
       outcome: "unchanged",
@@ -214,7 +150,7 @@ describe("a replacement is real exactly when the replaced item is stored at some
 });
 
 describe("the order of a press: material, then the replacement, then the depth", () => {
-  const veneerKitchen = withSettings({
+  const veneerKitchen = kitchenWith({
     materialTierId: "material.veneer",
     finish: VENEER_OAK,
     handle: "black",
@@ -250,18 +186,18 @@ describe("the order of a press: material, then the replacement, then the depth",
     const replacement = handleReplacement("black", "push");
 
     together.store.getState().applyWholeKitchenSettings({
-      ...TIERS,
+      ...OFFERED_TIERS,
       materialTierId: "material.melamine",
       replacement,
       cabinetDepthMm: DEEPER_DEPTH_MM,
     });
     apart.store.getState().applyWholeKitchenSettings({
-      ...TIERS,
+      ...OFFERED_TIERS,
       materialTierId: "material.melamine",
       replacement,
     });
     apart.store.getState().applyWholeKitchenSettings({
-      ...TIERS,
+      ...OFFERED_TIERS,
       cabinetDepthMm: DEEPER_DEPTH_MM,
     });
 
@@ -305,7 +241,7 @@ describe("the order of a press: material, then the replacement, then the depth",
     const before = store.getState().design;
 
     const answer = store.getState().applyWholeKitchenSettings({
-      ...TIERS,
+      ...OFFERED_TIERS,
       materialTierId: "material.melamine",
       replacement: finishReplacement(VENEER_OAK, paletteFinish("veneer.nuc")),
     });
@@ -325,7 +261,7 @@ describe("the order of a press: material, then the replacement, then the depth",
     const unknown = "telepathy" as unknown as Handle;
 
     const refusedHandle = store.getState().applyWholeKitchenSettings({
-      ...TIERS,
+      ...OFFERED_TIERS,
       replacement: { kind: "handle", from: "black", to: unknown },
     });
 
@@ -343,7 +279,7 @@ describe("the order of a press: material, then the replacement, then the depth",
       onDesignChanged: (changed) => saved.push(changed),
     });
     const refusedDepth = withoutProbe.getState().applyWholeKitchenSettings({
-      ...TIERS,
+      ...OFFERED_TIERS,
       replacement: handleReplacement("black", "push"),
       cabinetDepthMm: ANOTHER_DEPTH_MM,
     });
@@ -360,7 +296,7 @@ describe("the order of a press: material, then the replacement, then the depth",
     const { store, saved } = storeHolding(veneerKitchen);
 
     const answer = store.getState().applyWholeKitchenSettings({
-      ...TIERS,
+      ...OFFERED_TIERS,
       materialTierId: "material.melamine",
       replacement: handleReplacement("black", "push"),
       cabinetDepthMm: ANOTHER_DEPTH_MM,
@@ -374,7 +310,7 @@ describe("the order of a press: material, then the replacement, then the depth",
     const { store, saved } = storeHolding(veneerKitchen);
 
     store.getState().applyWholeKitchenSettings({
-      ...TIERS,
+      ...OFFERED_TIERS,
       materialTierId: "material.melamine",
       replacement: finishReplacement(VENEER_OAK, WHITE),
     });

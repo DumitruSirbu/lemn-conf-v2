@@ -294,8 +294,8 @@ describe("the rows are the refusal's items", () => {
       expect(view.rows.map(({ item }) => item)).toEqual(
         refusalItemsOf(root, design),
       );
-      // Q5b: a tier, a colour and a handle row are all choosable; the one exception is a colour row, which waits while a
-      // material row is owed because the material's change would discard what it chose (ruling 4).
+      // A tier, a colour and a handle row are all choosable; the one exception is a colour row, which waits while a material
+      // row is owed because the material's change would discard what it chose.
       const isMaterialOwed = view.rows.some((row) => row.kind === "material");
       expect(
         view.rows.every(

@@ -1,12 +1,7 @@
 // A replacement that owes nothing must not even call the domain's command: `updatedAt` moves on every command result, so a
 // no-op that ran would be saved. The result-level pins (`unchanged`, no save) cannot tell a dropped replacement from a
 // command that ran and happened to change nothing the test compared, so the commands themselves are spied on.
-import {
-  buildKitchenLBodyCatalog,
-  KITCHEN_L_DESIGN,
-  paletteFinish,
-  type Design,
-} from "@lemnaria/configurator-domain";
+import { KITCHEN_L_DESIGN, type Design } from "@lemnaria/configurator-domain";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const spies = vi.hoisted(() => ({
@@ -26,16 +21,10 @@ vi.mock("@lemnaria/configurator-domain", async (importOriginal) => {
   };
 });
 
-import {
-  preflightWholeKitchenSettings,
-  type AppearanceReplacement,
-} from "@/store/whole-kitchen-apply";
+import type { AppearanceReplacement } from "@/store/whole-kitchen-apply";
 
-import { createFakeProbeFactory } from "../support/fake-body-probe";
-
-const WHITE = paletteFinish("pal.alb");
-const HAVANNA = paletteFinish("pal.gri-havanna");
-const ANTHRACITE = paletteFinish("pal.antracit");
+import { ANTHRACITE, HAVANNA, WHITE } from "../support/replacement-kitchens";
+import { preflight } from "../support/whole-kitchen-press";
 
 const kitchen: Design = {
   ...KITCHEN_L_DESIGN,
@@ -59,19 +48,7 @@ function press(
   replacement: AppearanceReplacement | undefined,
   design: Design = kitchen,
 ) {
-  return preflightWholeKitchenSettings(
-    {
-      replacement,
-      availableMaterialTierIds: ["material.melamine"],
-      availableHardwareTierIds: [],
-    },
-    {
-      design,
-      catalogAt: buildKitchenLBodyCatalog,
-      probeAt: createFakeProbeFactory(),
-      occurredAt: "2026-11-09T09:00:00.000Z",
-    },
-  );
+  return preflight({ replacement }, design);
 }
 
 beforeEach(() => {

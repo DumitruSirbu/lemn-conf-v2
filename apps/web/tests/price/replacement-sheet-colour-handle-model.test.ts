@@ -1,5 +1,5 @@
 // The sheet's colour and handle rows as values: when a colour waits, what its chooser offers, what a resolved row says,
-// how the reset a material change caused is read, and how C4C words several changes, one line per item.
+// how the reset a material change caused is read, and how the confirmation words several changes, one line per item.
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import {
   HandleSchema,
@@ -23,87 +23,42 @@ import {
   describeConfirmationLines,
   describeReplacementSheet,
   describeRowChooser,
-  pendingReplacements,
   replacedItemKey,
   resolveReplacementSheetCopy,
   type AppearanceChooserView,
-  type SheetVocabulary,
 } from "@/price/replacement-sheet-model";
 
 import roMessages from "../../src/messages/ro.json";
 import { ro } from "../support/romanian-content";
-import { SAMPLE_PRICE_ROOT } from "../support/sample-price-root";
+import {
+  BLACK_OFF,
+  ANTHRACITE,
+  OCCURRED_AT,
+  VENEER_OAK,
+  VENEER_OAK_OFF,
+  VENEER_OFF,
+  WHITE,
+  WHITE_OFF,
+  kitchenWith,
+} from "../support/replacement-kitchens";
+import {
+  full,
+  PRICE_SENTENCE,
+  stem,
+} from "../support/replacement-confirmation-lines";
+import {
+  romanianSheetCopy as copy,
+  viewOf,
+  worldOf,
+} from "../support/replacement-sheet-view-world";
 import {
   HARDWARE_TIER_IDS,
   kitchenCarrying,
   MATERIAL_TIER_IDS,
-  offerThroughRoot,
 } from "../support/tier-offer-world";
 
 const say = createTranslator({ locale: "ro", messages: roMessages });
-const copy = resolveReplacementSheetCopy(say);
-/** The closing sentence every "changed to {name}" leaf carries, read from the leaf so no wording is written here. */
-const PRICE_SENTENCE =
-  roMessages.replacementSheet.changedMaterial.split("{name}. ")[1] ?? "";
 
-type ChangedLeaf =
-  | "changedMaterial"
-  | "changedHardware"
-  | "changedColour"
-  | "changedHandle";
-
-/** What a change says in its leaf's own words: with the closing sentence, or without it. */
-function full(leaf: ChangedLeaf, name: string): string {
-  return say(`replacementSheet.${leaf}`, { name });
-}
-function stem(leaf: ChangedLeaf, name: string): string {
-  return full(leaf, name).replace(` ${PRICE_SENTENCE}`, "");
-}
-const OCCURRED_AT = "2026-11-09T09:00:00.000Z";
-
-const WHITE = paletteFinish("pal.alb");
-const ANTHRACITE = paletteFinish("pal.antracit");
-const VENEER_OAK = paletteFinish("veneer.stejar");
-
-function worldOf(design: Design, disabled: readonly ItemRef[]) {
-  const availability = { revision: "1", disabled };
-  const root = { ...SAMPLE_PRICE_ROOT, availability };
-  const live = pendingReplacements(root, design, KITCHEN_L_BODY_CATALOG);
-  const vocabulary: SheetVocabulary = {
-    content: ro,
-    copy,
-    offer: offerThroughRoot(availability, design),
-  };
-  return { live, vocabulary };
-}
-
-function viewOf(
-  design: Design,
-  disabled: readonly ItemRef[],
-  chosenNames?: ReadonlyMap<string, string>,
-) {
-  const { live, vocabulary } = worldOf(design, disabled);
-  return describeReplacementSheet({
-    seen: live,
-    live,
-    design,
-    accessoryNames: [],
-    vocabulary,
-    ...(chosenNames === undefined ? {} : { chosenNames }),
-  });
-}
-
-function kitchenWith(settings: NonNullable<Design["settings"]>): Design {
-  return {
-    ...KITCHEN_L_DESIGN,
-    settings: { ...KITCHEN_L_DESIGN.settings, ...settings },
-  };
-}
-
-const VENEER_OFF: ItemRef = { kind: "material", tierId: "material.veneer" };
-const VENEER_OAK_OFF: ItemRef = { kind: "finish", finishId: "veneer.stejar" };
-const BLACK_OFF: ItemRef = { kind: "handle", handle: "black" };
-const WHITE_OFF: ItemRef = { kind: "finish", finishId: "pal.alb" };
 const VENEER_KITCHEN = kitchenWith({
   materialTierId: "material.veneer",
   finish: VENEER_OAK,
@@ -430,7 +385,7 @@ describe("the colour a material change reset", () => {
   });
 });
 
-describe("C4C's lines", () => {
+describe("the confirmation's lines", () => {
   const change = (
     kind: "material" | "hardware" | "finish" | "handle",
     name: string,

@@ -1,16 +1,11 @@
 // @vitest-environment happy-dom
 //
-// A colour or a handle is the ONLY row owed. Until Q5b the modal had no control to resolve it and the back link was the only
-// way out; A-16 gives the row a chooser of its own. This is reachable: the availability route can switch off a handle or a
-// palette colour (`tests/support/availability-route-items.ts`), customers store both, and `disabledItemsNamedBy` lists a stored
-// one that is switched off. The tests below pin what the customer is shown, that the row can be resolved, and what a resolved
-// colour row says. The `it.fails` that waited for the flip, and the pins of the dead end, moved in Q5b's QA.
-import {
-  KITCHEN_L_DESIGN,
-  paletteFinish,
-  type Design,
-  type ItemRef,
-} from "@lemnaria/configurator-domain";
+// A colour or a handle is the ONLY row owed, and the modal must have a control to resolve it: the back link is not the only way
+// out. This is reachable: the availability route can switch off a handle or a palette colour
+// (`tests/support/availability-route-items.ts`), customers store both, and `disabledItemsNamedBy` lists a stored one that is
+// switched off. The tests below pin what the customer is shown, that the row can be resolved, and what a resolved colour row
+// says.
+import { paletteFinish } from "@lemnaria/configurator-domain";
 import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -39,11 +34,16 @@ vi.mock("next/navigation", async (importOriginal) => ({
   }),
 }));
 
-import type { PriceBookRoot } from "@/price/price-book-root";
 import { useConfiguratorStore } from "@/store/configurator-store";
 
 import roMessages from "../../src/messages/ro.json";
 import { ro } from "../support/romanian-content";
+import {
+  BLACK_OFF,
+  kitchenWith,
+  rootSwitchingOff,
+  WHITE_OFF,
+} from "../support/replacement-kitchens";
 import {
   beginTest,
   byTestId,
@@ -63,29 +63,8 @@ import {
   type World,
 } from "../support/replacement-sheet-world";
 import { tierName } from "../support/tier-offer-world";
-import { SAMPLE_PRICE_ROOT } from "../support/sample-price-root";
 
 const TEXT = roMessages.replacementSheet;
-const SWITCHED_OFF_HANDLE_REF: ItemRef = { kind: "handle", handle: "black" };
-const SWITCHED_OFF_COLOUR_REF: ItemRef = {
-  kind: "finish",
-  finishId: "pal.alb",
-};
-
-function rootSwitchingOff(...items: readonly ItemRef[]): PriceBookRoot {
-  return {
-    ...SAMPLE_PRICE_ROOT,
-    availability: { revision: "1", disabled: items },
-  };
-}
-
-function kitchenWith(settings: NonNullable<Design["settings"]>): Design {
-  return {
-    ...KITCHEN_L_DESIGN,
-    settings: { ...KITCHEN_L_DESIGN.settings, ...settings },
-  };
-}
-
 const WITH_BLACK_HANDLE = kitchenWith({ handle: "black" });
 const WITH_WHITE_COLOUR = kitchenWith({ finish: paletteFinish("pal.alb") });
 
@@ -105,7 +84,7 @@ describe.each([
   {
     name: "a handle the kitchen stores and availability has switched off",
     design: WITH_BLACK_HANDLE,
-    root: rootSwitchingOff(SWITCHED_OFF_HANDLE_REF),
+    root: rootSwitchingOff(BLACK_OFF),
     kindLabel: ro.globalSettings.kitchenHandleHeading,
     valueText: ro.panel.handleLabels.black,
     itemId: '"handle":"black"',
@@ -113,7 +92,7 @@ describe.each([
   {
     name: "a palette colour the kitchen stores and availability has switched off",
     design: WITH_WHITE_COLOUR,
-    root: rootSwitchingOff(SWITCHED_OFF_COLOUR_REF),
+    root: rootSwitchingOff(WHITE_OFF),
     kindLabel: ro.globalSettings.colourHeading,
     valueText: ro.finishName("pal.alb"),
     itemId: "pal.alb",
@@ -241,7 +220,7 @@ describe("a resolved row with nothing to say", () => {
       priceRoot: rootSwitchingOff(
         { kind: "material", tierId: SWITCHED_OFF_MATERIAL },
         { kind: "hardware", tierId: "hardware.premium" },
-        SWITCHED_OFF_HANDLE_REF,
+        BLACK_OFF,
       ),
     });
     await chooseTier(editor, tierName("material.melamine"));
@@ -284,16 +263,10 @@ describe("a colour or a handle owed beside a material", () => {
       }),
     );
     const editor = await mountEditor({
-      priceRoot: {
-        ...SAMPLE_PRICE_ROOT,
-        availability: {
-          revision: "1",
-          disabled: [
-            { kind: "material", tierId: SWITCHED_OFF_MATERIAL },
-            SWITCHED_OFF_HANDLE_REF,
-          ],
-        },
-      },
+      priceRoot: rootSwitchingOff(
+        { kind: "material", tierId: SWITCHED_OFF_MATERIAL },
+        BLACK_OFF,
+      ),
     });
     const owedChoosers = (): number =>
       editor.container.querySelectorAll(
