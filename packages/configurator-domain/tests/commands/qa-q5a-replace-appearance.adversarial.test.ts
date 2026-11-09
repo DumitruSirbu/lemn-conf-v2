@@ -1,20 +1,5 @@
-// M10 Q5a QA: counterexample hunting against `replaceColour` and `replaceHandle` (A-16, ADR 0057 decision 2, ADR 0078
-// decision 5, H1-b, H2-b).
-//
-// The implementer's suites pin examples where the stored value and `from` are the very same constant object, and one
-// sweep of designs that name declared materials. These attack what that leaves open:
-//
-//   - `from` as a structurally equal but distinct object (a value read off the wire is never the constant);
-//   - an oracle that walks the whole document for every `finish` / `handle` / `topRowHandle` key at any depth and
-//     rewrites the ones equal to `from`, so the command is compared with "exactly the stored values equal to `from`"
-//     and not with itself, over colours drawn from every palette, free colours and absence;
-//   - identity: a refusal returns the design given, a cabinet or the settings nothing reached is the same object, the
-//     input is deep-frozen and still answers;
-//   - the two commands touch disjoint keys, so they commute;
-//   - values the types forbid: a `from` that is not a Finish or a Handle (the command validates `to` only).
-//
-// Behaviours the commands leave to the caller (H-4: availability is the caller's) are pinned by name at the end, each
-// saying what it is, so the next wave that changes one does so on purpose.
+// `replaceColour` and `replaceHandle` compared with an oracle that never reads them, plus the identity, refusal and
+// input-validation edges the example suite leaves out.
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
@@ -22,8 +7,6 @@ import {
   DesignSchema,
   replaceColour,
   replaceHandle,
-  type CommandEffect,
-  type CommandResult,
   type Design,
   type Handle,
 } from "../../src/index.js";
@@ -31,7 +14,6 @@ import { KITCHEN_L_DESIGN } from "../../src/fixtures/kitchen-l-design.js";
 import {
   freeColourFinish,
   paletteFinish,
-  PALETTE_ENTRY_IDS,
   type Finish,
 } from "../../src/materials.js";
 import {
@@ -40,23 +22,36 @@ import {
   withBodyOf,
   withSettings,
 } from "../support/availability-kitchens.js";
+import {
+  aDeal,
+  ALB,
+  ANTRACIT,
+  DECLARED_PALETTE_CHOICES,
+  dealtDesign,
+  HANDLES,
+  HAVANNA,
+  OCCURRED_AT,
+  succeeded,
+  UNDECLARED_CHOICE,
+  UNDECLARED_MATERIAL_ID,
+} from "../support/replacement-kitchens.js";
 
-const OCCURRED_AT = "2026-11-09T09:00:00.000Z";
 const LATER = "2026-11-09T10:30:00.000Z";
-const UNDECLARED_MATERIAL = "material.created";
+/** The material choices the sweeps run under. */
+const MELAMINE_AND_UNDECLARED = [
+  UNDECLARED_CHOICE,
+  ...DECLARED_PALETTE_CHOICES.filter(
+    ({ materialTierId }) => materialTierId === "material.melamine",
+  ),
+];
 
-const ANTRACIT = paletteFinish("pal.antracit");
-const ALB = paletteFinish("pal.alb");
-const HAVANNA = paletteFinish("pal.gri-havanna");
-const HANDLES: readonly Handle[] = ["steel", "black", "push"];
-
-/** The same value, a different object: what a Finish read off a request body is. */
 /** `JSON.stringify` answers undefined for undefined, whatever its declared type says. */
 function labelOf(value: unknown): string {
   const text = JSON.stringify(value) as string | undefined;
   return text ?? "undefined";
 }
 
+/** The same value as a different object: what a Finish read off a request body is, never the shared constant. */
 function copyOf<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
@@ -67,11 +62,6 @@ function deepFreeze<T>(value: T): T {
     for (const inner of Object.values(value)) deepFreeze(inner);
   }
   return value;
-}
-
-function succeeded<T extends CommandEffect>(result: CommandResult<T>) {
-  if (!result.ok) throw new Error(`refused: ${result.reason.code}`);
-  return result;
 }
 
 function placementOf(design: Design, placementId: string) {
@@ -85,7 +75,7 @@ function placementOf(design: Design, placementId: string) {
 
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 
-/** The document with every property named in `keys` that equals `from` replaced by `to`, found at any depth. */
+/** Rewrites every property named in `keys` that equals `from` replaced by `to`, found at any depth. */
 function oracleRewrite(
   document: Json,
   keys: readonly string[],
@@ -118,113 +108,42 @@ function expectedAfter(
   return { ...(rewritten as Record<string, Json>), updatedAt: OCCURRED_AT };
 }
 
-// ---------------------------------------------------------------------------------------------------------------
-// Generated designs: the seeded kitchen with colours and handles dealt at every level, some absent
-
-const maybe = <T>(arbitrary: fc.Arbitrary<T>) =>
-  fc.option(arbitrary, { nil: undefined });
-
-const PLACEMENT_COUNT = KITCHEN_L_DESIGN.placements.length;
-const ALL_COLOURS: readonly Finish[] = [
-  ...PALETTE_ENTRY_IDS.map(paletteFinish),
-  freeColourFinish("#336699"),
-  freeColourFinish("#eceeeb"),
-];
-const PAL_COLOURS: readonly Finish[] = PALETTE_ENTRY_IDS.filter((entryId) =>
-  entryId.startsWith("pal."),
-).map(paletteFinish);
-
-interface Deal {
-  readonly materialTierId: string;
-  readonly colours: readonly Finish[];
-  readonly kitchenColour: Finish | undefined;
-  readonly kitchenHandle: Handle | undefined;
-  readonly topRowHandle: Handle | undefined;
-  readonly ownColours: readonly (Finish | undefined)[];
-  readonly ownHandles: readonly (Handle | undefined)[];
-}
-
-function dealt(deal: Deal): Design {
-  const placements = KITCHEN_L_DESIGN.placements.map((placement, index) => {
-    const finish = deal.ownColours[index];
-    const handle = deal.ownHandles[index];
-    return {
-      ...placement,
-      body: {
-        ...placement.body,
-        ...(finish ? { finish: copyOf(finish) } : {}),
-        ...(handle ? { handle } : {}),
-      },
-    };
-  });
-  return {
-    ...KITCHEN_L_DESIGN,
-    placements,
-    settings: {
-      cabinetDepthMm: 600,
-      materialTierId: deal.materialTierId,
-      ...(deal.kitchenColour ? { finish: copyOf(deal.kitchenColour) } : {}),
-      ...(deal.kitchenHandle ? { handle: deal.kitchenHandle } : {}),
-      ...(deal.topRowHandle ? { topRowHandle: deal.topRowHandle } : {}),
-    },
-  };
-}
-
-/** A material no code declares offers every schema-valid colour, so any pair of colours is replaceable under it; PAL
- *  offers its own six only. */
-const aDeal: fc.Arbitrary<Deal> = fc
-  .constantFrom(
-    { materialTierId: UNDECLARED_MATERIAL, colours: ALL_COLOURS },
-    { materialTierId: "material.melamine", colours: PAL_COLOURS },
-  )
-  .chain(({ materialTierId, colours }) => {
-    const aColour = fc.constantFrom(...colours);
-    const aHandle = fc.constantFrom(...HANDLES);
-    return fc.record({
-      materialTierId: fc.constant(materialTierId),
-      colours: fc.constant(colours),
-      kitchenColour: maybe(aColour),
-      kitchenHandle: maybe(aHandle),
-      topRowHandle: maybe(aHandle),
-      ownColours: fc.array(maybe(aColour), {
-        minLength: PLACEMENT_COUNT,
-        maxLength: PLACEMENT_COUNT,
-      }),
-      ownHandles: fc.array(maybe(aHandle), {
-        minLength: PLACEMENT_COUNT,
-        maxLength: PLACEMENT_COUNT,
-      }),
-    });
-  });
+/** Designs under a material no code declares (any colour is offered) and under melamine (its six decors only). */
+const aDealtMaterial = aDeal(MELAMINE_AND_UNDECLARED);
 
 describe("replaceColour against an oracle that walks the whole document", () => {
   it("rewrites exactly the stored `finish` values equal to `from`, at every depth, and nothing else", () => {
     let rewrites = 0;
     fc.assert(
-      fc.property(aDeal, fc.nat(), fc.nat(), (deal, fromPick, toPick) => {
-        const design = dealt(deal);
-        const from = copyOf(deal.colours[fromPick % deal.colours.length]);
-        const to = copyOf(deal.colours[toPick % deal.colours.length]);
-        if (from === undefined || to === undefined) return;
+      fc.property(
+        aDealtMaterial,
+        fc.nat(),
+        fc.nat(),
+        (deal, fromPick, toPick) => {
+          const design = dealtDesign(deal);
+          const from = copyOf(deal.colours[fromPick % deal.colours.length]);
+          const to = copyOf(deal.colours[toPick % deal.colours.length]);
+          if (from === undefined || to === undefined) return;
 
-        const result = succeeded(
-          replaceColour({ design, from, to, occurredAt: OCCURRED_AT }),
-        );
+          const result = succeeded(
+            replaceColour({ design, from, to, occurredAt: OCCURRED_AT }),
+          );
 
-        expect(result.design).toEqual(
-          expectedAfter(design, ["finish"], from, to),
-        );
-        expect(result.effect).toEqual({ type: "colour_replaced", from, to });
-        expect(DesignSchema.safeParse(result.design).success).toBe(true);
-        if (JSON.stringify(from) !== JSON.stringify(to)) {
-          expect(
-            JSON.stringify(result.design).includes(JSON.stringify(from)),
-          ).toBe(false);
-        }
-        if (JSON.stringify(design).includes(JSON.stringify(from))) {
-          rewrites += 1;
-        }
-      }),
+          expect(result.design).toEqual(
+            expectedAfter(design, ["finish"], from, to),
+          );
+          expect(result.effect).toEqual({ type: "colour_replaced", from, to });
+          expect(DesignSchema.safeParse(result.design).success).toBe(true);
+          if (JSON.stringify(from) !== JSON.stringify(to)) {
+            expect(
+              JSON.stringify(result.design).includes(JSON.stringify(from)),
+            ).toBe(false);
+          }
+          if (JSON.stringify(design).includes(JSON.stringify(from))) {
+            rewrites += 1;
+          }
+        },
+      ),
       { numRuns: 600 },
     );
     expect(rewrites).toBeGreaterThan(100);
@@ -232,33 +151,38 @@ describe("replaceColour against an oracle that walks the whole document", () => 
 
   it("hands back the very same cabinet and settings objects wherever nothing matched, and never touches a handle", () => {
     fc.assert(
-      fc.property(aDeal, fc.nat(), fc.nat(), (deal, fromPick, toPick) => {
-        const design = dealt(deal);
-        const from = copyOf(deal.colours[fromPick % deal.colours.length]);
-        const to = copyOf(deal.colours[toPick % deal.colours.length]);
-        if (from === undefined || to === undefined) return;
+      fc.property(
+        aDealtMaterial,
+        fc.nat(),
+        fc.nat(),
+        (deal, fromPick, toPick) => {
+          const design = dealtDesign(deal);
+          const from = copyOf(deal.colours[fromPick % deal.colours.length]);
+          const to = copyOf(deal.colours[toPick % deal.colours.length]);
+          if (from === undefined || to === undefined) return;
 
-        const { design: after } = succeeded(
-          replaceColour({ design, from, to, occurredAt: OCCURRED_AT }),
-        );
+          const { design: after } = succeeded(
+            replaceColour({ design, from, to, occurredAt: OCCURRED_AT }),
+          );
 
-        design.placements.forEach((placement, index) => {
-          const own = placement.body.finish;
-          const matched =
-            own !== undefined && JSON.stringify(own) === JSON.stringify(from);
-          const afterPlacement = after.placements[index];
-          if (!matched) expect(afterPlacement).toBe(placement);
-          expect(afterPlacement?.body.handle).toBe(placement.body.handle);
-        });
-        const settingsMatched =
-          design.settings?.finish !== undefined &&
-          JSON.stringify(design.settings.finish) === JSON.stringify(from);
-        if (!settingsMatched) expect(after.settings).toBe(design.settings);
-        expect(after.settings?.handle).toBe(design.settings?.handle);
-        expect(after.settings?.topRowHandle).toBe(
-          design.settings?.topRowHandle,
-        );
-      }),
+          design.placements.forEach((placement, index) => {
+            const own = placement.body.finish;
+            const matched =
+              own !== undefined && JSON.stringify(own) === JSON.stringify(from);
+            const afterPlacement = after.placements[index];
+            if (!matched) expect(afterPlacement).toBe(placement);
+            expect(afterPlacement?.body.handle).toBe(placement.body.handle);
+          });
+          const settingsMatched =
+            design.settings?.finish !== undefined &&
+            JSON.stringify(design.settings.finish) === JSON.stringify(from);
+          if (!settingsMatched) expect(after.settings).toBe(design.settings);
+          expect(after.settings?.handle).toBe(design.settings?.handle);
+          expect(after.settings?.topRowHandle).toBe(
+            design.settings?.topRowHandle,
+          );
+        },
+      ),
       { numRuns: 300 },
     );
   });
@@ -269,11 +193,11 @@ describe("replaceHandle against an oracle that walks the whole document", () => 
     let rewrites = 0;
     fc.assert(
       fc.property(
-        aDeal,
+        aDealtMaterial,
         fc.constantFrom(...HANDLES),
         fc.constantFrom(...HANDLES),
         (deal, from, to) => {
-          const design = dealt(deal);
+          const design = dealtDesign(deal);
 
           const result = succeeded(
             replaceHandle({ design, from, to, occurredAt: OCCURRED_AT }),
@@ -295,11 +219,11 @@ describe("replaceHandle against an oracle that walks the whole document", () => 
   it("hands back the very same cabinet and settings objects wherever nothing matched, and never touches a colour", () => {
     fc.assert(
       fc.property(
-        aDeal,
+        aDealtMaterial,
         fc.constantFrom(...HANDLES),
         fc.constantFrom(...HANDLES),
         (deal, from, to) => {
-          const design = dealt(deal);
+          const design = dealtDesign(deal);
 
           const { design: after } = succeeded(
             replaceHandle({ design, from, to, occurredAt: OCCURRED_AT }),
@@ -330,13 +254,13 @@ describe("the two commands, together", () => {
   it("commute: a colour and a handle replaced in either order give the same document", () => {
     fc.assert(
       fc.property(
-        aDeal,
+        aDealtMaterial,
         fc.nat(),
         fc.nat(),
         fc.constantFrom(...HANDLES),
         fc.constantFrom(...HANDLES),
         (deal, fromPick, toPick, fromHandle, toHandle) => {
-          const design = dealt(deal);
+          const design = dealtDesign(deal);
           const fromColour = deal.colours[fromPick % deal.colours.length];
           const toColour = deal.colours[toPick % deal.colours.length];
           if (fromColour === undefined || toColour === undefined) return;
@@ -368,8 +292,8 @@ describe("the two commands, together", () => {
 
   it("answer a deep-frozen document exactly as they answer a mutable one, and are deterministic", () => {
     fc.assert(
-      fc.property(aDeal, fc.constantFrom(...HANDLES), (deal, from) => {
-        const design = dealt(deal);
+      fc.property(aDealtMaterial, fc.constantFrom(...HANDLES), (deal, from) => {
+        const design = dealtDesign(deal);
         const frozen = deepFreeze(copyOf(design));
         const [fromColour, toColour] = [deal.colours[0], deal.colours[1]];
         if (fromColour === undefined || toColour === undefined) return;
@@ -458,7 +382,7 @@ describe("replaceColour reaches each level it is stored at, one level at a time,
   it("matches a free colour by its value, and never a palette entry for a free colour or the other way round", () => {
     const design = withSettings({
       cabinetDepthMm: 600,
-      materialTierId: UNDECLARED_MATERIAL,
+      materialTierId: UNDECLARED_MATERIAL_ID,
       finish: freeColourFinish("#336699"),
     });
     const withPalette = withBodyOf(
@@ -611,7 +535,7 @@ describe("replaceHandle reaches each level it is stored at, one level at a time"
 // ---------------------------------------------------------------------------------------------------------------
 // Refusals
 
-describe("a refusal returns the design it was given, by identity, and the first failing check names it", () => {
+describe("a refusal returns the design it was given, and names the first check that failed", () => {
   const BAD_TIMESTAMPS: readonly string[] = [
     "",
     "yesterday",
@@ -708,7 +632,7 @@ describe("a refusal returns the design it was given, by identity, and the first 
     (_label, value) => {
       const undeclared = withSettings({
         cabinetDepthMm: 600,
-        materialTierId: UNDECLARED_MATERIAL,
+        materialTierId: UNDECLARED_MATERIAL_ID,
         finish: ANTRACIT,
       });
 
@@ -777,7 +701,7 @@ describe("a refusal returns the design it was given, by identity, and the first 
     expect(result.design).toBe(design);
   });
 
-  it("answers a refusal with no effect and leaves the prototype chain alone", () => {
+  it("answers a refusal with no effect, and a `__proto__` handle pollutes no object", () => {
     const result = replaceHandle({
       design,
       from: "black",
@@ -792,17 +716,15 @@ describe("a refusal returns the design it was given, by identity, and the first 
 });
 
 // ---------------------------------------------------------------------------------------------------------------
-// A `from` the types forbid. `Finish` is an inferred type, so a malformed value type-checks and must still be refused
-// at the commands (ADR 0078 decision 6; `designOffersFinish`'s doc), yet only `to` is validated here. Whether Q5b hands
-// a `from` through unparsed is an inference until that wave exists; the command is the seam that does not depend on it.
+// A `from` that is no Finish and no Handle: the type forbids it, so the command must refuse it itself
 
-describe("a `from` that is no Finish and no Handle never writes a value the design did not hold", () => {
+describe("a `from` that is no Finish and no Handle is refused, and the design is returned as given", () => {
   const design = withBodyOf(
     CUSTOMISABLE_PLACEMENT_ID,
     { finish: ANTRACIT },
     withSettings({
       cabinetDepthMm: 600,
-      materialTierId: UNDECLARED_MATERIAL,
+      materialTierId: UNDECLARED_MATERIAL_ID,
       finish: ALB,
     }),
   );
@@ -812,8 +734,36 @@ describe("a `from` that is no Finish and no Handle never writes a value the desi
     ["null", null],
     ["a bare string", "pal.alb"],
     ["an empty object", {}],
+    [
+      "a palette entry no palette holds",
+      { kind: "palette-entry", entryId: "pal.nope" },
+    ],
   ])(
-    "replaceHandle with a `from` of %s changes no stored handle, absent ones included",
+    "replaceColour refuses a `from` of %s with FINISH_NOT_OFFERED",
+    (_label, from) => {
+      const result = replaceColour({
+        design,
+        from: from as unknown as Finish,
+        to: ALB,
+        occurredAt: OCCURRED_AT,
+      });
+
+      expect(result).toMatchObject({
+        ok: false,
+        reason: { code: "FINISH_NOT_OFFERED" },
+      });
+      expect(result.design).toBe(design);
+    },
+  );
+
+  it.each([
+    ["undefined", undefined],
+    ["null", null],
+    ["a bare string", "pal.alb"],
+    ["an empty object", {}],
+    ["an unknown handle", "gold"],
+  ])(
+    "replaceHandle refuses a `from` of %s with UNKNOWN_HANDLE, so no absent handle is written",
     (_label, from) => {
       const result = replaceHandle({
         design,
@@ -822,44 +772,34 @@ describe("a `from` that is no Finish and no Handle never writes a value the desi
         occurredAt: OCCURRED_AT,
       });
 
-      const handlesAfter =
-        (result.design.settings?.handle ?? "absent") +
-        result.design.placements
-          .map(({ body }) => body.handle ?? "absent")
-          .join();
-      const handlesBefore =
-        (design.settings?.handle ?? "absent") +
-        design.placements.map(({ body }) => body.handle ?? "absent").join();
-      expect(handlesAfter).toBe(handlesBefore);
-      expect(result.design.settings).not.toHaveProperty("topRowHandle");
+      expect(result).toMatchObject({
+        ok: false,
+        reason: { code: "UNKNOWN_HANDLE" },
+      });
+      expect(result.design).toBe(design);
     },
   );
 
-  it.each([
-    ["undefined", undefined],
-    ["null", null],
-    ["a bare string", "pal.antracit"],
-    ["an empty object", {}],
-  ])(
-    "replaceColour with a `from` of %s answers with a result and not a TypeError",
-    (_label, from) => {
-      expect(() =>
-        replaceColour({
-          design,
-          from: from as unknown as Finish,
-          to: ALB,
-          occurredAt: OCCURRED_AT,
-        }),
-      ).not.toThrow();
-    },
-  );
+  it("checks the timestamp before `from`", () => {
+    const result = replaceHandle({
+      design,
+      from: undefined as unknown as Handle,
+      to: "push",
+      occurredAt: "yesterday",
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      reason: { code: "INVALID_OCCURRED_AT" },
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------------------------------------------
-// Pinned: what the commands leave to the caller (H-4). Each says what it is and decides nothing.
+// Availability and need are the caller's: the commands judge validity only
 
-describe("PINNED CURRENT BEHAVIOUR: the commands judge validity, not availability or need (H-4)", () => {
-  it("from == to succeeds, emits its effect and stamps updatedAt: a no-op is not a refusal and is not the design given", () => {
+describe("replaceColour and replaceHandle judge validity, not availability or need", () => {
+  it("succeeds for a colour replaced by itself, emitting its effect and stamping updatedAt on a new document", () => {
     const design = withSettings({ cabinetDepthMm: 600, finish: ANTRACIT });
 
     const result = succeeded(
@@ -881,7 +821,7 @@ describe("PINNED CURRENT BEHAVIOUR: the commands judge validity, not availabilit
     expect({ ...result.design, updatedAt: design.updatedAt }).toEqual(design);
   });
 
-  it("a `from` the design never stores succeeds the same way: a new document, a new clock, nothing rewritten", () => {
+  it("succeeds for a handle the design never stores, with a new clock and every cabinet and the settings left as they were", () => {
     const design = withSettings({ cabinetDepthMm: 600, handle: "steel" });
 
     const result = succeeded(
@@ -896,7 +836,7 @@ describe("PINNED CURRENT BEHAVIOUR: the commands judge validity, not availabilit
     });
   });
 
-  it("a `from` that is not switched off, and a `to` that is, both succeed: availability is the caller's", () => {
+  it("replaces a colour by another without asking whether either is switched off", () => {
     const design = withSettings({
       cabinetDepthMm: 600,
       materialTierId: "material.melamine",
@@ -915,7 +855,7 @@ describe("PINNED CURRENT BEHAVIOUR: the commands judge validity, not availabilit
     expect(result.design.settings?.finish).toEqual(HAVANNA);
   });
 
-  it("merges into a `to` the design already stores: the rewritten values and the existing ones then agree", () => {
+  it("merges into a `to` the design already stores, leaving the cabinet that already wore it untouched", () => {
     const design = withBodyOf(
       CUSTOMISABLE_PLACEMENT_ID,
       { finish: HAVANNA },
@@ -937,10 +877,10 @@ describe("PINNED CURRENT BEHAVIOUR: the commands judge validity, not availabilit
     );
   });
 
-  it("under a material no code declares, a `to` from another material's palette is accepted: the schema is the only gate", () => {
+  it("accepts, under a material no code declares, a `to` from another material's palette", () => {
     const design = withSettings({
       cabinetDepthMm: 600,
-      materialTierId: UNDECLARED_MATERIAL,
+      materialTierId: UNDECLARED_MATERIAL_ID,
       finish: ANTRACIT,
     });
 
@@ -956,7 +896,7 @@ describe("PINNED CURRENT BEHAVIOUR: the commands judge validity, not availabilit
     expect(result.design.settings?.finish).toEqual(paletteFinish("veneer.nuc"));
   });
 
-  it("writes the caller's `to` object itself at every level, so the levels share one reference", () => {
+  it("stores the caller's `to` object itself at every level it rewrites", () => {
     const to = copyOf(ALB);
     const design = withBodyOf(
       CUSTOMISABLE_PLACEMENT_ID,
@@ -972,7 +912,7 @@ describe("PINNED CURRENT BEHAVIOUR: the commands judge validity, not availabilit
     expect(placementOf(after, CUSTOMISABLE_PLACEMENT_ID).body.finish).toBe(to);
   });
 
-  it("a hostile document key named __proto__ survives a rewrite as data and pollutes nothing", () => {
+  it("refuses a `to` carrying a `__proto__` key and pollutes no object", () => {
     const hostile = JSON.parse(
       `{"kind":"palette-entry","entryId":"pal.antracit","__proto__":{"handle":"push"}}`,
     ) as Finish;

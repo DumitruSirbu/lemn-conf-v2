@@ -1,12 +1,10 @@
-// `replaceColour` and `replaceHandle` (M10 Q5a, A-16): the switched-off item replaced at every level the design stores
-// it, and nothing else, as one result with one effect. The sweep over random designs is in the `.property` sibling.
+// `replaceColour` and `replaceHandle`: the item replaced at every level the design stores it, and nothing else, as one
+// result with one effect. The sweep over random designs is in the `.property` sibling.
 import { describe, expect, it } from "vitest";
 
 import {
   replaceColour,
   replaceHandle,
-  type CommandEffect,
-  type CommandResult,
   type Design,
   type Handle,
 } from "../../src/index.js";
@@ -16,13 +14,14 @@ import {
   withBodyOf,
   withSettings,
 } from "../support/availability-kitchens.js";
+import {
+  ALB,
+  ANTRACIT,
+  HAVANNA,
+  OCCURRED_AT,
+  succeeded,
+} from "../support/replacement-kitchens.js";
 import { KITCHEN_L_DESIGN } from "../../src/fixtures/kitchen-l-design.js";
-
-const OCCURRED_AT = "2026-11-09T09:00:00.000Z";
-
-const ANTRACIT = paletteFinish("pal.antracit");
-const ALB = paletteFinish("pal.alb");
-const HAVANNA = paletteFinish("pal.gri-havanna");
 
 /** The seeded kitchen naming one colour at three levels: the kitchen's, one cabinet's, and a second cabinet's other one. */
 function kitchenWearingAntracit(): Design {
@@ -41,11 +40,6 @@ function kitchenWearingAntracit(): Design {
       return placement;
     }),
   };
-}
-
-function succeeded<T extends CommandEffect>(result: CommandResult<T>) {
-  if (!result.ok) throw new Error(`refused: ${result.reason.code}`);
-  return result;
 }
 
 describe("replaceColour", () => {

@@ -1,9 +1,6 @@
-// M10 Q5a QA: the store's fold of `colour_replaced` and `handle_replaced`, attacked where the implementer's file did not.
-//
-// `q5a-replacement-effects.test.ts` holds the selection through each effect from a design with no opening. This adds:
-// the document's geometry (columns, openings, every placement's frame) untouched by a replacement even when the design
-// has an opening to lose; a selected opening carried through and a dangling opening dropped; the replaced values shown
-// on the placement records; and a refusal of each kind leaving the store's state to the rejection alone.
+// The store's fold of `colour_replaced` and `handle_replaced` into a kitchen that has an opening: columns, openings and
+// frames untouched; a selected opening carried through and a dangling one dropped; the replaced values shown on the
+// placement records; and a refusal of each kind reaching the store as the rejection alone.
 import {
   buildKitchenLBodyCatalog,
   KITCHEN_L_DESIGN,

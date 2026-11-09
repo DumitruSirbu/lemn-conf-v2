@@ -1,6 +1,6 @@
-// `replaceColour` and `replaceHandle`, swept (M10 Q5a, A-16, H1-a, H1-b, H2-b). For any design and any colour or handle
-// it names, replacing it by any option `replacementsRequired` offers leaves the design naming no switched-off item, and
-// every stored value that was not the replaced item is exactly as it was.
+// `replaceColour` and `replaceHandle`, swept. For any design and any colour or handle it names, replacing it by any
+// option `replacementsRequired` offers leaves the design naming no switched-off item, and every stored value that was
+// not the replaced item is exactly as it was.
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
@@ -19,14 +19,7 @@ import {
   type Handle,
 } from "../../src/index.js";
 import { KITCHEN_L_DESIGN } from "../../src/fixtures/kitchen-l-design.js";
-import {
-  FinishSchema,
-  MATERIALS,
-  paletteEntriesOf,
-  paletteFinish,
-  sameFinish,
-  type Finish,
-} from "../../src/materials.js";
+import { sameFinish, type Finish } from "../../src/materials.js";
 import {
   coloursAndHandlesNamedBy,
   type ItemRef,
@@ -39,90 +32,20 @@ import {
   BOOK,
   CATALOG,
 } from "../support/availability-kitchens.js";
+import {
+  aDeal,
+  DECLARED_PALETTE_CHOICES,
+  dealtDesign,
+  HANDLES,
+  maybe,
+  OCCURRED_AT,
+  paletteFinishOf,
+} from "../support/replacement-kitchens.js";
 import { documentsWithNoKitchenHandle } from "../kitchen-handle/handle-document-facts.js";
 
-const OCCURRED_AT = "2026-11-09T09:00:00.000Z";
-const PLACEMENT_COUNT = KITCHEN_L_DESIGN.placements.length;
-const HANDLES: readonly Handle[] = ["steel", "black", "push"];
-
-/** Materials that offer palette entries: the colour items a design can name. MDF's free colours are not items. */
-const PALETTE_MATERIALS = MATERIALS.filter(
-  (material) => paletteEntriesOf(material).length > 0,
-);
-
-const maybe = <T>(arbitrary: fc.Arbitrary<T>) =>
-  fc.option(arbitrary, { nil: undefined });
-
-/** A seeded kitchen on one palette material, with its colours and handles dealt at every level, some absent. */
-const namingDesign = fc
-  .constantFrom(...PALETTE_MATERIALS)
-  .chain((material) => {
-    const colours = fc.constantFrom(
-      ...paletteEntriesOf(material).map(({ entryId }) =>
-        paletteFinish(entryId),
-      ),
-    );
-    return fc.record({
-      materialTierId: fc.constant(material.materialId),
-      kitchenColour: maybe(colours),
-      kitchenHandle: maybe(fc.constantFrom(...HANDLES)),
-      topRowHandle: maybe(fc.constantFrom(...HANDLES)),
-      ownColours: fc.array(maybe(colours), {
-        minLength: PLACEMENT_COUNT,
-        maxLength: PLACEMENT_COUNT,
-      }),
-      ownHandles: fc.array(maybe(fc.constantFrom(...HANDLES)), {
-        minLength: PLACEMENT_COUNT,
-        maxLength: PLACEMENT_COUNT,
-      }),
-    });
-  })
-  .map(dealtDesign);
-
-interface Deal {
-  readonly materialTierId: string;
-  readonly kitchenColour: Finish | undefined;
-  readonly kitchenHandle: Handle | undefined;
-  readonly topRowHandle: Handle | undefined;
-  readonly ownColours: readonly (Finish | undefined)[];
-  readonly ownHandles: readonly (Handle | undefined)[];
-}
-
-function dealtDesign(deal: Deal): Design {
-  const placements = KITCHEN_L_DESIGN.placements.map((placement, index) => {
-    const finish = deal.ownColours[index];
-    const handle = deal.ownHandles[index];
-    return {
-      ...placement,
-      body: {
-        ...placement.body,
-        ...(finish === undefined ? {} : { finish }),
-        ...(handle === undefined ? {} : { handle }),
-      },
-    };
-  });
-  return {
-    ...KITCHEN_L_DESIGN,
-    placements,
-    settings: {
-      cabinetDepthMm: 600,
-      materialTierId: deal.materialTierId,
-      ...(deal.kitchenColour === undefined
-        ? {}
-        : { finish: deal.kitchenColour }),
-      ...(deal.kitchenHandle === undefined
-        ? {}
-        : { handle: deal.kitchenHandle }),
-      ...(deal.topRowHandle === undefined
-        ? {}
-        : { topRowHandle: deal.topRowHandle }),
-    },
-  };
-}
-
-function paletteFinishOf(entryId: string): Finish {
-  return FinishSchema.parse({ kind: "palette-entry", entryId });
-}
+/** Designs on each declared material that offers palette entries, wearing only that material's own colours. MDF's free
+ *  colours are not items. */
+const namingDesign = aDeal(DECLARED_PALETTE_CHOICES).map(dealtDesign);
 
 function namedItemsOf(design: Design, kind: "finish" | "handle") {
   return coloursAndHandlesNamedBy(design, CATALOG).filter(
@@ -174,7 +97,7 @@ function expectOnlyMatchesMoved(
 
 describe("replacing a colour the design names, by any option the row offers", () => {
   propertyTest.prop([namingDesign, fc.nat()])(
-    "leaves no level naming it and every other stored value as it was (H1-a)",
+    "leaves no level naming it and every other stored value as it was",
     (design, pick) => {
       const colours = namedItemsOf(design, "finish");
       fc.pre(colours.length > 0);
@@ -242,7 +165,7 @@ function bodyColourAfter(
 
 describe("replacing a handle the design names, by any option the row offers", () => {
   propertyTest.prop([namingDesign, fc.nat()])(
-    "leaves no level naming it and every other stored value as it was (H1-a)",
+    "leaves no level naming it and every other stored value as it was",
     (design, pick) => {
       const handles = namedItemsOf(design, "handle");
       fc.pre(handles.length > 0);
@@ -326,7 +249,7 @@ const POOL = documentsWithNoKitchenHandle().filter(
   (document) => !document.name.endsWith("+own-handles"),
 );
 
-describe("after a handle replacement, the hardware line follows the resolved handles (H1-b)", () => {
+describe("after a handle replacement, the hardware line follows the resolved handles", () => {
   propertyTest.prop([
     fc.constantFrom(...POOL),
     fc.constantFrom<Handle>("steel", "black"),
@@ -370,7 +293,7 @@ describe("after a handle replacement, the hardware line follows the resolved han
     },
   );
 
-  it("keeps a top-row body that takes no handle push and latched, whatever it stores and whatever replaces it (H2-b)", () => {
+  it("keeps a top-row body that takes no handle push and latched, whatever it stores and whatever replaces it", () => {
     const returnTop = KITCHEN_L_DESIGN.placements.find(
       (placement) => placement.body.buildId === "wall-corner-return-570-top",
     );

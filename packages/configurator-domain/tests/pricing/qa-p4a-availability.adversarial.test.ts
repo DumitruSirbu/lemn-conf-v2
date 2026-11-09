@@ -53,6 +53,7 @@ import {
   withBodyOf,
   withSettings,
 } from "../support/availability-kitchens.js";
+import { bookHoldingMaterial } from "../support/replacement-kitchens.js";
 import {
   fatalDesignValidationIssues,
   validateDesignForCatalog,
@@ -1094,7 +1095,7 @@ describe("whenever the price refuses REPLACEMENT_REQUIRED, the sheet can be buil
   });
 });
 
-describe("NAMED EXCLUSION from that property: a palette colour on a declared material that offers none, neither a stored kitchen", () => {
+describe("a palette colour on a declared material that offers none, which no stored kitchen holds", () => {
   it("a palette colour on painted MDF: the price refuses naming it and the sheet throws; the write seam refuses the document", () => {
     const design = withSettings({
       cabinetDepthMm: 600,
@@ -1120,27 +1121,12 @@ describe("NAMED EXCLUSION from that property: a palette colour on a declared mat
   });
 });
 
-// Q5a ruling 5 retired the second named exclusion (a book material that materials.ts does not declare, wearing a
-// switched-off palette colour: the sheet threw while the price refused). The property above could not include such a
-// material because `aNamingSpec` draws declared tier ids only, so it is repeated here over a book that holds one.
-describe("whenever the price refuses a colour under a material no code declares, the sheet offers that colour's own palette (P4a-c, Q5a ruling 5)", () => {
-  const veneer = BOOK.material.tiers.find(
-    (tier) => tier.tierId === "material.veneer",
-  );
-  if (veneer === undefined) throw new Error("the sample book has no veneer");
-  const bookWithAnUndeclaredMaterial: PriceBook = {
-    ...BOOK,
-    material: {
-      ...BOOK.material,
-      tiers: [
-        ...BOOK.material.tiers,
-        { ...veneer, tierId: "material.exotic", ruleId: "material.exotic" },
-      ],
-    },
-  };
+// The property above draws declared tier ids only, so a book holding a material no code declares gets its own.
+describe("whenever the price refuses a colour under a material no code declares, the sheet offers that colour's own palette", () => {
+  const bookWithAnUndeclaredMaterial = bookHoldingMaterial("material.exotic");
   const HELD_UNDECLARED = "material.exotic";
 
-  it("is the flipped exclusion: the sheet builds and offers the melamine palette's other active entries, in palette order", () => {
+  it("builds the sheet and offers the melamine palette's other active entries, in palette order", () => {
     const design = withSettings({
       cabinetDepthMm: 600,
       materialTierId: HELD_UNDECLARED,

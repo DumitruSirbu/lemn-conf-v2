@@ -1,10 +1,6 @@
-// M10 Q5a QA: counterexample hunting against ruling 5 (a colour row under a material no code declares offers the palette
-// that holds the colour) and against the S-e must-not (the usage reader's inputs did not move).
-//
-// The implementer pinned one colour under one created material. These cover: two colours from two palettes in one
-// design, the palette boundary (one palette switched off whole must not borrow another's entries), a declared material
-// staying exactly as it was, a vanished material not being turned into a colour row, free colours, and the loop the
-// ruling exists for: take what the sheet offers, replace, and the refusal is gone.
+// What the sheet offers for a colour under a material no code declares: each colour its own palette, no borrowing
+// across palettes, declared materials unchanged, a vanished material still one row, and an offer that, taken, clears the
+// refusal.
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
@@ -39,23 +35,15 @@ import {
   withBodyOf,
   withSettings,
 } from "../support/availability-kitchens.js";
+import {
+  bookHoldingMaterial,
+  OCCURRED_AT,
+  paletteFinishOf,
+  wearing,
+} from "../support/replacement-kitchens.js";
 
-const OCCURRED_AT = "2026-11-09T09:00:00.000Z";
 const EXOTIC = "material.exotic";
-const veneerTier = BOOK.material.tiers.find(
-  ({ tierId }) => tierId === "material.veneer",
-);
-if (veneerTier === undefined) throw new Error("the sample book has no veneer");
-const BOOK_WITH_EXOTIC: PriceBook = {
-  ...BOOK,
-  material: {
-    ...BOOK.material,
-    tiers: [
-      ...BOOK.material.tiers,
-      { ...veneerTier, tierId: EXOTIC, ruleId: EXOTIC },
-    ],
-  },
-};
+const BOOK_WITH_EXOTIC = bookHoldingMaterial(EXOTIC);
 
 const PAL = paletteEntriesOf(MATERIALS[0] ?? failure()).map(
   ({ entryId }) => entryId,
@@ -68,20 +56,13 @@ function failure(): never {
   throw new Error("the declared materials changed shape");
 }
 
-function wearing(
+/** The seeded kitchen wearing the given colours, under the undeclared material unless another is given. */
+function wearingUnder(
   kitchen: PaletteEntryId | undefined,
   cabinet: PaletteEntryId | undefined,
   materialTierId = EXOTIC,
 ): Design {
-  return withBodyOf(
-    CUSTOMISABLE_PLACEMENT_ID,
-    cabinet === undefined ? {} : { finish: paletteFinish(cabinet) },
-    withSettings({
-      cabinetDepthMm: 600,
-      materialTierId,
-      ...(kitchen === undefined ? {} : { finish: paletteFinish(kitchen) }),
-    }),
-  );
+  return wearing(kitchen, cabinet, materialTierId);
 }
 
 function rows(
@@ -99,7 +80,7 @@ function rows(
 
 describe("two colours from two palettes under one material no code declares", () => {
   it("offers each its own palette: the kitchen's PAL colour PAL, a cabinet's veneer wood veneer, never a mix", () => {
-    const design = wearing("pal.antracit", "veneer.nuc");
+    const design = wearingUnder("pal.antracit", "veneer.nuc");
 
     const result = rows(design, [colour("pal.antracit"), colour("veneer.nuc")]);
 
@@ -115,7 +96,7 @@ describe("two colours from two palettes under one material no code declares", ()
   });
 
   it("throws for the palette that is switched off whole, though another palette has active entries", () => {
-    const design = wearing("pal.antracit", "veneer.nuc");
+    const design = wearingUnder("pal.antracit", "veneer.nuc");
 
     expect(() =>
       rows(design, VENEER.map(colour).concat(colour("pal.antracit"))),
@@ -124,7 +105,7 @@ describe("two colours from two palettes under one material no code declares", ()
   });
 
   it("does not throw while one entry of the colour's own palette stays active, whatever else is off", () => {
-    const design = wearing("pal.antracit", undefined);
+    const design = wearingUnder("pal.antracit", undefined);
     const everythingButAlb = PALETTE_ENTRY_IDS.filter(
       (entryId) => entryId !== "pal.alb",
     ).map(colour);
@@ -137,7 +118,7 @@ describe("two colours from two palettes under one material no code declares", ()
 
 describe("a declared material keeps the colours it offers, and only those", () => {
   it("veneer wearing a hand-edited PAL colour offers veneer's woods, not the colour's own palette", () => {
-    const design = wearing("pal.antracit", undefined, "material.veneer");
+    const design = wearingUnder("pal.antracit", undefined, "material.veneer");
 
     expect(rows(design, [colour("pal.antracit")], BOOK)).toEqual([
       { item: colour("pal.antracit"), remaining: VENEER.map(colour) },
@@ -145,7 +126,7 @@ describe("a declared material keeps the colours it offers, and only those", () =
   });
 
   it("melamine wearing a hand-edited veneer wood offers PAL, not veneer", () => {
-    const design = wearing("veneer.nuc", undefined, "material.melamine");
+    const design = wearingUnder("veneer.nuc", undefined, "material.melamine");
 
     expect(rows(design, [colour("veneer.nuc")], BOOK)).toEqual([
       { item: colour("veneer.nuc"), remaining: PAL.map(colour) },
@@ -153,7 +134,11 @@ describe("a declared material keeps the colours it offers, and only those", () =
   });
 
   it("painted MDF wearing a palette colour still throws: a material that offers no entries is not an undeclared one", () => {
-    const design = wearing("pal.antracit", undefined, "material.painted-mdf");
+    const design = wearingUnder(
+      "pal.antracit",
+      undefined,
+      "material.painted-mdf",
+    );
 
     expect(() => rows(design, [colour("pal.antracit")], BOOK)).toThrow(
       NoReplacementOptionError,
@@ -172,9 +157,51 @@ describe("a declared material keeps the colours it offers, and only those", () =
   });
 });
 
-describe("a vanished material is not turned into a colour row by ruling 5", () => {
+describe("a design with no material of its own, under a book whose default material is veneer", () => {
+  const bookDefaultingToVeneer: PriceBook = {
+    ...BOOK,
+    material: { ...BOOK.material, defaultTierId: "material.veneer" },
+  };
+  const design = withSettings({
+    cabinetDepthMm: 600,
+    finish: paletteFinish("pal.antracit"),
+  });
+  const rowOfTheColour = () => {
+    const [row] = rows(
+      design,
+      [colour("pal.antracit")],
+      bookDefaultingToVeneer,
+    );
+    if (row === undefined)
+      throw new Error("no row for the switched-off colour");
+    return row;
+  };
+
+  it("offers the colour row the book default's woods, which is what the sheet reads today", () => {
+    expect(rowOfTheColour().remaining).toEqual(VENEER.map(colour));
+  });
+
+  // The command reads a design with no `materialTierId` as melamine (`DEFAULT_MATERIAL_ID`), the sheet as the book's
+  // default: a row of woods the command then refuses. Flips to an ordinary `it` once the two agree.
+  it.fails("a colour row offers only options replaceColour accepts", () => {
+    for (const option of rowOfTheColour().remaining) {
+      if (option.kind !== "finish")
+        throw new Error("a colour row offers colours");
+      const result = replaceColour({
+        design,
+        from: paletteFinish("pal.antracit"),
+        to: paletteFinishOf(option.finishId),
+        occurredAt: OCCURRED_AT,
+      });
+
+      expect(result.ok).toBe(true);
+    }
+  });
+});
+
+describe("a vanished material stays one material row and opens no colour row", () => {
   it("lists the vanished tier alone, offering every active tier, though the design also wears a switched-off colour", () => {
-    const design = wearing(
+    const design = wearingUnder(
       "pal.antracit",
       "veneer.nuc",
       "material.unobtainium",
@@ -235,7 +262,7 @@ describe("the sheet's offer, taken, resolves the refusal under a material no cod
       fc.property(aSpec, ({ kitchen, cabinet, off }) => {
         const switchedOff = off.map(colour);
         const availability = availabilityOf(switchedOff);
-        let design = wearing(kitchen, cabinet);
+        let design = wearingUnder(kitchen, cabinet);
         const owed = (current: Design) =>
           disabledItemsNamedBy(
             {
@@ -279,13 +306,7 @@ describe("the sheet's offer, taken, resolves the refusal under a material no cod
   });
 });
 
-function paletteFinishOf(entryId: string) {
-  const entry = PALETTE_ENTRY_IDS.find((candidate) => candidate === entryId);
-  if (entry === undefined) throw new Error(`no palette entry ${entryId}`);
-  return paletteFinish(entry);
-}
-
-describe("S-e: what the usage reader reads did not move", () => {
+describe("the items a design names are not changed by building the sheet or replacing a colour", () => {
   const design = withBodyOf(
     CUSTOMISABLE_PLACEMENT_ID,
     { finish: paletteFinish("veneer.nuc"), handle: "black" },
