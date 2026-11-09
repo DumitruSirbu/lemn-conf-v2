@@ -1932,6 +1932,7 @@ declare const messages: {
     "changedMaterial": "Material schimbat în {name}. Prețul a fost actualizat.",
     "changedHardware": "Feronerie schimbată în {name}. Prețul a fost actualizat.",
     "changedHandle": "Mânere schimbate în {name}. Prețul a fost actualizat.",
+    "changedColour": "Culoare schimbată în {name}. Prețul a fost actualizat.",
     "colourReverted": "Culoarea a revenit la {colour}.",
     "unnamedOptionUnavailable": "O opțiune aleasă nu mai este disponibilă"
   },
