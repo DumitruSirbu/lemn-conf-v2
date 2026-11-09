@@ -1,13 +1,10 @@
 // @vitest-environment happy-dom
 //
-// A colour or a handle is the ONLY row owed, so the modal has no control to resolve it and the back link is the only way out.
-// This is reachable today: the availability route can switch off a handle or a palette colour
-// (`tests/support/availability-route-items.ts`), customers store both, and `disabledItemsNamedBy` lists a stored one that is
-// switched off. The tests below pin what the customer is shown and what a resolved colour row says.
-//
-// The way-forward assertion is `it.fails` (`docs/best-practices/engineering-conventions.md`, *A deferred test has two
-// shapes*): it goes red the moment the row gains a control, which is the instruction to flip it. The tests titled "offers no
-// control..." pin the dead end as it stands and move with that change.
+// A colour or a handle is the ONLY row owed. Until Q5b the modal had no control to resolve it and the back link was the only
+// way out; A-16 gives the row a chooser of its own. This is reachable: the availability route can switch off a handle or a
+// palette colour (`tests/support/availability-route-items.ts`), customers store both, and `disabledItemsNamedBy` lists a stored
+// one that is switched off. The tests below pin what the customer is shown, that the row can be resolved, and what a resolved
+// colour row says. The `it.fails` that waited for the flip, and the pins of the dead end, moved in Q5b's QA.
 import {
   KITCHEN_L_DESIGN,
   paletteFinish,
@@ -63,6 +60,7 @@ import {
   serveWorld,
   settle,
   type Editor,
+  type World,
 } from "../support/replacement-sheet-world";
 import { tierName } from "../support/tier-offer-world";
 import { SAMPLE_PRICE_ROOT } from "../support/sample-price-root";
@@ -110,6 +108,7 @@ describe.each([
     root: rootSwitchingOff(SWITCHED_OFF_HANDLE_REF),
     kindLabel: ro.globalSettings.kitchenHandleHeading,
     valueText: ro.panel.handleLabels.black,
+    itemId: '"handle":"black"',
   },
   {
     name: "a palette colour the kitchen stores and availability has switched off",
@@ -117,61 +116,80 @@ describe.each([
     root: rootSwitchingOff(SWITCHED_OFF_COLOUR_REF),
     kindLabel: ro.globalSettings.colourHeading,
     valueText: ro.finishName("pal.alb"),
+    itemId: "pal.alb",
   },
-])("$name is the only row owed", ({ design, root, kindLabel, valueText }) => {
-  let editor: Editor;
-  beforeEach(async () => {
-    serveWorld({ notices: [notice()] });
-    hydrate(design);
-    editor = await mountEditor({ priceRoot: root });
-  });
+])(
+  "$name is the only row owed",
+  ({ design, root, kindLabel, valueText, itemId }) => {
+    let editor: Editor;
+    let world: World;
+    beforeEach(async () => {
+      world = serveWorld({ notices: [notice()] });
+      hydrate(design);
+      editor = await mountEditor({ priceRoot: root });
+    });
 
-  it("the customer is shown the modal with the one row, named, and no price", () => {
-    const sheet = required(editor, "replacement-sheet");
-    const rows = sheet.querySelectorAll('[data-testid="replacement-row"]');
+    it("the customer is shown the modal with the one row, named, and no price", () => {
+      const sheet = required(editor, "replacement-sheet");
+      const rows = sheet.querySelectorAll('[data-testid="replacement-row"]');
 
-    expect(sheet.getAttribute("role")).toBe("dialog");
-    expect(rows).toHaveLength(1);
-    expect(rows[0]?.textContent).toContain(kindLabel);
-    expect(rows[0]?.textContent).toContain(valueText);
-    expect(rows[0]?.textContent).toContain(TEXT.unavailable);
-    expect(byTestId(editor, "price-bar-total")).toBeNull();
-    expect(required(editor, "price-bar").textContent).toBe(
-      TEXT.priceAfterChoosing,
-    );
-    expect(required(editor, "review-cta").getAttribute("aria-disabled")).toBe(
-      "true",
-    );
-  });
+      expect(sheet.getAttribute("role")).toBe("dialog");
+      expect(rows).toHaveLength(1);
+      expect(rows[0]?.textContent).toContain(kindLabel);
+      expect(rows[0]?.textContent).toContain(valueText);
+      expect(rows[0]?.textContent).toContain(TEXT.unavailable);
+      expect(byTestId(editor, "price-bar-total")).toBeNull();
+      expect(required(editor, "price-bar").textContent).toBe(
+        TEXT.priceAfterChoosing,
+      );
+      expect(required(editor, "review-cta").getAttribute("aria-disabled")).toBe(
+        "true",
+      );
+    });
 
-  it("offers no control for a lone colour or handle row but the back link, with focus on the surface", () => {
-    const sheet = required(editor, "replacement-sheet");
-
-    expect(byTestId(editor, "replacement-choose")).toBeNull();
-    expect(byTestId(editor, "replacement-apply")).toBeNull();
-    expect(tabStopsIn(sheet)).toEqual([
-      required(editor, "replacement-sheet-leave"),
-    ]);
-    expect(document.activeElement).toBe(sheet);
-  });
-
-  it("the one way out asks before leaving, and Stay returns to the same dead end", () => {
-    press(required(editor, "replacement-sheet-leave"));
-    expect(byTestId(editor, "back-confirm-dialog")).not.toBeNull();
-
-    press(required(editor, "back-confirm-confirm-back"));
-
-    expect(byTestId(editor, "replacement-sheet")).not.toBeNull();
-  });
-
-  // Q5 owes the flip: when the row gains a control these go red.
-  it.fails(
-    "offers a control to resolve the row, so the modal has a way forward other than leaving",
-    () => {
+    it("offers a chooser for a lone colour or handle row, a commit and a price, so the back link is not the only way on", async () => {
+      const sheet = required(editor, "replacement-sheet");
       expect(byTestId(editor, "replacement-choose")).not.toBeNull();
-    },
-  );
-});
+      expect(tabStopsIn(sheet)).toEqual([
+        required(editor, "replacement-sheet-leave"),
+        required(editor, "replacement-choose"),
+      ]);
+      expect(document.activeElement).toBe(
+        required(editor, "replacement-choose"),
+      );
+
+      press(required(editor, "replacement-choose"));
+      const chosen = present(
+        editor.container.querySelector<HTMLButtonElement>(
+          "[data-option]:not([disabled])",
+        ),
+        "an option to pick",
+      );
+      press(chosen);
+      press(required(editor, "replacement-apply"));
+      await settle();
+
+      expect(
+        JSON.stringify(useConfiguratorStore.getState().design),
+      ).not.toContain(itemId);
+      expect(requestsOf(world, "PUT")).toHaveLength(1);
+      expect(byTestId(editor, "price-bar-total")).not.toBeNull();
+    });
+
+    it("the one way out asks before leaving, and Stay returns to the same sheet", () => {
+      press(required(editor, "replacement-sheet-leave"));
+      expect(byTestId(editor, "back-confirm-dialog")).not.toBeNull();
+
+      press(required(editor, "back-confirm-confirm-back"));
+
+      expect(byTestId(editor, "replacement-sheet")).not.toBeNull();
+    });
+
+    it("has a control to resolve the row, so the modal has a way forward other than leaving", () => {
+      expect(byTestId(editor, "replacement-choose")).not.toBeNull();
+    });
+  },
+);
 
 describe("a colour row the material change resolves while another row is still owed", () => {
   it("says what the kitchen wears now, instead of drawing the resolved row with nothing in it", async () => {
@@ -257,7 +275,7 @@ describe("a resolved row with nothing to say", () => {
 });
 
 describe("a colour or a handle owed beside a material", () => {
-  it("lets the customer resolve the material, then leaves the modal open on the colour row with no way on", async () => {
+  it("lets the customer resolve the material, then the handle, which never waits behind it, and the sheet closes", async () => {
     const world = serveWorld({ notices: [notice(), notice()] });
     hydrate(
       kitchenWith({
@@ -281,7 +299,8 @@ describe("a colour or a handle owed beside a material", () => {
       editor.container.querySelectorAll(
         '[data-testid="replacement-row"][data-resolved="false"] [data-testid="replacement-choose"]',
       ).length;
-    expect(owedChoosers()).toBe(1);
+    // A handle row never waits behind a material: a material's change touches no handle.
+    expect(owedChoosers()).toBe(2);
 
     await chooseTier(editor, tierName("material.melamine"));
 
@@ -291,8 +310,14 @@ describe("a colour or a handle owed beside a material", () => {
       ),
     ];
     expect(rows.map((row) => row.dataset.resolved)).toEqual(["true", "false"]);
-    expect(owedChoosers()).toBe(0);
+    expect(owedChoosers()).toBe(1);
     expect(byTestId(editor, "price-bar-total")).toBeNull();
     expect(requestsOf(world, "GET")).toHaveLength(1);
+
+    await chooseTier(editor, ro.panel.handleLabels.push);
+
+    expect(owedChoosers()).toBe(0);
+    expect(byTestId(editor, "replacement-sheet")).toBeNull();
+    expect(byTestId(editor, "price-bar-total")).not.toBeNull();
   });
 });
