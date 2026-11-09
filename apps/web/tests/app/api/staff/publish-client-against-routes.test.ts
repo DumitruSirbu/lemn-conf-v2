@@ -599,7 +599,10 @@ describe("the draft routes and a deletion (R4c2)", () => {
       expectedDraftRevision: revision,
     });
 
-    expect(outcome).toMatchObject({ kind: "candidate-refused" });
+    expect(outcome).toEqual({
+      kind: "candidate-refused",
+      refusals: [{ code: "ITEM_IS_DEFAULT", index: 0, source: "changes" }],
+    });
     expect((await stateRead()).active.sequenceNumber).toBe(
       state.active.sequenceNumber,
     );
