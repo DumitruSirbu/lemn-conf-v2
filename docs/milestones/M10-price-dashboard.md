@@ -2945,6 +2945,23 @@ R4a4 hands to Q3: an end-to-end arm showing that publishing a created class blan
   - **Deviation:** on desktop the placement is a centred card in the scene footer, not the C5AD right rail, because that panel does not exist at this step. **The owner may overrule.**
   - Visual check passed. Web 1167 files / 29182 passed.
 - **Q3b** (`90324563`; `m10/q3b` plus `m10/q3b-qa` `9bdf60a9`): `NO_TIER_OFFER` with no book; switched-off tiers are out of `tierIds` and out of the delta measurement. Review fixes: **B1** (the handle row shows with no book, through an empty availability), **M1** (a held-but-off carried tier stays as stored), **M2** (the pill floor draws a named label). Web 1176 files / 29355 passed.
+
+**Q3d, e2e rewrite, T5, Q5a, Q5c merged locally; Q5b built and in QA, 2026-11-09, later [relayed from the coordinator; gates verified by the coordinator on the merged trees; the scribe ran nothing]. All unpushed.**
+- **Q3d** (replacement sheet C4A-D; merge `a8e1a193`): the e2e replacement-sheet specs and the rewritten global-settings-apply spec ran green under `CI=1`: 5 passed. Visual check done at 390x844 and 1440x900; findings fixed in Q5b or listed below.
+- **E2e rewrite** (`m10/e2e-withdrawn`): merged.
+- **T5** (`replacementSheet.changedColour`): **drafted, not approved.** Q5b says the price sentence once by cutting the approved leaf at runtime; a standalone leaf from the T lane would be cleaner. Follow-up for the owner / T lane.
+- **Q5a** (`replaceColour` / `replaceHandle`, from validated; ruling 5 palette lookup). Residual: the colour row and the command resolve an absent `materialTierId` differently (book default vs PAL), so a dead row appears only with an out-of-band book; pinned as `it.fails` in `qa-q5a-replacements-required.adversarial.test.ts`. N-2: duplication between `coloursReplacing` and `paletteContaining`.
+- **Q5c**: the settings pill reads "Material de ales" while a material row is owed; the hardware entry is left out while a hardware row is owed (OQ-43 default). **Visual check still owed.**
+- **Q5b** is built (`fe992f4d`, `56c18187` on `m10/q5b`) and in QA, **not merged**.
+- **Owed before the Z gate:**
+  - visual checks of Q5b and Q5c;
+  - the disabled look of the review control: the `span role=link aria-disabled` in `configure-screen.tsx` has no disabled style (background identical to enabled; frame `btnOff` specifies `#ece7dd` / `#dcd8ce` / `#a89c8e`); a one-file follow-up in `configure-screen.tsx` / `configure.module.css`;
+  - a waiting colour row has no text saying why it has no button (copy gap);
+  - frame deviations the owner decides: chooser as a centred dialog vs the C4BD right rail; head divider/subtitle; fixed sheet height; primary button colour; chooser heading copy;
+  - cleanup of about 25 stray test designs left by visual checks in the e2e test database;
+  - the M10 phase-table row in STATUS section 2 (stale since 2026-11-04) to rewrite.
+- **Remaining:** Q5b QA, reviews, visual and merge; R4c1-R4c3 (see *Q5 split and R4c plan*); the Z gate.
+- **Proposed ruling, awaiting owner confirmation:** the C4 sheet announces a forced material replacement's colour reset after the change; see [ADR 0081, Amendment 2026-11-09](../decisions/0081-a-material-change-confirms-only-when-a-chosen-colour-would-be-lost.md).
   - **Residuals:**
     1. An availability-store outage reads as `NO_PRICE_BOOK`, so the handle row offers switched-off handles, which later forces a replacement. The fix would give `NoPriceBook` a reason. Owner call.
     2. The fit model (`settings-pill-fit.ts`, `top-bar-fit.ts`) still measures the old no-label width at the pill floor.
