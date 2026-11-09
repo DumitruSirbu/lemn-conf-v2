@@ -40,12 +40,17 @@ export function useHardwareDesk({
   readonly lifecycleClient: ItemLifecycleClient | undefined;
 }): HardwareDesk {
   const draft = usePriceDraft({ initial: page.state, client });
-  const { change, revert } = draft;
+  const { change, revert, readNow } = draft;
   const derivation = useMemo(() => deriveHardware(draft.state), [draft.state]);
   const lifecycle = useLifecycleClient(page, lifecycleClient);
   const isDraftOnly = useCallback(
     (item: DeletableItemRef) => isCreatedInDraft(derivation, item),
     [derivation],
+  );
+  const isDraftOnlyNow = useCallback(
+    (item: DeletableItemRef) =>
+      isCreatedInDraft(deriveHardware(readNow()), item),
+    [readNow],
   );
   const deleteFromDraft = useCallback(
     (item: DeletableItemRef) =>
@@ -64,6 +69,7 @@ export function useHardwareDesk({
     client: lifecycle,
     deleteFromDraft,
     isDraftOnly,
+    isDraftOnlyNow,
   });
   return { draft, availability, derivation };
 }

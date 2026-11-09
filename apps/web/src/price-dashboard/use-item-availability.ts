@@ -84,6 +84,12 @@ export interface ItemAvailabilityInput {
    * counted.
    */
   readonly isDraftOnly: (item: DeletableItemRef) => boolean;
+  /**
+   * The same question answered from the draft as it is this moment, not as the screen last rendered it. A deletion
+   * that meets a conflict is judged again on the draft the conflict read, which is not rendered yet when the
+   * answer is awaited; `isDraftOnly` is used where this is left out.
+   */
+  readonly isDraftOnlyNow?: (item: DeletableItemRef) => boolean;
 }
 
 const UNREADABLE_USAGE: UsageRead = { kind: "unavailable" };
@@ -96,6 +102,7 @@ export function useItemAvailability({
   client,
   deleteFromDraft,
   isDraftOnly,
+  isDraftOnlyNow,
 }: ItemAvailabilityInput): ItemAvailabilityDesk {
   const [availability, setAvailability] = useState(observed);
   const [flow, setFlow] = useState<ItemFlow>(CLOSED);
@@ -288,12 +295,16 @@ export function useItemAvailability({
   /** The deletion's dialog is closed while the facts it was drawn from are read again, so no Delete is pressed on the
    *  old ones; the dialog that follows is judged on the new ones. */
   const recountAfterConflict = useCallback(
-    async (item: DeletableItemRef) => {
+    async (item: DeletableItemRef, hasMoved: () => boolean) => {
       setFlow(CLOSED);
       await readAvailabilityAgain();
-      await openDeletionDialog(item, contextRef.current);
+      if (hasMoved()) return;
+      await openDeletionDialog(item, {
+        ...contextRef.current,
+        isCreatedInDraft: isDraftOnlyNow ?? contextRef.current.isCreatedInDraft,
+      });
     },
-    [readAvailabilityAgain, openDeletionDialog],
+    [readAvailabilityAgain, openDeletionDialog, isDraftOnlyNow],
   );
 
   const recountAfterUseRefusal = useCallback(
@@ -306,8 +317,13 @@ export function useItemAvailability({
     [openAfterCounting],
   );
 
+  /** An answer to a question the person has since closed or replaced settles nothing: a newer request wins. */
   const settleDeletion = useCallback(
-    async (settlement: DeletionSettlement, item: DeletableItemRef) => {
+    async (
+      settlement: DeletionSettlement,
+      item: DeletableItemRef,
+      hasMoved: () => boolean,
+    ) => {
       switch (settlement.kind) {
         case "wait":
           return;
@@ -318,10 +334,12 @@ export function useItemAvailability({
           setFailure(settlement.failure);
           return;
         case "recount":
+          if (hasMoved()) return;
           setFailure(settlement.failure);
-          await recountAfterConflict(item);
+          await recountAfterConflict(item, hasMoved);
           return;
         case "blocked-by-use":
+          if (hasMoved()) return;
           await recountAfterUseRefusal(item);
           return;
       }
@@ -363,13 +381,14 @@ export function useItemAvailability({
   const deleteItem = useCallback(
     (item: DeletableItemRef) =>
       sendOnce(async () => {
+        const hasMoved = begin();
         const result = await orFailed<FieldWriteResult>(
           () => deleteFromDraft(item),
           { kind: "failed" },
         );
-        await settleDeletion(deletionSettlementOf(result), item);
+        await settleDeletion(deletionSettlementOf(result), item, hasMoved);
       }),
-    [deleteFromDraft, sendOnce, settleDeletion],
+    [deleteFromDraft, sendOnce, settleDeletion, begin],
   );
 
   const dismiss = useCallback(() => {

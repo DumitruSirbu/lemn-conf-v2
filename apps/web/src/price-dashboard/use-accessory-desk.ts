@@ -41,7 +41,7 @@ export function useAccessoryDesk({
   readonly lifecycleClient: ItemLifecycleClient | undefined;
 }): AccessoryDesk {
   const draft = usePriceDraft({ initial: page.state, client });
-  const { change, revert } = draft;
+  const { change, revert, readNow } = draft;
   const derivation = useMemo(
     () => deriveAccessories(draft.state),
     [draft.state],
@@ -50,6 +50,11 @@ export function useAccessoryDesk({
   const isDraftOnly = useCallback(
     (item: DeletableItemRef) => isAccessoryCreatedInDraft(derivation, item),
     [derivation],
+  );
+  const isDraftOnlyNow = useCallback(
+    (item: DeletableItemRef) =>
+      isAccessoryCreatedInDraft(deriveAccessories(readNow()), item),
+    [readNow],
   );
   const deleteFromDraft = useCallback(
     (item: DeletableItemRef) =>
@@ -71,6 +76,7 @@ export function useAccessoryDesk({
     client: lifecycle,
     deleteFromDraft,
     isDraftOnly,
+    isDraftOnlyNow,
   });
   return { draft, availability, derivation };
 }

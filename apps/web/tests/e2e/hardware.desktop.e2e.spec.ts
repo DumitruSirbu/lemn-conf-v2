@@ -500,10 +500,10 @@ test.describe("the hardware screens at desktop 1440", () => {
     });
   });
 
-  test.describe("a production build (CI): the switch-off is judged, the deletion stays off", () => {
+  test.describe("a production build (CI): the switch-off and the deletion are judged", () => {
     test.skip(!SERVER_IS_PRODUCTION_BUILD, CI_ONLY_REASON);
 
-    test("Hettich and Blum: the switch-off entry and the class page's switch are on and open the usage dialog, the deletion stays off with the reason, no count is claimed outside the dialog, and clicking the deletion sends nothing", async ({
+    test("Hettich and Blum: the switch-off entry, the deletion entry and the class page's switch are on, no count is claimed outside the dialogs, and clicking the deletion counts the class and asks, sending no write", async ({
       page,
     }) => {
       const words = wordsOf("ro");
@@ -518,13 +518,11 @@ test.describe("the hardware screens at desktop 1440", () => {
           menuEntryOf(row, words, "switch-off"),
           `${tierId} switch-off`,
         ).not.toHaveAttribute("aria-disabled", "true");
-        const deletion = menuEntryOf(row, words, "delete");
-        await expect(deletion, `${tierId} delete`).toHaveAttribute(
-          "aria-disabled",
-          "true",
-        );
-        await deletion.click({ force: true });
-        await expect(row.getByTestId("menu-reason")).toHaveText([cannotJudge]);
+        await expect(
+          menuEntryOf(row, words, "delete"),
+          `${tierId} delete`,
+        ).not.toHaveAttribute("aria-disabled", "true");
+        await expect(row.getByTestId("menu-reason")).toHaveCount(0);
       }
       await expect(itemDialogOf(page)).toHaveCount(0);
       expect(plainText(await page.getByRole("main").innerText())).not.toMatch(
@@ -552,18 +550,31 @@ test.describe("the hardware screens at desktop 1440", () => {
         "aria-disabled",
         "true",
       );
-      await expect(deleteClassButton(page, words)).toHaveAttribute(
+      await expect(deleteClassButton(page, words)).not.toHaveAttribute(
         "aria-disabled",
         "true",
       );
-      await expect(editPageOf(page).getByText(cannotJudge)).toHaveCount(1);
+      await expect(editPageOf(page).getByText(cannotJudge)).toHaveCount(0);
       const requestsBeforeDeletion = requests.length;
-      await deleteClassButton(page, words).click({ force: true });
-      await expect(itemDialogOf(page)).toHaveCount(0);
+      await deleteClassButton(page, words).click();
+      await expect(
+        itemDialogOf(page),
+        "no saved kitchen uses Hettich in this world, so the deletion asks",
+      ).toBeVisible();
+      expect(plainText(await itemDialogOf(page).innerText())).toContain(
+        romanian("priceDashboard.lifecycle.deleteBody"),
+      );
       expect(
         requests.slice(requestsBeforeDeletion),
-        "no request was made by pressing the off deletion",
-      ).toEqual([]);
+        "the deletion counts the saved kitchens first, and writes nothing",
+      ).toEqual(["POST /api/staff/prices/usage"]);
+      await itemDialogOf(page)
+        .getByRole("button", {
+          name: romanian("priceDashboard.common.cancel"),
+          exact: true,
+        })
+        .click();
+      await expect(itemDialogOf(page)).toHaveCount(0);
       await shootForReview(page, "1440-d4b-production-off");
     });
   });
@@ -684,9 +695,8 @@ test.describe("the hardware screens at desktop 1440", () => {
       ).toBeVisible();
     });
 
-    test("D4F: Delete on Hettich is blocked with the count and offers to deactivate instead; on Blum it asks and the draft route refuses until R4a", async ({
+    test("D4F: Delete on Hettich is blocked with the count and offers to deactivate instead; on Blum it asks, and confirming puts the deletion in the draft", async ({
       page,
-      pageErrors,
     }) => {
       await openHardwareList(page);
       const hettich = rowOf(page, HETTICH);
@@ -734,22 +744,18 @@ test.describe("the hardware screens at desktop 1440", () => {
         })
         .click();
 
-      // R4a has not built the draft route's deletion yet (`draft-address.ts` reads no `item-deleted`): the route answers 400,
-      // the dialog says so and the draft is untouched. When R4a lands this is the assertion to change.
       await expect(
-        itemDialogOf(page).getByText(
-          romanian("priceDashboard.errors.saveFailed"),
-        ),
-      ).toBeVisible();
-      expect(await draftChanges(page)).toEqual([]);
-      const note =
-        "console: Failed to load resource: the server responded with a status of 400";
-      const rest = pageErrors.filter((entry) => !entry.startsWith(note));
+        itemDialogOf(page),
+        "the draft route took the deletion, so the dialog is done",
+      ).toHaveCount(0);
       expect(
-        pageErrors.length - rest.length,
-        "the browser's note of the 400",
-      ).toBe(1);
-      pageErrors.splice(0, pageErrors.length, ...rest);
+        (await draftChanges(page)).map(({ address }) => [
+          address.kind,
+          (address as { item?: { tierId?: string } }).item?.tierId,
+        ]),
+        "the draft holds the one deletion, of Blum",
+      ).toEqual([["item-deleted", BLUM]]);
+      await expectPendingCount(page, 1);
     });
 
     test("the class's page asks the same question with the right remaining classes, and the switch turns off at once", async ({

@@ -171,7 +171,7 @@ export function describeLifecycleAgainstTheServer(viewport: Viewport): void {
     expect(await disabledItemsOf(context)).toEqual([]);
   });
 
-  test(`${viewport.label}: a class the draft created can be deleted, which takes the creation back out of the draft, while a published class cannot`, async ({
+  test(`${viewport.label}: a class the draft created can be deleted, which takes the creation back out of the draft, and a published class is offered for deletion too, counted first and asked, with nothing written`, async ({
     page,
     context,
   }) => {
@@ -181,10 +181,24 @@ export function describeLifecycleAgainstTheServer(viewport: Viewport): void {
 
     const published = rowOf(page, BLUM);
     await menuButtonOf(published).click();
+    const publishedDeletion = menuEntryOf(published, words, "delete");
     await expect(
-      menuEntryOf(published, words, "delete"),
-      "a published class is not offered for deletion",
-    ).toHaveAttribute("aria-disabled", "true");
+      publishedDeletion,
+      "a published class is offered for deletion",
+    ).not.toHaveAttribute("aria-disabled", "true");
+    await publishedDeletion.click();
+    const asking = itemDialogOf(page);
+    expect(
+      plainText(await asking.innerText()),
+      "no saved kitchen uses Blum in this world, so the deletion asks",
+    ).toContain(romanian("priceDashboard.lifecycle.deleteBody"));
+    await asking
+      .getByRole("button", {
+        name: romanian("priceDashboard.common.cancel"),
+        exact: true,
+      })
+      .click();
+    await expect(asking).toHaveCount(0);
 
     const row = rowOf(page, created.tierId);
     await menuButtonOf(row).click();
