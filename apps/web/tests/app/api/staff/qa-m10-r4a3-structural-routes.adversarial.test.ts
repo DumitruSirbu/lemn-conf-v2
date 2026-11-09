@@ -490,7 +490,11 @@ describe("item-deleted through every request path", () => {
   });
 
   it("meets the count all the same, in a raw body whose address repeats the kind", async () => {
-    prices.designs.plant({ designId: "d-1", uses: [SOFT_CLOSE] });
+    prices.designs.plant({
+      designId: "d-1",
+      uses: [SOFT_CLOSE],
+      isDeletedByClient: false,
+    });
     const before = await snapshot();
 
     const answer = await sendRawChange(RAW_REPEATED_KIND_DELETION);
