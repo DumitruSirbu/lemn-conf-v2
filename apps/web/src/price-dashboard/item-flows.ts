@@ -64,8 +64,12 @@ export type DeletionSettlement =
   | { readonly kind: "wait" }
   | { readonly kind: "close" }
   | { readonly kind: "fail"; readonly failure: ItemFailure }
-  /** The dialog is replaced by another. */
-  | { readonly kind: "replace"; readonly flow: ItemFlow };
+  /** The facts the dialog was drawn from are out of date: the draft is read again and the item counted again, and no
+   *  Delete can be pressed on the old count. */
+  | { readonly kind: "recount"; readonly failure: ItemFailure }
+  /** The server refused for use whatever the count said, so the block is said and the item is counted again for the
+   *  number it can give. */
+  | { readonly kind: "blocked-by-use" };
 
 export const CLOSED: ItemFlow = { kind: "closed" };
 export const FAILED: ItemFailure = { kind: "failed" };
@@ -154,15 +158,9 @@ function blockedFlowOf(
   };
 }
 
-export function deletionSettlementOf({
-  result,
-  item,
-  context,
-}: {
-  readonly result: FieldWriteResult;
-  readonly item: DeletableItemRef;
-  readonly context: LifecycleContext;
-}): DeletionSettlement {
+export function deletionSettlementOf(
+  result: FieldWriteResult,
+): DeletionSettlement {
   switch (result.kind) {
     case "saved":
     case "unchanged":
@@ -170,27 +168,23 @@ export function deletionSettlementOf({
     case "busy":
       return { kind: "wait" };
     case "conflict":
-      return { kind: "fail", failure: { kind: "conflict" } };
-    case "refused":
-      return refusedDeletionSettlementOf(result.code, item, context);
+      return { kind: "recount", failure: { kind: "conflict" } };
     case "candidate-refused":
+      return { kind: "recount", failure: FAILED };
+    case "refused":
+      return refusedDeletionSettlementOf(result.code);
     case "failed":
       return { kind: "fail", failure: FAILED };
   }
 }
 
-/** A saved kitchen has come to use the item since it was counted: no retry changes that, so the block is said. */
+/** A saved kitchen uses the item whatever the count said: no retry changes that, so the block is said. */
 function refusedDeletionSettlementOf(
   code: DraftChangeRefusalCode,
-  item: DeletableItemRef,
-  context: LifecycleContext,
 ): DeletionSettlement {
   switch (code) {
     case "ITEM_IN_USE":
-      return {
-        kind: "replace",
-        flow: blockedFlowOf(item, context, undefined),
-      };
+      return { kind: "blocked-by-use" };
     case "ITEM_IS_DEFAULT":
       return {
         kind: "fail",
@@ -199,6 +193,21 @@ function refusedDeletionSettlementOf(
     default:
       return { kind: "fail", failure: FAILED };
   }
+}
+
+/**
+ * The block the server's refusal for use opens, with the number of kitchens where the new count gives one. A count of
+ * none or no count leaves the number unsaid: the server's word stands over the count, so this never opens the
+ * confirmation again.
+ */
+export function blockedFlowAfterRefusalOf(
+  item: DeletableItemRef,
+  context: LifecycleContext,
+  read: UsageRead,
+): ItemFlow {
+  const count = countedUseOf(read, item)?.count;
+  const isUse = count !== undefined && count > NO_SAVED_KITCHEN_CAN_USE_IT;
+  return blockedFlowOf(item, context, isUse ? count : undefined);
 }
 
 export function afterSwitch(

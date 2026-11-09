@@ -1,5 +1,6 @@
 import {
   applyChanges,
+  type BookFieldAddress,
   changedRowOf,
   changedRowsOf,
   isCreationAddress,
@@ -15,7 +16,7 @@ import { subjectOfAddress } from "./publish-refusals";
 // A draft that no longer makes a book is listed change by change, so a valid change beside a refused one is not lost to
 // giving the whole draft up. A bulk action is one line, since its changes stand or go together, and so is a row the
 // draft creates or deletes, with its rates, price and words: a row goes whole, so ↺ is not offered on one of its fields.
-// A created row's line takes the row back by its creation; a deleted row's line has no ↺.
+// A created row's line takes the row back by its creation; a deleted row's line, by its deletion.
 
 export interface StaleChangeView {
   readonly key: string;
@@ -23,8 +24,7 @@ export interface StaleChangeView {
   /** The change cannot be applied: it is the one to take back. */
   readonly isRefused: boolean;
   /**
-   * What ↺ removes: the change, the bulk group, or a created row by its creation. Absent for a deleted row, which this
-   * view does not offer to take back on its own.
+   * What ↺ removes: the change, the bulk group, or a created or deleted row by its creation or deletion.
    */
   readonly revert: DraftRevertTargetWire | undefined;
 }
@@ -102,7 +102,7 @@ function revertOf(
   rows: readonly ItemRef[],
 ): DraftRevertTargetWire | undefined {
   if (changedRowOf(change, rows) !== undefined) {
-    return isCreationAddress(change.address)
+    return isOwnAddressOfRow(change.address)
       ? { kind: "change", address: change.address }
       : undefined;
   }
@@ -112,6 +112,11 @@ function revertOf(
   return isStructuralAddress(change.address)
     ? undefined
     : { kind: "change", address: change.address };
+}
+
+/** The address the revert route takes back a row by: its creation or its deletion, never one of its fields. */
+function isOwnAddressOfRow(address: BookFieldAddress): boolean {
+  return isCreationAddress(address) || address.kind === "item-deleted";
 }
 
 /** A row the draft creates is in no book yet, so it is named by the words its creation carries. */

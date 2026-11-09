@@ -16,6 +16,7 @@ import { raiseStaffSessionExpired } from "@/staff/staff-session-expiry";
 import { orFailed } from "./async-seams";
 import {
   afterSwitch,
+  blockedFlowAfterRefusalOf,
   CLOSED,
   deactivateFlowOf,
   deletionFlowOf,
@@ -132,6 +133,11 @@ export function useItemAvailability({
   useEffect(() => {
     bookRef.current = book;
   }, [book]);
+  // The same for the judgement of a count asked again after a refusal: the book and the defaults may have moved.
+  const contextRef = useRef(context);
+  useEffect(() => {
+    contextRef.current = context;
+  }, [context]);
   const countingRef = useRef<AbortController | undefined>(undefined);
   useEffect(
     () => () => {
@@ -270,21 +276,51 @@ export function useItemAvailability({
     [adopt, readAvailabilityAgain],
   );
 
-  const settleDeletion = useCallback((settlement: DeletionSettlement) => {
-    switch (settlement.kind) {
-      case "wait":
-        return;
-      case "close":
-        setFlow(CLOSED);
-        return;
-      case "fail":
-        setFailure(settlement.failure);
-        return;
-      case "replace":
-        setFlow(settlement.flow);
-        return;
-    }
-  }, []);
+  /** The deletion's dialog is closed while the facts it was drawn from are read again, so no Delete is pressed on the
+   *  old ones; the dialog that follows is judged on the new ones. */
+  const recountAfterConflict = useCallback(
+    async (item: DeletableItemRef) => {
+      setFlow(CLOSED);
+      await readAvailabilityAgain();
+      await openAfterCounting(item, (read) =>
+        deletionFlowOf(item, contextRef.current, read),
+      );
+    },
+    [readAvailabilityAgain, openAfterCounting],
+  );
+
+  const recountAfterUseRefusal = useCallback(
+    async (item: DeletableItemRef) => {
+      setFlow(CLOSED);
+      await openAfterCounting(item, (read) =>
+        blockedFlowAfterRefusalOf(item, contextRef.current, read),
+      );
+    },
+    [openAfterCounting],
+  );
+
+  const settleDeletion = useCallback(
+    async (settlement: DeletionSettlement, item: DeletableItemRef) => {
+      switch (settlement.kind) {
+        case "wait":
+          return;
+        case "close":
+          setFlow(CLOSED);
+          return;
+        case "fail":
+          setFailure(settlement.failure);
+          return;
+        case "recount":
+          setFailure(settlement.failure);
+          await recountAfterConflict(item);
+          return;
+        case "blocked-by-use":
+          await recountAfterUseRefusal(item);
+          return;
+      }
+    },
+    [recountAfterConflict, recountAfterUseRefusal],
+  );
 
   /** One confirmation at a time: a second press while one is out is not sent. */
   const sendOnce = useCallback(async (send: () => Promise<void>) => {
@@ -324,9 +360,9 @@ export function useItemAvailability({
           () => deleteFromDraft(item),
           { kind: "failed" },
         );
-        settleDeletion(deletionSettlementOf({ result, item, context }));
+        await settleDeletion(deletionSettlementOf(result), item);
       }),
-    [deleteFromDraft, sendOnce, settleDeletion, context],
+    [deleteFromDraft, sendOnce, settleDeletion],
   );
 
   const dismiss = useCallback(() => {
