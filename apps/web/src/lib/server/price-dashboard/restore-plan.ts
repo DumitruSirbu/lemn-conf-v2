@@ -2,10 +2,14 @@ import "server-only";
 
 import {
   applyChanges,
+  deletedItemsOf,
   isSameAddress,
+  isSameItem,
   readEditableFields,
   restoreChanges,
+  type BookFieldAddress,
   type DraftChange,
+  type ItemRef,
   type PriceBook,
 } from "@lemnaria/configurator-domain";
 import type { StoredPriceVersion } from "@lemnaria/persistence";
@@ -24,7 +28,8 @@ import { readVersionBook } from "@/lib/server/price-dashboard/version-wire";
 // field the draft already edits emits nothing and the candidate keeps the pending value. So a restore is made against
 // the candidate the draft makes, and replaces by address: the pending changes of every field the archived book states
 // are dropped, the archived values that differ from the active book are added, and a pending change to anything else
-// stays.
+// stays. A row the draft deletes is outside the restore (OQ-44): the book its earlier changes make no longer states it,
+// so a price added for it would make the draft refuse itself.
 
 /**
  * What restoring `version` writes: the draft it becomes, or the refusal. The active version has nothing to restore (the
@@ -85,13 +90,16 @@ export function planRestoreToDraft({
   active,
   draft,
 }: RestoreInput): RestorePlan {
+  const deleted = deletedItemsOf(draft);
+  const isOutsideDeletedRows = ({ address }: { address: BookFieldAddress }) =>
+    !isOnDeletedRow(address, deleted);
   const candidate = applyChanges(active, draft);
   const differing = restoreChanges(
     archived,
     candidate.ok ? candidate.book : active,
-  );
-  const added = restoreChanges(archived, active);
-  const survivors = survivorsOfRestore(archived, draft);
+  ).filter(isOutsideDeletedRows);
+  const added = restoreChanges(archived, active).filter(isOutsideDeletedRows);
+  const survivors = survivorsOfRestore(archived, draft, deleted);
   return {
     draft: [...survivors, ...added],
     addedChangeCount: added.length,
@@ -99,15 +107,17 @@ export function planRestoreToDraft({
   };
 }
 
-/** The pending changes of fields the archived book does not state. A bulk group that lost a member is no group any more:
- *  `groupId` and `bulk` come together, so a survivor of it becomes an ordinary change. */
+/** The pending changes of fields the archived book does not state, or states on a row the draft deletes. A bulk group
+ *  that lost a member is no group any more: `groupId` and `bulk` come together, so a survivor of it becomes an ordinary
+ *  change. */
 function survivorsOfRestore(
   archived: PriceBook,
   draft: readonly DraftChange[],
+  deleted: readonly ItemRef[],
 ): readonly DraftChange[] {
-  const statedAddresses = readEditableFields(archived).map(
-    ({ address }) => address,
-  );
+  const statedAddresses = readEditableFields(archived)
+    .map(({ address }) => address)
+    .filter((address) => !isOnDeletedRow(address, deleted));
   const isStated = (change: DraftChange): boolean =>
     statedAddresses.some((address) => isSameAddress(address, change.address));
   const brokenGroupIds = new Set(
@@ -120,6 +130,26 @@ function survivorsOfRestore(
         ? withoutGroup(change)
         : change,
     );
+}
+
+function isOnDeletedRow(
+  address: BookFieldAddress,
+  deleted: readonly ItemRef[],
+): boolean {
+  const row = rowOfPriceAddress(address);
+  return row !== undefined && deleted.some((item) => isSameItem(item, row));
+}
+
+function rowOfPriceAddress(address: BookFieldAddress): ItemRef | undefined {
+  switch (address.kind) {
+    case "hardware":
+    case "material":
+      return { kind: address.kind, tierId: address.tierId };
+    case "accessory":
+      return { kind: "accessory", accessoryId: address.accessoryId };
+    default:
+      return undefined;
+  }
 }
 
 function withoutGroup(change: DraftChange): DraftChange {
