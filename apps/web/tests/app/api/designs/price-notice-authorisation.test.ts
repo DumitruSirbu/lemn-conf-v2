@@ -49,12 +49,7 @@ import {
 } from "../../../support/price-notice-world";
 import { signedInAs } from "../../../support/staff-world";
 
-/**
- * M10 R5b-a, R5b-c, R5b-e and R5b-l at the two routes (ADR 0178, price-notice Amendment of 2026-11-08): who may ask, the
- * order the checks run in, what each refusal says, and that neither route writes a design. The routes are the real ones;
- * the stores are the persistence package's fakes in the price dashboard world, the sessions the account world's, and
- * S7's port is stubbed through `@/lib/server/repository`, which has no write to call.
- */
+/** Who may ask the two price-notice routes, the order their checks run in, and that neither writes a design. */
 
 vi.mock("@/lib/server/account/session-store-instance", () =>
   import("../../../support/account-world").then((world) =>
@@ -140,7 +135,6 @@ async function notFoundWire(id = NOTICE_DESIGN_ID): Promise<string> {
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
-// R5b-a
 
 describe.each(ENDPOINTS)("$label: who may ask", ({ send }) => {
   it("serves the right write token with no visitor cookie, and asks the port with that token alone", async () => {
@@ -323,7 +317,6 @@ describe("the 404 is the design route's own", () => {
 });
 
 // ---------------------------------------------------------------------------------------------------------------------
-// R5b-c
 
 describe("GET: the read limiter comes first and fails open", () => {
   it("answers 429 before any cookie, session, port or store is read, to an owner and to a stranger alike", async () => {
@@ -357,7 +350,7 @@ describe("GET: the read limiter comes first and fails open", () => {
 });
 
 describe("POST: the save limiter comes after the credential and before the body", () => {
-  it("spends no save token on a request that has no credential, a wrong one or another site's", async () => {
+  it("spends no save token on a request that has no credential, a malformed id, or another site's", async () => {
     await acknowledgeWithPair({});
     await acknowledgeWithPair({
       cookie: OWNER_WRITE_COOKIE,
@@ -441,6 +434,8 @@ describe.each(ENDPOINTS)("$label: a read or a store that fails", ({ send }) => {
       code: "DESIGN_UNREADABLE",
       error: "Design could not be loaded.",
     });
+    expect(answer.headers.get("cache-control")).toBe("private, no-store");
+    expect(answer.headers.get("vary")).toBe("Cookie");
   });
 
   it("answers a driver failure with a constant 503 that holds none of its text, and logs none of it either", async () => {
@@ -466,8 +461,49 @@ describe.each(ENDPOINTS)("$label: a read or a store that fails", ({ send }) => {
   });
 });
 
+describe("a throw nothing expects is a defect, not an outage", () => {
+  const DEFECT_LINE = { event: "unexpected-failure", errorName: "TypeError" };
+
+  function loggedLines(): readonly unknown[] {
+    const written: readonly unknown[][] = vi.mocked(console.error).mock.calls;
+    return written
+      .filter(([label]) => label === "[price-notice]")
+      .map(([, line]): unknown => line);
+  }
+
+  it("answers 500 unexpected, with one closed line and no marker, when the judgement throws a TypeError", async () => {
+    vi.spyOn(priceWorld.stores.notices, "readAcknowledged").mockRejectedValue(
+      new TypeError(DRIVER_FAILURE_MARKER),
+    );
+    const record = vi.spyOn(priceWorld.stores.notices, "recordIfAbsent");
+
+    const answer = await readNotice({ cookie: OWNER_WRITE_COOKIE });
+
+    expect(answer.status).toBe(500);
+    expect(await jsonOf(answer)).toEqual({ status: "unexpected" });
+    expect(answer.headers.get("cache-control")).toBe("private, no-store");
+    expect(loggedLines()).toEqual([DEFECT_LINE]);
+    expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain(
+      DRIVER_FAILURE_MARKER,
+    );
+    expect(record).not.toHaveBeenCalled();
+  });
+
+  it("answers 500 unexpected when the acknowledgement's store throws a TypeError", async () => {
+    vi.spyOn(priceWorld.stores.notices, "recordAcknowledged").mockRejectedValue(
+      new TypeError(DRIVER_FAILURE_MARKER),
+    );
+
+    const answer = await acknowledgeWithPair({ cookie: OWNER_WRITE_COOKIE });
+
+    expect(answer.status).toBe(500);
+    expect(await jsonOf(answer)).toEqual({ status: "unexpected" });
+    expect(loggedLines()).toEqual([DEFECT_LINE]);
+    expect(await answer.clone().text()).not.toContain(DRIVER_FAILURE_MARKER);
+  });
+});
+
 // ---------------------------------------------------------------------------------------------------------------------
-// R5b-e and R5b-l
 
 describe("neither route writes a design, an audit row or anything but a marker", () => {
   it("asks the port for a read alone and leaves the audit ledger as it was", async () => {

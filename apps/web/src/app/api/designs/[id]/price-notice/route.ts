@@ -19,7 +19,7 @@ interface RouteParams {
 
 /**
  * What the owner of a saved kitchen is told on opening it: whether its price changed since they last looked, what they
- * must replace before a price shows, and which accessories were removed (ADR 0178, price-notice Amendment of 2026-11-08).
+ * must replace before a price shows, and which accessories were removed (see ADR 0178 A-11).
  * Authorised exactly like a save, the cross-site refusal first and on both credentials, and read by `loadEditable` before a
  * marker is touched. Every refusal for want of that authority is `designNotFoundResponse`, byte for byte.
  *

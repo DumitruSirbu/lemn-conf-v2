@@ -41,12 +41,7 @@ import {
 } from "../../../support/price-notice-stubs";
 import { acknowledge, readNotice } from "../../../support/price-notice-world";
 
-/**
- * M10 R5b-g to R5b-m at the notice route (ADR 0178, price-notice Amendment of 2026-11-08, ruling 6): the judgement over the
- * seeded world, one test per row of its table. The world is the persistence package's fakes: a version published through
- * `priceBook`, availability switched through `availability`, and the notice store judging the pairs against both, so the
- * pair the route records is the pair the editor prices under.
- */
+/** The notice judgement over the seeded world, one test per row of its table. */
 
 vi.mock("@/lib/server/account/session-store-instance", () =>
   import("../../../support/account-world").then((world) =>
@@ -176,7 +171,7 @@ function sameAmountsOtherVersion(book: PriceBook): PriceBook {
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-describe("no active version (R5b-g)", () => {
+describe("no active version", () => {
   beforeEach(async () => {
     priceWorld = await freshPriceDashboardWorld({ isPublished: false });
   });
@@ -201,7 +196,7 @@ describe("no active version (R5b-g)", () => {
   });
 });
 
-describe("isSent is the port's, on both arms and under both credentials (R5b-m)", () => {
+describe("isSent is the port's, on both arms and under both credentials", () => {
   it.each([true, false])(
     "reads %s from a token on the active arm",
     async (isSent) => {
@@ -230,7 +225,7 @@ describe("isSent is the port's, on both arms and under both credentials (R5b-m)"
   });
 });
 
-describe("the judgement table (R5b-h)", () => {
+describe("the judgement table", () => {
   it("answers false with no marker read of the seen side when the marker is the pair in force", async () => {
     await open();
     const readVersion = vi.spyOn(priceWorld.stores.priceBook, "readVersion");
@@ -381,7 +376,7 @@ describe("the judgement table (R5b-h)", () => {
   );
 });
 
-describe("a seen availability the projection refuses (R5b-j2)", () => {
+describe("a seen availability the projection refuses", () => {
   it("answers true and no removed accessories, with one log line", async () => {
     await open();
     await switchOff(DISH_RACK);
@@ -414,7 +409,7 @@ describe("a seen availability the projection refuses (R5b-j2)", () => {
   });
 });
 
-describe("the accessories removed since the marker (R5b-j)", () => {
+describe("the accessories removed since the marker", () => {
   const SHELF: LinkedAccessoryRule = {
     accessoryId: "accessory.shelf",
     ruleId: "rule.shelf",
@@ -474,7 +469,7 @@ describe("the accessories removed since the marker (R5b-j)", () => {
   });
 });
 
-describe("a state the domain forbids (R5b-k)", () => {
+describe("a state the domain forbids", () => {
   it("answers 500 with a closed body and one line, and writes no marker", async () => {
     await switchOff(
       ...SAMPLE_PRICE_BOOK.hardware.tiers.map(
@@ -494,7 +489,7 @@ describe("a state the domain forbids (R5b-k)", () => {
   });
 });
 
-describe("what the answer never holds (R5b-l)", () => {
+describe("what the answer never holds", () => {
   it("names the pair in force and not the pair the customer saw, nor any version the history archived", async () => {
     const first = await versionNow();
     await open();
@@ -512,7 +507,7 @@ describe("what the answer never holds (R5b-l)", () => {
 // ---------------------------------------------------------------------------------------------------------------------
 // The property: the route adds no rule of its own
 
-describe("pricesChanged equals pricesChangedBetween for a design priceable under both pairs (R5b-h)", () => {
+describe("pricesChanged equals pricesChangedBetween for a design priceable under both pairs", () => {
   const COVER_AND_RACK: readonly ItemRef[] = [
     { kind: "accessory", accessoryId: "sinkProtectiveCover" },
     DISH_RACK,

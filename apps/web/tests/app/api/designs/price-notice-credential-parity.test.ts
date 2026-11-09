@@ -22,13 +22,7 @@ import {
 import { cookieOf, readNotice } from "../../../support/price-notice-world";
 import { signedInAs } from "../../../support/staff-world";
 
-/**
- * M10 R5b-b: on a same-site request, the credential the price-notice routes ask the port to read under is the credential the
- * save route passes to `saveAuthorized`, for every combination of a write-token cookie and a session. The save's helper is
- * not exported, so the real save route runs beside the real notice route, each over a port that records the credential it is
- * given and answers nothing else. The one difference is the cross-site request, which the save accepts on its token arm and
- * the notice routes do not.
- */
+/** On a same-site request the notice routes read under the credential the save route passes to `saveAuthorized`. */
 
 const captured = vi.hoisted(() => ({
   saved: [] as unknown[],

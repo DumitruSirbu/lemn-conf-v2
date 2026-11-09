@@ -9,13 +9,8 @@ import type {
 
 import { priceStoresModule } from "./price-dashboard-world";
 
-// What a test of the two price-notice routes needs beside the price dashboard world: S7's port as the route's tests stub it
-// (it answers by the predicate of the SQL it stands for, and records every call it is asked) and the design the routes are
-// asked about. A test that uses it mocks `@/lib/server/repository` with `editableRepositoryModule()`,
-// `@/lib/server/price-stores` with `rejectablePriceStoresModule()` and the session store with the account world's.
-//
-// Kept apart from `price-notice-world.ts` on purpose: the `vi.mock` factories import this file, and a file that imported
-// the routes would wait on the very mock that is waiting on it.
+// Kept apart from `price-notice-world.ts` on purpose: the `vi.mock` factories import this file, so it must not import the
+// routes.
 
 export const NOTICE_DESIGN_ID = "V1StGXR8Z5jdHi6BmyT_a";
 export const OWNER_WRITE_TOKEN = "write-token-of-the-notice-design";

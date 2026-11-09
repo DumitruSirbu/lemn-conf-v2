@@ -27,11 +27,7 @@ import {
 } from "../../../support/price-notice-stubs";
 import { acknowledge, readNotice } from "../../../support/price-notice-world";
 
-/**
- * M10 R5b-d, R5b-f and R5b-i at the acknowledgement route (ADR 0178, price-notice Amendment of 2026-11-08, ruling 5): the
- * body's order of refusals and the closed word of each, that the store is not called for a body it can be spared, that the
- * store's own two refusals leave the marker as it was, and that a `200` is the pair the marker then holds.
- */
+/** The acknowledgement route's body refusals, the store's own two refusals, and the first open's marker. */
 
 vi.mock("@/lib/server/account/session-store-instance", () =>
   import("../../../support/account-world").then((world) =>
@@ -331,7 +327,7 @@ describe("a pair the store accepts", () => {
   });
 });
 
-describe("the first open (R5b-f)", () => {
+describe("the first open", () => {
   it("records the root's own pair, which is the version and head the editor prices under", async () => {
     const recordIfAbsent = vi.spyOn(
       priceWorld.stores.notices,

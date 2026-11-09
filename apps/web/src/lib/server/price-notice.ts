@@ -43,14 +43,15 @@ import type {
   RemovedAccessoryWire,
 } from "@/price-dashboard/price-dashboard-wire-contract";
 
-// The customer's price notice, judged on the server (ADR 0178 A-11, and its price-notice Amendment of 2026-11-08, rulings 6
-// and 9). Both entry points read the design under exactly a save's credential before anything else, then work serially: a
-// marker is written only for a caller who was found able to edit, only after every read that could end the request has
-// answered, and never by a staff path. Nothing here builds a response; a caller gets an outcome.
+// The customer's price notice, judged on the server (see ADR 0178 A-11). Both entry points read the design under exactly a
+// save's credential before anything else, then work serially: a marker is written only for a caller who was found able to
+// edit, only after every read that could end the request has answered, and never by a staff path. Nothing here builds a
+// response; a caller gets an outcome.
 //
 // What happens to a thrown value is decided once, in `settled`. A stored design this build cannot read is the owner's to be
-// told; a defect is closed; anything else (a store that is down, a connection string the driver refuses) is `unavailable`,
-// and the thrown value is dropped before it can reach a response.
+// told. A store that is down, a port or provider that cannot be reached, or a connection string the driver refuses is
+// `unavailable`. Anything else is a defect, so it is `defective` and never passes for an outage. The thrown value is
+// dropped before it can reach a response.
 
 /** A request that could not be authorised by the credential it carried: no such design, not that caller's, hidden or deleted. */
 export interface NotEditable {
@@ -61,7 +62,7 @@ export interface Unreadable {
   readonly kind: "unreadable";
   readonly error: InvalidDesignError;
 }
-/** A state the domain forbids was reached: nothing was written. */
+/** A defect, not an outage: a state the domain forbids, or a throw nothing here expects. Nothing was written. */
 export interface Defective {
   readonly kind: "defective";
 }
@@ -108,7 +109,7 @@ export function readPriceNotice(
   return settled(async () => {
     const editable = await loadEditable(request);
     if (editable.kind === "none") return NOT_EDITABLE;
-    const stores = await getPriceStores();
+    const stores = await priceStores();
     return noticeFor(stores, request.id, editable);
   });
 }
@@ -120,7 +121,7 @@ export function acknowledgePrices(
   return settled(async () => {
     const editable = await loadEditable(request);
     if (editable.kind === "none") return NOT_EDITABLE;
-    const { notices } = await getPriceStores();
+    const { notices } = await priceStores();
     return recordedAcknowledgement(notices, request);
   });
 }
@@ -128,7 +129,31 @@ export function acknowledgePrices(
 type Editable = Extract<LoadEditableOutcome, { kind: "found" }>;
 
 function loadEditable({ id, credential }: PriceNoticeRequest) {
-  return getEditableDesignRepository().loadEditable({ id, credential });
+  return reached(() =>
+    getEditableDesignRepository().loadEditable({ id, credential }),
+  );
+}
+
+function priceStores(): Promise<PriceStores> {
+  return reached(getPriceStores);
+}
+
+/** A port or provider that could not be reached, as against a defect in the judgement that follows it. */
+class InfrastructureFailure extends Error {
+  constructor() {
+    super("The price notice could not reach what it reads.");
+    this.name = "InfrastructureFailure";
+  }
+}
+
+/** Reads through a boundary whose every failure is an outage, except a stored design this build cannot read. */
+async function reached<Result>(read: () => Promise<Result>): Promise<Result> {
+  try {
+    return await read();
+  } catch (error) {
+    if (error instanceof InvalidDesignError) throw error;
+    throw new InfrastructureFailure();
+  }
 }
 
 async function settled<Outcome>(
@@ -149,8 +174,22 @@ function failedOutcomeOf(error: unknown): FailedOutcome {
     reportPriceNotice({ event: "no-replacement-option" });
     return DEFECTIVE;
   }
-  reportPriceNotice(failureLineOf(error));
-  return UNAVAILABLE;
+  if (isOutage(error)) {
+    reportPriceNotice(failureLineOf(error));
+    return UNAVAILABLE;
+  }
+  reportPriceNotice({
+    event: "unexpected-failure",
+    errorName: error instanceof Error ? error.name : "NotAnError",
+  });
+  return DEFECTIVE;
+}
+
+function isOutage(error: unknown): boolean {
+  return (
+    error instanceof DashboardStoreError ||
+    error instanceof InfrastructureFailure
+  );
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -182,7 +221,7 @@ function isRefusedShape(error: unknown): boolean {
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
-// The judgement (ruling 6)
+// The judgement
 
 /** The kitchen, the catalogue at its own depth, and the book in force: what every step below reads. */
 export interface Kitchen {
@@ -211,6 +250,8 @@ async function noticeFor(
   }
   const catalog = buildCatalogAtDepthOf(design);
   if (catalog === undefined) {
+    // The schema refuses such a depth, so a stored design never reaches this; one that could never be priced has no change
+    // to announce, so writing its first-open marker would protect nothing.
     return notice(activeNotice({ isSent, active, replacements: [] }, QUIET));
   }
   const kitchen: Kitchen = { design, catalog, active };
@@ -347,7 +388,7 @@ function seenAvailabilityOf(
  * Whether the kitchen's price differs between the pair seen and the pair in force. The active side is priced first, and
  * any refusal there answers `false`: `REPLACEMENT_REQUIRED` is the sheet's, and any other code is the editor's own
  * refusal, which already shows no figure. An active side that priced beside a seen side that cannot be read is `true`: a
- * silent `false` would hide every later real change for good (OQ-40). Otherwise it is `pricesChangedBetween`'s answer, and
+ * silent `false` would hide every later real change for good. Otherwise it is `pricesChangedBetween`'s answer, and
  * `true` on its refusal, which can then only be the seen side's. Exported for the property that holds it to that function.
  */
 export function pricesChangedFor(kitchen: Kitchen, seen: SeenSide): boolean {
@@ -398,7 +439,8 @@ function removedAccessoriesFor(
 }
 
 /** A built-in is named by the client from its messages; a linked row by the first book that states it, the active
- *  book's before the seen one's (a deleted linked accessory is named from the seen book). */
+ *  book's before the seen one's. The seen-book arm is the forward half of ADR 0178's deleted-linked-accessory naming: it is
+ *  reached once `removedAccessoriesSince` reports a row the active book no longer states, which it does not yet. */
 function removedAccessoryWire(
   accessoryId: string,
   books: readonly PriceBook[],
@@ -427,6 +469,7 @@ type PriceNoticeLine =
         | "availability-too-large"
         | "availability-unreadable";
     }
+  | { readonly event: "unexpected-failure"; readonly errorName: string }
   | {
       readonly event: "failed";
       readonly errorName: string;

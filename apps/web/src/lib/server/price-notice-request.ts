@@ -44,7 +44,7 @@ import type {
   RequiredReplacementWire,
 } from "@/price-dashboard/price-dashboard-wire-contract";
 
-// What the two price-notice routes ask of a request and say back (ADR 0178, price-notice Amendment of 2026-11-08).
+// What the two price-notice routes ask of a request and say back (see ADR 0178 A-11).
 // Neither route builds a body from a stored value by spreading it: every answer is shaped member by member, so the wire's
 // closed keys are held at run time and not only by the compiler.
 
@@ -62,12 +62,9 @@ const DEFECT_STATUS_WORD = "unexpected";
 // The credential
 
 /**
- * The credential this request edits the design with, or `undefined`: the save's choice (`saveCredentialOf` in
- * `api/designs/[id]/route.ts`), with one difference. A cross-site request, and a same-site sibling's, is asked first and
- * on both arms, before any cookie is read, because these routes write a marker on a `GET` as well as a `POST`. The write
- * token comes first and the visitor cookie never joins it; otherwise the session of an account that may edit; a staff
- * session holds neither, and a request that carries nothing is `undefined`. Every cause is the same `undefined`: whether
- * the design is theirs is `loadEditable`'s to say.
+ * The credential this request edits the design with, or `undefined`; see `saveCredentialOf` (the parity test is the owner
+ * of the two agreeing). The difference: cross-site is refused first, on both arms, before any cookie is read, because the
+ * `GET` writes a marker too.
  */
 export async function editCredentialOf(
   request: NextRequest,
@@ -89,12 +86,8 @@ export type AcknowledgeReading =
   | { readonly kind: "pair"; readonly pair: PriceStampWire }
   | { readonly kind: "refused"; readonly response: NextResponse };
 
-/**
- * The pair the body names, or the answer that refuses it, in the order of ruling 4: the media type (`415`), the bound
- * (`413`), the object and its members (`400 invalid-request`, nothing echoed), then each member's presence and shape
- * (`400 invalid-input`). The version's shape is the store's own (`isMintedId`: exactly 21 characters), so a value the
- * store would throw on never reaches it. Nothing here writes or counts.
- */
+/** The pair the body names, or the answer that refuses it. The version id is judged by the store's own `isMintedId`
+ *  (exactly 21 characters), so a value the store would throw on never reaches it. */
 export async function readAcknowledgedPair(
   request: NextRequest,
 ): Promise<AcknowledgeReading> {
@@ -198,7 +191,7 @@ function failureResponse(outcome: FailedOutcome, id: string): NextResponse {
     case "not-editable":
       return designNotFoundResponse(id);
     case "unreadable":
-      return designErrorResponse("load", outcome.error);
+      return markedPerCredential(designErrorResponse("load", outcome.error));
     case "defective":
       return NextResponse.json(
         { status: DEFECT_STATUS_WORD },
@@ -245,6 +238,14 @@ function withPerCredentialHeaders(
   return NextResponse.json(body, { headers: PER_CREDENTIAL_HEADERS });
 }
 
+/** The design routes' own unreadable `500` carries no cache headers, and this answer depends on the cookie. */
+function markedPerCredential(response: NextResponse): NextResponse {
+  for (const [name, value] of Object.entries(PER_CREDENTIAL_HEADERS)) {
+    response.headers.set(name, value);
+  }
+  return response;
+}
+
 function stampOf({
   versionId,
   availabilityRevision,
@@ -269,7 +270,7 @@ function removedAccessoryOf({
     : { accessoryId, authoredName };
 }
 
-/** An item by its kind and the one member that kind names it by. */
+/** An item by its kind and the one member that kind names it by; the member name is computed, hence the casts. */
 function itemRefOf(item: ItemRef): ItemRef {
   const member = ITEM_ID_MEMBER_OF_KIND[item.kind];
   return {
