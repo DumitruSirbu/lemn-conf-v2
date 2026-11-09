@@ -19,6 +19,7 @@ import {
   type BodyCatalog,
   type Design,
   type Finish,
+  type Handle,
   type ItemRef,
   type ReplacementRequired,
   type RejectionReason,
@@ -400,15 +401,29 @@ function nameNowApplying(
       return nameOfCurrentTier(item.kind, design, offer, content);
     case "finish":
       return nameOfColourInPlaceOf(item.finishId, design, content);
-    case "handle": {
-      const handle = design.settings?.handle;
-      return handle === undefined
-        ? undefined
-        : content.panel.handleLabels[handle];
-    }
+    case "handle":
+      return nameOfHandleAsItWas(item.handle, design, content);
     case "accessory":
       return undefined;
   }
+}
+
+/**
+ * A handle row resolved without a choice of the sheet's: availability came back, so the design still stores the handle at
+ * some level and it is named as it is. A handle the design no longer stores has nothing to say: no other handle replaced
+ * it, so the kitchen's own handle is never named in its place.
+ */
+function nameOfHandleAsItWas(
+  handle: Handle,
+  design: Design,
+  content: Content,
+): string | undefined {
+  const { handle: kitchen, topRowHandle } = design.settings ?? {};
+  const isStored =
+    kitchen === handle ||
+    topRowHandle === handle ||
+    design.placements.some((placement) => placement.body.handle === handle);
+  return isStored ? content.panel.handleLabels[handle] : undefined;
 }
 
 function nameOfCurrentTier(

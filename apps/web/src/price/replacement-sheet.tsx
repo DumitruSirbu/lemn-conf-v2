@@ -743,8 +743,9 @@ export function ReplacementConfirmation({
           className={styles.confirmation}
           data-testid="replacement-confirmation"
         >
-          {lines.map((line) => (
-            <span key={line} className={styles.confirmationLine}>
+          {lines.map((line, position) => (
+            // The lines are a fixed sequence, and two items replaced by the same thing say the same words.
+            <span key={position} className={styles.confirmationLine}>
               {line}
             </span>
           ))}
