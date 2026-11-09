@@ -2996,6 +2996,23 @@ R4a4 hands to Q3: an end-to-end arm showing that publishing a created class blan
   **Q3d and Q5 merge together before any push.**
 - **Test hygiene:** about 11 stray designs were left in the e2e test database by visual checks (ids unknown for some). Clean them before the Z gate.
 
+**R4c2 merged (deletion accepted at the draft route), 2026-11-09 [relayed from the coordinator; gates run by the coordinator on the merged tree under `rtk proxy`; reviewers' reports; the scribe ran nothing]. Unpushed.**
+- **Merge:** `a9a35ce1` on `m10-price-dashboard`; QA branch `m10/r4c2-qa`; implementer commits `a1a72a48`, `38bda547`; QA fix `86028421` (the deletion-facts memo serves nothing after the clock is set back); comment commit `ebee1f97`. This supersedes the "R4c2 started, not merged" line above.
+- **Gates (coordinator, merged tree):** `tsc` exit 0; `eslint` exit 0; `apps/web` vitest 1219 files / 30189 tests passed. R-j ancestry check (`dafc263b` Q5b, `a8e1a193` Q3d) exit 0.
+- **Reviews:** logic, no defects; clean-code, no blockers; security, no exploitable issue.
+- **Security Low, accepted residual unless the owner wants a limiter:** the deletion pre-check has no in-flight slot, only the 600/h draft bucket; a refused deletion leaves no audit row.
+- **Residuals (owner or later wave):**
+  1. Repeating an identical PUT of a deletion already held re-counts and may answer `ITEM_IN_USE` (observation).
+  2. The memo is process-wide inside `deletion-facts.ts` with a test-only reset export. Candidate: split it into its own module with an injected clock.
+  3. The four R4c2 route test files duplicate fixtures. Candidate: a `tests/support` module.
+  4. `refusalCodeOf` copies `judgeDeletion`'s order; a parity property test guards it.
+  5. A `change as DraftChange` cast in `draft-deletion-check.ts`.
+  6. The `UnguardedDeletionError` branch is untested.
+  7. The memo TTL of 60 s is provisional; the owner is to retune it.
+  8. **R4c3 must handle a linked row the catalogue no longer prices:** the usage route counts with `buildIds` `[]`, so the dialog can show 0 while Delete is refused.
+  9. A defaults save moves the availability head, which is what keeps the defaults out of the memo key.
+- **Next:** R4c3 (Delete on in the dashboard; Full + visual), then the Z gate, which needs the owner's go-ahead before touching the shared test DB.
+
 *R4a5: record amendment (2026-11-05).* The R4a5 row said "R4a5 changes no server file, route or auth path". That
 premise broke. R4a5 changed the usage route's answer (`staff-item-usage.ts`, `item-usage-read.ts`). It touches 11
 production files against the row's 5. The security downgrade was therefore re-checked: R4a2's security reviewer

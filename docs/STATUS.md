@@ -140,9 +140,9 @@ nothing:** OQ-5a (is a lift door's third hinge from 500 mm or above it; built st
 coordinator's reading that creating an accessory linked to a cabinet type is in scope). Close-only questions: plan §6.2.
 **No amount or percentage in the plan, mockup or briefs is approved.** ADR 0173 stays Proposed; its acceptance is owed.
 
-**2026-11-08 (M10 R4b2) [relayed from the coordinator; reviewers' reports; the scribe ran nothing].** R4b2 is built and reviewed on branch `m10/r4b2`, **unmerged**; the wave is not complete until it merges. Visual pass and e2e are not done. Detail: the *R4b2 built and reviewed* block in [`M10-price-dashboard.md`](milestones/M10-price-dashboard.md).
+**2026-11-08 (M10 R4b2) [relayed from the coordinator; reviewers' reports; the scribe ran nothing].** R4b2 was built and reviewed on branch `m10/r4b2` and is **merged** (`6aea980d`; corrected 2026-11-09, this line first said unmerged). Visual pass and e2e are not done. Detail: the *R4b2 built and reviewed* block in [`M10-price-dashboard.md`](milestones/M10-price-dashboard.md).
 
-**2026-11-08 (M10 R4b3) [relayed from the coordinator; reviewers' reports; the scribe ran nothing].** R4b3 is built and reviewed on branch `m10/r4b3`, **unmerged**; R4c is next. The `CI=1` e2e specs and the visual pass are not done. Detail: the *R4b3 built and reviewed* block in [`M10-price-dashboard.md`](milestones/M10-price-dashboard.md).
+**2026-11-08 (M10 R4b3) [relayed from the coordinator; reviewers' reports; the scribe ran nothing].** R4b3 was built and reviewed on branch `m10/r4b3` and is **merged** (`9bb349ea`; corrected 2026-11-09, this line first said unmerged); R4c followed. The `CI=1` e2e specs and the visual pass are not done. Detail: the *R4b3 built and reviewed* block in [`M10-price-dashboard.md`](milestones/M10-price-dashboard.md).
 
 **2026-11-09 (M10 R5b) [relayed from the coordinator; source-verified by the coordinator; the scribe ran nothing].** R5b is merged (`26606c74`): the price-notice GET and acknowledge routes. QA green; full `apps/web` vitest 1156 files / 28788 passed / 2 skipped; `tsc` and `eslint` clean; logic, clean-code and security reviews found no blocker. Next: Q3, Q4, Q5, then R4c, then the Z gate. Detail and the five residuals: the *R5b merged* block in [`M10-price-dashboard.md`](milestones/M10-price-dashboard.md).
 
@@ -152,6 +152,8 @@ coordinator's reading that creating an accessory linked to a cabinet type is in 
 
 **2026-11-09, close (M10 Q5b, Q5d, R4c1 merged; R4c2 started) [relayed from the coordinator; gates verified by the coordinator on merged trees: `tsc` and `eslint` exit 0, `apps/web` vitest 1212 files / 30005 tests passed at the R4c1 merge; the scribe ran nothing].** Merged locally, **unpushed**: Q5b, Q5d, R4c1. R4c2 (`m10/r4c2`) is started, not merged. Remaining: R4c2 QA, reviews (security) and merge; R4c3 (Delete on in the dashboard; Full + visual); then the Z gate, which needs owner go-ahead before touching the shared test DB. Ruling 4's text was falsified by Q5b and is corrected; the Q5-a "price shows once the save lands" acceptance is recorded as a departure (price shows after Apply, the rest waits for the save); ruling 14 is a real defect closed as unreachable for app-written books and **added to the Z gate** (every hardware class in the active book states the same rate fields, or the parser requires all five). Detail and residuals: the *Q5b, Q5d, R4c1 merged* block in [`M10-price-dashboard.md`](milestones/M10-price-dashboard.md).
 
+**2026-11-09, after close (M10 R4c2 merged) [relayed from the coordinator; gates run by the coordinator on the merged tree under `rtk proxy`; reviewers' reports; the scribe ran nothing].** R4c2 is merged locally, **unpushed** (merge `a9a35ce1`): deletion is accepted at the draft route. `tsc` and `eslint` exit 0; `apps/web` vitest 1219 files / 30189 tests passed; R-j ancestry (`dafc263b`, `a8e1a193`) exit 0. Logic review: no defects; clean-code: no blockers; security: no exploitable issue, one Low (no in-flight slot on the pre-check, only the 600/h draft bucket; refused deletions leave no audit row), accepted residual unless the owner wants a limiter. Nine residuals, including that R4c3 must handle a linked row the catalogue no longer prices and that the memo TTL (60 s) is provisional for the owner to retune. This supersedes "R4c2 started" above. Next: R4c3 (Delete on in the dashboard), then the Z gate, which needs the owner's go-ahead. Detail: the *R4c2 merged* block in [`M10-price-dashboard.md`](milestones/M10-price-dashboard.md).
+
 **Owner decisions pending (M10):**
 1. **ADR 0081 amendment (2026-11-09), proposed. Blocks any push.**
 2. The Russian pill "Выбери материал" clipped at 390: shorten the ru string (agent draft), soften frame 2A's 150px cap (needs an ADR 0104 amendment), or accept.
@@ -159,6 +161,7 @@ coordinator's reading that creating an accessory linked to a cabinet type is in 
 4. Frame deviations: chooser as a centred dialog vs the C4BD right rail; head divider and subtitle; fixed sheet height; primary button colour; chooser heading copy.
 5. OQ-41, OQ-42, OQ-43, OQ-44, OQ-11g, OQ-11h: defaults stand until answered. OQ-44's answer also triggers the ADR 0178 A-15 amendment pointer.
 6. Preview steps (grants SQL, seed step, Vercel env check): never confirmed.
+7. R4c2: does the owner want a limiter on the deletion pre-check (default: accepted residual), and what memo TTL (60 s provisional)?
 
 ## 2. Phase table
 
