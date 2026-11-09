@@ -3682,7 +3682,7 @@ Amendment; ADR 0062 Amendments 3 and 5; ADR 0104 (chrome specification); `apps/w
 | **Q1c** two display roundings (added 2026-10-28, owner ruling; branch `m10/q1c`, **in QA, not merged**) | Every line on the breakdown, the review and the lead notice shows its priced amount to 10 lei; only the kitchen total rounds up to 1 000 lei; printed rows need not sum to the total. A stored legacy line not a multiple of 10 lei rounds up to the next 10 lei. Tier-delta badges stay at the thousand (they compare totals) | the Q1/Q1b surfaces and models (named in the dispatch) | MP-3 | ADR 0001 amendment 2026-10-28; ADR 0175 d5; the `it.fails` in `qa-q1-depth-line.adversarial.test.ts` |
 | **Q2** whole-kitchen handle row | C2: a "Mânere" row in the settings sheet (Bară inox / Bară neagră / Push-to-open) with its hint, offering only active handles; the store applies `setKitchenHandle`; **Q2 folds `KitchenHandleSetEffect` into the `CommandEffect` union** (H1 leaves it outside, and its code comment saying so is being trimmed), together with `apply-command-result.ts`'s whole-kitchen branch, in one change (H-6) | `global-settings.tsx`, `global-settings-model.ts`, `store/whole-kitchen-apply.ts`, `domain commands/command-result.ts`, `store/apply-command-result.ts` | **MP-3** (Q1 holds `global-settings.tsx` until then), **H1b**, T1 | Frame C2 [mock L764-767]; ADR 0099; H1's command; H-6 |
 | **Q2b** a cabinet follows the kitchen handle again (added 2026-10-26; **pending OQ-15**, default = mirror colour) | (1) a `clearHandle` command in `set-appearance.ts`, mirroring `clearFinish` (ADR 0099 d8): it removes the cabinet's own handle, so the kitchen handle applies again; (2) a panel option "Ca restul bucătăriei" in the cabinet's handle control, as the colour control has; (3) the copy leaf, requested from T | `commands/set-appearance.ts`, the panel handle control, `store/apply-command-result.ts` (if a new effect branch is needed) | Q2 | ADR 0099 d8 (`clearFinish`); `set-appearance.ts`; OQ-15 |
-| **Q3** forced replacement and merged notice (**widened 2026-10-27, R1-Q1 deferral: with no active book the whole editor `/d/[id]` and the share view `/s/[token]` crash, not only the settings sheet, because `use-top-bar-fit.ts:72` calls `useWholeKitchenTierOffer()` unconditionally and there is no `error.tsx`; Q3's `NO_TIER_OFFER` work must cover `describeSettingsPill` and the top bar too, see R-b**) | C4A–C4D (a modal sheet, not dismissable except by ‹; first "Alege" focused; rows announced; "Prețul apare după ce alegi"; only remaining options, the disabled one struck through; nothing preselected; accessory rows informational); C4C confirmation merged with C1's sentence (the mockup's choice [mock L810]); C1 standalone when there is nothing to replace; acknowledging writes the marker (the version and availability pair). The sheet and the accessory info rows follow **current availability**, so they appear on the next open after a disable, with no publish (A-17). **Widened 2026-11-04 (ADR 0178, Amendment on a deletion that gains a user):** a material or hardware tier the active book no longer holds is a sheet row too, and a deleted linked accessory the kitchen earned is an info row. Q3 holds four P-lane files for this. Items and criterion Q3-g are in Lane S, *Publish and a deletion that gains a user* | `replacement-sheet.tsx`, `use-price-notice.ts`, `price-notice-banner.tsx`, `price-bar.tsx` (mod), `whole-kitchen-tiers.ts` (disabled tiers hidden or struck) | P4a, R5, T1 | Frames C1, C4A–D [mock L763, L792-811]; A-11, A-16; ADR 0072 Amendment *Consequence*; ADR 0062 Amendment 3; `whole-kitchen-tiers.ts:91-162` |
+| **Q3** forced replacement and merged notice (**split 2026-11-09 into Q3a, T4, Q3b, Q3c and Q3d: dispatch the sub-waves, never this row whole; see *Q3 split* below the Q acceptance.** **Widened 2026-10-27, R1-Q1 deferral: with no active book the whole editor `/d/[id]` and the share view `/s/[token]` crash, not only the settings sheet, because `use-top-bar-fit.ts:72` calls `useWholeKitchenTierOffer()` unconditionally and there is no `error.tsx`; Q3's `NO_TIER_OFFER` work must cover `describeSettingsPill` and the top bar too, see R-b**) | C4A–C4D (a modal sheet, not dismissable except by ‹; first "Alege" focused; rows announced; "Prețul apare după ce alegi"; only remaining options, the disabled one struck through; nothing preselected; accessory rows informational); C4C confirmation merged with C1's sentence (the mockup's choice [mock L810]); C1 standalone when there is nothing to replace; acknowledging writes the marker (the version and availability pair). The sheet and the accessory info rows follow **current availability**, so they appear on the next open after a disable, with no publish (A-17). **Widened 2026-11-04 (ADR 0178, Amendment on a deletion that gains a user):** a material or hardware tier the active book no longer holds is a sheet row too, and a deleted linked accessory the kitchen earned is an info row. Q3 holds four P-lane files for this. Items and criterion Q3-g are in Lane S, *Publish and a deletion that gains a user* | `replacement-sheet.tsx`, `use-price-notice.ts`, `price-notice-banner.tsx`, `price-bar.tsx` (mod), `whole-kitchen-tiers.ts` (disabled tiers hidden or struck) | P4a, R5, T1 | Frames C1, C4A–D [mock L763, L792-811]; A-11, A-16; ADR 0072 Amendment *Consequence*; ADR 0062 Amendment 3; `whole-kitchen-tiers.ts:91-162` |
 | **Q4** sent-kitchen note | C5A/C5AD: a closable, non-blocking note above the price when `isSent` | `sent-kitchen-note.tsx`, editor placement | R5, T1 | Frames C5A, C5AD [mock L805-807]; ADR 0062 Amendment 5, point 3; ADR 0165 |
 | **Q5** lone colour and handle replacement | A disabled colour or handle as a sheet row; choosing replaces it at every level where it appears (A-16); "Culoarea a revenit la Alb" when a material change resets it | `replacement-sheet.tsx` (mod), `store/whole-kitchen-apply.ts` (mod) | Q3, Q2, H1, P4a | A-16, A-17; ADR 0057, 0081, 0086, 0099; `chosen-finishes.ts`, `resolved-finish.ts` |
 
@@ -3719,6 +3719,282 @@ Amendment; ADR 0062 Amendments 3 and 5; ADR 0104 (chrome specification); `apps/w
 **QA reading:** Q's base reading plus `apps/web/tests/price/**`, `tests/settings/**` and the e2e specs for the editor.
 **Review reading:** logic (Q1, Q3): ADR 0100 decision 5, A-1, A-11, A-17, A-19, and the OQ-2 ruling; combined (Q2, Q4, Q5): the frames; visual:
 §13.3.
+
+**Q3 split** (architect, 2026-11-09; plan step for Q3 at `m10-price-dashboard` @ `185f6d05`, R5a, S7 and R5b merged;
+nothing run, nothing built). The Q3 row, its 2026-10-27 widening (R-b), *Q3's items* 1–5 and Q3-g (Lane S, *Publish
+and a deletion that gains a user*), Q3-a to Q3-f and *What Q3 and Q4 need from R5* come to about twenty items. Under
+`docs/WORKFLOW.md`'s limit (5 items, about 5 production files) they split into five sub-waves: **Q3a**, **T4**, **Q3b**,
+**Q3c** and **Q3d**. Each merges alone. **Dispatch the sub-waves, never the Q3 row whole.** Every criterion above stands;
+this block says which sub-wave delivers each one, settles what the code shows the row did not foresee, and records the
+tests that move.
+
+*Evidence.* Every source claim below was read at `185f6d05` (source-verified), with its line. **[inf]** marks an
+inference and says what would falsify it. Plan lines are cited by section, not number, because this file moves.
+
+*What the code says, which shapes the split* (source-verified).
+1. **The check order is already right; the list is what is wrong.** `refuseUnusableRequest` runs
+   `refuseSwitchedOffSelections` before any line is priced, so before `selectTier` (`price-design.ts:171-180, :219-233`;
+   `selectTier` at `:489-503`). What sends a vanished tier to `UNKNOWN_TIER` is `disabledItemsNamedBy` answering `[]`
+   for a design that names a tier the book does not hold (`named-items.ts:60, :66-82`), and `tierItem` dropping such a
+   tier (`:85-92`). So `price-design.ts` needs its comment corrected (`:167-170`), not a reordering. Q3's items name it
+   "the order of the checks only"; that window stays, and is used only if the implementer finds otherwise.
+2. **An absent book default is not a vanished choice.** `qa-6b-pricing.adversarial.test.ts:347-356` pins a book whose
+   `hardware.defaultTierId` names no tier as `UNKNOWN_TIER`, so the parser does not refuse that book. `holdsTier` falls
+   back to the default when nothing is chosen (`named-items.ts:80`). A rule keyed on "the tier priced at is absent"
+   would turn that book fault into a replacement sheet on every choice-less kitchen.
+3. **The server half of Q3 already exists.** `price-notice.ts` builds `replacementsRequired` from the domain
+   (`:258-263`) and reports `removedAccessoriesSince` (`:416-439`). The domain change reaches the `GET` with no route
+   edit. Its seen-book naming arm (`:441-455`) becomes reachable, and its comment ("which it does not yet", `:442-443`)
+   goes stale.
+4. **A replacement row carries no name on the wire.** `RequiredReplacementWire` is `{item, remaining}`
+   (`price-dashboard-wire-contract.ts:549-553`), and `replacementOf` copies those two keys only
+   (`price-notice-request.ts:256-261`). The client holds only the active book (R1's root, `price-book-root.ts:34-46`). A
+   material declaration holds no name (`materials.ts:151-157`). A keyed class's `nameKey` lives on the book row
+   (`sample-price-book.ts:386`), and Hettich and Blum have none (`:397`, `:414`). So **no client file can name a vanished
+   created class from the seen book**, and a vanished keyed class's message key is not reachable from code
+   **[inf: falsified by a code-side map from tier id to message leaf, which the implementer greps for]**. → ruling 2.
+5. **The no-book crash has two throws, not one.** `offerTiersAgainstBook` throws (`price-book-root.ts:105-106`), and so
+   does `requireDeepCabinetPercent` (`:90-93`), which the settings sheet calls (`global-settings.tsx:90`). Its comment
+   says the sheet cannot open without a book; once `NO_TIER_OFFER` lets the editor render, the sheet can open, and the
+   depth note throws. The top bar calls the offer unconditionally (`use-top-bar-fit.ts:72-75`).
+6. **The tier offer's two known gaps are one cause.** `measureGroup` prices every tier the book holds, a switched-off one
+   included; one refusal there blanks the group, and the all-or-nothing rule then blanks both groups
+   (`whole-kitchen-tiers.ts:126-141, :180-199`). `tierIds` is every book tier (`:240`), and it is what the commands take
+   as `availableTierIds` (`global-settings.tsx:243-244`). Both `it.fails` in
+   `tests/settings/qa-p4a-tier-offer-switched-off.adversarial.test.ts` pin this.
+7. **The price bar hides no figure it should show, but the frames want a bar.** A refusal already renders no bar at all
+   (`price-bar.tsx:34-35`), and the account card shows no figure for a refused pricing (`price-book-root.ts:124-132`), so
+   Q3-a holds on the existing path. But C4A, C4B and C4D draw the bar **present**, with the text "Prețul apare după ce
+   alegi" in place of the figure and "Continuă" disabled (`base4(…, price, 1)` → `cfgbar` with `txt` and `btnOff`,
+   `Lemnaria Dashboard.dc.html` L795). So `price-bar.tsx` stays in Q3's files, in Q3d, for that one state.
+8. **"The save landed" has one honest signal.** `saveStatus: "idle"` also covers an edit queued behind the coalescer;
+   the store says `design === savedDesign` is the only answer to "is anything still waiting", and `revision` advances
+   only on the server's answer (`configurator-store.ts:160-176`).
+9. **The contact route already refuses `REPLACEMENT_REQUIRED`** as `CONTACT_DESIGN_NOT_CURRENT`
+   (`prepare-submission.ts:106-117`). The staff estimate maps both codes (`staff-kitchens-marks-reading.ts:34-35`), but
+   with different words (`i18n/content.ts:1676, :1680`). → consequence in *Risks*.
+10. **Copy.** `customerPriceNotice.*`, `replacementSheet.*` and `sentKitchenNote.*` exist (`ro.json:1906-1936`). There is
+    no leaf for R-b's "Prețurile nu pot fi afișate acum", and none for Q3's item 4 generic line.
+11. **The frames.** C4B draws the kitchen's own switched-off material struck ("Nu mai este oferit.") among the remaining
+    options, with nothing selected and "Aplică" off until a choice. C4D's accessory row is "doar informare, fără
+    alegere" (`Lemnaria Dashboard.dc.html` L796-811). ADR 0062 Amendment 3, item 3: "The relevant global setting opens
+    showing only the remaining options".
+
+*Rulings this split records* (architect, **[inf] until the coordinator accepts them**; the owner may overturn any).
+1. **"Vanished" means a stored choice the book does not hold.** A material or hardware tier id that the design's
+   settings name (`chosen` present), which the active book's group does not hold, is an item to replace, listed as
+   `tierRef(kind, id)` in `disabledItemsNamedBy`'s one list beside the switched-off items. A choice-less design priced
+   at a default the book does not hold stays `UNKNOWN_TIER`: that is a book fault (point 2). `itemsNamedBy` keeps its
+   meaning, so the usage reader's parity (S-e; `item-usage.test.ts:97`) does not move. No rename, so `index.ts` is not
+   touched.
+2. **The sheet row names a vanished tier only from code; otherwise the generic line** (narrows *Q3's items*, item 4,
+   which said "or from the seen book (a created class)"). A declared material is named through its catalogue message
+   leaf if a code-side path from its id exists; anything else, a vanished created class included, gets T4's generic line.
+   Never a raw id. *Why:* the wire carries no name for a replacement row (point 4); the seen book holds a created class
+   only when the customer acknowledged a version that stated it, so even a wire change names it only sometimes, and a
+   marker equal to `current` reads no seen side at all; and widening the wire reopens R5b's closed-keys pins (R5b-l), the
+   seen-side canary's allowance, and a second exception to F10's "an archive is never served". *Rejected for now
+   (option a):* a lane R sub-wave adding `authoredName?` to `RequiredReplacementWire`, filled from the seen side as
+   `removedAccessoryWire` does, with an ADR 0178 amendment and a security review. Owner-visible: queued as **OQ-41**.
+   Q3d renders a name when one is present, so option (a) can land later with no UI change.
+3. **The deleted linked accessory.** `removedAccessoriesSince` also reports a linked accessory the kitchen earned under
+   `seenBook`, that `seen` did not list as off, and that `activeBook` no longer states, whatever `current` says. One
+   already off when the customer looked stays unreported, as today. ADR 0178's Amendment of 2026-11-04, decision 1.
+4. **Switched-off tiers leave the offer.** `tierIds` and the measured `tiers` hold active tiers only; deltas are measured
+   over them alone, so one switched-off tier blanks nothing else. The switched-off tiers the book still holds are given
+   beside them, unmeasured, for C4B's struck row. The settings sheet shows only the remaining options (ADR 0062
+   Amendment 3, item 3) and hides switched-off ones; it cannot be opened while a replacement is pending, because the C4
+   sheet is modal (point 11). The struck row belongs to Q3d's chooser.
+5. **The C4B chooser is the sheet's own**, built from Q3b's offer and applied through the store's existing one-commit
+   path (`applyWholeKitchenSettings`, or `setMaterialTier`/`setHardwareTier` with the offer's `tierIds`). Q3d does not
+   edit `global-settings.tsx`, so file ownership stays single.
+6. **Nothing to replace, but accessories removed: no modal.** The info line ("{name} nu mai este oferit și a fost scos
+   din bucătărie.", `replacementSheet.accessoryRemoved`) rides in the C1 banner, with or without the prices sentence,
+   and "Am înțeles" acknowledges. That covers an accessory priced 0 (OQ-32), where `pricesChanged` is `false`. *Why:* the
+   owner's "removed from the kitchen with the notice" (ADR 0062 Amendment 3, item 4) asks for a notice, not a choice,
+   and C4D draws the row as information only. Owner-visible: queued as **OQ-42**.
+7. **One hook owns the `GET`.** `use-price-notice.ts` calls it once per open and exposes `isSent` too; Q4 reads it from
+   there and never issues its own `GET`, which would spend a second `read-by-block` token per open (ruling 3 of *R5
+   split*).
+8. **The merged sentence waits on the save, not on `saveStatus`.** After the last choice, Q3d waits until the store's
+   `revision` differs from the revision held when that choice was applied **and** `design === savedDesign` (point 8),
+   then calls the `GET` again, carries `customerPriceNotice.alsoUpdated` if and only if that answer's `pricesChanged`
+   is `true`, then acknowledges the displayed pair.
+
+*Sub-waves.*
+
+| Sub-wave | Items (≤ 5) | Production files | Depends on | Tier | Visual | Reading |
+| --- | --- | --- | --- | --- | --- | --- |
+| **Q3a** the domain: a vanished tier is a replacement, a deleted accessory is a removed one | (1) Ruling 1 in `named-items.ts`: `disabledItemsNamedBy` lists a vanished chosen tier; `priceDesign` therefore refuses `REPLACEMENT_REQUIRED` naming it, before `selectTier`. (2) `replacementsRequired` offers that group's active tiers for it, through the existing `declaredOptionsOfGroup` path; its `NoReplacementOptionError` stays the only empty-set answer. (3) Ruling 3 in `earned-accessories.ts`. (4) The stale comments: `named-items.ts:10-12` (the "not listed … `UNKNOWN_TIER`'s" sentence) and `:48-55`; `price-design.ts:167-170`; `earned-accessories.ts:65-67`; and, a stated window in R5b's merged file, `lib/server/price-notice.ts:441-443` (comment only, no code). (5) Tests the implementer pairs with each change; QA moves the existing pins listed below, the implementer never edits a QA pin (§9.1) | domain `pricing/named-items.ts`, `queries/replacements-required.ts` (comment or call only), `pricing/price-design.ts` (comment; "the order of the checks only" if point 1 is wrong), `pricing/earned-accessories.ts`; web `lib/server/price-notice.ts` (one comment). Five | merged only (P4a, P4b, R5b) | **Full** (logic and clean-code) | **None: domain only.** A recorded departure from Lane Q's "every wave visual": it changes no surface; the browser arm of Q3-g is Q3d's | This block (points 1–3, 9; rulings 1 and 3); *Q3's items*; Q3-g; P4a-a to P4a-d; P4b-d; ADR 0178 Amendment of 2026-11-04 (decision 1) and of 2026-11-08 (item 7); ADR 0062 Amendment 3, items 2–4; `named-items.ts`; `replacements-required.ts`; `price-design.ts:110-233, :489-503`; `earned-accessories.ts`; `catalogue-availability.ts` (`declaredOptionsOfGroup`, `tierRef`); `price-notice.ts:242-455` |
+| **T4** Q3's new leaves (runs beside Q3a) | (1) R-b's leaf for a whole-kitchen group with no book, "Prețurile nu pot fi afișate acum", under `globalSettings.*`. (2) Ruling 2's generic replacement-row line under `replacementSheet.*` (e.g. "O opțiune aleasă nu mai este disponibilă"), with no `{name}`. (3) RU drafts, marked as agent drafts, never pinned (ADR 0095 d2). (4) The copy lock gains both, marked `Drafted`. Nothing renders them until Q3b and Q3d | `ro.json`, `ru.json`, `ro.d.json.ts` (regenerated), the copy lock. Four | none | Light | None: copy only | T1's row; ADR 0095; ADR 0106 Amendment A (no figure in a keyed text); OQ-11 and its later rows; `ro.json:1906-1936` |
+| **Q3b** the tier offer: no book, and switched-off tiers | (1) `offerTiersAgainstBook` answers a named `NO_TIER_OFFER` special case instead of throwing (R-b). (2) The settings sheet's material and hardware groups render T4's one line with no options, no deltas and no default marked; the settings pill and the top bar's fit (`use-top-bar-fit.ts:72-75`) accept the special case. (3) The depth note with no book: depth, colour and handle still work and nothing renders 0 (point 5); the implementer chooses between a non-throwing reader beside `requireDeepCabinetPercent` and hiding the percentage sentence, and states it. (4) Ruling 4 in `whole-kitchen-tiers.ts`. (5) A switched-off book default must not throw `UnofferedDefaultTierError` once tiers are skipped: it yields no deltas at all, never a throw (the dashboard's guard makes it unreachable; this is defence in depth) | `price/price-book-root.ts`, `price/use-priced-design.ts`, `price/whole-kitchen-tiers.ts`, `settings/global-settings-model.ts`, `settings/global-settings.tsx`, `app/configurator/configure/use-top-bar-fit.ts` (if the type needs it). **Six, stated, with a mini-review**: the sixth is a type change at one call | T4 | **Full** (logic and clean-code): it changes `tierIds`, the "what is on offer" answer every whole-kitchen command takes (ADR 0062 seam 1) | **Verify-visual, regression only**: the settings sheet at 390 × 844 and 1440 × 900 with nothing switched off is unchanged. The no-book arm cannot run in a browser (dev, test and e2e always seed, R-b), and a switched-off tier in `CI=1` needs a global availability write, so both are DOM-tested | This block (points 5, 6, 11; rulings 4 and 5); R-b; P3-d; P4a-a ("a disabled item is never offered to a new choice"); ADR 0072 Amendment (the recovery path); ADR 0062 Amendment 3, item 3; frame C4B [mock L796-798]; `whole-kitchen-tiers.ts`; `price-book-root.ts`; `use-priced-design.ts`; `global-settings-model.ts` (`describeSettingsPill`, `:293`, `:655`); `global-settings.tsx:80-250`; `use-top-bar-fit.ts`; the U4c and R4a4 hand-offs on `qa-p4a-tier-offer-switched-off` |
+| **Q3c** the notice client and C1 (runs beside Q3a) | (1) `price-notice-client.ts`: the `GET` and the acknowledgement `POST`, mapping `200` arms, `400 unknown-version`/`revision-ahead`, `404`, `429`, `500`, `503` and a network failure to closed outcomes. (2) `use-price-notice.ts`: calls the `GET` once per open only when `canWrite` is `true` (never while `"checking"`), never on the share view's sentinel id, never with no active root; exposes the notice and `isSent` (ruling 7). (3) The stale-page rule: if the answer's `current` differs from the root's displayed pair, show no C1 and acknowledge nothing on that view; acknowledge only the displayed pair; on `400` keep the notice for the view, no retry loop. (4) `price-notice-banner.tsx`: C1 standalone when `replacementsRequired` is empty and `pricesChanged` is `true` or `removedAccessories` is not empty (ruling 6); "Am înțeles" acknowledges; built-ins named from their message, linked rows by `authoredName`. (5) The mount in the editor, a stated window in `configure-screen.tsx` (no M10 owner) | `price/price-notice-client.ts` (new), `price/use-price-notice.ts` (new), `price/price-notice-banner.tsx` (new), `price/price-notice-banner.module.css` (new), `app/configurator/configure/configure-screen.tsx` (mount). Five | merged only (R5b); copy from T1 | Light (one combined reviewer) + visual | **Verify-visual**: C1 at 390 × 844 and 1440 × 900 under `CI=1` is not reachable without a publish or a global availability write (the U5c record), so C1's visual runs under `next dev` over a stubbed notice answer, stated in the report; the gating arms are DOM tests | This block (rulings 6 and 7); *What Q3 and Q4 need from R5* (Q3's bullets); A-11; R5b's rulings 2, 3 and 5; the wire `:541-608`; frame C1 [mock L763]; `hydrate-and-configure.tsx:33-80` (`canWrite`); `shared-design-view.tsx` (the sentinel); `price-book-provider.tsx`; `configure-screen.tsx:170-330`; `browser-and-visual-qa.md` |
+| **Q3d** the forced-replacement sheet (C4A–C4D) | (1) `replacement-sheet-model.ts`: rows from `replacementsRequired` computed live from the store and the root (the same domain function the `GET` uses), accessory info rows from the hook's `removedAccessories`, names by ruling 2, nothing preselected. (2) `replacement-sheet.tsx`: a modal, not dismissable except by ‹ (which leaves the kitchen); first "Alege" focused; each row announced "{name} nu mai este disponibil"; "Prețul apare după ce alegi"; rows resolve one by one (C4D); colour and handle rows are drawn, but choosing them is Q5's (an interim, recorded). (3) The C4B chooser (ruling 5): only the remaining options, the kitchen's own switched-off tier struck and unselectable, "Aplică" off until a choice; a vanished tier has no struck row (the book has no name for it). (4) After the last choice: ruling 8, then C4C's confirmation (`changedMaterial`/`changedHardware`, and `alsoUpdated` when the second `GET` says so), then the acknowledgement; C1 is never shown beside the sheet (Q3-c). (5) A sent kitchen gets the same sheet (Q3-d); the mount extends Q3c's in `configure-screen.tsx` | `price/replacement-sheet-model.ts` (new), `price/replacement-sheet.tsx` (new), `price/replacement-sheet.module.css` (new), `price/use-price-notice.ts` (the sheet's flow), `app/configurator/configure/configure-screen.tsx` (mount), `price/price-bar.tsx` (point 7: the pending state only). **Six, stated, with a mini-review**: the bar is one state | Q3a, Q3b, Q3c, T4 | **Full** (logic and clean-code) + visual | **Verify-visual**: C4A, C4B, C4C and C4D at 390 × 844 and C4AD, C4BD at 1440 × 900, under `CI=1` through the vanished-tier path (below), which needs no publish | This block (points 7, 8, 11; rulings 2, 5, 6 and 8); Q3-a to Q3-f; Q3-g; A-11, A-16, A-17; ADR 0062 Amendment 3 (items 3–4) and Amendment 5 (point 2); ADR 0057 (the colour reset, announced by Q5); frames C4A–C4D, C4AD, C4BD [mock L792-811]; `configurator-store.ts:120-250, :560-720`; `store/whole-kitchen-apply.ts`; `price-bar.tsx`, `price-bar-model.ts`; `save-coalescer.ts` (read only); `browser-and-visual-qa.md` |
+
+*Order and parallelism.* Separate worktrees; one writing agent per tree (R2). Production files are disjoint within each
+pair below.
+1. **Q3a ∥ T4 ∥ Q3c, now.** Q3a is the domain package plus one comment; T4 the message files; Q3c new web files and the
+   editor mount.
+2. **Q3b** once T4 has merged (it renders T4's leaf).
+3. **Q3d** once Q3a, Q3b, Q3c and T4 have merged. It inherits `use-price-notice.ts` and the mount from Q3c.
+4. **Q4** after Q3c (it reads `isSent` from Q3c's hook, ruling 7), and **never concurrently with Q3d**: both edit
+   `configure-screen.tsx`. Either order; one at a time.
+5. **Q5** after Q3d (it inherits `replacement-sheet.tsx`) and Q2 (merged).
+6. **R4c** waits for **every Q3 sub-wave** (Q3a–Q3d and T4) and S2c. This restates R-j's "while S2c or Q3 is unmerged"
+   in sub-wave terms: the customer-side guarantee of ADR 0178's Amendment of 2026-11-04 needs the domain (Q3a), the
+   chooser's offer (Q3b) and the sheet (Q3d).
+
+*Pins that move* (QA sorts each file and states its verdict in the report; the implementer edits none of them).
+- **Q3a, flip** (`UNKNOWN_TIER` → `REPLACEMENT_REQUIRED` for a chosen tier the book does not hold, or a deleted earned
+  accessory now reported):
+  - `packages/configurator-domain/tests/pricing/price-design.test.ts:718-735`;
+  - `packages/configurator-domain/tests/pricing/qa-6b-pricing.adversarial.test.ts:624-627` ("a tier nothing offers");
+  - `packages/configurator-domain/tests/pricing/availability-refusal.test.ts:117-127`;
+  - `packages/configurator-domain/tests/pricing/qa-p4a-availability.adversarial.test.ts:795-807` and the whole describe
+    at `:943` ("RULED: … UNKNOWN_TIER whatever is switched off", `:959-984`), which this split re-rules;
+  - `packages/configurator-domain/tests/contact/qa-8h-submission-snapshot.adversarial.test.ts:808-812`;
+  - `apps/web/tests/review/qa-8c-refusal-order.adversarial.test.ts:112-118` (QA decides whether the review surface's
+    order moves with the code or the row moves to another way of failing);
+  - `packages/configurator-domain/tests/pricing/p4b-removed-linked-accessories.test.ts:164` ("does not name one the
+    active book no longer states");
+  - `apps/web/tests/app/api/designs/qa-m10-r5b-seen-side-canary.adversarial.test.ts:240-267`. It relies on the
+    seen-book `authoredName` arm being unreachable: its forbidden list holds the bare string `"CNRY"`, which
+    `REMOVED_NAME` ("CNRY-removed-name") contains, and Q3a makes that name reach the answer. The move: allow exactly
+    `REMOVED_NAME`, once, inside `removedAccessories`; add the positive equality
+    `removedAccessories = [{accessoryId: REMOVED_ACCESSORY_ID, authoredName: REMOVED_NAME}]`; keep `KEPT_NAME`, every
+    description canary, the label, the note, the summary, the amount and `seenVersionId` forbidden; keep the log free of
+    `"CNRY"`. The test at `:269` (renamed in the active book) stays as is.
+- **Q3a, sorted by QA, expected to stay:** `apps/web/tests/price/p4a-root-prices-under-its-availability.test.ts` (its
+  `:26` is a switched-off tier); `qa-6b-pricing.adversarial.test.ts:347-356` (an absent default is a book fault,
+  ruling 1); `qa-8h-pricing-failure-stays-unseen.adversarial.test.ts:39` and `tests/staff/staff-changes-copy.test.ts:31`
+  (enumerations of the codes); `item-usage.test.ts:97` (usage unchanged); `queries/replacements-required.test.ts`
+  (gains arms; none flips). Staff tests that pin a vanished-tier kitchen's estimate wording: QA greps `tests/staff/**`.
+- **Q3b, flip:**
+  - both `it.fails` in `apps/web/tests/settings/qa-p4a-tier-offer-switched-off.adversarial.test.ts` lose their marker;
+  - both `it.skip` in `apps/web/tests/price/qa-r1-no-book-surfaces.adversarial.dom.test.ts:146-163` (the settings pill
+    renders; the top bar's fit runs) are un-skipped;
+  - `apps/web/tests/price/no-price-book.test.ts:69-72` (throws `UnreadablePriceBookError`) becomes `NO_TIER_OFFER`;
+  - `apps/web/tests/settings/qa-mp3-required-percent.adversarial.test.ts:141-146` ("still refuses to open without a
+    book") moves with item 3; `:86-93` stays if `requireDeepCabinetPercent` keeps throwing for its other callers.
+  - Expected to stay, QA confirms: `whole-kitchen-tiers.test.ts`, `global-settings-model.test.ts`,
+    `global-settings.adversarial.test.ts`, `qa-6t-negative-delta`, `qa-6w-below-default-tier`,
+    `qa-m6-wave-b-tier-deltas`, `whole-kitchen-tier-group-keys.test.ts`, `qa-p3-cut-over-surfaces` (nothing in them
+    switches a tier off).
+- **Q3c, Q3d, T4:** no existing pin is expected to move **[inf: falsified by a red test outside their new files]**.
+
+*Acceptance.* Q3-a to Q3-g are delivered as follows; each sub-wave's bullets are its own gate.
+- **Q3a:**
+  - **Q3-g property** (fast-check; the `javascript-testing-expert` skill applies): over designs whose bodies the catalogue
+    holds and books whose defaults are their own tiers, for any material or hardware tier id the design's settings
+    choose that the book does not hold: `priceDesign` refuses `REPLACEMENT_REQUIRED` listing that tier, never
+    `UNKNOWN_TIER`; `replacementsRequired`'s row for it offers exactly that group's active tiers in book order; nothing
+    is preselected (no row's `remaining` is narrowed by the design's choice). The range keeps out uncatalogued bodies
+    because `UNKNOWN_BODY` comes first, and would turn the property red for the wrong reason;
+  - **parity:** the refusal's `items` equal the rows' `item`s in order, a vanished tier and switched-off items together;
+  - **must-not:** a choice-less design against a book whose default names no tier is a replacement. It stays
+    `UNKNOWN_TIER`;
+  - **must-not:** a stored design reaches `UNKNOWN_TIER` through `priceDesign` under a well-formed book. Sabotage:
+    restoring the `[]` early return in `disabledItemsNamedBy` turns the property red; moving `itemsNamedBy` instead
+    leaves it green (R6, both directions);
+  - **the deleted accessory:** earned under `seenBook`, not off in `seen`, absent from `activeBook` → reported, whatever
+    `current` says; already off in `seen` → not reported; never earned → not reported; a built-in is unaffected
+    (P4b-b's byte-identity holds);
+  - **through the route, no route edit:** the `GET` for a design naming a vanished tier answers a non-empty
+    `replacementsRequired` and `pricesChanged: false` (R5b-j2's shape); for the canary's "without-removed" world it
+    names the deleted accessory by the seen book's name; R5b-l's closed keys hold;
+  - **the contact route** refuses a vanished-tier kitchen `409 CONTACT_DESIGN_NOT_CURRENT` and stores no snapshot;
+  - the usage reader's answers are byte-identical before and after (S-e).
+- **T4:** both leaves exist in RO, are absent from no locale's generated declaration, carry no figure, and the copy lock
+  lists them `Drafted`; RU is marked as an agent draft.
+- **Q3b:**
+  - **R-b's editor clause, met:** with `NO_PRICE_BOOK`, the settings sheet, the settings pill and the top bar mount
+    without throwing; each whole-kitchen group shows T4's line with no option, delta or default; depth, colour and handle
+    controls still apply; no surface renders `0` or "0 %";
+  - **property:** for any availability over the book's tiers that leaves each group an active option, `tierIds` equals
+    the group's active tiers in book order, and each active tier's delta equals the delta measured with every
+    switched-off tier removed from the book. So one switched-off tier the kitchen did not choose blanks nothing;
+  - **must-not:** a switched-off tier is in `tierIds`, or is offered by the settings sheet (P4a-a);
+  - **must-not:** a switched-off book default throws. It yields no deltas, and the sheet still opens;
+  - **R4a4's hand-off arm**, end to end over the fake world: a created class published inactive (A-17) leaves every
+    offered delta measured, where before this wave it blanked them (the gap R4a4 recorded);
+  - the kitchen's own switched-off tier is available, unmeasured, for the chooser, and the settings sheet does not show
+    it.
+- **Q3c:**
+  - **gating:** no `GET` while `canWrite` is `"checking"` or `false`, on the share view, or with no active root; exactly
+    one `GET` per open otherwise (a request counter in a DOM test);
+  - `404`, `429`, `500`, `503` and a network failure show nothing and acknowledge nothing;
+  - **C1 standalone:** `pricesChanged: true` with no replacements shows C1; "Am înțeles" `POST`s the **root's** pair,
+    never the answer's `current`, then hides C1;
+  - **ruling 6:** removed accessories with no replacements and `pricesChanged: false` (an accessory priced 0) still
+    show the banner with the info line, and acknowledging writes the marker;
+  - **stale page:** an answer whose `current` differs from the root's pair shows no C1 and sends no `POST`;
+  - `400 unknown-version` and `revision-ahead` keep the notice for the view and send no second `POST`;
+  - Q3-f: an info row shows once per disable not yet acknowledged, and not again after acknowledgement (route-level,
+    over the fake world's notice store);
+  - `isSent` is exposed on both wire arms (for Q4).
+- **Q3d:**
+  - Q3-a: while a row is unresolved, no figure shows on the bar, the breakdown or the account card; the bar shows
+    "Prețul apare după ce alegi" with "Continuă" disabled (C4A), and with no replacement pending it renders exactly as
+    before (a refused pricing for any other reason still draws no bar);
+  - Q3-b: after the last choice the price shows, the marker is written, and reopening shows neither the sheet nor C1;
+  - **Q3-c, must-not:** the second `GET` is sent before the store's `revision` has moved past the choice and
+    `design === savedDesign`. A DOM test holds the save in flight (and once queued behind the coalescer's interval) and
+    asserts no `GET` and no `POST` until it lands; the sentence then follows that answer's `pricesChanged` exactly;
+  - Q3-c: with a replacement and a price change, exactly one sheet, and its confirmation carries the sentence; C1 never
+    shows separately;
+  - Q3-d: a sent kitchen gets the same sheet;
+  - Q3-e (DOM and route, not browser): a disable makes the sheet appear on the next open with no new version;
+    re-enabling before a choice makes it disappear and the price return unchanged;
+  - accessibility: the sheet is a modal dialog, focus starts on the first "Alege", each row's accessible name is
+    "{name} nu mai este disponibil", ‹ is the only exit, and no option is selected on open;
+  - ruling 2: a vanished created class's row shows T4's generic line and never its id; a row with a name shows the name;
+  - **browser, `CI=1`, no publish** (Q3-g): a spec stores a design naming a tier id the seeded book does not hold (the
+    save route accepts any shaped id, `design.ts:163-168`). On open the sheet offers the active tiers, no figure shows,
+    the generic failure never appears; choosing a tier shows the price and writes the marker. **The deleting version
+    itself** (a seen book that holds the tier, an active one that does not) is proved by DOM and route tests; its browser
+    arm waits for the Z gate, as U5c's publish paths do;
+  - visual at the viewports in the table.
+
+*Risks and residuals.*
+- **The staff estimate's wording changes** for a vanished-tier kitchen: D10B's estimate now reads the replacement
+  wording (`staffChanges.estimateRefusedReplacement`) instead of "not priceable" (point 9). Correct under ADR 0178's
+  Amendment of 2026-11-04; recorded, not a question.
+- **A colour row is drawn but not choosable until Q5** (Q3d item 2). An interim on an unshipped branch ("Nothing ships
+  mid-milestone").
+- **A disabled colour on a vanished material** offers the colours of the vanished material's code declaration
+  (`replacements-required.ts:103-114`). Choosing the material first resets the colour (ADR 0057, Q5). Recorded **[inf:
+  not exercised]**; Q3a's QA adds one example.
+- **Global availability writes in `CI=1`.** Like a publish, an availability write changes every spec's server state
+  **[inf: the U5c record names publish only; availability is the same global fake]**. So Q3-c and Q3-e have no browser
+  arm.
+- **Option (a) of ruling 2** stays open behind OQ-41.
+
+*Verification, per sub-wave.*
+- Domain tests and properties with `fast-check` (Q3a); `apps/web` price-notice route suites over the fake world
+  (Q3a's route arms; Q3c's Q3-f); DOM tests (Q3b, Q3c, Q3d); the `CI=1` browser spec (Q3d).
+- `pnpm check` on each merge; `pnpm ci:local` before any push; `pnpm format:check` whole-tree last.
+- QA of Q3a runs `packages/configurator-domain` **and** `apps/web/tests/app/api/designs/**`, `tests/price/**`,
+  `tests/review/**`, `tests/staff/**`, because the canary and the route arms move through the web app.
+
+*Reading, QA and reviewers.*
+- **QA of each sub-wave:** its row's Reading, that sub-wave's acceptance bullets and its pins above. Q3a adds
+  `packages/configurator-domain/tests/pricing/**`, `tests/queries/**`, `tests/contact/**` and the web suites named in
+  *Verification*. Q3b adds `apps/web/tests/settings/**` and `tests/price/**`. Q3c adds `tests/price/**` and the
+  editor's e2e specs. Q3d adds the editor's e2e specs and `browser-and-visual-qa.md`.
+- **Logic review (Q3a, Q3b, Q3d):** the row's Reading, plus §5 A-11, A-16, A-17 and A-18, ADR 0178's Amendments of
+  2026-11-04 and 2026-11-08, ADR 0062 Amendment 3, and rulings 1–8 above.
+- **Clean-code review (Q3a, Q3b, Q3d):** the diff and `engineering-conventions.md`.
+- **Combined review (Q3c):** the row's Reading, *What Q3 and Q4 need from R5*, the diff, `engineering-conventions.md`.
+- **T4:** the coordinator checks the leaves against the copy lock; no reviewer (Light, copy only).
+- **Visual review (Q3c, Q3d; Q3b regression only):** the frames in each row and `browser-and-visual-qa.md`.
+
+*Owner questions this split queues* (each built on its default; none blocks a dispatch):
+- **OQ-41** — a vanished created class (and any vanished tier code cannot name) shows one generic line in the sheet
+  rather than its name. Default: generic line (ruling 2). The alternative costs a lane R sub-wave and an ADR 0178
+  amendment.
+- **OQ-42** — when accessories were removed and nothing needs replacing, the notice is the non-blocking C1 banner with
+  the accessory line, not the modal sheet. Default: the banner (ruling 6).
+- **OQ-11g** — T4's two new Romanian leaves, built as drafted.
 
 ### Lane Z — Integration and close
 
