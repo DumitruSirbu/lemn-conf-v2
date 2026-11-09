@@ -38,7 +38,7 @@ import { describeFinishSection } from "@/panel/panel-model";
 import {
   useCatalogueAvailability,
   usePricedDesign,
-  useRequiredDeepCabinetPercent,
+  usePublishedDeepCabinetPercent,
   useWholeKitchenTierOffer,
 } from "@/price/use-priced-design";
 import { ShareDesign } from "@/share/share-design";
@@ -87,7 +87,7 @@ export function GlobalSettings({ visibleCount }: GlobalSettingsProps) {
   const pricing = usePricedDesign();
   const offer = useWholeKitchenTierOffer();
   const availability = useCatalogueAvailability();
-  const deepCabinetPercent = useRequiredDeepCabinetPercent();
+  const deepCabinetPercent = usePublishedDeepCabinetPercent();
   const design = useConfiguratorStore((state) => state.design);
   const catalog = useConfiguratorStore((state) => state.catalog);
   const applyWholeKitchenSettings = useConfiguratorStore(
@@ -240,8 +240,8 @@ export function GlobalSettings({ visibleCount }: GlobalSettingsProps) {
       // Absent stays absent: an untouched colour must leave a document with no global colour as found.
       ...(pending.finish === undefined ? {} : { finish: pending.finish }),
       ...(handle === undefined ? {} : { handle }),
-      availableMaterialTierIds: offer.material.tierIds,
-      availableHardwareTierIds: offer.hardware.tierIds,
+      availableMaterialTierIds: tierIdsOffered(view, "material"),
+      availableHardwareTierIds: tierIdsOffered(view, "hardware"),
     });
     if (!outcome.committed) {
       setRefusal({
@@ -371,6 +371,14 @@ export function GlobalSettings({ visibleCount }: GlobalSettingsProps) {
       ) : null}
     </div>
   );
+}
+
+/** What a command may take for this group: the sheet's own offer, which is none when no book can be read. */
+function tierIdsOffered(
+  view: GlobalSettingsView,
+  key: WholeKitchenGroupKey,
+): readonly string[] {
+  return view.groups.find((group) => group.key === key)?.tierIds ?? [];
 }
 
 /** The sheet itself, given a view: no store, no pricing, no open state. */
@@ -803,6 +811,14 @@ function TierGroupSection({
       {group.anchor === undefined ? null : (
         <p className={styles.groupAnchor} data-testid="global-settings-anchor">
           {group.anchor}
+        </p>
+      )}
+      {group.unavailableText === undefined ? null : (
+        <p
+          className={styles.groupAnchor}
+          data-testid="global-settings-prices-unavailable"
+        >
+          {group.unavailableText}
         </p>
       )}
       {group.options.map((option) => (

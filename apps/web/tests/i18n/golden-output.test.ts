@@ -261,7 +261,8 @@ describe("golden-output fixture coverage", () => {
     // +2 for `globalSettings.kitchenHandleHeading` and `.kitchenHandleHint`.
     // M10 T2: -1 for the retired `globalSettings.depthNote`.
     // +1 for `panel.handleFollowsKitchen`.
-    expect(RESOLVED_STATIC_CONTENT).toHaveLength(263);
+    // M10 Q3b: +1 for `globalSettings.pricesUnavailable`, the sheet's line when no book can be read.
+    expect(RESOLVED_STATIC_CONTENT).toHaveLength(264);
     // +3 for the notice's subject, line and figure.
     // +2 for `panel.savePausedNotice`'s two times.
     // M8 8M S4: +4 for `submissionResult.channelLine`'s three channels and `.whatsappMessage`.
@@ -314,7 +315,8 @@ describe("golden-output fixture coverage", () => {
     // +2 static fixtures for the whole-kitchen handle row's heading and hint.
     // M10 T2: -1 static fixture for the retired `globalSettings.depthNote`.
     // +1 static fixture for `panel.handleFollowsKitchen`, -2 function ones for the retired `panel.handleDefaultNote`.
-    expect(GOLDEN_FIXTURES).toHaveLength(582);
+    // M10 Q3b: +1 static fixture for `globalSettings.pricesUnavailable`.
+    expect(GOLDEN_FIXTURES).toHaveLength(583);
     expect(new Set(GOLDEN_FIXTURES.map((fixture) => fixture.id)).size).toBe(
       GOLDEN_FIXTURES.length,
     );

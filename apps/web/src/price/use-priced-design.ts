@@ -15,11 +15,11 @@ import { useConfiguratorStore } from "@/store/configurator-store";
 
 import { usePriceBookRoot } from "./price-book-provider";
 import {
+  deepCabinetPercentOf,
   offerTiersAgainstBook,
   priceAgainstBook,
-  requireDeepCabinetPercent,
 } from "./price-book-root";
-import type { WholeKitchenTierOffer } from "./whole-kitchen-tiers";
+import type { TierOfferAnswer } from "./whole-kitchen-tiers";
 
 /**
  * The current design, priced. The bar and §9's footer both read this one hook, so neither can show a
@@ -40,19 +40,19 @@ export function usePricedDesign(): PricingResult {
 
 /**
  * The depth percentage the active book publishes (`depthRule.deepCabinetPercent`): the only source of the figure in the
- * settings sheet's depth note. The sheet cannot open without a book, so no book is raised, not answered with a 0 % that
- * would say the depth is free.
+ * settings sheet's depth note. Nothing with no book, never a 0 % that would say the depth is free; the note then
+ * says prices are unavailable.
  */
-export function useRequiredDeepCabinetPercent(): number {
-  return requireDeepCabinetPercent(usePriceBookRoot());
+export function usePublishedDeepCabinetPercent(): number | undefined {
+  return deepCabinetPercentOf(usePriceBookRoot());
 }
 
 /**
- * Every whole-kitchen tier the book offers, each measured against its group's default (*inclus*,
- * *de la +9 000*), and the `availableTierIds` the whole-kitchen commands take. Memoised on the same
- * slices as `usePricedDesign`: six evaluations of one pure query, stored nowhere.
+ * Every whole-kitchen tier the book offers that is not switched off, each measured against its group's default
+ * (*inclus*, *de la +9 000*), and the `availableTierIds` the whole-kitchen commands take. `NO_TIER_OFFER` with no book.
+ * Memoised on the same slices as `usePricedDesign`: six evaluations of one pure query, stored nowhere.
  */
-export function useWholeKitchenTierOffer(): WholeKitchenTierOffer {
+export function useWholeKitchenTierOffer(): TierOfferAnswer {
   const root = usePriceBookRoot();
   const design = useConfiguratorStore((state) => state.design);
   const catalog = useConfiguratorStore((state) => state.catalog);
