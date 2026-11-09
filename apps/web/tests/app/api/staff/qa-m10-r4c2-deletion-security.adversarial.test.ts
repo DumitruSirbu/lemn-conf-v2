@@ -654,6 +654,36 @@ describe("the saved defaults and the count share one deadline", () => {
     expect(answer.status).toBe(200);
   });
 
+  it("starts no count that is not already told to stop when the saved defaults answer after the deadline", async () => {
+    const reading = slowDefaults(USAGE_READ_DEADLINE_MS + 10);
+    const signals: boolean[] = [];
+    const counting = vi
+      .spyOn(prices.defaults, "countEach")
+      .mockImplementation((asked, given) => {
+        signals.push(given?.aborted ?? false);
+        return Promise.resolve({
+          counts: asked.map(({ item }) => ({ item, designCount: 0 })),
+          unreadableDesigns: 0,
+        });
+      });
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+
+    const answering = deleteRow(VENEER);
+    await untilAsked(reading);
+    await vi.advanceTimersByTimeAsync(USAGE_READ_DEADLINE_MS);
+    const answer = await answering;
+    await vi.advanceTimersByTimeAsync(20);
+    for (let turns = 0; turns < 50; turns += 1) {
+      await new Promise<void>((resolve) => {
+        setImmediate(resolve);
+      });
+    }
+
+    expect(answer.status).toBe(503);
+    expect(signals.every((isAborted) => isAborted)).toBe(true);
+    expect(counting.mock.calls.length).toBeLessThanOrEqual(1);
+  });
+
   it("aborts the count's signal at the deadline, so a late reader is told to stop", async () => {
     let signal: AbortSignal | undefined;
     vi.spyOn(prices.defaults, "countEach").mockImplementation(
