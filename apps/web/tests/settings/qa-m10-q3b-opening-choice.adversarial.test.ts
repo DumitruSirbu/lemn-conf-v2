@@ -239,42 +239,69 @@ describe.each(EVERY_KIND)(
       });
     });
 
-    describe("on the pill", () => {
-      function pillLabelOf(
+    describe("on the pill (M10 Q5c: a tier the kitchen no longer carries is never named)", () => {
+      function pillSettingOf(
         design: Design,
         availability: CatalogueAvailability,
-      ): string {
+      ) {
         const pill = describeSettingsPill({
           offer: offerThroughRoot(availability, design),
           applied: design.settings ?? {},
           content: ro,
         });
-        const setting = pill.settings.find((one) => one.key === kind);
-        if (setting === undefined) throw new Error(`no ${kind} on the pill`);
-        return setting.label;
+        return pill.settings.find((one) => one.key === kind);
       }
-      const defaultsLabel = pillLabelOf(carryingIn({}), nothingOff);
 
-      it("names a switched-off tier as it would were it on", () => {
-        const design = carryingIn({ [kind]: A_NON_DEFAULT[kind] });
+      if (kind === "material") {
+        const leaf = ro.replacementSheet.headerMaterialToChoose;
+        const defaultsLabel = pillSettingOf(carryingIn({}), nothingOff)?.label;
 
-        expect(pillLabelOf(design, nonDefaultOff)).toBe(
-          pillLabelOf(design, nothingOff),
-        );
-      });
+        it("names the book default while nothing is chosen and nothing is off, so the leaf below is not the usual label", () => {
+          expect(defaultsLabel).toBeDefined();
+          expect(defaultsLabel).not.toBe(leaf);
+        });
 
-      it("names the switched-off tier, not the default", () => {
-        const design = carryingIn({ [kind]: A_NON_DEFAULT[kind] });
+        it("reads the leaf, not the switched-off tier's name, for a switched-off tier", () => {
+          const design = carryingIn({ [kind]: A_NON_DEFAULT[kind] });
 
-        expect(pillLabelOf(design, nonDefaultOff)).not.toBe(defaultsLabel);
-      });
+          expect(pillSettingOf(design, nonDefaultOff)?.label).toBe(leaf);
+          expect(pillSettingOf(design, nothingOff)?.label).not.toBe(leaf);
+        });
 
-      it("names the default for a vanished tier, whether the default is on or off", () => {
-        const design = carryingIn({ [kind]: VANISHED[kind] });
+        it("reads the leaf, not the default's name, for a vanished tier, whether the default is on or off", () => {
+          const design = carryingIn({ [kind]: VANISHED[kind] });
 
-        expect(pillLabelOf(design, nothingOff)).toBe(defaultsLabel);
-        expect(pillLabelOf(design, defaultOff)).toBe(defaultsLabel);
-      });
+          expect(pillSettingOf(design, nothingOff)?.label).toBe(leaf);
+          expect(pillSettingOf(design, defaultOff)?.label).toBe(leaf);
+        });
+      } else {
+        it("leaves the entry out for a switched-off tier, while the sheet still opens as stored", () => {
+          const design = carryingIn({ [kind]: A_NON_DEFAULT[kind] });
+
+          expect(pillSettingOf(design, nonDefaultOff)).toBeUndefined();
+          expect(viewOpenedOn(design, nonDefaultOff).pending[key]).toBe(
+            A_NON_DEFAULT[kind],
+          );
+        });
+
+        it("leaves the entry out for a vanished tier with the default on, while the sheet still opens on the default", () => {
+          const design = carryingIn({ [kind]: VANISHED[kind] });
+
+          expect(pillSettingOf(design, nothingOff)).toBeUndefined();
+          expect(viewOpenedOn(design, nothingOff).pending[key]).toBe(
+            DEFAULT_OF[kind],
+          );
+        });
+
+        it("leaves the entry out for a vanished tier with the default off, while the sheet opens on no key", () => {
+          const design = carryingIn({ [kind]: VANISHED[kind] });
+
+          expect(pillSettingOf(design, defaultOff)).toBeUndefined();
+          expect(viewOpenedOn(design, defaultOff).pending).not.toHaveProperty(
+            key,
+          );
+        });
+      }
     });
   },
 );
