@@ -36,6 +36,10 @@ import {
 
 const DELETE = roCopy("priceDashboard.common.delete");
 const CREATED_NAME_OF_CLASS = "GTV Economic";
+const STATED_CLASSES = [
+  [hardware.HETTICH, "Hettich"],
+  [hardware.BLUM, "Blum"],
+] as const;
 
 let screen: MountedScreen | undefined;
 let server: ReturnType<typeof stubTheLifecycleServer>;
@@ -168,25 +172,6 @@ describe.each(DEFAULTS)("with the saved defaults %s", (_name, defaults) => {
     expect(server.usageRequests).toEqual([]);
   });
 
-  it("keeps the stated classes beside a created one off on the list", async () => {
-    const { container, changes } = hardwareWorld("list", defaults);
-    await flushPromises(8);
-
-    for (const [tierId, name] of [
-      [hardware.HETTICH, "Hettich"],
-      [hardware.BLUM, "Blum"],
-    ] as const) {
-      await hardware.openMenuOf(container, tierId, name);
-      const entry = hardware.menuEntry(container, tierId, DELETE);
-      await hardware.press(entry);
-      expect(entry.getAttribute("aria-disabled"), tierId).toBe("true");
-      expect(hardware.openDialog(), tierId).toBeNull();
-    }
-
-    expect(changes().length).toBeGreaterThan(0);
-    expect(server.usageRequests).toEqual([]);
-  });
-
   it("offers a created class's deletion on its own page, and takes the creation out of the draft", async () => {
     const { container, changes } = hardwareWorld("edit", defaults);
     await flushPromises(8);
@@ -203,25 +188,6 @@ describe.each(DEFAULTS)("with the saved defaults %s", (_name, defaults) => {
     await hardware.press(hardware.dialogButton(dialog, DELETE));
     expect(changes()).toEqual([]);
     expect(server.usageRequests).toEqual([]);
-  });
-
-  it("keeps a stated class's deletion off on its page, though the draft holds a created one", async () => {
-    const { container, changes } = hardwareWorld(
-      "edit",
-      defaults,
-      hardware.HETTICH,
-    );
-    await flushPromises(8);
-
-    const remove = buttonNamed(
-      container,
-      roCopy("priceDashboard.hardware.deleteAction"),
-    );
-    await hardware.press(remove);
-
-    expect(remove.getAttribute("aria-disabled")).toBe("true");
-    expect(hardware.openDialog()).toBeNull();
-    expect(changes().length).toBeGreaterThan(0);
   });
 
   it("offers a created accessory's deletion on the list, and keeps the stated accessories beside it off", async () => {
@@ -280,5 +246,92 @@ describe.each(DEFAULTS)("with the saved defaults %s", (_name, defaults) => {
     expect(statedRemove.getAttribute("aria-disabled")).toBe("true");
     expect(hardware.openDialog()).toBeNull();
     expect(server.usageRequests).toEqual([]);
+  });
+});
+
+describe("the stated classes beside a created one, with the saved defaults unreadable", () => {
+  it("keeps their deletion off on the list and on their page, counting and writing nothing", async () => {
+    const list = hardwareWorld("list", undefined);
+    await flushPromises(8);
+    const untouched = list.changes();
+
+    for (const [tierId, name] of STATED_CLASSES) {
+      await hardware.openMenuOf(list.container, tierId, name);
+      const entry = hardware.menuEntry(list.container, tierId, DELETE);
+      await hardware.press(entry);
+      expect(entry.getAttribute("aria-disabled"), tierId).toBe("true");
+      expect(hardware.openDialog(), tierId).toBeNull();
+    }
+    screen?.unmount();
+    const page = hardwareWorld("edit", undefined, hardware.HETTICH);
+    await flushPromises(8);
+    const remove = buttonNamed(
+      page.container,
+      roCopy("priceDashboard.hardware.deleteAction"),
+    );
+    await hardware.press(remove);
+
+    expect(remove.getAttribute("aria-disabled")).toBe("true");
+    expect(hardware.openDialog()).toBeNull();
+    expect(page.changes()).toEqual(untouched);
+    expect(server.usageRequests).toEqual([]);
+  });
+});
+
+describe("the stated classes beside a created one, with the saved defaults readable", () => {
+  const CANCEL = roCopy("priceDashboard.common.cancel");
+
+  async function cancelOpenDialog(): Promise<void> {
+    const dialog = hardware.openDialog();
+    if (dialog === null) throw new Error("no dialog opened");
+    await hardware.press(hardware.dialogButton(dialog, CANCEL));
+  }
+
+  it("offers their deletion on the list, counts the class first, and writes nothing until it is confirmed", async () => {
+    const { container, changes } = hardwareWorld("list", {});
+    await flushPromises(8);
+    const untouched = changes();
+
+    for (const [tierId, name] of STATED_CLASSES) {
+      await hardware.openMenuOf(container, tierId, name);
+      const entry = hardware.menuEntry(container, tierId, DELETE);
+      await hardware.press(entry);
+      expect(entry.getAttribute("aria-disabled"), tierId).not.toBe("true");
+      expect(hardware.openDialog(), tierId).not.toBeNull();
+      await cancelOpenDialog();
+    }
+
+    expect(server.usageRequests).toEqual(
+      STATED_CLASSES.map(([tierId]) => [{ kind: "hardware", tierId }]),
+    );
+    expect(changes()).toEqual(untouched);
+  });
+
+  it("offers a stated class's deletion on its page, and a confirmed one adds its deletion beside the created class", async () => {
+    const { container, changes } = hardwareWorld("edit", {}, hardware.HETTICH);
+    await flushPromises(8);
+    const created = changes();
+    const remove = buttonNamed(
+      container,
+      roCopy("priceDashboard.hardware.deleteAction"),
+    );
+
+    await hardware.press(remove);
+    const dialog = hardware.openDialog();
+
+    expect(remove.getAttribute("aria-disabled")).not.toBe("true");
+    if (dialog === null) throw new Error("no dialog opened");
+    expect(changes()).toEqual(created);
+    await hardware.press(hardware.dialogButton(dialog, DELETE));
+    expect(changes()).toEqual([
+      ...created,
+      {
+        address: {
+          kind: "item-deleted",
+          item: { kind: "hardware", tierId: hardware.HETTICH },
+        },
+        value: true,
+      },
+    ]);
   });
 });

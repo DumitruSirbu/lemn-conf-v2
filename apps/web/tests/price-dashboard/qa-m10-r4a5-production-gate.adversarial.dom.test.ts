@@ -1,8 +1,9 @@
 // @vitest-environment happy-dom
 //
 // Adversarial QA of a production build of every item screen, given no lifecycle client of its own so that it takes the
-// default one: no deletion of an item the active book states is offered on any list or any item page, whatever the saved
-// defaults make readable; no switch-off is offered where the defaults cannot be read; and what a view says it counted is
+// default one: no deletion of an item the active book states is offered on any list or any item page while the saved
+// defaults cannot be read, and once they can, a default or a built-in is still refused and every other item is offered
+// and counted before anything is confirmed; no switch-off is offered where the defaults cannot be read; and what a view says it counted is
 // what the server said, with every view of a page sharing the one request on its way.
 import { createElement, StrictMode, type ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -45,6 +46,8 @@ const OTHER_SERVER_COUNT = 4;
 interface Row {
   readonly id: string;
   readonly name: string;
+  /** Whether a production build offers its deletion once the defaults are read: a default or built-in is never offered. */
+  readonly isDeletable: boolean;
 }
 
 interface Mounted {
@@ -94,12 +97,10 @@ const KINDS: readonly Kind[] = [
       {
         id: hardware.STANDARD,
         name: roCopy("priceBook.hardware.standard.name"),
+        isDeletable: false,
       },
-      {
-        id: hardware.HETTICH,
-        name: "Hettich",
-      },
-      { id: hardware.BLUM, name: "Blum" },
+      { id: hardware.HETTICH, name: "Hettich", isDeletable: true },
+      { id: hardware.BLUM, name: "Blum", isDeletable: true },
     ],
     deleteOnItsPage: roCopy("priceDashboard.hardware.deleteAction"),
     mountList: (defaults) => {
@@ -141,9 +142,9 @@ const KINDS: readonly Kind[] = [
   {
     label: "materials",
     rows: [
-      { id: materials.PAL, name: materials.PAL_NAME },
-      { id: materials.MDF, name: materials.MDF_NAME },
-      { id: materials.VENEER, name: materials.VENEER_NAME },
+      { id: materials.PAL, name: materials.PAL_NAME, isDeletable: false },
+      { id: materials.MDF, name: materials.MDF_NAME, isDeletable: true },
+      { id: materials.VENEER, name: materials.VENEER_NAME, isDeletable: true },
     ],
     deleteOnItsPage: roCopy("priceDashboard.materials.deleteAction"),
     mountList: (defaults) => {
@@ -185,9 +186,21 @@ const KINDS: readonly Kind[] = [
   {
     label: "accessories",
     rows: [
-      { id: accessories.SINK_COVER, name: accessories.COVER_NAME },
-      { id: accessories.DRYING_RACK, name: accessories.RACK_NAME },
-      { id: accessories.PUBLISHED, name: accessories.PUBLISHED_RULE.name },
+      {
+        id: accessories.SINK_COVER,
+        name: accessories.COVER_NAME,
+        isDeletable: false,
+      },
+      {
+        id: accessories.DRYING_RACK,
+        name: accessories.RACK_NAME,
+        isDeletable: false,
+      },
+      {
+        id: accessories.PUBLISHED,
+        name: accessories.PUBLISHED_RULE.name,
+        isDeletable: true,
+      },
     ],
     deleteOnItsPage: roCopy("priceDashboard.accessories.deleteAction"),
     mountList: (defaults) => {
@@ -267,13 +280,18 @@ afterEach(() => {
   leaveTheStaffServer();
 });
 
+async function cancelOpenDialog(): Promise<void> {
+  const dialog = openDialog();
+  if (dialog === null) throw new Error("no dialog opened");
+  await hardware.press(
+    hardware.dialogButton(dialog, roCopy("priceDashboard.common.cancel")),
+  );
+}
+
 describe.each(KINDS)("a production $label screen", (kind) => {
-  describe.each([
-    ["the saved defaults unreadable", undefined],
-    ["the saved defaults readable", {}],
-  ] as const)("with %s", (_name, defaults) => {
+  describe("with the saved defaults unreadable", () => {
     it("offers no deletion of any item the book states from its list, and sends and counts nothing", async () => {
-      const { container, draftCalls } = kind.mountList(defaults);
+      const { container, draftCalls } = kind.mountList(undefined);
       await flushPromises(8);
 
       for (const { id, name } of kind.rows) {
@@ -291,7 +309,7 @@ describe.each(KINDS)("a production $label screen", (kind) => {
 
     it("offers no deletion of any item the book states from its own page, and sends and counts nothing", async () => {
       for (const { id } of kind.rows) {
-        const { container, draftCalls } = kind.mountEdit(id, defaults);
+        const { container, draftCalls } = kind.mountEdit(id, undefined);
         await flushPromises(8);
 
         const remove = buttonNamed(container, kind.deleteOnItsPage);
@@ -300,6 +318,49 @@ describe.each(KINDS)("a production $label screen", (kind) => {
         expect(remove.getAttribute("aria-disabled"), id).toBe("true");
         expect(openDialog(), id).toBeNull();
         expect(draftCalls(), id).toEqual([]);
+      }
+      expectOnlyEachPagesOwnItemCounted();
+    });
+  });
+
+  describe("with the saved defaults readable", () => {
+    it("offers the deletion of each row that is no default or built-in from its list, counted first, and writes nothing until confirmed", async () => {
+      const { container, draftCalls } = kind.mountList({});
+      await flushPromises(8);
+
+      for (const { id, name, isDeletable } of kind.rows) {
+        await kind.openMenuOf(container, id, name);
+        const entry = kind.menuEntry(container, id, DELETE);
+        await hardware.press(entry);
+        expect(entry.getAttribute("aria-disabled") === "true", id).toBe(
+          !isDeletable,
+        );
+        expect(openDialog() !== null, id).toBe(isDeletable);
+        if (isDeletable) await cancelOpenDialog();
+      }
+
+      const deletable = kind.rows.filter(({ isDeletable }) => isDeletable);
+      expect(deletable.length).toBeGreaterThan(0);
+      expect(server.usageRequests).toHaveLength(deletable.length);
+      expectOnlyEachPagesOwnItemCounted();
+      expect(server.switchRequests).toEqual([]);
+      expect(draftCalls()).toEqual([]);
+    });
+
+    it("offers the deletion of each such row from its own page, and writes nothing until confirmed", async () => {
+      for (const { id, isDeletable } of kind.rows) {
+        const { container, draftCalls } = kind.mountEdit(id, {});
+        await flushPromises(8);
+
+        const remove = buttonNamed(container, kind.deleteOnItsPage);
+        await hardware.press(remove);
+
+        expect(remove.getAttribute("aria-disabled") === "true", id).toBe(
+          !isDeletable,
+        );
+        expect(openDialog() !== null, id).toBe(isDeletable);
+        expect(draftCalls(), id).toEqual([]);
+        if (isDeletable) await cancelOpenDialog();
       }
       expectOnlyEachPagesOwnItemCounted();
     });

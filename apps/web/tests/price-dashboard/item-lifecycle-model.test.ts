@@ -243,7 +243,7 @@ describe("the deletion of an item where nothing can be written", () => {
   });
 });
 
-describe("the deletion of a row where a published row cannot yet be deleted", () => {
+describe("the deletion of a row where the client cannot carry a published row's deletion to a draft route", () => {
   const noStatedDeletion = (overrides: Partial<LifecycleContext> = {}) =>
     contextOf({ canDeleteStatedItems: false, ...overrides });
 

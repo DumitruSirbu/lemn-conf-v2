@@ -1,7 +1,7 @@
 // A draft that no longer makes a book is listed change by change, so the valid change beside a refused one can be taken
 // back on its own. What the person can take back alone is what the revert route takes. A created or deleted row is one
 // line with everything the draft says of it: the line of a created row takes the row back by its creation, and the line of
-// a deleted row offers nothing, since a deletion is not taken back by this view.
+// a deleted row by its deletion, never by one of its rates.
 import { describe, expect, it } from "vitest";
 
 import type { DraftChange } from "@lemnaria/configurator-domain";
@@ -161,16 +161,25 @@ describe("a row the draft creates or deletes", () => {
     });
   });
 
-  it("is one line for a deleted row of the book with the prices set on it, and no revert", () => {
-    const lines = linesOf([rateOfPublishedTier, deletion, STALE]);
+  it.each([
+    { order: "rate first", changes: [rateOfPublishedTier, deletion] },
+    { order: "deletion first", changes: [deletion, rateOfPublishedTier] },
+  ])(
+    "is one line for a deleted row of the book with the prices set on it, reverted by the deletion's address, $order",
+    ({ changes }) => {
+      const lines = linesOf([...changes, STALE]);
 
-    expect(lines).toHaveLength(2);
-    expect(lines[0]?.revert).toBeUndefined();
-    expect(lines[1]?.revert).toEqual({
-      kind: "change",
-      address: STALE.address,
-    });
-  });
+      expect(lines).toHaveLength(2);
+      expect(lines[0]?.revert).toEqual({
+        kind: "change",
+        address: deletion.address,
+      });
+      expect(lines[1]?.revert).toEqual({
+        kind: "change",
+        address: STALE.address,
+      });
+    },
+  );
 
   it("is one line for a row created and deleted again", () => {
     const deletesCreated = change(

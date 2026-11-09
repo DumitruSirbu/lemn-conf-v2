@@ -16,6 +16,7 @@ import { raiseStaffSessionExpired } from "@/staff/staff-session-expiry";
 import { orFailed } from "./async-seams";
 import {
   afterSwitch,
+  blockedFlowAfterRefusalOf,
   CLOSED,
   deactivateFlowOf,
   deletionFlowOf,
@@ -83,6 +84,28 @@ export interface ItemAvailabilityInput {
    * counted.
    */
   readonly isDraftOnly: (item: DeletableItemRef) => boolean;
+  /**
+   * The draft as it is this moment, read in one piece, not as the screen last rendered it. A deletion that meets a
+   * conflict is judged again on the draft the conflict read, which is not rendered yet when the answer is awaited. A
+   * host with no draft of its own leaves it out, and the rendered book and `isDraftOnly` are judged by.
+   */
+  readonly readDraftNow?: () => DraftFactsNow;
+}
+
+/** What one reading of the draft says: which revision it is, the active book it sits on, and which rows only it holds. */
+export interface DraftFactsNow {
+  readonly revision: string;
+  readonly book: PriceBook;
+  readonly isDraftOnly: (item: DeletableItemRef) => boolean;
+}
+
+/** A deletion that was sent, and what is needed to judge it again if its answer says the facts have moved. */
+interface DeletionAttempt {
+  readonly item: DeletableItemRef;
+  /** Whether the person has asked for something else since the deletion was sent. */
+  readonly hasMoved: () => boolean;
+  /** The draft revision the deletion was sent against; absent where the host reads no draft. */
+  readonly draftRevisionSent: string | undefined;
 }
 
 const UNREADABLE_USAGE: UsageRead = { kind: "unavailable" };
@@ -95,6 +118,7 @@ export function useItemAvailability({
   client,
   deleteFromDraft,
   isDraftOnly,
+  readDraftNow,
 }: ItemAvailabilityInput): ItemAvailabilityDesk {
   const [availability, setAvailability] = useState(observed);
   const [flow, setFlow] = useState<ItemFlow>(CLOSED);
@@ -225,19 +249,28 @@ export function useItemAvailability({
     [context, moveOn, openAfterCounting],
   );
 
-  const requestDeletion = useCallback(
-    (item: DeletableItemRef) => {
-      moveOn();
-      if (deleteStandOf(item, context).kind === "off") return;
-      if (isDraftOnly(item)) {
+  /** The dialog a deletion opens under `facts`, which judge all of it: none where it is off, the draft-only one for a row
+   *  the draft created (nothing to count), and the one drawn from a fresh count of the saved kitchens otherwise. */
+  const openDeletionDialog = useCallback(
+    async (item: DeletableItemRef, facts: LifecycleContext) => {
+      if (deleteStandOf(item, facts).kind === "off") return;
+      if (facts.isCreatedInDraft(item)) {
         setFlow(draftOnlyDeletionFlowOf(item));
         return;
       }
-      void openAfterCounting(item, (read) =>
-        deletionFlowOf(item, context, read),
+      await openAfterCounting(item, (read) =>
+        deletionFlowOf(item, facts, read),
       );
     },
-    [context, moveOn, openAfterCounting, isDraftOnly],
+    [openAfterCounting],
+  );
+
+  const requestDeletion = useCallback(
+    (item: DeletableItemRef) => {
+      moveOn();
+      void openDeletionDialog(item, context);
+    },
+    [context, moveOn, openDeletionDialog],
   );
 
   const settle = useCallback(
@@ -270,21 +303,90 @@ export function useItemAvailability({
     [adopt, readAvailabilityAgain],
   );
 
-  const settleDeletion = useCallback((settlement: DeletionSettlement) => {
-    switch (settlement.kind) {
-      case "wait":
+  /** The draft as it is now, from the host's own reading where it has one. */
+  const draftNow = useCallback(
+    (): DraftFactsNow =>
+      readDraftNow?.() ?? { revision: "", book, isDraftOnly },
+    [readDraftNow, book, isDraftOnly],
+  );
+
+  /** The facts a recount judges by. The book and the rows the draft holds come from one reading of the draft, and
+   *  what is switched off from what was last adopted: none of them waits for a render. */
+  const factsOf = useCallback(
+    (draftNowFacts: DraftFactsNow): LifecycleContext => {
+      bookRef.current = draftNowFacts.book;
+      return {
+        book: draftNowFacts.book,
+        availability: availabilityRef.current,
+        defaults,
+        canWrite: client.canWrite,
+        canDeleteStatedItems: client.canDeleteStatedItems,
+        isCreatedInDraft: draftNowFacts.isDraftOnly,
+      };
+    },
+    [defaults, client],
+  );
+
+  /** The deletion's dialog is closed while the facts it was drawn from are read again, so no Delete is pressed on the
+   *  old ones. A conflict means the draft has moved, so a draft that still names the revision sent was not read again:
+   *  nothing is judged on it, and the failure is said. */
+  const recountAfterConflict = useCallback(
+    async (attempt: DeletionAttempt, answer: ItemFailure) => {
+      setFlow(CLOSED);
+      await readAvailabilityAgain();
+      if (attempt.hasMoved()) return;
+      const reading = draftNow();
+      const isUnread =
+        answer.kind === "conflict" &&
+        attempt.draftRevisionSent !== undefined &&
+        reading.revision === attempt.draftRevisionSent;
+      if (isUnread) {
+        setFailure(FAILED);
         return;
-      case "close":
-        setFlow(CLOSED);
-        return;
-      case "fail":
-        setFailure(settlement.failure);
-        return;
-      case "replace":
-        setFlow(settlement.flow);
-        return;
-    }
-  }, []);
+      }
+      await openDeletionDialog(attempt.item, factsOf(reading));
+    },
+    [readAvailabilityAgain, draftNow, factsOf, openDeletionDialog],
+  );
+
+  const recountAfterUseRefusal = useCallback(
+    async (item: DeletableItemRef) => {
+      setFlow(CLOSED);
+      const facts = factsOf(draftNow());
+      await openAfterCounting(item, (read) =>
+        blockedFlowAfterRefusalOf(item, facts, read),
+      );
+    },
+    [draftNow, factsOf, openAfterCounting],
+  );
+
+  /**
+   * What an answer to a deletion leaves of the screen. The dialog is modal while the write is out, so nothing can
+   * overtake the answer before it arrives; only the recount reads that follow it wait on the network, and a request
+   * made during them wins over what they would open.
+   */
+  const settleDeletion = useCallback(
+    async (settlement: DeletionSettlement, attempt: DeletionAttempt) => {
+      switch (settlement.kind) {
+        case "wait":
+          return;
+        case "close":
+          setFlow(CLOSED);
+          return;
+        case "fail":
+          setFailure(settlement.failure);
+          return;
+        case "recount":
+          setFailure(settlement.failure);
+          await recountAfterConflict(attempt, settlement.failure);
+          return;
+        case "blocked-by-use":
+          await recountAfterUseRefusal(attempt.item);
+          return;
+      }
+    },
+    [recountAfterConflict, recountAfterUseRefusal],
+  );
 
   /** One confirmation at a time: a second press while one is out is not sent. */
   const sendOnce = useCallback(async (send: () => Promise<void>) => {
@@ -320,13 +422,18 @@ export function useItemAvailability({
   const deleteItem = useCallback(
     (item: DeletableItemRef) =>
       sendOnce(async () => {
+        const attempt: DeletionAttempt = {
+          item,
+          hasMoved: begin(),
+          draftRevisionSent: readDraftNow?.().revision,
+        };
         const result = await orFailed<FieldWriteResult>(
           () => deleteFromDraft(item),
           { kind: "failed" },
         );
-        settleDeletion(deletionSettlementOf({ result, item, context }));
+        await settleDeletion(deletionSettlementOf(result), attempt);
       }),
-    [deleteFromDraft, sendOnce, settleDeletion, context],
+    [deleteFromDraft, sendOnce, settleDeletion, begin, readDraftNow],
   );
 
   const dismiss = useCallback(() => {

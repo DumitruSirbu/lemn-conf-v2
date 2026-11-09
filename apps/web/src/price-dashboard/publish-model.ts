@@ -139,8 +139,7 @@ export interface ItemRowView {
   readonly change: RowDiffRow["change"];
   readonly itemKind: ItemRef["kind"];
   readonly subject: RowSubject;
-  /** What ↺ removes: the creation with the changes that cannot stand without it. A deletion has none, as the revert
-   *  route takes no address of one. */
+  /** What ↺ removes: the creation with the changes that cannot stand without it, or the deletion by its own address. */
   readonly revert: DraftRevertTargetWire | undefined;
 }
 
@@ -330,8 +329,7 @@ function itemRowViewOf(row: RowDiffRow, context: RowContext): ItemRowView {
     change: row.change,
     itemKind: row.item.kind,
     subject: itemSubjectOf(row.item, context.books),
-    revert:
-      row.change === "created" ? ownRevertOf(row.address, context) : undefined,
+    revert: ownRevertOf(row.address, context),
   };
 }
 

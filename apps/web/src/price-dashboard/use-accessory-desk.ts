@@ -15,6 +15,7 @@ import type { PriceDraftClient } from "./price-draft-client";
 import { useLifecycleClient } from "./use-lifecycle-client";
 import {
   useItemAvailability,
+  type DraftFactsNow,
   type ItemAvailabilityDesk,
 } from "./use-item-availability";
 import { usePriceDraft, type PriceDraft } from "./use-price-draft";
@@ -41,7 +42,7 @@ export function useAccessoryDesk({
   readonly lifecycleClient: ItemLifecycleClient | undefined;
 }): AccessoryDesk {
   const draft = usePriceDraft({ initial: page.state, client });
-  const { change, revert } = draft;
+  const { change, revert, readNow } = draft;
   const derivation = useMemo(
     () => deriveAccessories(draft.state),
     [draft.state],
@@ -51,6 +52,15 @@ export function useAccessoryDesk({
     (item: DeletableItemRef) => isAccessoryCreatedInDraft(derivation, item),
     [derivation],
   );
+  const readDraftNow = useCallback((): DraftFactsNow => {
+    const state = readNow();
+    const reading = deriveAccessories(state);
+    return {
+      revision: state.draft.draftRevision,
+      book: state.active.book,
+      isDraftOnly: (item) => isAccessoryCreatedInDraft(reading, item),
+    };
+  }, [readNow]);
   const deleteFromDraft = useCallback(
     (item: DeletableItemRef) =>
       item.kind === "accessory" && isDraftOnly(item)
@@ -71,6 +81,7 @@ export function useAccessoryDesk({
     client: lifecycle,
     deleteFromDraft,
     isDraftOnly,
+    readDraftNow,
   });
   return { draft, availability, derivation };
 }

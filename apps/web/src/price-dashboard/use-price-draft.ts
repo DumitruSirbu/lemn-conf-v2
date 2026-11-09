@@ -108,6 +108,8 @@ export type StateRead =
 
 export interface PriceDraft {
   readonly state: DashboardStateWire;
+  /** The state as the last write or read left it, which a render that is still to come has not shown yet. */
+  readonly readNow: () => DashboardStateWire;
   readonly isBusy: boolean;
   readonly change: (change: DraftChangeInputWire) => Promise<FieldWriteResult>;
   readonly revert: (target: DraftRevertTargetWire) => Promise<FieldWriteResult>;
@@ -329,8 +331,11 @@ export function usePriceDraft({
     [client, createRow],
   );
 
+  const readNow = useCallback(() => stateRef.current, []);
+
   return {
     state,
+    readNow,
     isBusy,
     change,
     revert,

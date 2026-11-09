@@ -4,7 +4,7 @@
 // WHICH SERVER THIS FILE HOLDS ON, and what is not reachable, is written at the head of materials.e2e.spec.ts and
 // support/material-page.ts and holds here too: the list, the surcharge Save and the refusals run under both `next dev`
 // and `CI` (`next start`); the dialogs need the sample lifecycle that only `next dev` draws, and the off controls are
-// what `next start` draws; deleting a material into the draft needs R4a.
+// what `next start` draws; a deletion is put in the draft and never published from here.
 //
 // The draft is ONE draft in the e2e server's memory, so every test starts and ends by emptying it and the file takes
 // the lock the dashboard's specs share.
@@ -455,10 +455,10 @@ test.describe("the materials screens at desktop 1440", () => {
     });
   });
 
-  test.describe("a production build (CI): the switch-off is judged, the deletion stays off, and the counts come from the server", () => {
+  test.describe("a production build (CI): the switch-off and the deletion are judged, and the counts come from the server", () => {
     test.skip(!SERVER_IS_PRODUCTION_BUILD, CI_ONLY_REASON);
 
-    test("MDF and veneer: the switch-off entry and the page's switch are on, the deletion is off with the reason, the page counts the material once, and pressing the deletion sends nothing", async ({
+    test("MDF and veneer: the switch-off entry, the deletion entry and the page's switch are on, the page counts the material once, and pressing the deletion counts it and asks, sending no write", async ({
       page,
     }) => {
       const words = wordsOf("ro");
@@ -473,13 +473,11 @@ test.describe("the materials screens at desktop 1440", () => {
           menuEntryOf(row, words, "switch-off"),
           `${tierId} switch-off`,
         ).not.toHaveAttribute("aria-disabled", "true");
-        const deletion = menuEntryOf(row, words, "delete");
-        await expect(deletion, `${tierId} delete`).toHaveAttribute(
-          "aria-disabled",
-          "true",
-        );
-        await deletion.click({ force: true });
-        await expect(row.getByTestId("menu-reason")).toHaveText([cannotJudge]);
+        await expect(
+          menuEntryOf(row, words, "delete"),
+          `${tierId} delete`,
+        ).not.toHaveAttribute("aria-disabled", "true");
+        await expect(row.getByTestId("menu-reason")).toHaveCount(0);
         await menuButtonOf(row).click();
       }
       await expect(itemDialogOf(page)).toHaveCount(0);
@@ -494,11 +492,11 @@ test.describe("the materials screens at desktop 1440", () => {
         "aria-disabled",
         "true",
       );
-      await expect(deleteMaterialButton(page, words)).toHaveAttribute(
+      await expect(deleteMaterialButton(page, words)).not.toHaveAttribute(
         "aria-disabled",
         "true",
       );
-      await expect(editPageOf(page).getByText(cannotJudge)).toHaveCount(1);
+      await expect(editPageOf(page).getByText(cannotJudge)).toHaveCount(0);
       await expect(
         editPageOf(page)
           .locator("dl > div")
@@ -512,12 +510,25 @@ test.describe("the materials screens at desktop 1440", () => {
         ),
       );
       const requestsBeforeDeletion = requests.length;
-      await deleteMaterialButton(page, words).click({ force: true });
-      await expect(itemDialogOf(page)).toHaveCount(0);
+      await deleteMaterialButton(page, words).click();
+      await expect(
+        itemDialogOf(page),
+        "no saved kitchen uses MDF in this world, so the deletion asks",
+      ).toBeVisible();
+      expect(plainText(await itemDialogOf(page).innerText())).toContain(
+        romanian("priceDashboard.lifecycle.deleteBody"),
+      );
       expect(
         requests.slice(requestsBeforeDeletion),
-        "no request was made by pressing the off deletion",
-      ).toEqual([]);
+        "the deletion counts the saved kitchens first, and writes nothing",
+      ).toEqual(["POST /api/staff/prices/usage"]);
+      await itemDialogOf(page)
+        .getByRole("button", {
+          name: romanian("priceDashboard.common.cancel"),
+          exact: true,
+        })
+        .click();
+      await expect(itemDialogOf(page)).toHaveCount(0);
       await activeSwitch(page, words).click();
       await expect(
         itemDialogOf(page),
@@ -532,8 +543,9 @@ test.describe("the materials screens at desktop 1440", () => {
       await expect(itemDialogOf(page)).toHaveCount(0);
       expect(
         requests,
-        "one count for the page, one for the switch-off dialog, and nothing was written",
+        "one count for the page, one for the deletion's dialog, one for the switch-off dialog, and nothing was written",
       ).toEqual([
+        "POST /api/staff/prices/usage",
         "POST /api/staff/prices/usage",
         "POST /api/staff/prices/usage",
       ]);

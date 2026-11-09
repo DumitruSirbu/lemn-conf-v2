@@ -34,7 +34,8 @@ export interface LifecycleContext {
   readonly defaults: NewKitchenSettings | undefined;
   /** Whether a switch can be written at all; where it cannot, no switch-on is offered. */
   readonly canWrite: boolean;
-  /** Whether a row the book states may be deleted; a row only the draft created needs no such leave. */
+  /** Whether the client can carry a deletion of a row the book states to a draft route; a row only the draft created
+   *  needs no such leave. */
   readonly canDeleteStatedItems: boolean;
   /** Whether the draft itself creates the item, so that deleting it only takes the creation back out of the draft. */
   readonly isCreatedInDraft: (item: DeletableItemRef) => boolean;
@@ -127,7 +128,7 @@ export function isDefaultItem(
 /**
  * A default is refused before any use is counted, so a default needs no count; any other item does. Where nothing can
  * be written, no deletion is offered either, an item only the draft holds included: nothing could carry it out. Any
- * other row is offered only where `canDeleteStatedItems` says a deletion of it can be carried out, whatever the
+ * other row is offered only where `canDeleteStatedItems` says the client can carry a deletion of it out, whatever the
  * defaults make readable; a row the draft created is the one exception, since deleting it reverts its creation.
  */
 export function deleteStandOf(

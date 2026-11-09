@@ -34,7 +34,6 @@ import {
 } from "./staff-frame-harness";
 
 const DEACTIVATE = roCopy("priceDashboard.common.deactivate");
-const DELETE = roCopy("priceDashboard.common.delete");
 const DEACTIVATE_CONFIRM = roCopy("priceDashboard.lifecycle.deactivateConfirm");
 const PLANTED_DESIGNS = 7;
 
@@ -126,18 +125,5 @@ describe("a linked accessory's switch-off in a production build with the saved d
       roCopy("priceDashboard.lifecycle.deactivateConfirm"),
     );
     expect(dialogText).not.toMatch(/salvat/);
-  });
-
-  it("keeps the accessory's deletion off, a stated row's deletion being R4c's", async () => {
-    const { container, server } =
-      await mountLinkedAccessoryList(PLANTED_DESIGNS);
-
-    await openMenuOf(container, PUBLISHED, PUBLISHED_RULE.name);
-    const entry = menuEntry(container, PUBLISHED, DELETE);
-    await press(entry);
-
-    expect(entry.getAttribute("aria-disabled")).toBe("true");
-    expect(openDialog()).toBeNull();
-    expect(server.usageRequests).toEqual([]);
   });
 });

@@ -292,28 +292,52 @@ describe("a production build, as the server hands it its page", () => {
     );
   });
 
-  it("offers no deletion of a class the book states even once the saved defaults are read: only the switch-off opens", async () => {
+  it("offers the deletion of a class the book states once the saved defaults are read, and counts it by what the server says before any dialog", async () => {
     await mountWithNoLifecycleClient(hardwarePageOf({ defaults: {} }));
 
-    for (const [tierId, name] of [
-      [HETTICH, HETTICH_NAME],
-      [BLUM, BLUM_NAME],
-    ] as const) {
-      await openMenuOf(screen().container, tierId, name);
-      const deletion = menuEntry(screen().container, tierId, DELETE);
-      await press(deletion);
+    await openMenuOf(screen().container, HETTICH, HETTICH_NAME);
+    const deletion = menuEntry(screen().container, HETTICH, DELETE);
+    await press(deletion);
 
-      expect(deletion.getAttribute("aria-disabled"), tierId).toBe("true");
-      expect(openDialog(), tierId).toBeNull();
-      expect(
-        menuEntry(screen().container, tierId, DEACTIVATE).getAttribute(
-          "aria-disabled",
-        ),
-        tierId,
-      ).not.toBe("true");
-    }
-    expect(server.usageRequests).toEqual([]);
+    expect(deletion.getAttribute("aria-disabled")).not.toBe("true");
+    expect(server.usageRequests).toEqual([[hardwareItem(HETTICH)]]);
+    expect(requireDialog().textContent).toContain(
+      roCopy("priceDashboard.lifecycle.deleteBlockedBody", {
+        name: HETTICH_NAME,
+        count: SERVER_COUNT_FOR_HETTICH,
+      }),
+    );
     expect(screen().draftServer.calls).toEqual([]);
+  });
+
+  it("opens the confirmation of a class no saved kitchen uses, writes nothing until it is confirmed, and then puts the deletion in the draft", async () => {
+    await mountWithNoLifecycleClient(hardwarePageOf({ defaults: {} }));
+
+    await openMenuOf(screen().container, BLUM, BLUM_NAME);
+    await press(menuEntry(screen().container, BLUM, DELETE));
+    const dialog = requireDialog();
+
+    expect(server.usageRequests).toEqual([[hardwareItem(BLUM)]]);
+    expect(screen().draftServer.calls).toEqual([]);
+    await press(dialogButton(dialog, DELETE));
+    expect(screen().draftServer.state().draft.changes).toEqual([
+      {
+        address: { kind: "item-deleted", item: hardwareItem(BLUM) },
+        value: true,
+      },
+    ]);
+  });
+
+  it("keeps the fallback class's deletion off with the saved defaults read, counting nothing", async () => {
+    await mountWithNoLifecycleClient(hardwarePageOf({ defaults: {} }));
+
+    await openMenuOf(screen().container, STANDARD, STANDARD_NAME);
+    const deletion = menuEntry(screen().container, STANDARD, DELETE);
+    await press(deletion);
+
+    expect(deletion.getAttribute("aria-disabled")).toBe("true");
+    expect(openDialog()).toBeNull();
+    expect(server.usageRequests).toEqual([]);
   });
 
   it("offers a switch-on that is pressed through to the server, and the class is on once it answers", async () => {

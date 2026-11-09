@@ -15,6 +15,7 @@ import { useMaterialUsage, type MaterialUsage } from "./use-material-usage";
 import { useLifecycleClient } from "./use-lifecycle-client";
 import {
   useItemAvailability,
+  type DraftFactsNow,
   type ItemAvailabilityDesk,
 } from "./use-item-availability";
 import { usePriceDraft, type PriceDraft } from "./use-price-draft";
@@ -50,7 +51,7 @@ export function useMaterialDesk({
   readonly ownTierId?: string | undefined;
 }): MaterialDesk {
   const draft = usePriceDraft({ initial: page.state, client });
-  const { change } = draft;
+  const { change, readNow } = draft;
   const derivation = useMemo(() => deriveMaterials(draft.state), [draft.state]);
   const lifecycle = useLifecycleClient(page, lifecycleClient);
   const deleteFromDraft = useCallback(
@@ -58,6 +59,14 @@ export function useMaterialDesk({
       change({ address: { kind: "item-deleted", item }, value: true }),
     [change],
   );
+  const readDraftNow = useCallback((): DraftFactsNow => {
+    const state = readNow();
+    return {
+      revision: state.draft.draftRevision,
+      book: state.active.book,
+      isDraftOnly: NEVER_DRAFT_ONLY,
+    };
+  }, [readNow]);
   const availability = useItemAvailability({
     observed: draft.state.active.availability,
     book: draft.state.active.book,
@@ -65,6 +74,7 @@ export function useMaterialDesk({
     client: lifecycle,
     deleteFromDraft,
     isDraftOnly: NEVER_DRAFT_ONLY,
+    readDraftNow,
   });
   const usage = useMaterialUsage({
     client: lifecycle,

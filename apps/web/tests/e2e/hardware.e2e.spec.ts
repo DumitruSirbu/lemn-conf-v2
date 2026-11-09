@@ -4,15 +4,16 @@
 // WHICH SERVER THIS FILE HOLDS ON (`playwright.config.ts` starts `next start` when `CI` is set, `next dev` otherwise).
 // Both serve these pages from the e2e server's fake price book, so the list, a rate's Save, a reload and the refusals run
 // under BOTH. What differs is the lifecycle: a production build asks the server, and draws a switch-off and every deletion
-// of a class the book states off with their reason until the saved defaults can be read and the draft takes a deletion;
+// of a class the book states judged by the saved defaults and the saved kitchens' use, which the server counts;
 // `next dev` hands the page the sample defaults, the sample counts (Standard 9, Hettich 14, Blum 0) and an in-memory
 // switch, so the dialogs can be driven. The tests of the dialogs skip themselves under `CI`, and the test of the off
 // controls skips itself without it. On `next dev` a switch never reaches the server, and each page starts from its own
 // copy of it; `lifecycle-server.e2e.spec.ts` drives the switch against the server on a production build.
 //
-// NOT ASSERTED here: creating a class, which `creation.e2e.spec.ts` drives; deleting a class into the draft
-// (the draft route reads no `item-deleted` until R4a, so the dialog's confirmation is refused with a 400, which the tests
-// record); a switch's survival of a reload (the in-memory client forgets it).
+// NOT ASSERTED here: creating a class, which `creation.e2e.spec.ts` drives; publishing a deletion (a publish moves the
+// active version for every spec: a deletion is only put in the draft and the draft is emptied after each test); a
+// deletion a saved kitchen blocks on a production build (the seeded reader counts only planted designs, so it counts
+// none); a switch's survival of a reload (the in-memory client forgets it).
 //
 // The draft is ONE draft in the e2e server's memory, so every test starts and ends by emptying it and the file takes the
 // lock the dashboard's specs share.
@@ -737,10 +738,10 @@ test.describe("the hardware screens on a phone, 390 x 844", () => {
     });
   });
 
-  test.describe("a production build (CI): the switch-off is judged, the deletion stays off", () => {
+  test.describe("a production build (CI): the switch-off and the deletion are judged", () => {
     test.skip(!SERVER_IS_PRODUCTION_BUILD, CI_ONLY_REASON);
 
-    test("Hettich and Blum: the switch-off entry and the class page's switch are on and open the usage dialog, the deletion stays off with the reason, no count is claimed outside the dialog, and pressing the deletion sends nothing", async ({
+    test("Hettich and Blum: the switch-off entry, the deletion entry and the class page's switch are on, no count is claimed outside the dialogs, and pressing the deletion counts the class and asks, sending no write", async ({
       page,
     }) => {
       const words = wordsOf("ro");
@@ -755,13 +756,11 @@ test.describe("the hardware screens on a phone, 390 x 844", () => {
           menuEntryOf(row, words, "switch-off"),
           `${tierId} switch-off`,
         ).not.toHaveAttribute("aria-disabled", "true");
-        const deletion = menuEntryOf(row, words, "delete");
-        await expect(deletion, `${tierId} delete`).toHaveAttribute(
-          "aria-disabled",
-          "true",
-        );
-        await deletion.tap({ force: true });
-        await expect(row.getByTestId("menu-reason")).toHaveText([cannotJudge]);
+        await expect(
+          menuEntryOf(row, words, "delete"),
+          `${tierId} delete`,
+        ).not.toHaveAttribute("aria-disabled", "true");
+        await expect(row.getByTestId("menu-reason")).toHaveCount(0);
       }
       await expect(itemDialogOf(page)).toHaveCount(0);
       expect(
@@ -790,18 +789,31 @@ test.describe("the hardware screens on a phone, 390 x 844", () => {
         "aria-disabled",
         "true",
       );
-      await expect(deleteClassButton(page, words)).toHaveAttribute(
+      await expect(deleteClassButton(page, words)).not.toHaveAttribute(
         "aria-disabled",
         "true",
       );
-      await expect(editPageOf(page).getByText(cannotJudge)).toHaveCount(1);
+      await expect(editPageOf(page).getByText(cannotJudge)).toHaveCount(0);
       const requestsBeforeDeletion = requests.length;
-      await deleteClassButton(page, words).tap({ force: true });
-      await expect(itemDialogOf(page)).toHaveCount(0);
+      await deleteClassButton(page, words).tap();
+      await expect(
+        itemDialogOf(page),
+        "no saved kitchen uses Hettich in this world, so the deletion asks",
+      ).toBeVisible();
+      expect(plainText(await itemDialogOf(page).innerText())).toContain(
+        romanian("priceDashboard.lifecycle.deleteBody"),
+      );
       expect(
         requests.slice(requestsBeforeDeletion),
-        "no request was made by pressing the off deletion",
-      ).toEqual([]);
+        "the deletion counts the saved kitchens first, and writes nothing",
+      ).toEqual(["POST /api/staff/prices/usage"]);
+      await itemDialogOf(page)
+        .getByRole("button", {
+          name: romanian("priceDashboard.common.cancel"),
+          exact: true,
+        })
+        .tap();
+      await expect(itemDialogOf(page)).toHaveCount(0);
       await shootForReview(page, "390-d4b-production-off");
     });
   });
@@ -1027,9 +1039,8 @@ test.describe("the hardware screens on a phone, 390 x 844", () => {
       ).toHaveCount(0);
     });
 
-    test("D4F/D4E: Delete on a used class blocks with the count and offers to deactivate instead, which leads to the switch-off question; on an unused one it asks, and confirming is refused by the draft route until R4a", async ({
+    test("D4F/D4E: Delete on a used class blocks with the count and offers to deactivate instead, which leads to the switch-off question; on an unused one it asks, and confirming puts the deletion in the draft, to be taken back with ↺", async ({
       page,
-      pageErrors,
     }) => {
       await openHardwareList(page);
       const hettich = rowOf(page, HETTICH);
@@ -1107,16 +1118,19 @@ test.describe("the hardware screens on a phone, 390 x 844", () => {
         })
         .tap();
 
-      // R4a has not built the draft route's deletion yet (`draft-address.ts` reads no `item-deleted`), so the route refuses
-      // it with a 400: the dialog stays, says so, and the draft is untouched. When R4a lands this assertion is the one to
-      // change, to the deletion in De publicat and the pending count of 1.
       await expect(
-        asking.getByText(romanian("priceDashboard.errors.saveFailed")),
-        "the refused deletion is said in the dialog, not silently dropped",
-      ).toBeVisible();
-      expect(await draftChanges(page)).toEqual([]);
-      await shootForReview(page, "390-d4d-blum-delete-refused");
-      expectBrowsersNoteOf(pageErrors, 400);
+        itemDialogOf(page),
+        "the draft route took the deletion, so the dialog is done",
+      ).toHaveCount(0);
+      expect(
+        (await draftChanges(page)).map(({ address }) => [
+          address.kind,
+          (address as { item?: { tierId?: string } }).item?.tierId,
+        ]),
+        "the draft holds the one deletion, of Blum",
+      ).toEqual([["item-deleted", BLUM]]);
+      await expectPendingCount(page, 1);
+      await shootForReview(page, "390-d4d-blum-deleted-in-draft");
     });
 
     test("the class page asks the same question: its switch names Standard and Blum and never Hettich twice, and turns off at once", async ({
@@ -1180,17 +1194,6 @@ function isNoteOf500(entry: string): boolean {
   return entry.startsWith(
     "console: Failed to load resource: the server responded with a status of 500",
   );
-}
-
-/** Takes out of the page's errors the browser's one console line for an answer of this status, which the test provoked. */
-function expectBrowsersNoteOf(pageErrors: string[], status: number): void {
-  const note = `console: Failed to load resource: the server responded with a status of ${String(status)}`;
-  const rest = pageErrors.filter((entry) => !entry.startsWith(note));
-  expect(
-    pageErrors.length - rest.length,
-    `the browser's note of the ${String(status)}`,
-  ).toBe(1);
-  pageErrors.splice(0, pageErrors.length, ...rest);
 }
 
 interface CountingNoticeSighting {

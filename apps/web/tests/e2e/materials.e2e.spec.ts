@@ -8,9 +8,10 @@
 // off controls skips itself without it. On `next dev` a switch never reaches the server, and each page starts from its own copy of it;
 // `lifecycle-server.e2e.spec.ts` drives the switch and the counts against the server on a production build.
 //
-// NOT REACHABLE, so not asserted here: deleting a material into the draft (the draft route reads no `item-deleted`
-// until R4a, so the dialog's confirmation is refused with a 400, which the test records); a switch's survival of a
-// reload (the in-memory client forgets it).
+// NOT REACHABLE, so not asserted here: publishing a deletion (a publish moves the active version for every spec; the
+// deletion is only put in the draft and taken out again, and the draft is emptied after each test); a deletion that a
+// saved kitchen blocks on a production build (the seeded reader counts only planted designs, so it counts none); a
+// switch's survival of a reload (the in-memory client forgets it).
 //
 // The draft is ONE draft in the e2e server's memory, so every test starts and ends by emptying it and the file takes
 // the lock the dashboard's specs share.
@@ -520,10 +521,10 @@ test.describe("the materials screens on a phone, 390 x 844", () => {
     });
   });
 
-  test.describe("a production build (CI): the switch-off is judged, the deletion stays off, and the counts come from the server", () => {
+  test.describe("a production build (CI): the switch-off and the deletion are judged, and the counts come from the server", () => {
     test.skip(!SERVER_IS_PRODUCTION_BUILD, CI_ONLY_REASON);
 
-    test("MDF and veneer: the switch-off entry and the page's switch are on, the deletion is off with the reason, the page counts the material once, and pressing the deletion sends nothing", async ({
+    test("MDF and veneer: the switch-off entry, the deletion entry and the page's switch are on, the page counts the material once, and pressing the deletion counts it and asks, sending no write", async ({
       page,
     }) => {
       const words = wordsOf("ro");
@@ -538,13 +539,11 @@ test.describe("the materials screens on a phone, 390 x 844", () => {
           menuEntryOf(row, words, "switch-off"),
           `${tierId} switch-off`,
         ).not.toHaveAttribute("aria-disabled", "true");
-        const deletion = menuEntryOf(row, words, "delete");
-        await expect(deletion, `${tierId} delete`).toHaveAttribute(
-          "aria-disabled",
-          "true",
-        );
-        await deletion.tap({ force: true });
-        await expect(row.getByTestId("menu-reason")).toHaveText([cannotJudge]);
+        await expect(
+          menuEntryOf(row, words, "delete"),
+          `${tierId} delete`,
+        ).not.toHaveAttribute("aria-disabled", "true");
+        await expect(row.getByTestId("menu-reason")).toHaveCount(0);
       }
       await expect(itemDialogOf(page)).toHaveCount(0);
       expect(
@@ -558,11 +557,11 @@ test.describe("the materials screens on a phone, 390 x 844", () => {
         "aria-disabled",
         "true",
       );
-      await expect(deleteMaterialButton(page, words)).toHaveAttribute(
+      await expect(deleteMaterialButton(page, words)).not.toHaveAttribute(
         "aria-disabled",
         "true",
       );
-      await expect(editPageOf(page).getByText(cannotJudge)).toHaveCount(1);
+      await expect(editPageOf(page).getByText(cannotJudge)).toHaveCount(0);
       await expect(
         editPageOf(page)
           .locator("dl > div")
@@ -576,12 +575,25 @@ test.describe("the materials screens on a phone, 390 x 844", () => {
         ),
       );
       const requestsBeforeDeletion = requests.length;
-      await deleteMaterialButton(page, words).tap({ force: true });
-      await expect(itemDialogOf(page)).toHaveCount(0);
+      await deleteMaterialButton(page, words).tap();
+      await expect(
+        itemDialogOf(page),
+        "no saved kitchen uses MDF in this world, so the deletion asks",
+      ).toBeVisible();
+      expect(plainText(await itemDialogOf(page).innerText())).toContain(
+        romanian("priceDashboard.lifecycle.deleteBody"),
+      );
       expect(
         requests.slice(requestsBeforeDeletion),
-        "no request was made by pressing the off deletion",
-      ).toEqual([]);
+        "the deletion counts the saved kitchens first, and writes nothing",
+      ).toEqual(["POST /api/staff/prices/usage"]);
+      await itemDialogOf(page)
+        .getByRole("button", {
+          name: romanian("priceDashboard.common.cancel"),
+          exact: true,
+        })
+        .tap();
+      await expect(itemDialogOf(page)).toHaveCount(0);
       await activeSwitch(page, words).tap();
       await expect(
         itemDialogOf(page),
@@ -596,8 +608,9 @@ test.describe("the materials screens on a phone, 390 x 844", () => {
       await expect(itemDialogOf(page)).toHaveCount(0);
       expect(
         requests,
-        "one count for the page, one for the switch-off dialog, and nothing was written",
+        "one count for the page, one for the deletion's dialog, one for the switch-off dialog, and nothing was written",
       ).toEqual([
+        "POST /api/staff/prices/usage",
         "POST /api/staff/prices/usage",
         "POST /api/staff/prices/usage",
       ]);
@@ -814,9 +827,8 @@ test.describe("the materials screens on a phone, 390 x 844", () => {
       ).toHaveCount(0);
     });
 
-    test("D5D: Delete on MDF blocks with the count and offers to disable it instead, which leads to the switch-off question; on veneer, which no kitchen uses, it asks, and confirming is refused by the draft route until R4a", async ({
+    test("D5D: Delete on MDF blocks with the count and offers to disable it instead, which leads to the switch-off question; on veneer, which no kitchen uses, it asks, and confirming puts the deletion in the draft, to be taken back with ↺", async ({
       page,
-      pageErrors,
     }) => {
       await openMaterialList(page);
       const mdf = rowOf(page, MDF);
@@ -888,16 +900,19 @@ test.describe("the materials screens on a phone, 390 x 844", () => {
         })
         .tap();
 
-      // R4a has not built the draft route's deletion yet (`draft-address.ts` reads no `item-deleted`), so the route
-      // refuses it with a 400: the dialog stays, says so, and the draft is untouched. When R4a lands this assertion is
-      // the one to change, to the deletion in De publicat and the pending count of 1.
       await expect(
-        asking.getByText(romanian("priceDashboard.errors.saveFailed")),
-        "the refused deletion is said in the dialog, not silently dropped",
-      ).toBeVisible();
-      expect(await draftChanges(page)).toEqual([]);
-      await shootForReview(page, "390-d5d-veneer-delete-refused");
-      expectBrowsersNoteOf(pageErrors, 400);
+        itemDialogOf(page),
+        "the draft route took the deletion, so the dialog is done",
+      ).toHaveCount(0);
+      expect(
+        (await draftChanges(page)).map(({ address }) => [
+          address.kind,
+          (address as { item?: { tierId?: string } }).item?.tierId,
+        ]),
+        "the draft holds the one deletion, of veneer",
+      ).toEqual([["item-deleted", VENEER]]);
+      await expectPendingCount(page, 1);
+      await shootForReview(page, "390-d5d-veneer-deleted-in-draft");
     });
   });
 });
@@ -909,17 +924,4 @@ async function expectDialogFitsScreen(dialog: Locator): Promise<void> {
   expect(box.x + box.width, "right").toBeLessThanOrEqual(PHONE.width);
   expect(box.y, "top").toBeGreaterThanOrEqual(0);
   expect(box.y + box.height, "bottom").toBeLessThanOrEqual(PHONE.height);
-}
-
-/**
- * Takes out of the page's errors the browser's one console line for an answer of this status, which the test provoked.
- */
-function expectBrowsersNoteOf(pageErrors: string[], status: number): void {
-  const note = `console: Failed to load resource: the server responded with a status of ${String(status)}`;
-  const rest = pageErrors.filter((entry) => !entry.startsWith(note));
-  expect(
-    pageErrors.length - rest.length,
-    `the browser's note of the ${String(status)}`,
-  ).toBe(1);
-  pageErrors.splice(0, pageErrors.length, ...rest);
 }

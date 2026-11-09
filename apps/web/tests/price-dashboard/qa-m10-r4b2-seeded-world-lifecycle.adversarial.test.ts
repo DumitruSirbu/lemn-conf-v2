@@ -122,17 +122,42 @@ describe("the seeded world a CI end-to-end server renders, with the saved defaul
     ["Blum", BLUM],
     ["MDF", MDF],
     ["veneer", VENEER],
-    ["the drying rack", DRYING_RACK],
   ] as const)(
-    "keeps the deletion of the stated row %s off with the reason cannot-judge, which the e2e specs assert unchanged",
+    "offers the deletion of the stated row %s, to be counted first (it was cannot-judge before R4c3)",
     async (_name, item) => {
       const context = await contextOfThePage();
 
-      expect(deleteStandOf(item, context)).toEqual({
-        kind: "off",
-        reason:
-          item.kind === "accessory" ? "built-in-accessory" : "cannot-judge",
-      });
+      expect(deleteStandOf(item, context)).toEqual({ kind: "count-first" });
+    },
+  );
+
+  it("keeps the deletion of the built-in drying rack off, as a built-in accessory", async () => {
+    const context = await contextOfThePage();
+
+    expect(deleteStandOf(DRYING_RACK, context)).toEqual({
+      kind: "off",
+      reason: "built-in-accessory",
+    });
+  });
+
+  it.each([
+    ["the cover", SINK_COVER, "always-present-accessory"],
+    [
+      "the fixed hardware default",
+      { kind: "hardware", tierId: "hardware.standard" },
+      "item-is-fixed-default",
+    ],
+    [
+      "the fixed material default",
+      { kind: "material", tierId: "material.melamine" },
+      "item-is-fixed-default",
+    ],
+  ] as const)(
+    "keeps the deletion of %s off for what it is",
+    async (_name, item, reason) => {
+      const context = await contextOfThePage();
+
+      expect(deleteStandOf(item, context)).toEqual({ kind: "off", reason });
     },
   );
 });
