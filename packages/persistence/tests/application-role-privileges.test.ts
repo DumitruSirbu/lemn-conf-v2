@@ -338,13 +338,21 @@ async function grantsToPublicOn(
 /** A statement and its values as a tagged template gives them, to be handed to `explain`. */
 interface RecordedStatement {
   readonly text: string;
+  /** The text with each interpolation numbered; a `?` the statement itself holds (a jsonpath filter) stays as written. */
+  readonly numberedText: string;
   readonly values: readonly unknown[];
 }
 
 const recordedStatement: StatementTag<RecordedStatement> = (
   strings,
   ...values
-) => ({ text: strings.join("?"), values });
+) => ({
+  text: strings.join("?"),
+  numberedText: strings.reduce(
+    (joined, part, index) => `${joined}$${String(index)}${part}`,
+  ),
+  values,
+});
 
 /** A kitchen of the shape the repository's `record` takes, with the room of its own design. */
 function aPresetToRecord(): PresetToRecord {
@@ -363,11 +371,9 @@ function aPresetToRecord(): PresetToRecord {
 function explainOfThePresetStatement(
   statement: RecordedStatement,
 ): Promise<unknown> {
-  expect(statement.values).toHaveLength(placeholderCountOf(statement.text));
-  return neon(readDatabaseUrl()).query(
-    `explain ${withNumberedPlaceholders(statement.text)}`,
-    [...statement.values],
-  );
+  return neon(readDatabaseUrl()).query(`explain ${statement.numberedText}`, [
+    ...statement.values,
+  ]);
 }
 
 /** What the server answered a statement with, as the failure it raised or `undefined` when it raised none. */
