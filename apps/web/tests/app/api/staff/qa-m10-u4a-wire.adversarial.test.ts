@@ -99,24 +99,8 @@ async function answerFromTheRoutes(
 
 const SOFT_CLOSE = { kind: "hardware", tierId: "hardware.soft-close" } as const;
 
-describe("the write that deletes a held class (the hardware screens' `deleteFromDraft`) — no route until R4a", () => {
-  // R4a adds the deletion's route and owes the flip to `it`.
-  it.fails(
-    "is taken by the draft route, so the confirmation of an unused class's deletion can succeed",
-    async () => {
-      const outcome = await FETCHING_PRICE_DRAFT_CLIENT.change({
-        expectedDraftRevision: await currentDraftRevision(),
-        change: {
-          address: { kind: "item-deleted", item: SOFT_CLOSE },
-          value: true,
-        },
-      });
-
-      expect(outcome.kind).toBe("changed");
-    },
-  );
-
-  it("is answered, today, as a refusal of the address, which the screen shows as a failed save it asks to retry", async () => {
+describe("the write that deletes a held class (the hardware screens' `deleteFromDraft`)", () => {
+  it("is taken by the draft route, so the confirmation of an unused class's deletion can succeed", async () => {
     const outcome = await FETCHING_PRICE_DRAFT_CLIENT.change({
       expectedDraftRevision: await currentDraftRevision(),
       change: {
@@ -125,10 +109,7 @@ describe("the write that deletes a held class (the hardware screens' `deleteFrom
       },
     });
 
-    expect(outcome).toEqual<DraftChangeOutcome>({
-      kind: "refused",
-      code: "NOT_EDITABLE",
-    });
+    expect(outcome.kind).toBe("changed");
   });
 });
 

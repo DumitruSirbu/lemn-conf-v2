@@ -207,8 +207,9 @@ type Removal =
 /**
  * A revert names a change the draft holds. The domain's `revertChange` takes a whole created row for a field it has no
  * change of, so an address the draft does not hold is refused here: it writes nothing, and no audit row either. A field
- * of an item the draft deletes is not taken back by naming it, since what leaves is the deletion. The audit row names
- * what left the draft: a created row's creation, with the count of changes that went with it.
+ * of an item the draft deletes is not taken back by naming it, since what leaves is the deletion: the deletion is taken
+ * back by its own address. The audit row names what left the draft: a created row's creation, with the count of changes
+ * that went with it.
  */
 function removalOfChange(
   changes: readonly DraftChange[],
@@ -219,7 +220,7 @@ function removalOfChange(
   const remaining = revertChange(changes, address);
   const kept = new Set(remaining);
   const removed = changes.filter((held) => !kept.has(held));
-  if (!isCreationAddress(address) && removed.some(isDeletion)) {
+  if (namesAField(address) && removed.some(isDeletion)) {
     return notEditable("address");
   }
   return {
@@ -227,6 +228,11 @@ function removalOfChange(
     remaining,
     entry: revertedEntryOf(address, removed),
   };
+}
+
+/** A creation and a deletion are taken back by their own addresses; any other address names a field of a row. */
+function namesAField(address: RevertAddress): boolean {
+  return !isCreationAddress(address) && address.kind !== "item-deleted";
 }
 
 function isDeletion({ address }: DraftChange): boolean {

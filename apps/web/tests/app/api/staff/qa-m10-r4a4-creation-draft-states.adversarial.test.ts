@@ -173,29 +173,20 @@ describe("a creation on a draft the book no longer makes", () => {
   });
 });
 
-describe("a deletion, which no route of this build writes", () => {
-  it("is refused by the change route as NOT_EDITABLE, before and after a creation", async () => {
+describe("a deletion, which only the change route writes (R4c2)", () => {
+  it("is stored by the change route, before and after a creation, one change per address", async () => {
     const before = await putChangeAs(world.cookie, DELETES_SOFT_CLOSE);
     await createClassAs(world.cookie);
     const after = await putChangeAs(world.cookie, DELETES_SOFT_CLOSE);
 
-    for (const answer of [before, after]) {
-      expect({ status: answer.status, body: await jsonOf(answer) }).toEqual({
-        status: 400,
-        body: {
-          status: "invalid-input",
-          issues: [{ field: "address", code: "NOT_EDITABLE" }],
-        },
-      });
-    }
-    expect(
-      (await storedChangesOf(world.prices)).some(
-        ({ address }) => address.kind === "item-deleted",
-      ),
-    ).toBe(false);
+    expect([before.status, after.status]).toEqual([200, 200]);
+    const deletions = (await storedChangesOf(world.prices)).filter(
+      ({ address }) => address.kind === "item-deleted",
+    );
+    expect(deletions).toEqual([DELETES_SOFT_CLOSE]);
   });
 
-  it("is refused by the change route for a row the draft created, so a created row cannot be deleted through the draft either", async () => {
+  it("is stored by the change route for a row the draft created, with the creation still standing beside it", async () => {
     const tierId = await mintedIdOf(await createClassAs(world.cookie));
 
     const answer = await putChangeAs(world.cookie, {
@@ -206,10 +197,17 @@ describe("a deletion, which no route of this build writes", () => {
       value: true,
     });
 
-    expect(answer.status).toBe(400);
+    expect(answer.status).toBe(200);
+    const stored = await storedChangesOf(world.prices);
+    expect(
+      stored.filter(({ address }) => address.kind === "item-deleted"),
+    ).toHaveLength(1);
+    expect(
+      stored.some(({ address }) => address.kind === "hardware-tier-created"),
+    ).toBe(true);
   });
 
-  it("is refused by the revert route as NOT_EDITABLE when named as the target", async () => {
+  it("is taken back by the revert route when named as the target, by its own address", async () => {
     await plantDraft(world, [DELETES_SOFT_CLOSE]);
 
     const answer = await revertAs(world.cookie, {
@@ -217,14 +215,8 @@ describe("a deletion, which no route of this build writes", () => {
       address: DELETES_SOFT_CLOSE.address,
     });
 
-    expect({ status: answer.status, body: await jsonOf(answer) }).toEqual({
-      status: 400,
-      body: {
-        status: "invalid-input",
-        issues: [{ field: "address", code: "NOT_EDITABLE" }],
-      },
-    });
-    expect(await storedChangesOf(world.prices)).toEqual([DELETES_SOFT_CLOSE]);
+    expect(answer.status).toBe(200);
+    expect(await storedChangesOf(world.prices)).toEqual([]);
   });
 
   it("is not written by either creation route whatever the value names", async () => {

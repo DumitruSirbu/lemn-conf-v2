@@ -107,15 +107,44 @@ describe("the change route's named refusals", () => {
   it.each([
     ["a hardware class creation", CREATION],
     ["an accessory creation", ACCESSORY_CREATION],
-    ["a deletion", DELETION],
   ])("refuses %s as NOT_EDITABLE", (_name, address) => {
     expect(readDraftChangeRequest(change(address, true))).toEqual(NOT_EDITABLE);
   });
 
-  it("refuses a kind it does not take before reading any member of it", () => {
-    const garbled = { kind: "item-deleted", item: 7, extra: [] };
+  it("refuses a creation kind before reading any member of it", () => {
+    const garbled = { kind: "hardware-tier-created", tierId: 7, extra: [] };
 
     expect(readDraftChangeRequest(change(garbled, true))).toEqual(NOT_EDITABLE);
+  });
+});
+
+describe("the change route and a deletion (R4c2)", () => {
+  it("takes a deletion, with its value as sent for the domain to judge", () => {
+    expect(readDraftChangeRequest(change(DELETION, true))).toEqual({
+      ok: true,
+      value: {
+        expectedDraftRevision: REVISION,
+        address: DELETION,
+        value: true,
+      },
+    });
+  });
+
+  it("refuses a deletion whose item is not a row as an unknown address, and one with a member it does not name as malformed", () => {
+    expect(
+      readDraftChangeRequest(change({ kind: "item-deleted", item: 7 }, true)),
+    ).toEqual({
+      ok: false,
+      refusal: {
+        kind: "issues",
+        issues: [{ field: "address", code: "UNKNOWN_ADDRESS" }],
+      },
+    });
+    expect(
+      readDraftChangeRequest(
+        change({ kind: "item-deleted", item: 7, extra: [] }, true),
+      ),
+    ).toEqual(MALFORMED);
   });
 });
 
@@ -134,11 +163,23 @@ describe("the revert route and the structural kinds", () => {
     });
   });
 
-  it("refuses a deletion as NOT_EDITABLE, even when its members are wrong", () => {
-    expect(readRevertRequest(revert(DELETION))).toEqual(NOT_EDITABLE);
+  it("takes a deletion as a target (R4c2), and refuses one whose item is not a row as an unknown address", () => {
+    expect(readRevertRequest(revert(DELETION))).toEqual({
+      ok: true,
+      value: {
+        expectedDraftRevision: REVISION,
+        target: { kind: "change", address: DELETION },
+      },
+    });
     expect(
       readRevertRequest(revert({ kind: "item-deleted", item: null })),
-    ).toEqual(NOT_EDITABLE);
+    ).toEqual({
+      ok: false,
+      refusal: {
+        kind: "issues",
+        issues: [{ field: "address", code: "UNKNOWN_ADDRESS" }],
+      },
+    });
   });
 
   it("refuses a creation that names a member the address does not", () => {

@@ -127,10 +127,6 @@ function isTheRouteItselfMissing(error: unknown): boolean {
   );
 }
 
-function isTheRefusalOfTheAddress(outcome: DraftChangeOutcome): boolean {
-  return outcome.kind === "refused" && outcome.code === "NOT_EDITABLE";
-}
-
 const surcharge = (item: typeof MDF | typeof PAL, value: number) => ({
   address: {
     kind: "material" as const,
@@ -191,35 +187,14 @@ describe("a material's surcharge, the one price the materials screens write toda
   });
 });
 
-describe("the write that deletes a held material (the materials screens' `deleteFromDraft`), no route until R4a", () => {
-  // R4a adds the deletion's route and owes the flip to `it`.
-  it.fails(
-    "is taken by the draft route, so the confirmation of an unused material's deletion can succeed",
-    async () => {
-      const outcome = await FETCHING_PRICE_DRAFT_CLIENT.change({
-        expectedDraftRevision: await currentDraftRevision(),
-        change: { address: { kind: "item-deleted", item: MDF }, value: true },
-      });
-
-      // Only the refusal of the address, which R4a removes, may keep this red by design: any other answer (a write, or
-      // a route that failed) ends the test green, and so turns the `it.fails` red.
-      if (!isTheRefusalOfTheAddress(outcome)) return;
-      expect(outcome.kind).toBe("changed");
-    },
-  );
-
-  // Pins today's answer, and goes red when R4a adds the deletion's route: delete this test then, with the flip of the
-  // `it.fails` above.
-  it("is answered, today, as a refusal of the address, which the screen shows as a failed save it asks to retry", async () => {
+describe("the write that deletes a held material (the materials screens' `deleteFromDraft`)", () => {
+  it("is taken by the draft route, so the confirmation of an unused material's deletion can succeed", async () => {
     const outcome = await FETCHING_PRICE_DRAFT_CLIENT.change({
       expectedDraftRevision: await currentDraftRevision(),
       change: { address: { kind: "item-deleted", item: MDF }, value: true },
     });
 
-    expect(outcome).toEqual<DraftChangeOutcome>({
-      kind: "refused",
-      code: "NOT_EDITABLE",
-    });
+    expect(outcome.kind).toBe("changed");
   });
 });
 

@@ -59,7 +59,8 @@ vi.mock("@/lib/server/price-stores", () =>
 /**
  * Adversarial QA of `POST /api/staff/prices/publish` over stored drafts that delete rows: chunk boundaries, answers of the
  * reader that are partial or malformed, writes that land between the count and the store's guard, and the draft route's
- * refusal of a deletion on every path. Deletions can only be planted straight into the store.
+ * answer to a deletion on every path (R4c2: the draft route takes one, and a deletion can also be planted straight into
+ * the store, as a draft written out of band holds one).
  */
 
 type CountEach = KitchenUsageReader["countEach"];
@@ -831,42 +832,82 @@ describe("a publish whose count or defaults pass the deadline", () => {
   });
 });
 
-describe("the draft route, while a draft holds a deletion", () => {
-  const DELETABLE_AND_NOT: readonly [string, unknown][] = [
-    ["a material the book states", VENEER],
-    ["the fixed material default", FIXED_MATERIAL],
-    ["a hardware class the book states", PREMIUM],
-    ["a linked accessory", PLINTH],
+describe("the draft route, while a draft holds a deletion (R4c2: the route takes a deletion)", () => {
+  const BUILT_IN: ItemRef = {
+    kind: "accessory",
+    accessoryId: ALWAYS_PRESENT_ACCESSORY_ID,
+  };
+  const GONE: ItemRef = { kind: "material", tierId: "material.gone" };
+  const COLOUR = { kind: "finish", finishId: "white" };
+  const HANDLE = { kind: "handle", handleId: "bar" };
+
+  function refusal(field: string, code: string) {
+    return {
+      status: 400,
+      body: { status: "invalid-input", issues: [{ field, code }] },
+    };
+  }
+
+  /** What a deletion of the row answers when the value is `true`, with the draft already deleting PAINTED. */
+  const DELETABLE_AND_NOT: readonly [string, unknown, unknown][] = [
+    ["a material the book states", VENEER, { status: 200 }],
     [
-      "a built-in accessory",
-      { kind: "accessory", accessoryId: "always-present" },
+      "the fixed material default",
+      FIXED_MATERIAL,
+      refusal("change", "ITEM_IS_DEFAULT"),
     ],
-    ["a colour", { kind: "finish", finishId: "white" }],
-    ["a handle", { kind: "handle", handleId: "bar" }],
-    [
-      "a row the book does not state",
-      { kind: "material", tierId: "material.gone" },
-    ],
+    ["a hardware class the book states", PREMIUM, { status: 200 }],
+    ["a linked accessory", PLINTH, { status: 200 }],
+    ["a built-in accessory", BUILT_IN, refusal("change", "NOT_EDITABLE")],
+    ["a colour", COLOUR, refusal("address", "UNKNOWN_ADDRESS")],
+    ["a handle", HANDLE, refusal("address", "UNKNOWN_ADDRESS")],
+    ["a row the book does not state", GONE, refusal("change", "UNKNOWN_ITEM")],
   ];
 
   async function snapshot() {
     return stateOfTheWorld();
   }
 
+  async function deleteOnTheChangeRoute(item: unknown, value: unknown) {
+    return changeDraft({
+      cookie,
+      json: {
+        expectedDraftRevision: await currentDraftRevision(),
+        change: { address: { kind: "item-deleted", item }, value },
+      },
+    });
+  }
+
   it.each(DELETABLE_AND_NOT)(
-    "refuses to take %s as a change, whatever its value, and leaves the stored deletion as it was",
+    "answers a deletion of %s with the plan's own answer, beside the deletion already stored",
+    async (_name, item, expected) => {
+      await plantDraft(tokenHash, deleting(PAINTED));
+      const before = await snapshot();
+
+      const answer = await deleteOnTheChangeRoute(item, true);
+
+      const { status } = expected as { status: number };
+      expect(answer.status).toBe(status);
+      if (status === 200) {
+        const stored = (await prices.stores.priceBook.readDraft()).changes;
+        expect(stored).toEqual(deleting(PAINTED, item as ItemRef));
+        return;
+      }
+      expect({ status: answer.status, body: await jsonOf(answer) }).toEqual(
+        expected,
+      );
+      expect(await snapshot()).toEqual(before);
+    },
+  );
+
+  it.each(DELETABLE_AND_NOT)(
+    "refuses a deletion of %s whose value is not true, whatever it is, and leaves the stored deletion as it was",
     async (_name, item) => {
       await plantDraft(tokenHash, deleting(PAINTED));
       const before = await snapshot();
 
-      for (const value of [true, false, null, "yes", 1]) {
-        const answer = await changeDraft({
-          cookie,
-          json: {
-            expectedDraftRevision: await currentDraftRevision(),
-            change: { address: { kind: "item-deleted", item }, value },
-          },
-        });
+      for (const value of [false, null, "yes", 1, "true", 0, [], {}]) {
+        const answer = await deleteOnTheChangeRoute(item, value);
         expect(answer.status).toBe(400);
       }
 
@@ -874,10 +915,36 @@ describe("the draft route, while a draft holds a deletion", () => {
     },
   );
 
-  it.each(DELETABLE_AND_NOT)(
-    "refuses to revert %s, and leaves the stored deletion as it was",
+  // The fixed default is among them: a deletion of it stored out of band is the one a revert must be able to clear.
+  it.each([
+    ["a material the book states", VENEER],
+    ["the fixed material default", FIXED_MATERIAL],
+    ["a hardware class the book states", PREMIUM],
+    ["a linked accessory", PLINTH],
+  ])(
+    "takes back a stored deletion of %s by its own address, and the draft no longer deletes it",
     async (_name, item) => {
-      await plantDraft(tokenHash, deleting(item as ItemRef));
+      await plantDraft(tokenHash, deleting(item as ItemRef, PAINTED));
+
+      const answer = await revertDraft({
+        cookie,
+        json: {
+          expectedDraftRevision: await currentDraftRevision(),
+          target: { kind: "change", address: { kind: "item-deleted", item } },
+        },
+      });
+
+      expect(answer.status).toBe(200);
+      expect((await prices.stores.priceBook.readDraft()).changes).toEqual(
+        deleting(PAINTED),
+      );
+    },
+  );
+
+  it.each(DELETABLE_AND_NOT)(
+    "refuses to revert a deletion of %s the draft does not hold, and leaves the stored deletion as it was",
+    async (_name, item) => {
+      await plantDraft(tokenHash, deleting(PAINTED));
       const before = await snapshot();
 
       const answer = await revertDraft({
@@ -888,7 +955,9 @@ describe("the draft route, while a draft holds a deletion", () => {
         },
       });
 
-      expect(answer.status).toBe(400);
+      expect({ status: answer.status, body: await jsonOf(answer) }).toEqual(
+        refusal("address", "UNKNOWN_ADDRESS"),
+      );
       expect(await snapshot()).toEqual(before);
     },
   );

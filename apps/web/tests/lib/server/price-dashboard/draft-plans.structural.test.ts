@@ -243,10 +243,18 @@ describe("a revert of a field of an item the draft deletes", () => {
       target: { kind: "change", address: addressOf(change) },
     }) as const;
 
+  it("takes the deletion itself back by its own address (R4c2), and only it, leaving the rate and the words", () => {
+    const plan = planRevert(
+      request(DELETION),
+      stateWith([HINGE, RENAME, DELETION]),
+    );
+
+    expect(written(plan).changes).toEqual([HINGE, RENAME]);
+  });
+
   it.each([
     ["a rate", HINGE],
     ["the words", RENAME],
-    ["the deletion itself", DELETION],
   ])(
     "refuses the revert of %s as not editable and plans no write",
     async (_name, target) => {

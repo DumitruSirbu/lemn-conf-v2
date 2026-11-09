@@ -21,8 +21,9 @@ describe("each it.fails of the materials wire test", () => {
     /^\s*it\.fails\(/.test(line) ? [index] : [],
   );
 
+  // R4c2 flipped the deletion's promise, so the availability route's is the one left to hold.
   it("is there to be held, so that a file with none would show", () => {
-    expect(deferredAt.length).toBeGreaterThanOrEqual(2);
+    expect(deferredAt.length).toBeGreaterThanOrEqual(1);
   });
 
   it("is headed, just above it, with the wave whose route it waits for", () => {
@@ -40,7 +41,6 @@ describe("each it.fails of the materials wire test", () => {
   it("asserts the success the route will answer, so the promise goes red when it is kept", () => {
     const body = lines.slice(deferredAt[0] ?? 0).join("\n");
 
-    expect(body).toMatch(/expect\(outcome\.kind\)\.toBe\("changed"\)/);
     expect(body).toMatch(/expect\(answer\.status\)\.not\.toBe\(404\)/);
   });
 });
