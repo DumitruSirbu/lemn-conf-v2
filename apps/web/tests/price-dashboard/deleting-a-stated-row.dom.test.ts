@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 //
-// R4c3 on the screens: a linked accessory's Delete is offered in a production build and counts the saved kitchens before
+// Delete on the screens: a linked accessory's Delete is offered in a production build and counts the saved kitchens before
 // anything is confirmed; the publish page's row of a deleted class and the stale-draft list's line of one each press a ↺
 // that sends the deletion's own address to the revert route.
 import { createElement } from "react";

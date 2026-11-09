@@ -65,7 +65,7 @@ export type DeletionSettlement =
   | { readonly kind: "close" }
   | { readonly kind: "fail"; readonly failure: ItemFailure }
   /** The facts the dialog was drawn from are out of date: the draft is read again and the item counted again, and no
-   *  Delete can be pressed on the old count. */
+   *  Delete can be pressed on the old count. Only the failure of a conflict has read the draft again. */
   | { readonly kind: "recount"; readonly failure: ItemFailure }
   /** The server refused for use whatever the count said, so the block is said and the item is counted again for the
    *  number it can give. */

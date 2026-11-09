@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 //
-// R4c3, ruling 15 and the use refusal. A deletion that meets a conflict, or a book the draft would make refused, was
+// A deletion that meets a conflict, or a book the draft would make refused, was
 // judged on facts that have since moved: its dialog closes, the saved kitchens are counted again, and no Delete can be
 // pressed until the new count has answered. A server that refuses a deletion for use after a count of none has the
 // last word: the block is said, the item is counted again for the number, and the confirmation never opens again.
@@ -13,7 +13,10 @@ import {
 } from "@lemnaria/configurator-domain";
 
 import type { FieldWriteResult } from "@/price-dashboard/use-price-draft";
-import { useItemAvailability } from "@/price-dashboard/use-item-availability";
+import {
+  useItemAvailability,
+  type DraftFactsNow,
+} from "@/price-dashboard/use-item-availability";
 
 import { flushPromises, renderHook } from "../support/render-hook";
 import { recordingLifecycleClient } from "./recording-item-lifecycle-client";
@@ -29,7 +32,13 @@ const SAVED = { kind: "saved" } as const;
 
 function deskDeleting(
   answers: readonly FieldWriteResult[],
-  { isDraftOnly = false }: { readonly isDraftOnly?: boolean } = {},
+  {
+    isDraftOnly = false,
+    readDraftNow,
+  }: {
+    readonly isDraftOnly?: boolean;
+    readonly readDraftNow?: () => DraftFactsNow;
+  } = {},
 ) {
   const lifecycle = recordingLifecycleClient({
     book: SAMPLE_PRICE_BOOK,
@@ -49,6 +58,7 @@ function deskDeleting(
       client: lifecycle.client,
       deleteFromDraft,
       isDraftOnly: () => isDraftOnly,
+      ...(readDraftNow === undefined ? {} : { readDraftNow }),
     }),
   );
   return { lifecycle, deleteFromDraft, rendered };
@@ -232,6 +242,83 @@ describe("a server that refuses a deletion for use after a count of none", () =>
     expect(rendered.result.current.flow).toMatchObject({
       kind: "delete-blocked",
       count: undefined,
+    });
+    expect(deleteFromDraft).toHaveBeenCalledTimes(1);
+    rendered.unmount();
+  });
+});
+
+describe("a conflict on a deletion, with the draft as the host reads it this moment", () => {
+  /** The draft as sent (first reading) and as the conflict left it (every later one). */
+  const draftReadAs = (
+    sent: DraftFactsNow,
+    afterConflict: DraftFactsNow,
+  ): (() => DraftFactsNow) => {
+    let readings = 0;
+    return () => (readings++ === 0 ? sent : afterConflict);
+  };
+  const draftWith = (revision: string, book = SAMPLE_PRICE_BOOK) => ({
+    revision,
+    book,
+    isDraftOnly: () => false,
+  });
+
+  it("leaves the dialog closed and says the failure when the draft was not read again after the conflict", async () => {
+    const { lifecycle, deleteFromDraft, rendered } = deskDeleting(
+      [{ kind: "conflict" }],
+      { readDraftNow: draftReadAs(draftWith("7"), draftWith("7")) },
+    );
+    await openCounted(rendered);
+
+    await pressConfirm(rendered);
+
+    expect(usageReads(lifecycle.calls)).toBe(1);
+    expect(rendered.result.current.flow.kind).toBe("closed");
+    expect(rendered.result.current.failure).toEqual({ kind: "failed" });
+    expect(deleteFromDraft).toHaveBeenCalledTimes(1);
+    rendered.unmount();
+  });
+
+  it("counts again and reopens once the draft names a revision other than the one sent", async () => {
+    const { lifecycle, rendered } = deskDeleting([{ kind: "conflict" }], {
+      readDraftNow: draftReadAs(draftWith("7"), draftWith("8")),
+    });
+    await openCounted(rendered);
+
+    await pressConfirm(rendered);
+
+    expect(usageReads(lifecycle.calls)).toBe(2);
+    expect(rendered.result.current.flow).toMatchObject({ kind: "delete" });
+    rendered.unmount();
+  });
+
+  it("judges the recount by the book that draft sits on, not the one last rendered: a class the new book drops is not counted or offered", async () => {
+    const bookWithoutHettich = {
+      ...SAMPLE_PRICE_BOOK,
+      hardware: {
+        ...SAMPLE_PRICE_BOOK.hardware,
+        tiers: SAMPLE_PRICE_BOOK.hardware.tiers.filter(
+          (tier) => tier.tierId !== HETTICH.tierId,
+        ),
+      },
+    };
+    const { lifecycle, deleteFromDraft, rendered } = deskDeleting(
+      [{ kind: "conflict" }],
+      {
+        readDraftNow: draftReadAs(
+          draftWith("7"),
+          draftWith("8", bookWithoutHettich),
+        ),
+      },
+    );
+    await openCounted(rendered);
+
+    await pressConfirm(rendered);
+
+    expect(usageReads(lifecycle.calls)).toBe(1);
+    expect(rendered.result.current.flow).not.toMatchObject({
+      kind: "delete",
+      usage: { kind: "counted" },
     });
     expect(deleteFromDraft).toHaveBeenCalledTimes(1);
     rendered.unmount();

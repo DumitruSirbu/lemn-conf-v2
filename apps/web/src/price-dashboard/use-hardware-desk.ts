@@ -15,6 +15,7 @@ import type { PriceDraftClient } from "./price-draft-client";
 import { useLifecycleClient } from "./use-lifecycle-client";
 import {
   useItemAvailability,
+  type DraftFactsNow,
   type ItemAvailabilityDesk,
 } from "./use-item-availability";
 import { usePriceDraft, type PriceDraft } from "./use-price-draft";
@@ -47,11 +48,15 @@ export function useHardwareDesk({
     (item: DeletableItemRef) => isCreatedInDraft(derivation, item),
     [derivation],
   );
-  const isDraftOnlyNow = useCallback(
-    (item: DeletableItemRef) =>
-      isCreatedInDraft(deriveHardware(readNow()), item),
-    [readNow],
-  );
+  const readDraftNow = useCallback((): DraftFactsNow => {
+    const state = readNow();
+    const reading = deriveHardware(state);
+    return {
+      revision: state.draft.draftRevision,
+      book: state.active.book,
+      isDraftOnly: (item) => isCreatedInDraft(reading, item),
+    };
+  }, [readNow]);
   const deleteFromDraft = useCallback(
     (item: DeletableItemRef) =>
       item.kind === "hardware" && isDraftOnly(item)
@@ -69,7 +74,7 @@ export function useHardwareDesk({
     client: lifecycle,
     deleteFromDraft,
     isDraftOnly,
-    isDraftOnlyNow,
+    readDraftNow,
   });
   return { draft, availability, derivation };
 }

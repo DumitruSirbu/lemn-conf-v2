@@ -32,9 +32,9 @@ export interface ItemLifecycleClient {
   /** Whether a switch reaches anything. Where it does not, the screen offers no switch-on and sends nothing. */
   readonly canWrite: boolean;
   /**
-   * Whether a row the active book states may be deleted from here. Where it may not, only a row the draft alone holds
-   * can be: taking that one out of the draft deletes nothing published. Kept apart from `canWrite` so that making
-   * defaults readable does not by itself open a deletion of a stated row.
+   * Whether this client stands behind a draft route that takes a deletion of a row the active book states. Where it
+   * does not (a build with nothing behind the screen), only a row the draft alone holds can be deleted: taking that one
+   * out of the draft deletes nothing published. Whether a stated row may be deleted at all stays the server's judgement.
    */
   readonly canDeleteStatedItems: boolean;
   setActive(request: AvailabilityRequestWire): Promise<AvailabilityOutcome>;

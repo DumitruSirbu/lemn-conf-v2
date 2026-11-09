@@ -141,6 +141,9 @@ describe("deleting a class no kitchen uses", () => {
       mounted = await mountHardwareList(hardwarePageOf());
       const dialog = await openDeleteFor(BLUM, BLUM_NAME);
       mounted.draftServer.answerNextWriteWith(answer);
+      if (answer.kind === "conflict") {
+        mounted.draftServer.moveDraftBehindTheScreen();
+      }
 
       await press(dialogButton(dialog, DELETE));
 

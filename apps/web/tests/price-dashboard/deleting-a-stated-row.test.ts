@@ -1,4 +1,4 @@
-// R4c3: Delete is on in the dashboard. The client leaves a deletion of a stated row to the draft route, and a deleted
+// Delete is on in the dashboard. The client leaves a deletion of a stated row to the draft route, and a deleted
 // row takes itself back by its own address, on the publish page's D7 and on the list of a draft that no longer makes a
 // book. A field of a deleted row still carries no ↺ of its own.
 import { describe, expect, it } from "vitest";
