@@ -10,6 +10,8 @@
 // accessibility attribute.
 import {
   KITCHEN_L_DESIGN,
+  SAMPLE_PRICE_BOOK,
+  tierRef,
   type CatalogueAvailability,
   type Design,
 } from "@lemnaria/configurator-domain";
@@ -296,11 +298,82 @@ describe("Aplica with no price book, on a kitchen that carries tiers", () => {
   });
 });
 
+describe("a colour chosen with no price book (R-b: colour still applies)", () => {
+  /** A palette chip of the sheet's colour group that is not the one pressed now, with its rendered id. */
+  function anotherColourChip(): HTMLButtonElement {
+    const chip = [
+      ...one(
+        "global-settings-colour-group",
+      ).querySelectorAll<HTMLButtonElement>('[data-testid^="finish-"]'),
+    ].find((candidate) => candidate.getAttribute("aria-pressed") === "false");
+    if (chip === undefined)
+      throw new Error("the colour group has no other chip");
+    return chip;
+  }
+
+  const KITCHENS: readonly (readonly [
+    string,
+    NonNullable<Design["settings"]>,
+  ])[] = [
+    [
+      "a kitchen that carries tiers",
+      {
+        cabinetDepthMm: 600,
+        materialTierId: "material.melamine",
+        hardwareTierId: "hardware.soft-close",
+      },
+    ],
+    ["a kitchen that carries no tier", { cabinetDepthMm: 600 }],
+  ];
+
+  it.each(KITCHENS)(
+    "applies the chosen colour on %s, refuses nothing, and leaves the tier ids exactly as stored",
+    (_name, carried) => {
+      hydrateCarrying(carried);
+      mountSettings(NO_PRICE_BOOK);
+      openSheet();
+      const chosen = anotherColourChip();
+      const chosenValue = chosen
+        .getAttribute("data-testid")
+        ?.slice("finish-".length);
+
+      act(() => {
+        chosen.click();
+      });
+      press("global-settings-apply");
+
+      expect(all("global-settings-refusal")).toHaveLength(0);
+      const stored = useConfiguratorStore.getState().design.settings;
+      expect(stored?.finish).toBeDefined();
+      expect(JSON.stringify(stored?.finish)).toContain(
+        chosenValue ?? "unreachable",
+      );
+      expect(stored?.materialTierId).toBe(carried.materialTierId);
+      expect(stored?.hardwareTierId).toBe(carried.hardwareTierId);
+      expect(stored?.cabinetDepthMm).toBe(carried.cabinetDepthMm);
+    },
+  );
+});
+
 describe("the same sheet under a book with a tier switched off", () => {
   const veneerOff: CatalogueAvailability = {
     revision: "1",
-    disabled: [{ kind: "material", tierId: "material.veneer" }],
+    disabled: [tierRef("material", "material.veneer")],
   };
+
+  it("commits one untouched Aplica through the component itself, on a kitchen that carries the switched-off tier, and stores the default", () => {
+    hydrateCarrying({ cabinetDepthMm: 600, materialTierId: "material.veneer" });
+    mountSettings({ ...SAMPLE_PRICE_ROOT, availability: veneerOff });
+    openSheet();
+
+    press("global-settings-apply");
+
+    expect(all("global-settings-refusal")).toHaveLength(0);
+    expect(
+      useConfiguratorStore.getState().design.settings?.materialTierId,
+    ).toBe(SAMPLE_PRICE_BOOK.material.defaultTierId);
+    expect(all("global-settings-surface")).toHaveLength(0);
+  });
 
   it("says prices are unavailable nowhere: the line belongs to a missing book, not to a switched-off tier", () => {
     hydrateCarrying({ cabinetDepthMm: 600 });
