@@ -27,6 +27,8 @@ function namesAPlacement(effect: CommandEffect): boolean {
     case "hardware_tier_set":
     case "global_finish_set":
     case "kitchen_handle_set":
+    case "colour_replaced":
+    case "handle_replaced":
     case "cabinet_depth_set":
       return false;
   }

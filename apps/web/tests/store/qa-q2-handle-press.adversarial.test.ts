@@ -24,6 +24,8 @@ import {
   setGlobalFinish,
   setHardwareTier,
   setKitchenHandle,
+  replaceColour,
+  replaceHandle,
   setMaterialTier,
   type CommandEffect,
   type CommandResult,
@@ -569,6 +571,20 @@ const WHOLE_KITCHEN_RESULTS: Record<
     setKitchenHandle({
       design,
       handle: "black",
+      occurredAt: CLOCK,
+    }),
+  colour_replaced: (design) =>
+    replaceColour({
+      design,
+      from: MELAMINE_FINISH,
+      to: paletteFinish("pal.alb"),
+      occurredAt: CLOCK,
+    }),
+  handle_replaced: (design) =>
+    replaceHandle({
+      design,
+      from: "black",
+      to: "push",
       occurredAt: CLOCK,
     }),
   cabinet_depth_set: (design) =>

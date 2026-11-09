@@ -12,7 +12,12 @@ import {
   CURRENT_SCHEMA_VERSION,
   migrateDesign,
 } from "../../src/migrate-design.js";
-import { paletteFinish, PALETTE_ENTRY_IDS } from "../../src/materials.js";
+import {
+  materialById,
+  paletteEntriesOf,
+  paletteFinish,
+  PALETTE_ENTRY_IDS,
+} from "../../src/materials.js";
 import { type ItemRef } from "../../src/pricing/catalogue-availability.js";
 import {
   disabledItemsNamedBy,
@@ -432,8 +437,8 @@ describe("itemsNamedBy keeps its meaning: a switchable item the book holds", () 
 });
 
 // A book that HOLDS a material tier no code declares (a created class) has the same sheet defect with no vanished tier at
-// all: the colour group is the palette the code declares for the material, and it declares none. A vanished tier does
-// not touch this case; it belongs to the colour replacement work.
+// all: the colour group is the palette the code declares for the material, and it declares none. Q5a's ruling 5 fixed
+// it: the row offers the palette holding the colour itself.
 describe("a held material no code declares, wearing a switched-off palette colour", () => {
   const createdMaterial = {
     ...BOOK.material.tiers[0],
@@ -474,17 +479,19 @@ describe("a held material no code declares, wearing a switched-off palette colou
     ).toEqual([colour("pal.antracit")]);
   });
 
-  it.fails(
-    "KNOWN DEFECT: a switched-off colour under a created material class throws instead of building a sheet; the fix belongs to the colour replacement work",
-    () => {
-      expect(() =>
-        replacementsRequired({
-          design: wearingItWithAPaletteColour,
-          book: bookHoldingIt,
-          availability: availabilityOf([colour("pal.antracit")]),
-          catalog: CATALOG,
-        }),
-      ).not.toThrow();
-    },
-  );
+  it("builds a sheet whose colour row offers the palette that holds the colour, instead of throwing (Q5a ruling 5)", () => {
+    const rows = replacementsRequired({
+      design: wearingItWithAPaletteColour,
+      book: bookHoldingIt,
+      availability: availabilityOf([colour("pal.antracit")]),
+      catalog: CATALOG,
+    });
+
+    expect(rows.map((row) => row.item)).toEqual([colour("pal.antracit")]);
+    expect(rows[0]?.remaining).toEqual(
+      paletteEntriesOf(materialById("material.melamine"))
+        .filter((entry) => entry.entryId !== "pal.antracit")
+        .map((entry) => colour(entry.entryId)),
+    );
+  });
 });
