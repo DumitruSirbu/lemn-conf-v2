@@ -152,7 +152,7 @@ describe("creating a hardware class beside a draft that deletes classes", () => 
   // creation reads one book for its rates (it needs `apply-changes.ts` to hand the base book to `prepareStructuralWrite`,
   // beyond R4c1's files).
   it.fails(
-    "is possible in a parsed book where only a class the draft deletes stated a rate",
+    "KNOWN DEFECT (ruling 14, closed as unreachable for stored data; the Z gate's parse-every-version pass re-checks it): is possible in a parsed book where only a class the draft deletes stated a rate",
     () => {
       const book = bookWithClasses([
         [false, false, false],
