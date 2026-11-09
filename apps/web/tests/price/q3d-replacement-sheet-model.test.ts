@@ -168,8 +168,9 @@ describe("naming a row", () => {
     expect(row?.valueText).toBe(
       roMessages.replacementSheet.unnamedOptionUnavailable,
     );
+    // Q5b: the kind leads the announcement, so two nameless rows are never announced alike.
     expect(row?.announcement).toBe(
-      roMessages.replacementSheet.unnamedOptionUnavailable,
+      `${ro.priceBreakdown.wholeKitchenCategories.material}: ${roMessages.replacementSheet.unnamedOptionUnavailable}`,
     );
     expect(row?.statusText).toBe("");
     const everythingShown = [

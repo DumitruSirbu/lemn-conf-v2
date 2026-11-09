@@ -9,6 +9,8 @@ import {
   setGlobalFinish as setGlobalFinishOnDesign,
   setHardwareTier as setHardwareTierOnDesign,
   setKitchenHandle as setKitchenHandleOnDesign,
+  replaceColour as replaceColourOnDesign,
+  replaceHandle as replaceHandleOnDesign,
   setMaterialTier as setMaterialTierOnDesign,
   cabinetDepthMmOf,
   refuse,
@@ -33,6 +35,13 @@ export type WholeKitchenSetting =
   | "handle"
   | "cabinetDepth";
 
+/** A colour or handle replaced at every level the design stores it. A press carries at most one. A material change in
+ *  the same press runs first and resets colours (ADR 0057), so a caller that means to replace a colour sends it in a
+ *  press of its own. */
+export type AppearanceReplacement =
+  | { readonly kind: "finish"; readonly from: Finish; readonly to: Finish }
+  | { readonly kind: "handle"; readonly from: Handle; readonly to: Handle };
+
 /**
  * What one press asks for: the settings a customer chose and the ids the caller's price book offers. An absent
  * field means "leave this setting alone", never "reset it to the default" (`global-settings.tsx`: apply writes
@@ -49,6 +58,9 @@ export interface WholeKitchenSettingsRequest {
    *  slot's default into a document that chose none. Availability is the sheet's offer, not this request's. */
   readonly handle?: Handle | undefined;
   readonly cabinetDepthMm?: number | undefined;
+  /** The replacement sheet's colour or handle choice. A replacement that would change nothing is dropped, so an
+   *  unowed one runs no command and schedules no save. */
+  readonly replacement?: AppearanceReplacement | undefined;
   /** `setMaterialTier` refuses an id its caller did not offer, so the offered list travels with the choice:
    *  one answer to "what is on offer" (ADR 0062 seam 1, `OfferedTierGroup.tierIds`). */
   readonly availableMaterialTierIds: readonly string[];
@@ -91,9 +103,9 @@ interface PlannedChange {
 /**
  * Every requested change run in order, stopping at the first refusal. Nothing here writes: the domain's commands are
  * pure, so the whole press is evaluated before any of it is held, making the commit atomic without a rollback.
- * The order (material, colour, hardware, handle, depth) is load-bearing: a depth change rebuilds every body so it
- * must see the same press's material; the store applies the last result, whose effect `applyCommandResult` reads
- * the column map from, so depth stays last or a handle result would drop the depth's frozen map; and colour runs
+ * The order (material, colour, hardware, handle, replacement, depth) is load-bearing: a depth change rebuilds every body
+ * so it must see the same press's material; the store applies the last result, whose effect `applyCommandResult` reads
+ * the column map from, so depth stays last or a replacement result would drop the depth's frozen map; and colour runs
  * after material because a material change re-resolves `settings.finish` to the new default (ADR 0099
  * decision 6), which would discard a colour picked in the same press.
  */
@@ -152,6 +164,8 @@ function planChanges(
     );
   if (isHandleChange(request.handle, applied.handle))
     planned.push(handleChange(request.handle, context.occurredAt));
+  if (isOwedReplacement(request.replacement, context.design))
+    planned.push(replacementChange(request.replacement, context.occurredAt));
   if (isDepthChange(request.cabinetDepthMm, context.design))
     planned.push(depthChange(request.cabinetDepthMm, context));
   return planned;
@@ -179,6 +193,45 @@ function isHandleChange(
   applied: Handle | undefined,
 ): requested is Handle {
   return requested !== undefined && requested !== applied;
+}
+
+/** Whether the replacement would rewrite anything: a swap of an item for itself, or of one the design does not store at
+ *  any level, is dropped, never run as a no-op the store would still save. Every level is read, as the commands write.
+ *  `from` is judged against the design as it stands before the press, while the command runs on the design the press's
+ *  earlier changes left, so a replacement is only reliable on its own. */
+function isOwedReplacement(
+  requested: AppearanceReplacement | undefined,
+  design: Design,
+): requested is AppearanceReplacement {
+  if (requested === undefined) return false;
+  if (requested.kind === "finish") {
+    return (
+      !sameFinish(requested.from, requested.to) &&
+      finishesStoredIn(design).some((stored) =>
+        sameFinish(stored, requested.from),
+      )
+    );
+  }
+  return (
+    requested.from !== requested.to &&
+    handlesStoredIn(design).includes(requested.from)
+  );
+}
+
+/** Every colour the design stores: the kitchen's and each cabinet's own. */
+export function finishesStoredIn(design: Design): readonly Finish[] {
+  const kitchen = design.settings?.finish;
+  const bodies = design.placements.map((placement) => placement.body.finish);
+  return [kitchen, ...bodies].filter((finish) => finish !== undefined);
+}
+
+/** Every handle the design stores: the kitchen's, the top row's and each cabinet's own. */
+export function handlesStoredIn(design: Design): readonly Handle[] {
+  const { handle, topRowHandle } = design.settings ?? {};
+  const bodies = design.placements.map((placement) => placement.body.handle);
+  return [handle, topRowHandle, ...bodies].filter(
+    (stored) => stored !== undefined,
+  );
 }
 
 /** Read through `cabinetDepthMmOf`, so a document naming no depth is compared against the declared default it
@@ -227,6 +280,24 @@ function handleChange(handle: Handle, occurredAt: string): PlannedChange {
   return {
     setting: "handle",
     run: (design) => setKitchenHandleOnDesign({ design, handle, occurredAt }),
+  };
+}
+
+function replacementChange(
+  replacement: AppearanceReplacement,
+  occurredAt: string,
+): PlannedChange {
+  if (replacement.kind === "finish") {
+    const { from, to } = replacement;
+    return {
+      setting: "finish",
+      run: (design) => replaceColourOnDesign({ design, from, to, occurredAt }),
+    };
+  }
+  const { from, to } = replacement;
+  return {
+    setting: "handle",
+    run: (design) => replaceHandleOnDesign({ design, from, to, occurredAt }),
   };
 }
 

@@ -278,7 +278,7 @@ describe("the rows are the refusal's items", () => {
   );
 
   propertyTest.prop([switchedOffItems, storedKitchen], { numRuns: NUM_RUNS })(
-    "the drawn rows come one per item, in the refusal's order, and only a tier row can be chosen",
+    "the drawn rows come one per item, in the refusal's order, and every row can be chosen except a colour waiting behind a material",
     (disabled, { design }) => {
       const root = rootOf(disabled);
       const live = pendingReplacements(root, design, KITCHEN_L_BODY_CATALOG);
@@ -294,11 +294,13 @@ describe("the rows are the refusal's items", () => {
       expect(view.rows.map(({ item }) => item)).toEqual(
         refusalItemsOf(root, design),
       );
+      // Q5b: a tier, a colour and a handle row are all choosable; the one exception is a colour row, which waits while a
+      // material row is owed because the material's change would discard what it chose (ruling 4).
+      const isMaterialOwed = view.rows.some((row) => row.kind === "material");
       expect(
         view.rows.every(
           (row) =>
-            row.isChoosable ===
-            (row.kind === "material" || row.kind === "hardware"),
+            row.isChoosable === !(row.kind === "finish" && isMaterialOwed),
         ),
       ).toBe(true);
       expect(view.rows.every((row) => !row.isResolved)).toBe(true);
@@ -337,7 +339,9 @@ describe("a tier the page cannot read is never named by its id", () => {
       );
       expect(
         vanishedRows.every(
-          (row) => row.announcement === copy.unnamedOptionUnavailable,
+          (row) =>
+            row.announcement ===
+            `${row.kindLabel}: ${copy.unnamedOptionUnavailable}`,
         ),
       ).toBe(true);
       expect(
