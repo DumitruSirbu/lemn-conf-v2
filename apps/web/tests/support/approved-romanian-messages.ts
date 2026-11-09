@@ -469,6 +469,9 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     // `kitchenHandle*` is the whole-kitchen handle row (frame C2); its options are `panel.handleLabels`.
     depthNotePriced:
       "{percent, plural, =0 {Adâncimea de {cabinetDepthMm, number, ::group-off} mm nu schimbă prețul.} other {Adâncimea de {cabinetDepthMm, number, ::group-off} mm scumpește dulapurile care se adâncesc cu # %.}}",
+    // Drafted, not approved: the agent's draft of the one line a whole-kitchen group shows when the editor has no price
+    // book (plan M10, wave T4; Q3 split, R-b; OQ-11g). It carries no figure and no option. The Russian is an agent draft.
+    pricesUnavailable: "Prețurile nu pot fi afișate acum",
     kitchenHandleHeading: "Mânere",
     kitchenHandleHint:
       "Se pune pe toate dulapurile care au mâner. Mânerul unui singur dulap îl poți schimba apoi din editorul lui.",
@@ -2567,6 +2570,9 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     changedHardware: "Feronerie schimbată în {name}. Prețul a fost actualizat.",
     changedHandle: "Mânere schimbate în {name}. Prețul a fost actualizat.",
     colourReverted: "Culoarea a revenit la {colour}.",
+    // Drafted, not approved: the agent's draft of the row for a vanished choice no code can name (a created class), so
+    // no `{name}` and never a raw id (plan M10, wave T4; Q3 split, ruling 2; OQ-11g). The Russian is an agent draft.
+    unnamedOptionUnavailable: "O opțiune aleasă nu mai este disponibilă",
   },
   // Drafted, not approved: the Romanian is the agent's draft of the M10 copy (plan M10, wave T1), pending the owner's
   // approval of the M10 Romanian copy as drafted (OQ-11). The Russian is an agent draft, unapproved under ADR 0095

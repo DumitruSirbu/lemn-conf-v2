@@ -328,6 +328,7 @@ declare const messages: {
     "depthOption": "{cabinetDepthMm, number, ::group-off} mm",
     "depthWarning": "Schimbarea adâncimii blatului reconstruiește toate dulapurile și schimbă prețul acestora.",
     "depthNotePriced": "{percent, plural, =0 {Adâncimea de {cabinetDepthMm, number, ::group-off} mm nu schimbă prețul.} other {Adâncimea de {cabinetDepthMm, number, ::group-off} mm scumpește dulapurile care se adâncesc cu # %.}}",
+    "pricesUnavailable": "Prețurile nu pot fi afișate acum",
     "kitchenHandleHeading": "Mânere",
     "kitchenHandleHint": "Se pune pe toate dulapurile care au mâner. Mânerul unui singur dulap îl poți schimba apoi din editorul lui.",
     "colourHeading": "Culoarea bucătăriei",
@@ -1931,7 +1932,8 @@ declare const messages: {
     "changedMaterial": "Material schimbat în {name}. Prețul a fost actualizat.",
     "changedHardware": "Feronerie schimbată în {name}. Prețul a fost actualizat.",
     "changedHandle": "Mânere schimbate în {name}. Prețul a fost actualizat.",
-    "colourReverted": "Culoarea a revenit la {colour}."
+    "colourReverted": "Culoarea a revenit la {colour}.",
+    "unnamedOptionUnavailable": "O opțiune aleasă nu mai este disponibilă"
   },
   "sentKitchenNote": {
     "body": "Ai trimis deja această bucătărie. Modificările se văd și la noi, dar spune-ne la telefon dacă e ceva important.",
