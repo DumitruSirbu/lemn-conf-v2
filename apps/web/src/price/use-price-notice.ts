@@ -36,7 +36,7 @@ import type { ActivePriceBook, PriceBookRoot } from "./price-book-root";
 import {
   hasReplacementSaveLanded,
   pendingReplacements,
-  type ChoosableKind,
+  type ReplacementKind,
 } from "./replacement-sheet-model";
 
 // The one reader of `GET /api/designs/{id}/price-notice` (ADR 0178 A-11). Everything that wants the answer, C1 today and
@@ -62,23 +62,28 @@ export interface PriceNoticeBanner {
   readonly accessoryNames: readonly string[];
 }
 
-/** One setting the customer replaced in the sheet, named for C4C's confirmation. */
+/** One item the customer replaced in the sheet, named for C4C's confirmation. Two items of one kind are two changes: the
+ *  kitchen's colour and a cabinet's own are both reachable, so the confirmation is keyed by `itemKey` and not by `kind`. */
 export interface ReplacementChange {
-  readonly kind: ChoosableKind;
+  /** The replaced item, as `replacedItemKey` says it: the kind and the id. */
+  readonly itemKey: string;
+  readonly kind: ReplacementKind;
   readonly name: string;
 }
 
-/** The last choice, handed over for the hook to wait on: the revision the store stood at when it was applied, and what
- *  was changed, for the confirmation to say. */
+/** The last choice, handed over for the hook to wait on: the revision the store stood at when it was applied, what was
+ *  changed, and the colour a material change returned the kitchen to, for the confirmation to say. */
 export interface AwaitedReplacement {
   readonly revisionAtChoice: DesignRevision | null;
   readonly changes: readonly ReplacementChange[];
+  readonly revertedColour?: string | undefined;
 }
 
 /** C4C: what the sheet's flow ends in. `alsoUpdated` is true exactly when the second `GET` said the prices moved, and
  *  `accessoryNames` are accessories that answer names which the sheet never showed. */
 export interface ReplacementOutcome {
   readonly changes: readonly ReplacementChange[];
+  readonly revertedColour: string | undefined;
   readonly accessoryNames: readonly string[];
   readonly alsoUpdated: boolean;
 }
@@ -320,6 +325,7 @@ async function askAgainAndConfirm({
   }).filter((name) => !shownAccessoryNames.includes(name));
   setConfirmation({
     changes: awaited.changes,
+    revertedColour: awaited.revertedColour,
     accessoryNames: unshownNames,
     alsoUpdated: pricesMovedOnThisPage(fresh, displayed),
   });

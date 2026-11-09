@@ -123,8 +123,38 @@
   border-radius: 12px;
 }
 
+/* An open row is bordered in the accent and its value struck, as C4A draws it; a resolved one is green with a check
+ * (C4D). The 2 px border is paid for in padding so the row does not grow when it resolves. */
+.row[data-resolved="false"] {
+  padding: 11px 13px;
+  border: 2px solid var(--accent);
+}
+
+.row[data-resolved="false"] .rowValue {
+  text-decoration: line-through;
+}
+
 .row[data-resolved="true"] {
-  background: var(--stage);
+  background: #eef1ea;
+  border-color: #d3dccb;
+}
+
+.row[data-resolved="true"] .rowKind {
+  color: #2d5016;
+}
+
+.row[data-resolved="true"] .rowKind::before {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  font: 700 10px/16px var(--font-ui);
+  color: var(--paper);
+  text-align: center;
+  letter-spacing: 0;
+  content: "\2713";
+  background: #2d5016;
+  border-radius: 50%;
 }
 
 .rowText {
@@ -158,7 +188,10 @@
   display: flex;
   gap: 10px;
   align-items: flex-start;
-  padding: 4px 4px 0;
+  padding: 12px 13px;
+  background: #f5f3f0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
   font: 400 13px/1.45 var(--font-ui);
   color: var(--ink-muted);
 }
@@ -213,10 +246,16 @@
 }
 
 .primary:focus-visible,
-.secondary:focus-visible,
-.option:focus-visible {
+.secondary:focus-visible {
   outline: 2px solid var(--accent-strong);
   outline-offset: 2px;
+}
+
+/* An option is focused first while nothing is chosen, and the selected one wears the accent border: the focus ring is
+ * the ink colour, dashed and set well off the edge, so it never reads as a selection. */
+.option:focus-visible {
+  outline: 2px dashed var(--ink);
+  outline-offset: 4px;
 }
 
 /* C4B: the options the group still offers. Nothing is selected on open; the chosen one takes a second border, as the
@@ -255,7 +294,29 @@
   text-decoration: line-through;
 }
 
+/* A colour option's swatch, painted from the adapter's own value (`--swatch-colour`) as the settings pill paints its own; a
+ * wood derives its grain from that one value. */
+.optionSwatch {
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  background: var(--swatch-colour);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.optionSwatch[data-wood="true"] {
+  background: repeating-linear-gradient(
+    90deg,
+    var(--swatch-colour) 0 2px,
+    color-mix(in srgb, var(--swatch-colour) 88%, #000) 2px 4px
+  );
+}
+
 .optionName {
+  display: flex;
+  gap: 10px;
+  align-items: center;
   font: 700 14px/1.2 var(--font-ui);
   color: var(--ink);
 }

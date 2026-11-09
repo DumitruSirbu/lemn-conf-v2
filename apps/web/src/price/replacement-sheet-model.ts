@@ -9,18 +9,24 @@ import {
   countDisplayedBodies,
   itemIdOf,
   isSameItem,
+  lookUpMaterial,
   NoReplacementOptionError,
   PALETTE_ENTRY_IDS,
+  paletteFinish,
   projectDesignForDisplay,
   replacementsRequired,
+  sameFinish,
   type BodyCatalog,
   type Design,
+  type Finish,
   type ItemRef,
   type ReplacementRequired,
   type RejectionReason,
 } from "@lemnaria/configurator-domain";
+import { swatchOf } from "@lemnaria/three-adapter";
 
 import type { Content, ContentTranslator } from "@/i18n/content";
+import type { AppearanceReplacement } from "@/store/whole-kitchen-apply";
 
 import type { ActivePriceBook } from "./price-book-root";
 import {
@@ -33,18 +39,14 @@ import {
 /** The four kinds a replacement row can be about. An accessory is never one: it is removed, not replaced. */
 export type ReplacementKind = "material" | "hardware" | "finish" | "handle";
 
-/** The two kinds the sheet can resolve itself. A colour or a handle is drawn, and cannot be chosen here. */
-export type ChoosableKind = "material" | "hardware";
-
-export function isChoosableKind(kind: ReplacementKind): kind is ChoosableKind {
-  return kind === "material" || kind === "hardware";
-}
+/** The two kinds that are a tier of the price book, chosen from the book's offer. */
+export type TierKind = "material" | "hardware";
 
 /**
- * The rows still owed, live from the design and the page's availability. An empty answer for a row with nothing to choose
- * (`NoReplacementOptionError`, unreachable while the dashboard refuses to switch off a group's last option) opens no sheet
- * and so offers no way forward: the price stays refused and no modal is drawn, which is what every other place without a
- * working flow does. Throwing here would take the whole editor down.
+ * The rows still owed, live from the design and the page's availability. The one answer swallowed is
+ * `NoReplacementOptionError`, whose one remaining cause is a group with every option switched off (the dashboard refuses
+ * the last one, so it takes an out-of-band write): there is nothing to offer, so no sheet opens and the price stays
+ * refused, as it does wherever no flow can help. Anything else is a defect and is thrown, never an empty sheet.
  */
 export function pendingReplacements(
   root: ActivePriceBook,
@@ -98,6 +100,35 @@ export function hasReplacementSaveLanded({
   return isEverythingSaved && revision !== revisionAtChoice;
 }
 
+const CHANGED_LEAF = {
+  material: "replacementSheet.changedMaterial",
+  hardware: "replacementSheet.changedHardware",
+  finish: "replacementSheet.changedColour",
+  handle: "replacementSheet.changedHandle",
+} as const satisfies Record<ReplacementKind, string>;
+
+const NAME_MARKER = "\u0001";
+
+/**
+ * A "changed to {name}" line without its closing "the price was updated" sentence, for the confirmation to say that
+ * sentence once for all its lines. Every such leaf is "<head>{name}. <sentence>", so the line is cut at the first full stop
+ * after the name; a leaf not of that shape (a locale that words it otherwise) is left whole and says its sentence itself.
+ */
+function withoutPriceSentence(
+  translate: ContentTranslator,
+  leaf: (typeof CHANGED_LEAF)[ReplacementKind],
+  name: string,
+): string {
+  const [head, tail] = translate(leaf, { name: NAME_MARKER }).split(
+    NAME_MARKER,
+  );
+  const sentenceStart = tail?.indexOf(". ") ?? -1;
+  if (head === undefined || tail === undefined || sentenceStart < 0) {
+    return translate(leaf, { name });
+  }
+  return `${head}${name}${tail.slice(0, sentenceStart + 1)}`;
+}
+
 /** The copy the sheet speaks, resolved once per locale. Every leaf already exists; none is built here from an id. */
 export function resolveReplacementSheetCopy(translate: ContentTranslator) {
   return {
@@ -120,10 +151,12 @@ export function resolveReplacementSheetCopy(translate: ContentTranslator) {
     strikethroughNote: translate("replacementSheet.strikethroughNote"),
     accessoryRemoved: (name: string) =>
       translate("replacementSheet.accessoryRemoved", { name }),
-    changedMaterial: (name: string) =>
-      translate("replacementSheet.changedMaterial", { name }),
-    changedHardware: (name: string) =>
-      translate("replacementSheet.changedHardware", { name }),
+    changed: (kind: ReplacementKind, name: string) =>
+      translate(CHANGED_LEAF[kind], { name }),
+    changedWithoutPriceSentence: (kind: ReplacementKind, name: string) =>
+      withoutPriceSentence(translate, CHANGED_LEAF[kind], name),
+    colourReverted: (colour: string) =>
+      translate("replacementSheet.colourReverted", { colour }),
     unnamedOptionUnavailable: translate(
       "replacementSheet.unnamedOptionUnavailable",
     ),
@@ -153,13 +186,16 @@ export interface ReplacementRowView {
   readonly valueText: string | undefined;
   /** `"nu mai este disponibil"`, or nothing where the generic line already says it. */
   readonly statusText: string;
-  /** What a screen reader announces for the row: "{name} nu mai este disponibil", or the generic line. */
+  /** What a screen reader announces for the row: "{name} nu mai este disponibil", or the kind and the generic line. */
   readonly announcement: string;
   /** What the body's "Producătorul nu mai oferă" lists: "Material · MDF vopsit mat", or the kind alone where unnamed. */
   readonly itemPhrase: string;
   readonly isResolved: boolean;
-  /** Whether the sheet can resolve it itself; a colour or a handle cannot be chosen here. */
+  /** Whether the row has a control to press now. */
   readonly isChoosable: boolean;
+  /** A colour owed while a material is: the material's change resets colours (ADR 0057), so the colour waits for it
+   *  and would otherwise be chosen only to be discarded. */
+  readonly isWaiting: boolean;
 }
 
 export interface ReplacementSheetView {
@@ -174,6 +210,16 @@ export interface ReplacementSheetView {
   readonly changeLabel: string;
 }
 
+/** The names the sheet's own choices gave to the items they resolved, by `replacedItemKey`. */
+export type ChosenNames = ReadonlyMap<string, string>;
+
+const NO_CHOSEN_NAMES: ChosenNames = new Map();
+
+/** What an item is called among the sheet's choices: its kind and id, which is also its row's `key`. */
+export function replacedItemKey(item: ItemRef): string {
+  return `${replacementKindOf(item)}:${itemIdOf(item)}`;
+}
+
 /** The sheet's list step. `seen` is every item shown since the sheet opened, `live` what is still owed. */
 export function describeReplacementSheet({
   seen,
@@ -181,19 +227,26 @@ export function describeReplacementSheet({
   design,
   accessoryNames,
   vocabulary,
+  chosenNames = NO_CHOSEN_NAMES,
 }: {
   readonly seen: readonly ReplacementRequired[];
   readonly live: readonly ReplacementRequired[];
   readonly design: Design;
   readonly accessoryNames: readonly string[];
   readonly vocabulary: SheetVocabulary;
+  readonly chosenNames?: ChosenNames;
 }): ReplacementSheetView {
   const { copy } = vocabulary;
+  const isMaterialOwed = live.some((row) => row.item.kind === "material");
+  const hasColourChoice = [...chosenNames.keys()].some(isColourKey);
   const rows = seen.map(({ item }) =>
     describeRow({
       item,
       isResolved: !live.some((row) => isSameItem(row.item, item)),
+      isMaterialOwed,
+      hasColourChoice,
       design,
+      chosenName: chosenNames.get(replacedItemKey(item)),
       vocabulary,
     }),
   );
@@ -211,43 +264,67 @@ export function describeReplacementSheet({
   };
 }
 
-function describeRow({
-  item,
-  isResolved,
-  design,
-  vocabulary,
-}: {
+function isColourKey(key: string): boolean {
+  return key.startsWith("finish:");
+}
+
+interface RowContext {
   readonly item: ItemRef;
   readonly isResolved: boolean;
+  readonly isMaterialOwed: boolean;
+  /** The customer chose a colour in this sheet, which a later material change would discard. */
+  readonly hasColourChoice: boolean;
   readonly design: Design;
+  /** What the customer's own choice was called, where it is what resolved the row. */
+  readonly chosenName: string | undefined;
   readonly vocabulary: SheetVocabulary;
-}): ReplacementRowView {
+}
+
+function describeRow(context: RowContext): ReplacementRowView {
+  const { item, isResolved, vocabulary } = context;
   const kind = replacementKindOf(item);
   const { copy, content } = vocabulary;
   const kindLabel = kindLabelOf(kind, content);
   const unavailableName = nameOfUnavailable(item, vocabulary);
-  const chosen = isResolved ? chosenName(kind, design, vocabulary) : undefined;
+  const isWaiting = !isResolved && kind === "finish" && context.isMaterialOwed;
   return {
-    key: `${kind}:${itemIdOf(item)}`,
+    key: replacedItemKey(item),
     item,
     kind,
     kindLabel,
     valueText: isResolved
-      ? chosen
+      ? (context.chosenName ?? nameNowApplying(item, context))
       : (unavailableName ?? copy.unnamedOptionUnavailable),
     statusText:
       isResolved || unavailableName === undefined ? "" : copy.unavailable,
     announcement:
       unavailableName === undefined
-        ? copy.unnamedOptionUnavailable
+        ? `${kindLabel}: ${copy.unnamedOptionUnavailable}`
         : copy.unavailableAria(unavailableName),
     itemPhrase:
       unavailableName === undefined
         ? kindLabel
         : content.priceBreakdown.wholeKitchenLabel(kindLabel, unavailableName),
     isResolved,
-    isChoosable: isChoosableKind(kind),
+    isChoosable: hasControl(context, kind, isWaiting),
+    isWaiting,
   };
+}
+
+/**
+ * Which rows carry a button. An unresolved row has one unless it waits. A resolved colour or handle has none: replacing
+ * it again would name an item the design no longer stores, which changes nothing, or the value another cabinet wears.
+ * A resolved hardware row can be changed, and so can a material, but not once a colour was chosen after it: that change
+ * would discard the colour.
+ */
+function hasControl(
+  { isResolved, hasColourChoice }: RowContext,
+  kind: ReplacementKind,
+  isWaiting: boolean,
+): boolean {
+  if (!isResolved) return !isWaiting;
+  if (kind === "material") return !hasColourChoice;
+  return kind === "hardware";
 }
 
 function replacementKindOf(item: ItemRef): ReplacementKind {
@@ -282,7 +359,7 @@ function nameOfUnavailable(
     case "hardware":
       return nameOfHeldTier(item.kind, item.tierId, offer, content);
     case "finish":
-      return finishNameOf(item.finishId, content);
+      return nameOfPaletteEntry(item.finishId, content);
     case "handle":
       return content.panel.handleLabels[item.handle];
     case "accessory":
@@ -290,24 +367,56 @@ function nameOfUnavailable(
   }
 }
 
-function finishNameOf(finishId: string, content: Content): string | undefined {
-  const entryId = PALETTE_ENTRY_IDS.find((known) => known === finishId);
-  return entryId === undefined ? undefined : content.finishName(entryId);
+function nameOfPaletteEntry(
+  finishId: string,
+  content: Content,
+): string | undefined {
+  const finish = paletteFinishOf(finishId);
+  return finish === undefined ? undefined : nameOfFinish(finish, content);
 }
 
-/** What the kitchen carries now in a kind the customer has resolved: the tier they picked, for the row to say so. */
-function chosenName(
-  kind: ReplacementKind,
-  design: Design,
-  { content, offer }: SheetVocabulary,
+/** The palette entry an id names, or nothing for an id no palette holds. */
+function paletteFinishOf(finishId: string): Finish | undefined {
+  const entryId = PALETTE_ENTRY_IDS.find((known) => known === finishId);
+  return entryId === undefined ? undefined : paletteFinish(entryId);
+}
+
+/** A palette entry by its name, a free colour by its value (which is all it has), as the pill says them. */
+function nameOfFinish(finish: Finish, content: Content): string {
+  return finish.kind === "palette-entry"
+    ? content.finishName(finish.entryId)
+    : content.globalSettings.pillColourValue(finish.value);
+}
+
+/** What a resolved row says when no choice of the sheet's own resolved it: what the kitchen carries in its place now. */
+function nameNowApplying(
+  item: ItemRef,
+  { design, vocabulary }: RowContext,
 ): string | undefined {
-  if (kind === "finish") return currentColourName(design, content);
-  if (kind === "handle") {
-    const handle = design.settings?.handle;
-    return handle === undefined
-      ? undefined
-      : content.panel.handleLabels[handle];
+  const { content, offer } = vocabulary;
+  switch (item.kind) {
+    case "material":
+    case "hardware":
+      return nameOfCurrentTier(item.kind, design, offer, content);
+    case "finish":
+      return nameOfColourInPlaceOf(item.finishId, design, content);
+    case "handle": {
+      const handle = design.settings?.handle;
+      return handle === undefined
+        ? undefined
+        : content.panel.handleLabels[handle];
+    }
+    case "accessory":
+      return undefined;
   }
+}
+
+function nameOfCurrentTier(
+  kind: TierKind,
+  design: Design,
+  offer: TierOfferAnswer,
+  content: Content,
+): string | undefined {
   const tierId =
     kind === "material"
       ? design.settings?.materialTierId
@@ -317,20 +426,91 @@ function chosenName(
     : nameOfHeldTier(kind, tierId, offer, content);
 }
 
-/** The colour that applies to the kitchen now: after a material change the colour has been reset to the material's own
- *  default (ADR 0057), and a resolved colour row says which one it is. */
-function currentColourName(
+/**
+ * A colour row resolved without a choice of the sheet's: availability came back, so the design still names the colour and
+ * it is named as it was; or a material change reset it (ADR 0057), so it names the colour the material returned the
+ * kitchen to, whichever level the reset reached.
+ */
+function nameOfColourInPlaceOf(
+  finishId: string,
   design: Design,
   content: Content,
 ): string | undefined {
-  const finish = design.settings?.finish;
-  return finish?.kind === "palette-entry"
-    ? finishNameOf(finish.entryId, content)
-    : undefined;
+  const named = paletteFinishOf(finishId);
+  if (
+    named !== undefined &&
+    finishesStoredIn(design).some((stored) => sameFinish(stored, named))
+  ) {
+    return nameOfFinish(named, content);
+  }
+  const returnedTo = defaultColourOfMaterial(design) ?? design.settings?.finish;
+  return returnedTo === undefined
+    ? undefined
+    : nameOfFinish(returnedTo, content);
+}
+
+/** The colour the design's material returns a kitchen to; nothing where the material is not one the code declares. */
+function defaultColourOfMaterial(design: Design): Finish | undefined {
+  const tierId = design.settings?.materialTierId;
+  if (tierId === undefined) return undefined;
+  const lookup = lookUpMaterial(tierId);
+  return lookup.kind === "declared" ? lookup.material.defaultFinish : undefined;
+}
+
+function finishesStoredIn(design: Design): readonly Finish[] {
+  const kitchen = design.settings?.finish;
+  const bodies = design.placements.map((placement) => placement.body.finish);
+  return [kitchen, ...bodies].filter((finish) => finish !== undefined);
+}
+
+/**
+ * The colour a material change returned the kitchen to, when it rewrote a stored colour at any level: the kitchen's, or a
+ * cabinet's. Read by comparing the two designs, because `resolvedFinishCount` counts cabinets only and so misses a
+ * design whose one stored colour is the kitchen's (ADR 0099 decision 6). A design with no stored colour that visibly
+ * repaints stays silent (ADR 0081's consequence). The name is the new material's own default colour (A-16, ruling 2).
+ */
+export function colourRevertedBy({
+  before,
+  after,
+  content,
+}: {
+  readonly before: Design;
+  readonly after: Design;
+  readonly content: Content;
+}): string | undefined {
+  if (!isAnyStoredColourDifferent(before, after)) return undefined;
+  const returnedTo = defaultColourOfMaterial(after);
+  return returnedTo === undefined
+    ? undefined
+    : nameOfFinish(returnedTo, content);
+}
+
+function isAnyStoredColourDifferent(before: Design, after: Design): boolean {
+  if (!isSameStoredColour(before.settings?.finish, after.settings?.finish)) {
+    return true;
+  }
+  const colourBefore = new Map(
+    before.placements.map((placement) => [placement.id, placement.body.finish]),
+  );
+  return after.placements.some(
+    (placement) =>
+      !isSameStoredColour(
+        colourBefore.get(placement.id),
+        placement.body.finish,
+      ),
+  );
+}
+
+function isSameStoredColour(
+  one: Finish | undefined,
+  other: Finish | undefined,
+): boolean {
+  if (one === undefined || other === undefined) return one === other;
+  return sameFinish(one, other);
 }
 
 function nameOfHeldTier(
-  kind: ChoosableKind,
+  kind: TierKind,
   tierId: string,
   offer: TierOfferAnswer,
   content: Content,
@@ -347,7 +527,7 @@ function tierNameOf(tier: OfferedTier, content: Content): string {
   return content.bookText(tier.name, tier.nameKey);
 }
 
-/** One option in a chooser. A struck one is the kitchen's own switched-off tier: shown, never choosable. */
+/** One option in a tier chooser. A struck one is the kitchen's own switched-off tier: shown, never choosable. */
 export interface ChooserOptionView {
   readonly tierId: string;
   readonly name: string;
@@ -358,7 +538,7 @@ export interface ChooserOptionView {
 /** C4B: one group's chooser. Carries no figure: the design cannot be priced until the choice is made, so no delta is
  *  measured, and the bar says the price comes after "Aplică". */
 export interface ChooserView {
-  readonly kind: ChoosableKind;
+  readonly kind: TierKind;
   readonly heading: string;
   readonly appliesTo: string;
   readonly hint: string;
@@ -367,7 +547,57 @@ export interface ChooserView {
   readonly priceLine: string;
 }
 
-/** The chooser for a row, or nothing where the offer cannot be read (no book: the sheet is then not open at all). */
+/** One option in a colour or handle chooser: its name, and for a colour its swatch. A struck one is the kitchen's own
+ *  switched-off item. */
+export interface AppearanceOptionView {
+  readonly item: ItemRef;
+  readonly optionId: string;
+  readonly name: string;
+  /** What the adapter paints the colour as, so the swatch, the pill and the 3D scene share one value. */
+  readonly swatch:
+    | { readonly colour: string; readonly isWood: boolean }
+    | undefined;
+  readonly isStruck: boolean;
+}
+
+/** C4B's shape for a colour or a handle (ruling 7): the options are the row's own `remaining`, with no line saying how
+ *  many cabinets it applies to, because a replacement reaches only the cabinets wearing the replaced item. */
+export interface AppearanceChooserView {
+  readonly kind: "finish" | "handle";
+  readonly heading: string;
+  readonly hint: string;
+  readonly options: readonly AppearanceOptionView[];
+  readonly struckNote: string;
+  readonly priceLine: string;
+}
+
+/** Whichever chooser a row opens. */
+export type SheetChooser = ChooserView | AppearanceChooserView;
+export type SheetChooserOption = ChooserOptionView | AppearanceOptionView;
+
+/** What picking an option names, across both kinds of chooser. */
+export function optionIdOf(option: SheetChooserOption): string {
+  return "tierId" in option ? option.tierId : option.optionId;
+}
+
+/** The chooser for a row, or nothing where it cannot be drawn (a tier row with no book: the sheet is then not open). */
+export function describeRowChooser({
+  row,
+  design,
+  catalog,
+  vocabulary,
+}: {
+  readonly row: ReplacementRequired;
+  readonly design: Design;
+  readonly catalog: BodyCatalog;
+  readonly vocabulary: SheetVocabulary;
+}): SheetChooser | undefined {
+  return row.item.kind === "finish" || row.item.kind === "handle"
+    ? describeAppearanceChooser(row, vocabulary)
+    : describeChooser({ row, design, catalog, vocabulary });
+}
+
+/** The tier chooser for a row, or nothing where the offer cannot be read (no book: the sheet is then not open at all). */
 export function describeChooser({
   row,
   design,
@@ -437,6 +667,74 @@ function optionOf(
   };
 }
 
+/** The colour or handle chooser for a row: its remaining options in the domain's order, then the kitchen's own item struck. */
+function describeAppearanceChooser(
+  row: ReplacementRequired,
+  { content, copy }: SheetVocabulary,
+): AppearanceChooserView | undefined {
+  const { item } = row;
+  if (item.kind !== "finish" && item.kind !== "handle") return undefined;
+  const options = [
+    ...row.remaining.map((remaining) => [remaining, false] as const),
+    [item, true] as const,
+  ].flatMap(([option, isStruck]) => {
+    const view = appearanceOptionOf(option, isStruck, content);
+    return view === undefined ? [] : [view];
+  });
+  return {
+    kind: item.kind,
+    heading: kindLabelOf(item.kind, content),
+    hint: copy.chooseFromRemaining,
+    options,
+    struckNote: copy.strikethroughNote,
+    priceLine: copy.priceAfterApplying,
+  };
+}
+
+function appearanceOptionOf(
+  item: ItemRef,
+  isStruck: boolean,
+  content: Content,
+): AppearanceOptionView | undefined {
+  if (item.kind === "handle") {
+    return {
+      item,
+      optionId: item.handle,
+      name: content.panel.handleLabels[item.handle],
+      swatch: undefined,
+      isStruck,
+    };
+  }
+  if (item.kind !== "finish") return undefined;
+  const finish = paletteFinishOf(item.finishId);
+  if (finish === undefined) return undefined;
+  const { color, isWood } = swatchOf(finish);
+  return {
+    item,
+    optionId: item.finishId,
+    name: nameOfFinish(finish, content),
+    swatch: { colour: color, isWood },
+    isStruck,
+  };
+}
+
+/** What a colour or handle choice asks of the store: the item replaced and the one chosen, as the values it stores. */
+export function appearanceReplacementOf(
+  row: ReplacementRequired,
+  option: AppearanceOptionView,
+): AppearanceReplacement | undefined {
+  const { item } = row;
+  if (item.kind === "handle" && option.item.kind === "handle") {
+    return { kind: "handle", from: item.handle, to: option.item.handle };
+  }
+  if (item.kind !== "finish" || option.item.kind !== "finish") return undefined;
+  const from = paletteFinishOf(item.finishId);
+  const to = paletteFinishOf(option.item.finishId);
+  return from === undefined || to === undefined
+    ? undefined
+    : { kind: "finish", from, to };
+}
+
 /** The sentence a refused press is answered with: the setting's name, then the domain's reason, as the settings sheet says it. */
 export function describeApplyRefusal({
   kind,
@@ -444,7 +742,7 @@ export function describeApplyRefusal({
   design,
   content,
 }: {
-  readonly kind: ChoosableKind;
+  readonly kind: ReplacementKind;
   readonly reason: RejectionReason;
   readonly design: Design;
   readonly content: Content;
@@ -455,29 +753,53 @@ export function describeApplyRefusal({
   );
 }
 
-/** C4C's lines, in the mockup's order: what changed, accessories removed that the sheet did not show, then the merged
- *  prices sentence when the second `GET` says so. */
+/** The order C4C says what changed in; a colour the material reset is said straight after the material. */
+const CHANGE_ORDER: readonly ReplacementKind[] = [
+  "material",
+  "hardware",
+  "finish",
+  "handle",
+];
+
+/**
+ * C4C's lines, in the mockup's order: the material, the colour it reset, then hardware, colour and handle, then
+ * accessories removed that the sheet did not show, then the merged prices sentence when the second `GET` says so. Each
+ * item the customer replaced is one line; the "price was updated" sentence closes the last of them, once.
+ */
 export function describeConfirmationLines({
   changes,
+  revertedColour,
   accessoryNames = [],
   alsoUpdated,
   copy,
 }: {
   readonly changes: readonly {
-    readonly kind: ChoosableKind;
+    readonly kind: ReplacementKind;
     readonly name: string;
   }[];
+  readonly revertedColour?: string | undefined;
   readonly accessoryNames?: readonly string[];
   readonly alsoUpdated: boolean;
   readonly copy: ReplacementSheetCopy;
 }): readonly string[] {
-  const changed = changes.map(({ kind, name }) =>
-    kind === "material"
-      ? copy.changedMaterial(name)
-      : copy.changedHardware(name),
+  const ordered = CHANGE_ORDER.flatMap((kind) =>
+    changes.filter((change) => change.kind === kind),
   );
-  const removed = accessoryNames.map(copy.accessoryRemoved);
-  return alsoUpdated
-    ? [...changed, ...removed, copy.alsoUpdated]
-    : [...changed, ...removed];
+  const lines = ordered.map(({ kind, name }, position) =>
+    position === ordered.length - 1
+      ? copy.changed(kind, name)
+      : copy.changedWithoutPriceSentence(kind, name),
+  );
+  const reverted =
+    revertedColour === undefined ? [] : [copy.colourReverted(revertedColour)];
+  const afterMaterial = ordered.filter(
+    ({ kind }) => kind === "material",
+  ).length;
+  return [
+    ...lines.slice(0, afterMaterial),
+    ...reverted,
+    ...lines.slice(afterMaterial),
+    ...accessoryNames.map(copy.accessoryRemoved),
+    ...(alsoUpdated ? [copy.alsoUpdated] : []),
+  ];
 }
