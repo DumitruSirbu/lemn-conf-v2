@@ -365,6 +365,7 @@ describe("a deletion whose facts cannot be read in time", () => {
 
     expect(answer.status).toBe(503);
     expect(await jsonOf(answer)).toEqual({ status: "unavailable" });
+    expect(console_.everything()).not.toContain(VENEER.tierId);
     expect(asked).toEqual([]);
     expect(await stateOfTheWorld()).toEqual(before);
   });
@@ -394,6 +395,7 @@ describe("a deletion whose facts cannot be read in time", () => {
     const answer = await deleteRow(VENEER);
 
     expect(answer.status).toBe(503);
+    expect(console_.everything()).not.toContain(VENEER.tierId);
     expect(await stateOfTheWorld()).toEqual(before);
   });
 
@@ -407,6 +409,7 @@ describe("a deletion whose facts cannot be read in time", () => {
     const answer = await deleteRow(VENEER);
 
     expect(answer.status).toBe(503);
+    expect(console_.everything()).not.toContain(VENEER.tierId);
     expect(await stateOfTheWorld()).toEqual(before);
   });
 
@@ -423,6 +426,7 @@ describe("a deletion whose facts cannot be read in time", () => {
 
     expect(answer.status).toBe(503);
     expect(await jsonOf(answer)).toEqual({ status: "unavailable" });
+    expect(console_.everything()).not.toContain(VENEER.tierId);
     expect(await stateOfTheWorld()).toEqual(before);
   });
 
