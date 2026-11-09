@@ -1,7 +1,5 @@
-// M10 P4a QA: what the whole-kitchen tier offer does while a tier is switched off (A-17).
-//
-// P4a handed Q3 two gaps, pinned with `it.fails`: one switched-off tier blanked every delta, and a switched-off tier was
-// still in `tierIds`. Q3b closed both (the marker came off, the assertions did not move), so they are plain tests now.
+// What the whole-kitchen tier offer does while a tier is switched off: one switched-off tier the kitchen did not choose
+// blanks no other delta, and a switched-off tier is not in `tierIds`.
 import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,

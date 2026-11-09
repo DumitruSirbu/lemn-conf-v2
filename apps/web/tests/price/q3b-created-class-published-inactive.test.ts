@@ -1,10 +1,10 @@
-// M10 Q3b, R4a4's hand-off arm, end to end over the fake world: a hardware class published inactive (A-17: a created item
-// is logged switched off) leaves every offered delta measured. Before this wave the tier offer priced the switched-off
-// tier too, one refusal blanked its group, and the all-or-nothing rule blanked both (R4a4 recorded the gap).
+// End to end over the fake world: a hardware class published inactive leaves every offered delta measured, because a
+// switched-off tier is neither offered nor priced.
 //
 // Stand-in, stated: the sample book holds no created class, so a shipped non-default hardware tier is logged inactive
 // through the same fake call a publish makes for a created item (`appendInactive`). The root, the availability read and
-// the offer are the production path.
+// the offer are the production path. Its sibling `qa-m10-q3b-tier-offer.adversarial.test.ts` builds a genuinely
+// unkeyed created class and offers it without the fake world.
 import {
   buildKitchenLBodyCatalog,
   DEFAULT_CABINET_DEPTH_MM,

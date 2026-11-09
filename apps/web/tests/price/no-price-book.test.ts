@@ -66,7 +66,7 @@ describe("pricing with no active price book", () => {
     expect(seen?.ok).toBe(false);
   });
 
-  it("has no tier offer to give, and says so as the one NO_TIER_OFFER value instead of throwing (R-b)", () => {
+  it("has no tier offer to give, and says so as the one NO_TIER_OFFER value instead of throwing", () => {
     expect(
       offerTiersAgainstBook(NO_PRICE_BOOK, KITCHEN_L_DESIGN, CATALOG),
     ).toBe(NO_TIER_OFFER);

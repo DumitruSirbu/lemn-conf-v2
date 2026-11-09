@@ -1,10 +1,9 @@
 // @vitest-environment happy-dom
 //
-// Adversarial QA for the MP-3 fix round on the settings sheet: the depth note's percent now comes from
-// `requireDeepCabinetPercent` (price-book-root), the one place that knows the no-book error. A missing book is raised,
-// never answered with a 0 % that would say the depth is free. Since Q3b the sheet no longer calls it: with no book the
-// sheet opens and its depth note says prices are unavailable (the exact line, never a percentage), and the function stays
-// for any caller that has no honest degraded answer.
+// The depth note's percent and the function that refuses to invent one. `requireDeepCabinetPercent` raises on a missing
+// book, never answering a 0 % that would say the depth is free. The sheet does not call it: with no book the sheet opens
+// and its depth note says prices are unavailable (the exact line, never a percentage), and the function stays for any
+// caller that has no honest degraded answer.
 import { fc } from "@fast-check/vitest";
 import {
   DEEP_CABINET_DEPTH_MM,

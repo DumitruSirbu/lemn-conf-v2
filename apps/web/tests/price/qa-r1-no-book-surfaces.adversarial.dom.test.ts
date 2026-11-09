@@ -137,10 +137,9 @@ describe("the surfaces that draw a figure draw none without a book", () => {
   });
 });
 
-describe("the editor's own surfaces, without a book (R-b's editor clause, closed by Q3b)", () => {
-  // `useWholeKitchenTierOffer` threw `UnreadablePriceBookError` with no book; both the settings pill and the top bar's fit
-  // hook call it, and the application has no error boundary, so the editor route rendered no page at all (ruling R1-Q1,
-  // 2026-10-27). It answers `NO_TIER_OFFER` now, and these two were skipped until it did.
+describe("the editor's own surfaces, without a book", () => {
+  // Both the settings pill and the top bar's fit hook read the tier offer, and the application has no error boundary, so
+  // a throw there leaves the editor route with no page at all. With no book the offer is `NO_TIER_OFFER`, not a throw.
   it("the settings pill renders", () => {
     expect(() =>
       mountUnder(

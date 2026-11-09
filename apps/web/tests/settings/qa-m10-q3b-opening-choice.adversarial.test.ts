@@ -1,26 +1,23 @@
-// M10 Q3b adversarial QA: what the settings sheet opens on, and what one untouched Aplica writes, when the kitchen carries
-// a tier the offer no longer lists (switched off, or one the book does not hold) with the group's default on or off.
+// What the settings sheet opens on, and what one untouched Aplica writes, when the kitchen carries a tier the offer no
+// longer lists, with the group's default on or off.
 //
-// The invariant under attack is `pending-choice-invariant.test.ts`'s, restated for Q3b: a pending tier must be one the
-// sheet offers, because `tierIdsOffered` hands the command only the sheet's own list and the command refuses an id outside
-// it. The state space is swept (every off-set over both groups, a carried tier that may be held, off or vanished in each
-// group) and the four named corners are pinned as examples with the words that say what they are.
+// A tier the book still holds but availability has switched off stays as stored: no radio is checked for it and an
+// untouched Aplica writes nothing. An id the book no longer holds falls back to the group's default when that is
+// offered, and to no key at all when it is not, because the command refuses an id outside the sheet's own list. The
+// state space is swept (every off-set over both groups, a carried tier that may be held, off or vanished in each group)
+// against an exact oracle, and the named corners are pinned as examples. Its sibling `q3b-no-tier-offer-model.test.ts`
+// pins the same rule on the model alone, one example each.
 import { fc } from "@fast-check/vitest";
 import {
   buildKitchenLBodyCatalog,
   KITCHEN_L_BODY_CATALOG,
-  KITCHEN_L_DESIGN,
   projectDesignForDisplay,
-  SAMPLE_PRICE_BOOK,
-  tierRef,
   type CatalogueAvailability,
   type Design,
   type PricingResult,
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
-import { offerTiersAgainstBook } from "@/price/price-book-root";
-import { isTierOffered } from "@/price/whole-kitchen-tiers";
 import {
   describeGlobalSettings,
   describeSettingsPill,
@@ -32,26 +29,31 @@ import { createConfiguratorStore } from "@/store/configurator-store";
 
 import { createFakeProbeFactory } from "../support/fake-body-probe";
 import { ro } from "../support/romanian-content";
-import { SAMPLE_PRICE_ROOT } from "../support/sample-price-root";
+import {
+  HARDWARE_DEFAULT_TIER_ID,
+  HARDWARE_TIER_IDS,
+  kitchenCarrying,
+  MATERIAL_DEFAULT_TIER_ID,
+  MATERIAL_TIER_IDS,
+  offerThroughRoot,
+  switchedOffTiers,
+} from "../support/tier-offer-world";
 
 const SWEEP_SEED = 20_261_111;
 const SWEEP_RUNS = 120;
-const TIER_IDS = {
-  material: SAMPLE_PRICE_BOOK.material.tiers.map((tier) => tier.tierId),
-  hardware: SAMPLE_PRICE_BOOK.hardware.tiers.map((tier) => tier.tierId),
-} as const;
+const TIER_IDS = { material: MATERIAL_TIER_IDS, hardware: HARDWARE_TIER_IDS };
 const DEFAULT_OF = {
-  material: SAMPLE_PRICE_BOOK.material.defaultTierId,
-  hardware: SAMPLE_PRICE_BOOK.hardware.defaultTierId,
-} as const;
+  material: MATERIAL_DEFAULT_TIER_ID,
+  hardware: HARDWARE_DEFAULT_TIER_ID,
+};
 const A_NON_DEFAULT = {
   material: "material.veneer",
   hardware: "hardware.premium",
-} as const;
+};
 const VANISHED = {
   material: "material.vanished",
   hardware: "hardware.vanished",
-} as const;
+};
 const KEY_OF = {
   material: "materialTierId",
   hardware: "hardwareTierId",
@@ -63,52 +65,17 @@ const AN_UNPRICEABLE_KITCHEN: PricingResult = {
   failure: { code: "INVALID_PRICE_BOOK", detail: "unpriceable on purpose" },
 };
 
-function availabilityOff(
-  off: Readonly<Record<WholeKitchenGroupKey, readonly string[]>>,
-): CatalogueAvailability {
-  return {
-    revision: "1",
-    disabled: EVERY_KIND.flatMap((kind) =>
-      off[kind].map((tierId) => tierRef(kind, tierId)),
-    ),
-  };
-}
-
-function carrying(
+function carryingIn(
   carried: Partial<Record<WholeKitchenGroupKey, string>>,
 ): Design {
-  return {
-    ...KITCHEN_L_DESIGN,
-    settings: {
-      ...KITCHEN_L_DESIGN.settings,
-      ...(carried.material === undefined
-        ? {}
-        : { materialTierId: carried.material }),
-      ...(carried.hardware === undefined
-        ? {}
-        : { hardwareTierId: carried.hardware }),
-    },
-  };
+  return kitchenCarrying({
+    materialTierId: carried.material,
+    hardwareTierId: carried.hardware,
+  });
 }
 
-function offerFor(design: Design, availability: CatalogueAvailability) {
-  const offer = offerTiersAgainstBook(
-    { ...SAMPLE_PRICE_ROOT, availability },
-    design,
-    KITCHEN_L_BODY_CATALOG,
-  );
-  if (!isTierOffered(offer)) throw new Error("the sample book offers tiers");
-  return offer;
-}
-
-function viewOpenedOn(
-  design: Design,
-  availability: CatalogueAvailability,
-): {
-  groups: readonly TierGroupView[];
-  pending: ReturnType<typeof resolveOpeningChoice>;
-} {
-  const offer = offerFor(design, availability);
+function viewOpenedOn(design: Design, availability: CatalogueAvailability) {
+  const offer = offerThroughRoot(availability, design);
   const applied = design.settings ?? {};
   const pending = resolveOpeningChoice(applied, offer);
   const view = describeGlobalSettings({
@@ -121,7 +88,7 @@ function viewOpenedOn(
     pending,
     chosenColourCount: 0,
   });
-  return { groups: view.groups, pending };
+  return { offer, groups: view.groups, pending };
 }
 
 function groupOf(
@@ -131,6 +98,15 @@ function groupOf(
   const found = groups.find((group) => group.key === key);
   if (found === undefined) throw new Error(`no ${key} group`);
   return found;
+}
+
+function checkedTierIds(
+  groups: readonly TierGroupView[],
+  key: WholeKitchenGroupKey,
+): readonly string[] {
+  return groupOf(groups, key)
+    .options.filter((option) => option.isSelected)
+    .map((option) => option.tierId);
 }
 
 /** One press of Aplica on an untouched sheet, exactly as `applyPending` builds it (ids from the sheet's own view). */
@@ -161,116 +137,144 @@ describe.each(EVERY_KIND)(
   "a %s tier the kitchen carries that the offer no longer lists",
   (kind) => {
     const key = KEY_OF[kind];
-    const defaultOn = availabilityOff({ material: [], hardware: [] });
-    const defaultOff = availabilityOff({
-      material: kind === "material" ? [DEFAULT_OF.material] : [],
-      hardware: kind === "hardware" ? [DEFAULT_OF.hardware] : [],
-    });
-    const nonDefaultOff = availabilityOff({
-      material: kind === "material" ? [A_NON_DEFAULT.material] : [],
-      hardware: kind === "hardware" ? [A_NON_DEFAULT.hardware] : [],
-    });
-    const bothOff = availabilityOff({
-      material:
-        kind === "material"
-          ? [DEFAULT_OF.material, A_NON_DEFAULT.material]
-          : [],
-      hardware:
-        kind === "hardware"
-          ? [DEFAULT_OF.hardware, A_NON_DEFAULT.hardware]
-          : [],
+    const nothingOff = switchedOffTiers();
+    const defaultOff = switchedOffTiers({ [kind]: [DEFAULT_OF[kind]] });
+    const nonDefaultOff = switchedOffTiers({ [kind]: [A_NON_DEFAULT[kind]] });
+    const bothOff = switchedOffTiers({
+      [kind]: [DEFAULT_OF[kind], A_NON_DEFAULT[kind]],
     });
 
-    it("switched off with the default on: opens on the default, checks exactly it, and one untouched Aplica stores it", () => {
-      const design = carrying({ [kind]: A_NON_DEFAULT[kind] });
+    describe("switched off, with the default on", () => {
+      const design = carryingIn({ [kind]: A_NON_DEFAULT[kind] });
 
-      const { groups, pending } = viewOpenedOn(design, nonDefaultOff);
-      const { outcome, stored } = pressApplyUntouched(design, nonDefaultOff);
+      it("opens as stored", () => {
+        expect(viewOpenedOn(design, nonDefaultOff).pending[key]).toBe(
+          A_NON_DEFAULT[kind],
+        );
+      });
 
-      expect(pending[key]).toBe(DEFAULT_OF[kind]);
-      expect(
-        groupOf(groups, kind)
-          .options.filter((option) => option.isSelected)
-          .map((option) => option.tierId),
-      ).toEqual([DEFAULT_OF[kind]]);
-      expect(groupOf(groups, kind).tierIds).not.toContain(A_NON_DEFAULT[kind]);
-      expect(outcome.committed).toBe(true);
-      expect(stored.settings?.[key]).toBe(DEFAULT_OF[kind]);
-    });
+      it("checks no radio, and lists the other options without it", () => {
+        const { groups } = viewOpenedOn(design, nonDefaultOff);
 
-    it("vanished with the default on: opens on the default and one untouched Aplica stores it", () => {
-      const design = carrying({ [kind]: VANISHED[kind] });
+        expect(checkedTierIds(groups, kind)).toEqual([]);
+        expect(groupOf(groups, kind).tierIds).not.toContain(
+          A_NON_DEFAULT[kind],
+        );
+      });
 
-      const { pending } = viewOpenedOn(design, defaultOn);
-      const { outcome, stored } = pressApplyUntouched(design, defaultOn);
+      it("writes nothing on one untouched Aplica", () => {
+        const { outcome, stored } = pressApplyUntouched(design, nonDefaultOff);
 
-      expect(pending[key]).toBe(DEFAULT_OF[kind]);
-      expect(outcome.committed).toBe(true);
-      expect(stored.settings?.[key]).toBe(DEFAULT_OF[kind]);
-    });
-
-    it.each([
-      ["switched off", A_NON_DEFAULT],
-      ["vanished", VANISHED],
-      ["the default itself", DEFAULT_OF],
-    ] as const)(
-      "%s with the default off too: opens on nothing, checks nothing, and an untouched Aplica refuses nothing and rewrites nothing",
-      (_label, carriedIds) => {
-        const design = carrying({ [kind]: carriedIds[kind] });
-        const availability = carriedIds === DEFAULT_OF ? defaultOff : bothOff;
-
-        const { groups, pending } = viewOpenedOn(design, availability);
-        const { outcome, stored } = pressApplyUntouched(design, availability);
-
-        expect(pending[key]).toBeUndefined();
-        expect(
-          groupOf(groups, kind).options.filter((option) => option.isSelected),
-        ).toEqual([]);
         expect(outcome.committed).toBe(true);
-        expect(stored.settings?.[key]).toBe(carriedIds[kind]);
+        expect(stored).toBe(design);
+      });
+    });
+
+    describe.each([
+      ["switched off", A_NON_DEFAULT, bothOff],
+      ["the default itself", DEFAULT_OF, defaultOff],
+    ] as const)(
+      "%s, with the default off too",
+      (_name, carriedIds, availability) => {
+        const design = carryingIn({ [kind]: carriedIds[kind] });
+
+        it("opens as stored", () => {
+          expect(viewOpenedOn(design, availability).pending[key]).toBe(
+            carriedIds[kind],
+          );
+        });
+
+        it("checks no radio", () => {
+          expect(
+            checkedTierIds(viewOpenedOn(design, availability).groups, kind),
+          ).toEqual([]);
+        });
+
+        it("writes nothing on one untouched Aplica, and refuses nothing", () => {
+          const { outcome, stored } = pressApplyUntouched(design, availability);
+
+          expect(outcome.committed).toBe(true);
+          expect(stored).toBe(design);
+        });
       },
     );
 
-    it("names the tier it carries on the pill when that tier is only switched off, as it would were it on", () => {
-      const design = carrying({ [kind]: A_NON_DEFAULT[kind] });
-      const labelOf = (availability: CatalogueAvailability): string => {
+    describe("vanished, with the default on", () => {
+      const design = carryingIn({ [kind]: VANISHED[kind] });
+
+      it("opens on the default", () => {
+        expect(viewOpenedOn(design, nothingOff).pending[key]).toBe(
+          DEFAULT_OF[kind],
+        );
+      });
+
+      it("stores the default on one untouched Aplica", () => {
+        const { outcome, stored } = pressApplyUntouched(design, nothingOff);
+
+        expect(outcome.committed).toBe(true);
+        expect(stored.settings?.[key]).toBe(DEFAULT_OF[kind]);
+      });
+    });
+
+    describe("vanished, with the default off", () => {
+      const design = carryingIn({ [kind]: VANISHED[kind] });
+
+      it("opens on no key at all", () => {
+        expect(viewOpenedOn(design, defaultOff).pending).not.toHaveProperty(
+          key,
+        );
+      });
+
+      it("checks no radio", () => {
+        expect(
+          checkedTierIds(viewOpenedOn(design, defaultOff).groups, kind),
+        ).toEqual([]);
+      });
+
+      it("writes nothing on one untouched Aplica, and refuses nothing", () => {
+        const { outcome, stored } = pressApplyUntouched(design, defaultOff);
+
+        expect(outcome.committed).toBe(true);
+        expect(stored).toBe(design);
+      });
+    });
+
+    describe("on the pill", () => {
+      function pillLabelOf(
+        design: Design,
+        availability: CatalogueAvailability,
+      ): string {
         const pill = describeSettingsPill({
-          offer: offerFor(design, availability),
+          offer: offerThroughRoot(availability, design),
           applied: design.settings ?? {},
           content: ro,
         });
         const setting = pill.settings.find((one) => one.key === kind);
         if (setting === undefined) throw new Error(`no ${kind} on the pill`);
         return setting.label;
-      };
+      }
+      const defaultsLabel = pillLabelOf(carryingIn({}), nothingOff);
 
-      const defaultsLabel = describeSettingsPill({
-        offer: offerFor(carrying({}), defaultOn),
-        applied: {},
-        content: ro,
-      }).settings.find((one) => one.key === kind)?.label;
+      it("names a switched-off tier as it would were it on", () => {
+        const design = carryingIn({ [kind]: A_NON_DEFAULT[kind] });
 
-      expect(labelOf(nonDefaultOff)).toBe(labelOf(defaultOn));
-      expect(labelOf(nonDefaultOff)).not.toBe(defaultsLabel);
-    });
+        expect(pillLabelOf(design, nonDefaultOff)).toBe(
+          pillLabelOf(design, nothingOff),
+        );
+      });
 
-    it("names the default on the pill for a vanished tier, even when the default is switched off", () => {
-      const design = carrying({ [kind]: VANISHED[kind] });
-      const labelOf = (
-        carried: Design,
-        availability: CatalogueAvailability,
-      ): string => {
-        const pill = describeSettingsPill({
-          offer: offerFor(carried, availability),
-          applied: carried.settings ?? {},
-          content: ro,
-        });
-        return pill.settings.find((one) => one.key === kind)?.label ?? "";
-      };
-      const defaultsLabel = labelOf(carrying({}), defaultOn);
+      it("names the switched-off tier, not the default", () => {
+        const design = carryingIn({ [kind]: A_NON_DEFAULT[kind] });
 
-      expect(labelOf(design, defaultOn)).toBe(defaultsLabel);
-      expect(labelOf(design, defaultOff)).toBe(defaultsLabel);
+        expect(pillLabelOf(design, nonDefaultOff)).not.toBe(defaultsLabel);
+      });
+
+      it("names the default for a vanished tier, whether the default is on or off", () => {
+        const design = carryingIn({ [kind]: VANISHED[kind] });
+
+        expect(pillLabelOf(design, nothingOff)).toBe(defaultsLabel);
+        expect(pillLabelOf(design, defaultOff)).toBe(defaultsLabel);
+      });
     });
   },
 );
@@ -282,89 +286,115 @@ describe("the sheet's pending tiers, over every availability and every carried t
       VANISHED[kind],
       ...TIER_IDS[kind],
     );
-  const anyState = fc.record({
+  interface SheetState {
+    readonly carriedMaterial: string | undefined;
+    readonly carriedHardware: string | undefined;
+    readonly offMaterial: string[];
+    readonly offHardware: string[];
+  }
+  const anyState: fc.Arbitrary<SheetState> = fc.record({
     carriedMaterial: carriedIn("material"),
     carriedHardware: carriedIn("hardware"),
-    offMaterial: fc.subarray([...TIER_IDS.material]),
-    offHardware: fc.subarray([...TIER_IDS.hardware]),
+    offMaterial: fc.subarray([...MATERIAL_TIER_IDS]),
+    offHardware: fc.subarray([...HARDWARE_TIER_IDS]),
   });
 
-  it("only ever opens on a tier it lists or on nothing, and one untouched Aplica always commits", () => {
-    let wroteADefault = 0;
-    let wroteNothing = 0;
+  function stateToSheet(state: SheetState) {
+    const design = carryingIn({
+      ...(state.carriedMaterial === undefined
+        ? {}
+        : { material: state.carriedMaterial }),
+      ...(state.carriedHardware === undefined
+        ? {}
+        : { hardware: state.carriedHardware }),
+    });
+    const availability = switchedOffTiers({
+      material: state.offMaterial,
+      hardware: state.offHardware,
+    });
+    return { design, availability, ...viewOpenedOn(design, availability) };
+  }
+
+  it("opens each group on exactly what the rule says, and one untouched Aplica always commits", () => {
+    let keptHeldButOff = 0;
+    let fellBackToDefault = 0;
+    let droppedWithDefaultOff = 0;
     fc.assert(
-      fc.property(
-        anyState,
-        ({ carriedMaterial, carriedHardware, offMaterial, offHardware }) => {
-          const design = carrying({
-            ...(carriedMaterial === undefined
-              ? {}
-              : { material: carriedMaterial }),
-            ...(carriedHardware === undefined
-              ? {}
-              : { hardware: carriedHardware }),
-          });
-          const availability = availabilityOff({
-            material: offMaterial,
-            hardware: offHardware,
-          });
+      fc.property(anyState, (state) => {
+        const { design, availability, offer, pending } = stateToSheet(state);
 
-          const { groups, pending } = viewOpenedOn(design, availability);
-          const { outcome } = pressApplyUntouched(design, availability);
-
-          for (const kind of EVERY_KIND) {
-            const opened = pending[KEY_OF[kind]];
-            if (opened === undefined) continue;
-            expect(groupOf(groups, kind).tierIds, `${kind} opened`).toContain(
-              opened,
-            );
-          }
-          expect(outcome.committed).toBe(true);
-          if (pending.materialTierId === DEFAULT_OF.material)
-            wroteADefault += 1;
-          if (
-            carriedMaterial !== undefined &&
-            pending.materialTierId === undefined
-          )
-            wroteNothing += 1;
-        },
-      ),
+        for (const kind of EVERY_KIND) {
+          const carried = design.settings?.[KEY_OF[kind]];
+          const group = offer[kind];
+          const isHeldButOff = group.switchedOffTiers.some(
+            (tier) => tier.tierId === carried,
+          );
+          const isListed =
+            carried !== undefined && group.tierIds.includes(carried);
+          const isOffered = group.tierIds.includes(DEFAULT_OF[kind]);
+          const expected =
+            carried === undefined || isListed || isHeldButOff
+              ? carried
+              : isOffered
+                ? DEFAULT_OF[kind]
+                : undefined;
+          expect(pending[KEY_OF[kind]], `${kind} opened`).toBe(expected);
+          if (isHeldButOff) keptHeldButOff += 1;
+          else if (carried !== undefined && !isListed && isOffered)
+            fellBackToDefault += 1;
+          else if (carried !== undefined && !isListed)
+            droppedWithDefaultOff += 1;
+        }
+        expect(
+          pressApplyUntouched(design, availability).outcome.committed,
+        ).toBe(true);
+      }),
       { seed: SWEEP_SEED, numRuns: SWEEP_RUNS },
     );
 
-    // Both outcomes were reached, so neither branch of the rule went unexercised.
-    expect(wroteADefault).toBeGreaterThan(0);
-    expect(wroteNothing).toBeGreaterThan(0);
+    expect(keptHeldButOff).toBeGreaterThan(0);
+    expect(fellBackToDefault).toBeGreaterThan(0);
+    expect(droppedWithDefaultOff).toBeGreaterThan(0);
   });
 
-  it("checks at most one option per group, and none that the group does not list", () => {
+  it("leaves a tier the kitchen carries and the book holds exactly as stored after one untouched Aplica", () => {
     fc.assert(
-      fc.property(
-        anyState,
-        ({ carriedMaterial, carriedHardware, offMaterial, offHardware }) => {
-          const design = carrying({
-            ...(carriedMaterial === undefined
-              ? {}
-              : { material: carriedMaterial }),
-            ...(carriedHardware === undefined
-              ? {}
-              : { hardware: carriedHardware }),
-          });
-          const { groups } = viewOpenedOn(
-            design,
-            availabilityOff({ material: offMaterial, hardware: offHardware }),
-          );
+      fc.property(anyState, (state) => {
+        const { design, availability, offer } = stateToSheet(state);
+        const { stored } = pressApplyUntouched(design, availability);
 
-          for (const group of groups) {
-            const checked = group.options.filter((option) => option.isSelected);
-            expect(checked.length, group.key).toBeLessThanOrEqual(1);
-            for (const option of checked)
-              expect(group.tierIds).toContain(option.tierId);
-            for (const option of group.options)
-              expect(group.tierIds).toContain(option.tierId);
-          }
-        },
-      ),
+        for (const kind of EVERY_KIND) {
+          const carried = design.settings?.[KEY_OF[kind]];
+          const isHeld =
+            offer[kind].tierIds.includes(carried ?? "") ||
+            offer[kind].switchedOffTiers.some(
+              (tier) => tier.tierId === carried,
+            );
+          if (isHeld)
+            expect(stored.settings?.[KEY_OF[kind]], kind).toBe(carried);
+        }
+      }),
+      { seed: SWEEP_SEED, numRuns: SWEEP_RUNS },
+    );
+  });
+
+  it("checks at most one option per group, never one the group does not list, and none for a held-but-off tier", () => {
+    fc.assert(
+      fc.property(anyState, (state) => {
+        const { design, groups, offer } = stateToSheet(state);
+
+        for (const group of groups) {
+          const checked = group.options.filter((option) => option.isSelected);
+          expect(checked.length, group.key).toBeLessThanOrEqual(1);
+          for (const option of group.options)
+            expect(group.tierIds).toContain(option.tierId);
+          const carried = design.settings?.[KEY_OF[group.key]];
+          const isHeldButOff = offer[group.key].switchedOffTiers.some(
+            (tier) => tier.tierId === carried,
+          );
+          if (isHeldButOff) expect(checked, group.key).toEqual([]);
+        }
+      }),
       { seed: SWEEP_SEED, numRuns: SWEEP_RUNS },
     );
   });

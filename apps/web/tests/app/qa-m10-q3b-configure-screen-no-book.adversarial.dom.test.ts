@@ -1,12 +1,12 @@
 // @vitest-environment happy-dom
 //
-// M10 Q3b adversarial QA, R-b's widened clause, through the WHOLE `ConfigureScreen` (owner and shared) with the sheet
-// opened and the top bar's fit measured at a narrow and a wide track. The implementer's screen test mounts the screen
-// and looks at the trigger; it never opens the sheet inside the screen, and happy-dom has no layout, so the fit hook
-// runs on zero widths there. Here layout is stubbed (a label is 7 px a character, the track is the width under test)
-// so the same hook the browser runs chooses a rung, and a rung that draws a zero, a NaN or a bare counter is a finding.
-import { KITCHEN_L_DESIGN, type DesignId } from "@lemnaria/configurator-domain";
-import { act, createElement } from "react";
+// The whole `ConfigureScreen` (owner and shared) with no price book: the sheet opened inside the screen, and the top
+// bar's fit measured at a narrow and a wide track. Its sibling `q3b-configure-screen-without-a-book.dom.test.ts` only
+// mounts the screen. Happy-dom has no layout, so layout is stubbed here (a label is 7 px a character, the track is the
+// width under test) and the same hook the browser runs chooses a rung; a rung that draws a zero, a NaN or a bare
+// counter is a failure.
+import { KITCHEN_L_DESIGN } from "@lemnaria/configurator-domain";
+import { createElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", async (importOriginal) => ({
@@ -22,22 +22,31 @@ import {
   ConfigureScreen,
   type ConfigureScreenVariant,
 } from "@/app/configurator/configure/configure-screen";
-import { NO_PRICE_BOOK } from "@/price/price-book-root";
+import { NO_PRICE_BOOK, type PriceBookRoot } from "@/price/price-book-root";
 import { useConfiguratorStore } from "@/store/configurator-store";
 
 import {
-  mountInCatalogue,
-  type MountedScreen,
-} from "../support/render-with-intl";
+  AN_AMOUNT,
+  A_ZERO_WITH_A_UNIT,
+  occurrencesOf,
+} from "../support/figures-in-text";
+import {
+  all,
+  mountScreen,
+  one,
+  openSheet,
+  unmountScreen,
+  within,
+} from "../support/mounted-screen";
 import { ro } from "../support/romanian-content";
 import { SAMPLE_PRICE_ROOT } from "../support/sample-price-root";
 
-const DESIGN_ID = "q3b-qa-design" as DesignId;
-const A_PRICE = /\d[\d\s]*(MDL|lei)/u;
-const A_ZERO_FIGURE = /(^|[^\d])[+-]?0(\s*%|\s*(MDL|lei))|NaN|undefined/u;
+const DESIGN_ID = "q3b-qa-design";
 const CHARACTER_PX = 7;
+const FLOOR_TRACK_PX = 1;
 const NARROW_TRACK_PX = 70;
 const WIDE_TRACK_PX = 1400;
+const SETTINGS_COUNT = 2;
 const FIXED_PART_PX: Readonly<Record<string, number>> = {
   swatch: 16,
   separator: 1,
@@ -45,7 +54,6 @@ const FIXED_PART_PX: Readonly<Record<string, number>> = {
   caret: 7,
 };
 
-let screen: MountedScreen | undefined;
 let trackWidthPx = WIDE_TRACK_PX;
 let hydrations = 0;
 
@@ -91,11 +99,14 @@ function stubLayout(trackPx: number): void {
   );
 }
 
-function hydrateAs(variant: ConfigureScreenVariant): void {
+function hydrateAs(
+  variant: ConfigureScreenVariant,
+  settings: NonNullable<typeof KITCHEN_L_DESIGN.settings>,
+): void {
   vi.stubGlobal("fetch", () => new Promise<Response>(() => undefined));
   window.history.replaceState(null, "", "/ro/d/q3b-qa-design");
   useConfiguratorStore.getState().hydrate({
-    design: KITCHEN_L_DESIGN,
+    design: { ...KITCHEN_L_DESIGN, settings },
     designId: `${DESIGN_ID}-${String((hydrations += 1))}`,
     revision: "1",
     // A share link opens read-only: its viewer holds no write credential.
@@ -104,8 +115,7 @@ function hydrateAs(variant: ConfigureScreenVariant): void {
 }
 
 afterEach(() => {
-  screen?.unmount();
-  screen = undefined;
+  unmountScreen();
   document.body.replaceChildren();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
@@ -113,55 +123,53 @@ afterEach(() => {
 
 function mount(
   variant: ConfigureScreenVariant,
-  root: Parameters<typeof mountInCatalogue>[2],
-): MountedScreen {
-  hydrateAs(variant);
-  screen = mountInCatalogue(
-    createElement(ConfigureScreen, { variant }),
-    "ro",
-    root,
-  );
-  return screen;
-}
-
-function within(): HTMLElement {
-  if (screen === undefined) throw new Error("nothing is mounted");
-  return screen.container;
-}
-
-function all(testId: string): HTMLElement[] {
-  return [
-    ...within().querySelectorAll<HTMLElement>(`[data-testid="${testId}"]`),
-  ];
-}
-
-function openTheSheet(): void {
-  act(() => {
-    all("global-settings-trigger")[0]?.click();
-  });
+  root: PriceBookRoot,
+  settings: NonNullable<typeof KITCHEN_L_DESIGN.settings> = {
+    cabinetDepthMm: 600,
+  },
+): void {
+  hydrateAs(variant, settings);
+  mountScreen(createElement(ConfigureScreen, { variant }), root);
 }
 
 describe("the owner screen with no price book and the sheet opened", () => {
-  it("draws the sheet with the unavailable line three times, no price, no zero figure and no handle row", () => {
+  it("says prices are unavailable three times inside the sheet", () => {
     mount("owner", NO_PRICE_BOOK);
 
-    openTheSheet();
+    openSheet();
 
-    const surface = all("global-settings-surface")[0];
-    expect(surface).toBeDefined();
-    const line = ro.globalSettings.pricesUnavailable;
-    expect((surface?.textContent ?? "").split(line).length - 1).toBe(3);
-    expect(all("global-settings-handle-group")).toHaveLength(0);
-    expect(within().textContent).not.toMatch(A_PRICE);
-    expect(within().textContent).not.toMatch(A_ZERO_FIGURE);
+    expect(
+      occurrencesOf(
+        ro.globalSettings.pricesUnavailable,
+        one("global-settings-surface").textContent,
+      ),
+    ).toBe(3);
+  });
+
+  it("shows the kitchen handle row", () => {
+    mount("owner", NO_PRICE_BOOK);
+
+    openSheet();
+
+    expect(all("global-settings-handle-group")).toHaveLength(1);
+  });
+
+  it("draws no price, no zero figure and no price bar", () => {
+    mount("owner", NO_PRICE_BOOK);
+
+    openSheet();
+
+    expect(within().textContent).not.toMatch(AN_AMOUNT);
+    expect(within().textContent).not.toMatch(A_ZERO_WITH_A_UNIT);
     expect(all("price-bar")).toHaveLength(0);
   });
 
-  it("is not a screen that merely failed to draw: under a book the same screen draws a price and no unavailable line", () => {
+  it("is not a screen that merely failed to draw: under a book it draws a price and no unavailable line", () => {
     mount("owner", SAMPLE_PRICE_ROOT);
-    openTheSheet();
 
-    expect(within().textContent).toMatch(A_PRICE);
+    openSheet();
+
+    expect(within().textContent).toMatch(AN_AMOUNT);
     expect(within().textContent).not.toContain(
       ro.globalSettings.pricesUnavailable,
     );
@@ -169,14 +177,19 @@ describe("the owner screen with no price book and the sheet opened", () => {
 });
 
 describe("the shared screen with no price book", () => {
-  it("draws the pill, disabled as a read-only viewer's always is, with no price and no zero figure", () => {
+  it("draws the pill, disabled as a read-only viewer's always is", () => {
     mount("shared", NO_PRICE_BOOK);
 
-    const trigger = all("global-settings-trigger")[0];
-    expect(trigger).toBeDefined();
-    expect(trigger?.hasAttribute("disabled")).toBe(true);
-    expect(within().textContent).not.toMatch(A_PRICE);
-    expect(within().textContent).not.toMatch(A_ZERO_FIGURE);
+    expect(all("global-settings-trigger")[0]?.hasAttribute("disabled")).toBe(
+      true,
+    );
+  });
+
+  it("draws no price and no zero figure", () => {
+    mount("shared", NO_PRICE_BOOK);
+
+    expect(within().textContent).not.toMatch(AN_AMOUNT);
+    expect(within().textContent).not.toMatch(A_ZERO_WITH_A_UNIT);
     expect(all("price-bar")).toHaveLength(0);
   });
 });
@@ -188,7 +201,7 @@ describe.each<ConfigureScreenVariant>(["owner", "shared"])(
       ["narrow", NARROW_TRACK_PX],
       ["wide", WIDE_TRACK_PX],
     ])(
-      "settles on a valid rung at a %s track: whole labels, a counter that counts what is hidden, no zero",
+      "settles on a valid rung at a %s track: a named label, and a counter that counts what is hidden",
       (_name, trackPx) => {
         stubLayout(trackPx);
 
@@ -196,25 +209,35 @@ describe.each<ConfigureScreenVariant>(["owner", "shared"])(
 
         const named = all("global-settings-pill-label");
         const counter = all("global-settings-pill-count")[0];
-        const settingsCount = 2;
         expect(named.length).toBeGreaterThanOrEqual(1);
-        expect(named.length).toBeLessThanOrEqual(settingsCount);
-        if (named.length === settingsCount) expect(counter).toBeUndefined();
+        expect(named.length).toBeLessThanOrEqual(SETTINGS_COUNT);
+        if (named.length === SETTINGS_COUNT) expect(counter).toBeUndefined();
         else
           expect(counter?.textContent).toBe(
-            `+${String(settingsCount - named.length)}`,
+            `+${String(SETTINGS_COUNT - named.length)}`,
           );
-        const pillText = all("global-settings-trigger")[0]?.textContent ?? "";
-        expect(pillText).not.toMatch(A_ZERO_FIGURE);
-        expect(pillText).not.toContain("+0");
       },
     );
+
+    it.each([
+      ["narrow", NARROW_TRACK_PX],
+      ["wide", WIDE_TRACK_PX],
+    ])("draws no zero in the pill at a %s track", (_name, trackPx) => {
+      stubLayout(trackPx);
+
+      mount(variant, NO_PRICE_BOOK);
+
+      const pill = all("global-settings-trigger")[0];
+      expect(pill?.textContent).not.toMatch(A_ZERO_WITH_A_UNIT);
+      expect(pill?.textContent).not.toContain("+0");
+      expect(pill?.getAttribute("aria-label")).not.toBe("");
+    });
 
     it("names more at the wide track than at the narrow one, so the stub is really driving the hook", () => {
       stubLayout(NARROW_TRACK_PX);
       mount(variant, NO_PRICE_BOOK);
       const atNarrow = all("global-settings-pill-label").length;
-      screen?.unmount();
+      unmountScreen();
 
       stubLayout(WIDE_TRACK_PX);
       mount(variant, NO_PRICE_BOOK);
@@ -223,15 +246,17 @@ describe.each<ConfigureScreenVariant>(["owner", "shared"])(
       expect(atNarrow).toBeLessThan(atWide);
     });
 
-    it("keeps a non-empty accessible name at a narrow track, with no zero in it", () => {
-      stubLayout(NARROW_TRACK_PX);
-      mount(variant, NO_PRICE_BOOK);
+    it("draws a named label at the floor even when the kitchen's free colour is nameless", () => {
+      stubLayout(FLOOR_TRACK_PX);
 
-      const accessibleName =
-        all("global-settings-trigger")[0]?.getAttribute("aria-label") ?? "";
+      mount(variant, NO_PRICE_BOOK, {
+        cabinetDepthMm: 600,
+        materialTierId: "material.painted-mdf",
+      });
 
-      expect(accessibleName).not.toBe("");
-      expect(accessibleName).not.toMatch(A_ZERO_FIGURE);
+      const named = all("global-settings-pill-label");
+      expect(named.length).toBeGreaterThanOrEqual(1);
+      for (const label of named) expect(label.textContent).not.toBe("");
     });
   },
 );

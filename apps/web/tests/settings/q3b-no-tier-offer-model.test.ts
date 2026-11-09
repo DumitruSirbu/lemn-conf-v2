@@ -1,15 +1,13 @@
-// M10 Q3b, R-b: the settings sheet's model with no tier offer (no active price book), and with a default switched off.
+// The settings sheet's model with no tier offer (no active price book), and with a default switched off.
 //
 // With no book the material and hardware groups are one line each, with no option, delta, anchor or default marked; the
 // depth, colour and handle controls keep working; nothing renders a zero. Every string is read from its catalogue leaf.
+// Its sibling `qa-m10-q3b-opening-choice.adversarial.test.ts` sweeps what the sheet opens on; this file pins the examples.
 import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
   projectDesignForDisplay,
   SAMPLE_PRICE_BOOK,
-  tierRef,
-  type CatalogueAvailability,
-  type Design,
   type PricingResult,
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
@@ -30,8 +28,12 @@ import {
 } from "@/settings/global-settings-model";
 
 import { rootPublishingDeepCabinetPercent } from "../support/book-with-deep-cabinet-percent";
-import { SAMPLE_PRICE_ROOT } from "../support/sample-price-root";
 import { ro } from "../support/romanian-content";
+import {
+  kitchenCarrying,
+  offerThroughRoot,
+  switchedOffTiers,
+} from "../support/tier-offer-world";
 
 const NO_BOOK_REFUSAL: PricingResult = {
   ok: false,
@@ -66,18 +68,6 @@ function groupNamed(
   const group = groups.find((one) => one.key === key);
   if (!group) throw new Error(`no ${key} group was described`);
   return group;
-}
-
-function offerUnder(availability: CatalogueAvailability, design: Design) {
-  return offerTiersAgainstBook(
-    { ...SAMPLE_PRICE_ROOT, availability },
-    design,
-    KITCHEN_L_BODY_CATALOG,
-  );
-}
-
-function withSettings(settings: NonNullable<Design["settings"]>): Design {
-  return { ...KITCHEN_L_DESIGN, settings };
 }
 
 describe("the root with no book", () => {
@@ -161,30 +151,39 @@ describe("the settings sheet with no tier offer", () => {
     expect(pill.accessibleName).not.toMatch(/\b0\b/u);
   });
 
-  it("draws at the pill's floor what the kitchen's nameless free colour leaves it: a counter, never a zero", () => {
+  describe("at the pill's floor, with a nameless free colour leading it", () => {
     const pill = describeSettingsPill({
       offer: NO_TIER_OFFER,
       applied: { materialTierId: "material.painted-mdf" },
       content: ro,
     });
-
     const floor = describePillRung(pill, 1);
 
-    expect(pill.settings[0]).toEqual({ key: "colour", label: "" });
-    expect(floor.counter).toBe("+1");
-    expect(JSON.stringify(floor)).not.toMatch(/\b0\b/u);
+    it("has a free colour that draws no text", () => {
+      expect(pill.settings[0]).toEqual({ key: "colour", label: "" });
+    });
+
+    it("draws a named label, never a counter alone", () => {
+      expect(floor.labels).toEqual([pill.settings[1]?.label]);
+      expect(floor.labels[0]).not.toBe("");
+    });
+
+    it("counts nothing as hidden when the colour is shown by its swatch and the depth is named", () => {
+      expect(floor.counter).toBeUndefined();
+    });
+
+    it("draws no zero", () => {
+      expect(JSON.stringify(floor)).not.toMatch(/\b0\b/u);
+    });
   });
 });
 
 describe("the settings sheet while a default is switched off", () => {
   const DEFAULT_MATERIAL = SAMPLE_PRICE_BOOK.material.defaultTierId;
-  const defaultSwitchedOff: CatalogueAvailability = {
-    revision: "1",
-    disabled: [tierRef("material", DEFAULT_MATERIAL)],
-  };
+  const defaultSwitchedOff = switchedOffTiers({ material: [DEFAULT_MATERIAL] });
 
   it("still describes the sheet, offering the remaining options with no delta and nothing selected", () => {
-    const offer = offerUnder(defaultSwitchedOff, KITCHEN_L_DESIGN);
+    const offer = offerThroughRoot(defaultSwitchedOff);
 
     const view = describeGlobalSettings(
       noBookInput({ offer, deepCabinetPercent: 12 }),
@@ -202,8 +201,8 @@ describe("the settings sheet while a default is switched off", () => {
     expect(material.anchor).toBeUndefined();
   });
 
-  it("opens on nothing for a tier the sheet cannot offer, so applying cannot send an id the command refuses", () => {
-    const offer = offerUnder(defaultSwitchedOff, KITCHEN_L_DESIGN);
+  it("opens on nothing for a tier the book no longer holds, so applying cannot send an id the command refuses", () => {
+    const offer = offerThroughRoot(defaultSwitchedOff);
 
     const opening = resolveOpeningChoice(
       { materialTierId: "material.withdrawn-from-the-book" },
@@ -214,7 +213,7 @@ describe("the settings sheet while a default is switched off", () => {
   });
 
   it("opens on the default for a withdrawn tier while the default is still offered", () => {
-    const offer = offerUnder({ revision: "0", disabled: [] }, KITCHEN_L_DESIGN);
+    const offer = offerThroughRoot(switchedOffTiers());
 
     const opening = resolveOpeningChoice(
       { materialTierId: "material.withdrawn-from-the-book" },
@@ -227,32 +226,53 @@ describe("the settings sheet while a default is switched off", () => {
 
 describe("the tier the kitchen carries, switched off", () => {
   const CARRIED = "material.veneer";
-  const carrying = withSettings({ materialTierId: CARRIED });
-  const carriedSwitchedOff: CatalogueAvailability = {
-    revision: "1",
-    disabled: [tierRef("material", CARRIED)],
-  };
+  const carrying = kitchenCarrying({ materialTierId: CARRIED });
+  const carriedSwitchedOff = switchedOffTiers({ material: [CARRIED] });
 
-  it("is not an option of the sheet, and opens as the default the sheet does offer", () => {
-    const offer = offerUnder(carriedSwitchedOff, carrying);
+  it("is not an option of the sheet", () => {
+    const offer = offerThroughRoot(carriedSwitchedOff, carrying);
 
     const view = describeGlobalSettings(
       noBookInput({ offer, deepCabinetPercent: 12 }),
     );
-    const opening = resolveOpeningChoice(carrying.settings ?? {}, offer);
 
     expect(
       groupNamed(view.groups, "material").options.map(
         (option) => option.tierId,
       ),
     ).not.toContain(CARRIED);
-    expect(opening.materialTierId).toBe(
-      SAMPLE_PRICE_BOOK.material.defaultTierId,
+  });
+
+  it("opens as stored, so an untouched Aplica writes nothing", () => {
+    const offer = offerThroughRoot(carriedSwitchedOff, carrying);
+
+    const opening = resolveOpeningChoice(carrying.settings ?? {}, offer);
+
+    expect(opening.materialTierId).toBe(CARRIED);
+  });
+
+  it("checks no radio of its group, because the tier is not one of the options", () => {
+    const offer = offerThroughRoot(carriedSwitchedOff, carrying);
+    const applied = carrying.settings ?? {};
+
+    const view = describeGlobalSettings(
+      noBookInput({
+        offer,
+        deepCabinetPercent: 12,
+        applied,
+        pending: resolveOpeningChoice(applied, offer),
+      }),
     );
+
+    expect(
+      groupNamed(view.groups, "material").options.filter(
+        (option) => option.isSelected,
+      ),
+    ).toEqual([]);
   });
 
   it("is still the name the pill shows, because it is still what the kitchen carries", () => {
-    const offer = offerUnder(carriedSwitchedOff, carrying);
+    const offer = offerThroughRoot(carriedSwitchedOff, carrying);
     const carriedName = SAMPLE_PRICE_BOOK.material.tiers.find(
       (tier) => tier.tierId === CARRIED,
     )?.name;
