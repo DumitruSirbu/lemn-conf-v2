@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  SAMPLE_PRICE_BOOK,
   applyChanges,
   isSameAddress,
   type DraftChange,
@@ -12,6 +11,15 @@ import {
 import { planRestoreToDraft } from "@/lib/server/price-dashboard/restore-plan";
 
 import { deleting } from "../../support/planted-draft";
+import {
+  ACTIVE,
+  PLINTH,
+  PREMIUM,
+  VENEER,
+  isOnRow,
+  pendingOn,
+  withRowRepriced,
+} from "../../support/restore-book-fixtures";
 
 // A restore keeps the deletion of a row the archived version prices and changes nothing on that row, so the refused
 // draft `[delete T, rate on T]` never arises.
@@ -22,31 +30,10 @@ const OTHER_ROW_ADDRESS = {
   ruleId: OTHER_ROW,
   field: "anchorMinor",
 } as const;
-const PLINTH_LIGHT_ID = "plinth-light";
-
-const ACTIVE: PriceBook = {
-  ...SAMPLE_PRICE_BOOK,
-  linkedAccessories: [
-    {
-      accessoryId: PLINTH_LIGHT_ID,
-      ruleId: `accessory.${PLINTH_LIGHT_ID}`,
-      linkedBuildId: "base-3drawer",
-      perUnitMinor: 1_000,
-      name: "Soclu luminos",
-    },
-  ],
-};
-
-const VENEER: ItemRef = { kind: "material", tierId: "material.veneer" };
-const PREMIUM: ItemRef = { kind: "hardware", tierId: "hardware.premium" };
-const PLINTH_LIGHT: ItemRef = {
-  kind: "accessory",
-  accessoryId: PLINTH_LIGHT_ID,
-};
 const DELETABLE_ROWS: readonly { name: string; item: ItemRef }[] = [
   { name: "a material", item: VENEER },
   { name: "a hardware class", item: PREMIUM },
-  { name: "a linked accessory", item: PLINTH_LIGHT },
+  { name: "a linked accessory", item: PLINTH },
 ];
 
 function anchorOf(book: PriceBook, ruleId: string): number {
@@ -71,66 +58,6 @@ function withAnchorMoved(book: PriceBook): PriceBook {
   };
 }
 
-/** The book with the prices of one row moved: what an archived version that priced the row differently states. */
-function withRowRepriced(book: PriceBook, item: ItemRef): PriceBook {
-  switch (item.kind) {
-    case "material":
-      return {
-        ...book,
-        material: {
-          ...book.material,
-          tiers: book.material.tiers.map((tier) =>
-            tier.tierId === item.tierId
-              ? { ...tier, percentOfCabinets: tier.percentOfCabinets - 5 }
-              : tier,
-          ),
-        },
-      };
-    case "hardware":
-      return {
-        ...book,
-        hardware: {
-          ...book.hardware,
-          tiers: book.hardware.tiers.map((tier) =>
-            tier.tierId === item.tierId
-              ? {
-                  ...tier,
-                  perHingeMinor: tier.perHingeMinor + 100,
-                  perDrawerMinor: tier.perDrawerMinor + 100,
-                }
-              : tier,
-          ),
-        },
-      };
-    case "accessory":
-      return {
-        ...book,
-        linkedAccessories: book.linkedAccessories.map((linked) =>
-          linked.accessoryId === item.accessoryId
-            ? { ...linked, perUnitMinor: linked.perUnitMinor + 500 }
-            : linked,
-        ),
-      };
-    default:
-      throw new Error(`${item.kind} rows carry no price`);
-  }
-}
-
-function namesRow(change: DraftChange, item: ItemRef): boolean {
-  const { address } = change;
-  switch (address.kind) {
-    case "hardware":
-    case "material":
-      return item.kind === address.kind && item.tierId === address.tierId;
-    case "accessory":
-      return (
-        item.kind === "accessory" && item.accessoryId === address.accessoryId
-      );
-    default:
-      return false;
-  }
-}
-
 describe.each(DELETABLE_ROWS)(
   "a restore of a version that prices $name the draft deletes",
   ({ item }) => {
@@ -146,7 +73,7 @@ describe.each(DELETABLE_ROWS)(
         draft: [],
       });
 
-      expect(plan.draft.some((change) => namesRow(change, item))).toBe(true);
+      expect(plan.draft.some((change) => isOnRow(change, item))).toBe(true);
     });
 
     it("keeps the deletion and adds no change addressed to the row", () => {
@@ -223,7 +150,7 @@ describe("a restore beside a draft that deletes one row and prices another", () 
       draft: [...deleting(VENEER), pendingPremium],
     });
 
-    expect(plan.draft.filter((change) => namesRow(change, VENEER))).toEqual([]);
+    expect(plan.draft.filter((change) => isOnRow(change, VENEER))).toEqual([]);
     expect(plan.draft).toEqual(expect.arrayContaining(deleting(VENEER)));
     expect(
       plan.draft.some(({ address }) =>
@@ -242,37 +169,18 @@ describe("a restore beside a draft that deletes one row and prices another", () 
   });
 });
 
-/** A pending change to one of the row's own prices, as a draft holds one before the row is deleted. */
+const PENDING_MATERIAL_PERCENT = 33;
+const PENDING_HARDWARE_RATE_MINOR = 9_000;
+const PENDING_ACCESSORY_PRICE_MINOR = 2_000;
+
 function pendingChangeTo(item: ItemRef): DraftChange {
-  switch (item.kind) {
-    case "material":
-      return {
-        address: {
-          kind: "material",
-          tierId: item.tierId,
-          field: "percentOfCabinets",
-        },
-        value: 33,
-      };
-    case "hardware":
-      return {
-        address: {
-          kind: "hardware",
-          tierId: item.tierId,
-          field: "perHingeMinor",
-        },
-        value: 9_000,
-      };
-    case "accessory":
-      return {
-        address: {
-          kind: "accessory",
-          accessoryId: item.accessoryId,
-          field: "perUnitMinor",
-        },
-        value: 2_000,
-      };
-    default:
-      throw new Error(`${item.kind} rows carry no price`);
+  if (item.kind === "material") {
+    return pendingOn(item, PENDING_MATERIAL_PERCENT);
   }
+  return pendingOn(
+    item,
+    item.kind === "hardware"
+      ? PENDING_HARDWARE_RATE_MINOR
+      : PENDING_ACCESSORY_PRICE_MINOR,
+  );
 }

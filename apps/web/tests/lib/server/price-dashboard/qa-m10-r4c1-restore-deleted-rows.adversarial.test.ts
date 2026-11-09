@@ -6,7 +6,6 @@ import {
   applyChanges,
   deletedItemsOf,
   hardwareRatesOf,
-  isSameAddress,
   isSameItem,
   readEditableFields,
   restoreChanges,
@@ -20,63 +19,39 @@ import {
   planRestore,
   planRestoreToDraft,
 } from "@/lib/server/price-dashboard/restore-plan";
-import type { ActiveDashboardState } from "@/lib/server/price-dashboard/dashboard-state";
 import { judgeDraft } from "@/price-dashboard/draft-judgement";
 
 import { deleting } from "../../../support/planted-draft";
+import {
+  ACTIVE,
+  PAINTED,
+  PLINTH,
+  PLINTH_LIGHT_ID,
+  PREMIUM,
+  SOFT_CLOSE,
+  VENEER,
+  anchorChange,
+  asChange,
+  isOnRow,
+  pendingOn,
+  stateOf,
+  withAnchor,
+  withRowRepriced,
+} from "../../../support/restore-book-fixtures";
 
-// Adversarial QA of R4c1 (the restore plan beside a draft that deletes a row): every deletable kind, alone and beside other
-// changes, against an archived version that prices the row, does not state it, or moves other fields; the draft the
-// restore leaves must still apply, keep every deletion and every change the draft made to a row it deletes, and a refused
-// stored draft must still be answered by the rule that ignores deleted rows.
+// The restore plan beside a draft that deletes a row. Every deletable kind, alone and beside other changes, against an
+// archived version that prices the row, does not state it, or moves other fields. The draft a restore leaves must still
+// apply, keep every deletion and every change the draft made to a row it deletes, and a refused stored draft must still
+// be answered by the rule that ignores deleted rows.
 
-const PLINTH_LIGHT_ID = "plinth-light";
-const BASE_BUILD = "cabinet.base-3drawer";
 const CREATED_CLASS_ID = "Qa4c1CreatedClass0001";
 const CREATED_ACCESSORY_ID = "Qa4c1CreatedAccessory01";
 
-const ACTIVE: PriceBook = {
-  ...SAMPLE_PRICE_BOOK,
-  linkedAccessories: [
-    {
-      accessoryId: PLINTH_LIGHT_ID,
-      ruleId: `accessory.${PLINTH_LIGHT_ID}`,
-      linkedBuildId: "base-3drawer",
-      perUnitMinor: 1_000,
-      name: "Soclu luminos",
-    },
-  ],
-};
-
-const VENEER: ItemRef = { kind: "material", tierId: "material.veneer" };
-const PAINTED: ItemRef = { kind: "material", tierId: "material.painted-mdf" };
-const PREMIUM: ItemRef = { kind: "hardware", tierId: "hardware.premium" };
-const SOFT_CLOSE: ItemRef = { kind: "hardware", tierId: "hardware.soft-close" };
-const PLINTH: ItemRef = { kind: "accessory", accessoryId: PLINTH_LIGHT_ID };
 const CREATED_CLASS: ItemRef = { kind: "hardware", tierId: CREATED_CLASS_ID };
 const CREATED_ACCESSORY: ItemRef = {
   kind: "accessory",
   accessoryId: CREATED_ACCESSORY_ID,
 };
-
-const ANCHOR_ADDRESS = {
-  kind: "cabinet",
-  ruleId: BASE_BUILD,
-  field: "anchorMinor",
-} as const;
-
-function asChange(change: {
-  address: unknown;
-  value: unknown;
-  groupId?: string;
-  bulk?: unknown;
-}): DraftChange {
-  return change as unknown as DraftChange;
-}
-
-function anchorChange(value: number): DraftChange {
-  return asChange({ address: ANCHOR_ADDRESS, value });
-}
 
 function creatingClass(tierId: string, rate = 2_000): DraftChange[] {
   return [
@@ -99,98 +74,6 @@ function creatingAccessory(accessoryId: string): DraftChange {
       name: "Soclu",
     },
   });
-}
-
-function pendingOn(item: ItemRef, value: number): DraftChange {
-  switch (item.kind) {
-    case "material":
-      return asChange({
-        address: {
-          kind: "material",
-          tierId: item.tierId,
-          field: "percentOfCabinets",
-        },
-        value,
-      });
-    case "hardware":
-      return asChange({
-        address: {
-          kind: "hardware",
-          tierId: item.tierId,
-          field: "perHingeMinor",
-        },
-        value,
-      });
-    case "accessory":
-      return asChange({
-        address: {
-          kind: "accessory",
-          accessoryId: item.accessoryId,
-          field: "perUnitMinor",
-        },
-        value,
-      });
-    default:
-      throw new Error(`${item.kind} rows carry no price`);
-  }
-}
-
-// ---------------------------------------------------------------------------------------------------------------------
-// Books an archived version can be
-
-function withAnchor(book: PriceBook, anchorMinor: number): PriceBook {
-  return {
-    ...book,
-    cabinetRules: book.cabinetRules.map((rule) =>
-      rule.ruleId === BASE_BUILD && "anchorMinor" in rule.formula
-        ? { ...rule, formula: { ...rule.formula, anchorMinor } }
-        : rule,
-    ),
-  };
-}
-
-function withRowRepriced(book: PriceBook, item: ItemRef): PriceBook {
-  switch (item.kind) {
-    case "material":
-      return {
-        ...book,
-        material: {
-          ...book.material,
-          tiers: book.material.tiers.map((tier) =>
-            tier.tierId === item.tierId
-              ? { ...tier, percentOfCabinets: tier.percentOfCabinets - 5 }
-              : tier,
-          ),
-        },
-      };
-    case "hardware":
-      return {
-        ...book,
-        hardware: {
-          ...book.hardware,
-          tiers: book.hardware.tiers.map((tier) =>
-            tier.tierId === item.tierId
-              ? {
-                  ...tier,
-                  perHingeMinor: tier.perHingeMinor + 100,
-                  perDrawerMinor: tier.perDrawerMinor + 100,
-                }
-              : tier,
-          ),
-        },
-      };
-    case "accessory":
-      return {
-        ...book,
-        linkedAccessories: book.linkedAccessories.map((linked) =>
-          linked.accessoryId === item.accessoryId
-            ? { ...linked, perUnitMinor: linked.perUnitMinor + 500 }
-            : linked,
-        ),
-      };
-    default:
-      throw new Error(`${item.kind} rows carry no price`);
-  }
 }
 
 function withoutRow(book: PriceBook, item: ItemRef): PriceBook {
@@ -270,28 +153,6 @@ function withCollidingRow(book: PriceBook, item: ItemRef): PriceBook {
   throw new Error("not a created kind");
 }
 
-// ---------------------------------------------------------------------------------------------------------------------
-// The contract of a restore plan
-
-function isOnRow(change: DraftChange, item: ItemRef): boolean {
-  const { address } = change;
-  switch (address.kind) {
-    case "hardware":
-    case "material":
-      return (
-        (item.kind === "hardware" || item.kind === "material") &&
-        item.kind === address.kind &&
-        item.tierId === address.tierId
-      );
-    case "accessory":
-      return (
-        item.kind === "accessory" && item.accessoryId === address.accessoryId
-      );
-    default:
-      return false;
-  }
-}
-
 function sameChange(left: DraftChange, right: DraftChange): boolean {
   return JSON.stringify(left) === JSON.stringify(right);
 }
@@ -315,54 +176,95 @@ interface ContractInput {
   readonly draft: readonly DraftChange[];
 }
 
-/**
- * What a restore owes whatever the draft and the archive hold, given a draft that applies: the result applies; every
- * deletion is kept, in order; every change to a row the draft deletes is kept as it was; no change is added to such a row;
- * the candidate reproduces the archive on every field of a row the draft keeps; a second restore has nothing to do; and
- * the draft is no worse for `judgeDraft`.
- */
-function expectRestoreContract({ archived, active, draft }: ContractInput) {
-  const plan = planRestoreToDraft({ archived, active, draft });
-  const deleted = deletedItemsOf(draft);
+type RestoreOutcome = ContractInput & {
+  readonly plan: ReturnType<typeof planRestoreToDraft>;
+};
 
-  expect(applyChanges(active, plan.draft).ok).toBe(true);
-  expect(deletionChanges(plan.draft)).toEqual(deletionChanges(draft));
+function expectTheDraftStillApplies({ active, plan }: RestoreOutcome) {
+  expect(
+    applyChanges(active, plan.draft).ok,
+    "the restored draft applies",
+  ).toBe(true);
+}
 
-  for (const item of deleted) {
-    const before = draft.filter((change) => isOnRow(change, item));
-    const after = plan.draft.filter((change) => isOnRow(change, item));
-    expect(after).toEqual(before);
+function expectEveryDeletionKeptInOrder({ draft, plan }: RestoreOutcome) {
+  expect(
+    deletionChanges(plan.draft),
+    "the deletions of the draft, in order",
+  ).toEqual(deletionChanges(draft));
+}
+
+function expectChangesToDeletedRowsUntouched({ draft, plan }: RestoreOutcome) {
+  for (const item of deletedItemsOf(draft)) {
+    expect(
+      plan.draft.filter((change) => isOnRow(change, item)),
+      `the changes to the deleted row ${JSON.stringify(item)}`,
+    ).toEqual(draft.filter((change) => isOnRow(change, item)));
   }
+}
 
+function expectCandidateToReproduceTheArchive({
+  archived,
+  active,
+  plan,
+}: RestoreOutcome) {
   const candidate = applyChanges(active, plan.draft);
-  if (!candidate.ok) throw new Error("unreachable: asserted ok above");
+  if (!candidate.ok) throw new Error("the restored draft does not apply");
   const candidateValues = fieldValues(candidate.book);
   for (const reading of readEditableFields(archived)) {
     const key = JSON.stringify(reading.address);
     if (!candidateValues.has(key)) continue;
-    expect(candidateValues.get(key), key).toBe(reading.value);
+    expect(candidateValues.get(key), `the field ${key}`).toBe(reading.value);
   }
+}
 
-  expect(plan.addedChangeCount).toBe(
-    restoreChanges(archived, active).filter(
-      (change) => !deleted.some((item) => isOnRow(change as DraftChange, item)),
-    ).length,
+function expectAddedCountToExcludeDeletedRows({
+  archived,
+  active,
+  draft,
+  plan,
+}: RestoreOutcome) {
+  const deleted = deletedItemsOf(draft);
+  const restoredOffDeletedRows = restoreChanges(archived, active).filter(
+    (change) => !deleted.some((item) => isOnRow(change as DraftChange, item)),
   );
-  const again = planRestoreToDraft({ archived, active, draft: plan.draft });
-  expect(again.differingCount).toBe(0);
+  expect(plan.addedChangeCount, "the count of changes added").toBe(
+    restoredOffDeletedRows.length,
+  );
+}
 
+function expectASecondRestoreToHaveNothingToDo({
+  archived,
+  active,
+  plan,
+}: RestoreOutcome) {
+  const again = planRestoreToDraft({ archived, active, draft: plan.draft });
+  expect(again.differingCount, "the fields a second restore changes").toBe(0);
+}
+
+function expectTheDraftJudgeToAllow({ active, draft, plan }: RestoreOutcome) {
   const judged = judgeDraft({
     book: active,
     changes: plan.draft,
     stored: draft,
     firstNewIndex: plan.draft.length,
   });
-  expect(judged.kind).toBe("applies");
-  return plan;
+  expect(judged.kind, "the draft judge's verdict").toBe("applies");
 }
 
-// ---------------------------------------------------------------------------------------------------------------------
-// Every deletable kind
+/** What a restore owes whatever the draft and the archive hold, given a draft that applies (each named above). */
+function expectRestoreContract(input: ContractInput) {
+  const plan = planRestoreToDraft(input);
+  const outcome = { ...input, plan };
+  expectTheDraftStillApplies(outcome);
+  expectEveryDeletionKeptInOrder(outcome);
+  expectChangesToDeletedRowsUntouched(outcome);
+  expectCandidateToReproduceTheArchive(outcome);
+  expectAddedCountToExcludeDeletedRows(outcome);
+  expectASecondRestoreToHaveNothingToDo(outcome);
+  expectTheDraftJudgeToAllow(outcome);
+  return plan;
+}
 
 interface BaseRow {
   readonly name: string;
@@ -531,9 +433,6 @@ describe.each([
   },
 );
 
-// ---------------------------------------------------------------------------------------------------------------------
-// Re-creating a deleted row
-
 describe("a restore beside a draft that deletes a row and creates another", () => {
   it("keeps a deletion of a book row and the creation of a fresh id", () => {
     const draft = [...deleting(PREMIUM), ...creatingClass(CREATED_CLASS_ID)];
@@ -584,25 +483,12 @@ describe("a restore beside a draft that deletes a row and creates another", () =
   });
 });
 
-// ---------------------------------------------------------------------------------------------------------------------
-// The plan through `planRestore`
-
 function versionOf(book: PriceBook, sequenceNumber = 1): StoredPriceVersion {
   return {
     state: "archived",
     sequenceNumber,
     book,
   } as unknown as StoredPriceVersion;
-}
-
-function stateOf(
-  book: PriceBook,
-  changes: readonly DraftChange[],
-): ActiveDashboardState {
-  return {
-    book,
-    draft: { draftRevision: "7", changes },
-  } as unknown as ActiveDashboardState;
 }
 
 describe("planRestore beside a draft that deletes a row", () => {
@@ -729,29 +615,6 @@ describe("planRestore beside a draft that deletes a row", () => {
   });
 });
 
-// ---------------------------------------------------------------------------------------------------------------------
-// A restore changes nothing about drafts that delete nothing (differential against the algorithm before the wave)
-
-/** The plan as it was before the wave: no deleted-row filter. Groups are left out; the wave did not touch them. */
-function planBeforeTheWave({ archived, active, draft }: ContractInput) {
-  const candidate = applyChanges(active, draft);
-  const differing = restoreChanges(
-    archived,
-    candidate.ok ? candidate.book : active,
-  );
-  const added = restoreChanges(archived, active);
-  const stated = readEditableFields(archived).map(({ address }) => address);
-  const survivors = draft.filter(
-    (change) =>
-      !stated.some((address) => isSameAddress(address, change.address)),
-  );
-  return {
-    draft: [...survivors, ...added],
-    addedChangeCount: added.length,
-    differingCount: differing.length,
-  };
-}
-
 const PRICE_POOL: readonly {
   readonly item: ItemRef | "anchor";
   readonly make: (value: number) => DraftChange;
@@ -800,28 +663,91 @@ function archiveMadeBy(
   return applied.ok ? applied.book : undefined;
 }
 
-describe("a restore beside a draft that deletes nothing (property)", () => {
-  it("writes what it wrote before the wave: the deleted-row rules change no draft without a deletion", () => {
-    fc.assert(
-      fc.property(priceEdits, priceEdits, (archiveEdits, pending) => {
-        const archived = archiveMadeBy(archiveEdits);
-        fc.pre(archived !== undefined);
-        const draft = pending.map(({ change }) => change);
-        fc.pre(applyChanges(ACTIVE, draft).ok);
+describe("a restore beside a draft that deletes nothing", () => {
+  const ACTIVE_ANCHOR_MINOR = 480_000;
+  const ARCHIVED_ANCHOR_MINOR = 520_000;
+  const PENDING_ANCHOR_MINOR = 610_000;
+  const archivedMovingTheAnchor = withAnchor(ACTIVE, ARCHIVED_ANCHOR_MINOR);
 
-        const after = planRestoreToDraft({ archived, active: ACTIVE, draft });
+  // Literal expectations of the plan for drafts without a deletion: the deleted-row rules must not change them.
+  const FIXTURES: readonly {
+    readonly name: string;
+    readonly archived: PriceBook;
+    readonly draft: readonly DraftChange[];
+    readonly expected: {
+      readonly draft: readonly DraftChange[];
+      readonly addedChangeCount: number;
+      readonly differingCount: number;
+    };
+  }[] = [
+    {
+      name: "an empty draft takes the archived anchor",
+      archived: archivedMovingTheAnchor,
+      draft: [],
+      expected: {
+        draft: [anchorChange(ARCHIVED_ANCHOR_MINOR)],
+        addedChangeCount: 1,
+        differingCount: 1,
+      },
+    },
+    {
+      name: "a pending anchor is replaced by the archived one",
+      archived: archivedMovingTheAnchor,
+      draft: [anchorChange(PENDING_ANCHOR_MINOR)],
+      expected: {
+        draft: [anchorChange(ARCHIVED_ANCHOR_MINOR)],
+        addedChangeCount: 1,
+        differingCount: 1,
+      },
+    },
+    {
+      name: "a pending anchor equal to the active one is replaced by the archived one",
+      archived: archivedMovingTheAnchor,
+      draft: [anchorChange(ACTIVE_ANCHOR_MINOR)],
+      expected: {
+        draft: [anchorChange(ARCHIVED_ANCHOR_MINOR)],
+        addedChangeCount: 1,
+        differingCount: 1,
+      },
+    },
+    {
+      name: "a pending anchor equal to the archived one counts nothing differing",
+      archived: archivedMovingTheAnchor,
+      draft: [anchorChange(ARCHIVED_ANCHOR_MINOR)],
+      expected: {
+        draft: [anchorChange(ARCHIVED_ANCHOR_MINOR)],
+        addedChangeCount: 1,
+        differingCount: 0,
+      },
+    },
+    {
+      name: "a pending change is reverted when the archive holds the active prices",
+      archived: ACTIVE,
+      draft: [anchorChange(PENDING_ANCHOR_MINOR)],
+      expected: { draft: [], addedChangeCount: 0, differingCount: 1 },
+    },
+    {
+      name: "a pending change to a row the archive does not state stays",
+      archived: withoutRow(ACTIVE, VENEER),
+      draft: [pendingOn(VENEER, 31)],
+      expected: {
+        draft: [pendingOn(VENEER, 31)],
+        addedChangeCount: 0,
+        differingCount: 0,
+      },
+    },
+  ];
 
-        expect(after).toEqual(
-          planBeforeTheWave({ archived, active: ACTIVE, draft }),
-        );
-      }),
-      { numRuns: 300 },
-    );
+  it.each(FIXTURES)("$name", ({ archived, draft, expected }) => {
+    expect(applyChanges(ACTIVE, draft).ok).toBe(true);
+
+    expect(planRestoreToDraft({ archived, active: ACTIVE, draft })).toEqual({
+      draft: expected.draft,
+      addedChangeCount: expected.addedChangeCount,
+      differingCount: expected.differingCount,
+    });
   });
 });
-
-// ---------------------------------------------------------------------------------------------------------------------
-// The sweep: generated archives and drafts
 
 interface DraftUnits {
   readonly units: readonly (readonly DraftChange[])[];
@@ -970,9 +896,6 @@ describe("the item helpers the rules lean on", () => {
     ).toBe(false);
   });
 });
-
-// ---------------------------------------------------------------------------------------------------------------------
-// Bounds: the most deletions a draft holds, and a draft too large to store
 
 describe("a restore beside the largest draft the book's bounds allow", () => {
   const MANY = 25;

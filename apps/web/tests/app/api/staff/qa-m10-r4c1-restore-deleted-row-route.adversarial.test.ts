@@ -4,14 +4,12 @@ import {
   SAMPLE_PRICE_BOOK,
   applyChanges,
   deletedItemsOf,
-  parsePriceBook,
   restoreChanges,
   type DraftChange,
   type ItemRef,
   type PriceBook,
 } from "@lemnaria/configurator-domain";
 
-import { readActivePriceBook } from "@/lib/server/active-price-book";
 import { CLIENT_NETWORK_SOURCE_VARIABLE } from "@/lib/server/rate-limit/network-source";
 import { judgeDraft } from "@/price-dashboard/draft-judgement";
 
@@ -26,6 +24,18 @@ import {
   publishDraft,
   restoreVersion,
 } from "../../../support/price-dashboard-requests";
+import {
+  PREMIUM,
+  VENEER,
+  isOnRow,
+} from "../../../support/restore-book-fixtures";
+import {
+  activeBookOfWorld,
+  archivedBookOne,
+  restoreAuditRows,
+  restoreVersionOne,
+  storedDraftChanges,
+} from "../../../support/restore-route-world";
 import {
   freshPriceDashboardWorld,
   type PriceDashboardWorld,
@@ -54,13 +64,12 @@ vi.mock("@/lib/server/price-stores", () =>
   ),
 );
 
-// Adversarial QA of R4c1 through the restore route: version one prices three deletable rows (a material, a hardware class
-// and a linked accessory) and version two moves all three and an anchor; the stored draft is planted to delete one, as no
-// route writes a deletion yet. Every arm asserts what the store holds afterwards, not only the status.
+// The restore route beside a draft that deletes a row. Version one prices three deletable rows (a material, a hardware
+// class and a linked accessory) and version two moves all three and an anchor; the stored draft is planted to delete one,
+// as no route writes a deletion yet. Every arm asserts what the store holds afterwards, not only the status. The mocks
+// above are each file's own: `vi.mock` is hoisted per file, so a shared module cannot register them.
 
 const DISTINCT_ACCESSORY_ID = "QaDistinctAcc7731";
-const VENEER: ItemRef = { kind: "material", tierId: "material.veneer" };
-const PREMIUM: ItemRef = { kind: "hardware", tierId: "hardware.premium" };
 const ACCESSORY: ItemRef = {
   kind: "accessory",
   accessoryId: DISTINCT_ACCESSORY_ID,
@@ -109,12 +118,6 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function versionOne(): string {
-  const { versionId } = prices;
-  if (versionId === undefined) throw new Error("the world has no version");
-  return versionId;
-}
-
 async function administratorWithVersionTwo() {
   const { session } = await signedInAs({ role: "administrator" });
   for (const [address, value] of VERSION_TWO_CHANGES) {
@@ -122,44 +125,6 @@ async function administratorWithVersionTwo() {
   }
   await publishWithLabel(session.cookie, "Second");
   return session;
-}
-
-async function restoreVersionOne(
-  cookie: string,
-  expectedDraftRevision?: string,
-) {
-  return restoreVersion(versionOne(), {
-    cookie,
-    json: {
-      expectedDraftRevision:
-        expectedDraftRevision ?? (await currentDraftRevision()),
-    },
-  });
-}
-
-async function storedChanges(): Promise<readonly DraftChange[]> {
-  return (await prices.stores.priceBook.readDraft())
-    .changes as readonly DraftChange[];
-}
-
-async function activeBook(): Promise<PriceBook> {
-  const root = await readActivePriceBook(prices.stores);
-  if (root.kind !== "active") throw new Error("no active book");
-  return root.book;
-}
-
-async function archivedBookOne(): Promise<PriceBook> {
-  const read = await prices.stores.priceBook.readVersion(versionOne());
-  if (read.kind !== "found") throw new Error("no version one");
-  const parsed = parsePriceBook(read.version.book);
-  if (!parsed.ok) throw new Error("version one does not parse");
-  return parsed.book;
-}
-
-function restoreRows() {
-  return prices.ledger
-    .heldEvents()
-    .filter(({ action }) => action === "price-restored-to-draft");
 }
 
 async function worldState() {
@@ -171,25 +136,6 @@ async function worldState() {
   };
 }
 
-function isOnRow(change: DraftChange, item: ItemRef): boolean {
-  const { address } = change;
-  switch (address.kind) {
-    case "hardware":
-    case "material":
-      return (
-        (item.kind === "hardware" || item.kind === "material") &&
-        item.kind === address.kind &&
-        item.tierId === address.tierId
-      );
-    case "accessory":
-      return (
-        item.kind === "accessory" && item.accessoryId === address.accessoryId
-      );
-    default:
-      return false;
-  }
-}
-
 describe.each([
   ["a material", VENEER],
   ["a hardware class", PREMIUM],
@@ -198,7 +144,10 @@ describe.each([
   "restoring version one while the draft deletes %s",
   (_name, item) => {
     async function expectedRestoreChanges(): Promise<readonly DraftChange[]> {
-      return restoreChanges(await archivedBookOne(), await activeBook()).filter(
+      return restoreChanges(
+        await archivedBookOne(),
+        await activeBookOfWorld(),
+      ).filter(
         (change) => !isOnRow(change as DraftChange, item),
       ) as readonly DraftChange[];
     }
@@ -213,7 +162,7 @@ describe.each([
       const answer = await restoreVersionOne(session.cookie);
 
       expect(answer.status).toBe(200);
-      const stored = await storedChanges();
+      const stored = await storedDraftChanges();
       expect(stored).toEqual(expected);
       expect(Number(await currentDraftRevision())).toBe(
         Number(revisionBefore) + 1,
@@ -231,11 +180,11 @@ describe.each([
 
       await restoreVersionOne(session.cookie);
 
-      expect(restoreRows().map(({ detail }) => detail)).toEqual([
+      expect(restoreAuditRows().map(({ detail }) => detail)).toEqual([
         { fromSequenceNumber: 1, changeCount: 3 },
       ]);
       expect(prices.ledger.heldEvents()).toHaveLength(rowsBefore + 1);
-      expect(JSON.stringify(restoreRows())).not.toContain(
+      expect(JSON.stringify(restoreAuditRows())).not.toContain(
         DISTINCT_ACCESSORY_ID,
       );
     });
@@ -243,12 +192,12 @@ describe.each([
     it("leaves a stored draft the active book applies, and the draft judge allows", async () => {
       const session = await administratorWithVersionTwo();
       await plantDraft(session.tokenHash, deleting(item));
-      const before = await storedChanges();
+      const before = await storedDraftChanges();
 
       await restoreVersionOne(session.cookie);
 
-      const stored = await storedChanges();
-      const active = await activeBook();
+      const stored = await storedDraftChanges();
+      const active = await activeBookOfWorld();
       expect(applyChanges(active, stored).ok).toBe(true);
       expect(
         judgeDraft({
@@ -294,12 +243,12 @@ describe.each([
       const answer = await restoreVersionOne(session.cookie);
 
       expect(answer.status).toBe(200);
-      const stored = await storedChanges();
+      const stored = await storedDraftChanges();
       expect(stored.slice(0, 2)).toEqual([pending, ...deleting(item)]);
       expect(stored.filter((change) => isOnRow(change, item))).toEqual([
         pending,
       ]);
-      expect(applyChanges(await activeBook(), stored).ok).toBe(true);
+      expect(applyChanges(await activeBookOfWorld(), stored).ok).toBe(true);
     });
 
     it("restoring again answers nothing-differs and writes nothing", async () => {
@@ -382,10 +331,10 @@ describe("restoring beside a draft that creates and deletes rows", () => {
     const answer = await restoreVersionOne(session.cookie);
 
     expect(answer.status).toBe(200);
-    const stored = await storedChanges();
+    const stored = await storedDraftChanges();
     expect(stored.slice(0, draft.length)).toEqual(draft);
     expect(stored).toHaveLength(draft.length + 4);
-    expect(applyChanges(await activeBook(), stored).ok).toBe(true);
+    expect(applyChanges(await activeBookOfWorld(), stored).ok).toBe(true);
   });
 
   it("answers candidate-refused and writes nothing when the draft deletes a created id and creates it again", async () => {
@@ -482,7 +431,7 @@ describe("a publish landing between the restore's plan and its write", () => {
         return read;
       },
     );
-    const rowsBefore = restoreRows().length;
+    const rowsBefore = restoreAuditRows().length;
 
     const answer = await restoreVersionOne(session.cookie);
 
@@ -491,10 +440,10 @@ describe("a publish landing between the restore's plan and its write", () => {
       body: { status: "changed-meanwhile" },
     });
     vi.restoreAllMocks();
-    expect(await storedChanges()).toEqual([]);
-    expect(restoreRows()).toHaveLength(rowsBefore);
-    expect(deletedItemsOf(await storedChanges())).toEqual([]);
-    const active = await activeBook();
+    expect(await storedDraftChanges()).toEqual([]);
+    expect(restoreAuditRows()).toHaveLength(rowsBefore);
+    expect(deletedItemsOf(await storedDraftChanges())).toEqual([]);
+    const active = await activeBookOfWorld();
     expect(
       active.material.tiers.some(({ tierId }) => tierId === VENEER.tierId),
     ).toBe(false);

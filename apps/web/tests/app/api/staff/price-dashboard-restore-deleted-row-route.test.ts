@@ -1,12 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  applyChanges,
-  type DraftChange,
-  type ItemRef,
-} from "@lemnaria/configurator-domain";
+import { applyChanges } from "@lemnaria/configurator-domain";
 
-import { readActivePriceBook } from "@/lib/server/active-price-book";
 import { CLIENT_NETWORK_SOURCE_VARIABLE } from "@/lib/server/rate-limit/network-source";
 
 import {
@@ -14,10 +9,13 @@ import {
   freshAccountWorld,
   jsonOf,
 } from "../../../support/account-world";
+import { VENEER } from "../../../support/restore-book-fixtures";
 import {
-  currentDraftRevision,
-  restoreVersion,
-} from "../../../support/price-dashboard-requests";
+  activeBookOfWorld,
+  restoreAuditRows,
+  restoreVersionOne,
+  storedDraftChanges,
+} from "../../../support/restore-route-world";
 import {
   freshPriceDashboardWorld,
   type PriceDashboardWorld,
@@ -51,7 +49,6 @@ vi.mock("@/lib/server/price-stores", () =>
 // Restoring a version that priced a row the draft deletes keeps the deletion and changes nothing on that row. The
 // stored draft is planted, since no route writes a deletion yet.
 
-const VENEER: ItemRef = { kind: "material", tierId: "material.veneer" };
 const VENEER_PERCENT_ADDRESS = {
   kind: "material",
   tierId: VENEER.tierId,
@@ -75,39 +72,13 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function versionOne(): string {
-  const { versionId } = prices;
-  if (versionId === undefined) throw new Error("the world has no version");
-  return versionId;
-}
-
 async function administrator() {
   const { session } = await signedInAs({ role: "administrator" });
   return session;
 }
 
-async function restoreVersionOne(cookie: string) {
-  return restoreVersion(versionOne(), {
-    cookie,
-    json: { expectedDraftRevision: await currentDraftRevision() },
-  });
-}
-
-async function storedChanges(): Promise<readonly DraftChange[]> {
-  return (await prices.stores.priceBook.readDraft())
-    .changes as readonly DraftChange[];
-}
-
 async function activeBookAppliesStoredDraft(): Promise<boolean> {
-  const root = await readActivePriceBook(prices.stores);
-  if (root.kind !== "active") throw new Error("no active book");
-  return applyChanges(root.book, await storedChanges()).ok;
-}
-
-function restoreRows() {
-  return prices.ledger
-    .heldEvents()
-    .filter(({ action }) => action === "price-restored-to-draft");
+  return applyChanges(await activeBookOfWorld(), await storedDraftChanges()).ok;
 }
 
 /** Version two prices the veneer and an anchor differently from version one, and is published. */
@@ -129,7 +100,7 @@ describe("a restore while the draft deletes a row the restored version prices", 
     const answer = await restoreVersionOne(session.cookie);
 
     expect(answer.status).toBe(200);
-    const stored = await storedChanges();
+    const stored = await storedDraftChanges();
     expect(await jsonOf(answer)).toEqual({
       draft: {
         draftRevision: (await prices.stores.priceBook.readDraft())
@@ -152,7 +123,7 @@ describe("a restore while the draft deletes a row the restored version prices", 
 
     await restoreVersionOne(session.cookie);
 
-    expect(restoreRows().map(({ detail }) => detail)).toEqual([
+    expect(restoreAuditRows().map(({ detail }) => detail)).toEqual([
       { fromSequenceNumber: 1, changeCount: 1 },
     ]);
   });

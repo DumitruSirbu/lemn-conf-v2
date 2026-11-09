@@ -146,13 +146,14 @@ describe("creating a hardware class beside a draft that deletes classes", () => 
     expectCreationPossible(SAMPLE_PRICE_BOOK, deletions);
   });
 
-  // The counterexample the property finds when the classes may state different sets of rates, kept as its smallest case:
-  // the default class states neither optional rate, a second class states `perDrawerMinor`, and the draft deletes the
-  // second. The active book's rates then include `perDrawerMinor` and the candidate's do not. It flips to `it` when the
-  // creation reads one book for its rates (it needs `apply-changes.ts` to hand the base book to `prepareStructuralWrite`,
-  // beyond R4c1's files).
+  // owed: the Z gate checks that every hardware class in the active version states the same rate fields, or the parser
+  // requires all five rates; the fix in apply-changes.ts/structural-changes.ts (the creation reads one book for its
+  // rates) flips this test to `it`.
+  // The smallest counterexample the property finds when classes may state different sets of rates: the default class
+  // states neither optional rate, a second class states `perDrawerMinor`, and the draft deletes the second. The active
+  // book's rates then include `perDrawerMinor` and the candidate's do not.
   it.fails(
-    "KNOWN DEFECT (ruling 14, closed as unreachable for stored data; the Z gate's parse-every-version pass re-checks it): is possible in a parsed book where only a class the draft deletes stated a rate",
+    "creating a class stays possible when only a deleted class stated an optional rate",
     () => {
       const book = bookWithClasses([
         [false, false, false],
