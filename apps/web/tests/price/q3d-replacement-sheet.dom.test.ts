@@ -41,6 +41,7 @@ import {
 import type { ConfigureScreenVariant } from "@/app/configurator/configure/configure-screen";
 
 import roMessages from "../../src/messages/ro.json";
+import { utterancesOf } from "../support/read-aloud";
 import { ro } from "../support/romanian-content";
 import {
   advanceClock,
@@ -106,9 +107,14 @@ describe("a saved kitchen that carries a tier availability has switched off", ()
     expect(sheet.getAttribute("aria-modal")).toBe("true");
     expect(sheet.textContent).toContain(TEXT.title);
     expect(document.activeElement).toBe(required(editor, "replacement-choose"));
-    expect(
-      sheet.querySelector('[role="group"]')?.getAttribute("aria-label"),
-    ).toBe("MDF vopsit mat nu mai este disponibil");
+    // Q5d: the row is read as its text, not as a labelled group: the item and its status once each.
+    expect(sheet.querySelector('[role="group"]')).toBeNull();
+    expect(utterancesOf(required(editor, "replacement-row"))).toEqual([
+      ro.priceBreakdown.wholeKitchenCategories.material,
+      "MDF vopsit mat",
+      TEXT.unavailable,
+      `${TEXT.choose} ${ro.priceBreakdown.wholeKitchenCategories.material}`,
+    ]);
     expect(sheet.querySelector('[aria-pressed="true"]')).toBeNull();
   });
 

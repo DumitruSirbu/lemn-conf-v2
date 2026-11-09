@@ -77,6 +77,8 @@ import {
   rerenderUnder,
   ROOT_NOTHING_OFF_AT_PAIR,
 } from "../support/replacement-sheet-world";
+import { utterancesOf } from "../support/read-aloud";
+import { rowsOf } from "../support/replacement-sheet-flow";
 import { tierName } from "../support/tier-offer-world";
 
 const TEXT = roMessages.replacementSheet;
@@ -442,20 +444,37 @@ describe("the sheet's rows, chooser and focus", () => {
       priceRoot: ROOT_WITH_MDF_AND_PREMIUM_OFF,
     });
 
-    const sheet = required(editor, "replacement-sheet");
-    const announced = [...sheet.querySelectorAll('[role="group"]')].map(
-      (group) => group.getAttribute("aria-label"),
-    );
-    expect(announced).toEqual([
-      "MDF vopsit mat nu mai este disponibil",
-      `${tierName("hardware.premium")} nu mai este disponibil`,
+    // Q5d: the row has no group label of its own; it is read as its kind, its item and its status, once each, in that order,
+    // and the control after them is named by the verb and that row's kind.
+    const kinds = ro.priceBreakdown.wholeKitchenCategories;
+    expect(rowsOf(editor).map(utterancesOf)).toEqual([
+      [
+        kinds.material,
+        "MDF vopsit mat",
+        TEXT.unavailable,
+        `${TEXT.choose} ${kinds.material}`,
+      ],
+      [
+        kinds.hardware,
+        tierName("hardware.premium"),
+        TEXT.unavailable,
+        `${TEXT.choose} ${kinds.hardware}`,
+      ],
     ]);
+    const sheet = required(editor, "replacement-sheet");
+    expect(sheet.querySelector('[role="group"]')).toBeNull();
     const [first, second] = choosable(editor);
     expect(document.activeElement).toBe(first);
-    expect(first?.getAttribute("aria-labelledby")?.split(" ")).toHaveLength(2);
-    expect(first?.getAttribute("aria-labelledby")).not.toBe(
-      second?.getAttribute("aria-labelledby"),
-    );
+    const idsOf = (control: HTMLElement | undefined): string[] =>
+      control?.getAttribute("aria-labelledby")?.split(" ") ?? [];
+    expect(idsOf(first)).toHaveLength(2);
+    expect(
+      idsOf(first).every((id) => document.getElementById(id) !== null),
+    ).toBe(true);
+    expect(
+      idsOf(second).every((id) => document.getElementById(id) !== null),
+    ).toBe(true);
+    expect(new Set([...idsOf(first), ...idsOf(second)]).size).toBe(4);
   });
 
   it("offers each group its own remaining options and never the other group's, with nothing preselected on any open", async () => {
