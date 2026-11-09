@@ -28,8 +28,7 @@ import { cookieOf, readNotice } from "../../../support/price-notice-world";
 import { signedInAs } from "../../../support/staff-world";
 
 /**
- * M10 R5b-b, widened: the credential parity of the notice routes and the save over the cookies the first parity table does
- * not vary: an empty token, a token cookie named for another design, a cookie name in another case, a visitor cookie with
+ * The credential parity of the notice routes and the save over cookies the first parity table does not vary: an empty token, a token cookie named for another design, a cookie name in another case, a visitor cookie with
  * and without the token, and a session that has expired. For each request the save route and BOTH notice routes are asked,
  * and the credential each hands its port must be the same, which is `undefined` where the save answers no credential and the
  * notice routes answer `404` without asking.

@@ -66,7 +66,7 @@ import {
 } from "../../../support/price-notice-world";
 
 /**
- * M10 R5b, adversarial: counterexamples to the two public price-notice routes (ADR 0178, price-notice Amendment of
+ * Counterexamples to the two public price-notice routes (ADR 0178, price-notice Amendment of
  * 2026-11-08). The routes are the real ones over the persistence package's fakes in the price dashboard world; S7's port is
  * stubbed through `@/lib/server/repository`, where every OTHER repository getter throws, so a route that reached for a
  * design write, a share link or a preset would fail here by name.
@@ -250,7 +250,7 @@ describe("the route modules", () => {
 });
 
 // ---------------------------------------------------------------------------------------------------------------------
-// R5b-a: the refusals are one answer
+// The refusals are one answer
 
 const ENDPOINTS = [
   {
@@ -514,7 +514,7 @@ describe("POST: a refusal reads no body", () => {
 });
 
 // ---------------------------------------------------------------------------------------------------------------------
-// R5b-c: the buckets
+// The buckets
 
 describe("the buckets (ruling 3)", () => {
   it("counts one read token for a GET whatever it is refused for, and never a save bucket", async () => {
@@ -582,7 +582,7 @@ describe("the buckets (ruling 3)", () => {
 });
 
 // ---------------------------------------------------------------------------------------------------------------------
-// R5b-d: the body
+// The body
 
 function encoded(text: string): number {
   return new TextEncoder().encode(text).length;
@@ -1082,7 +1082,7 @@ describe("every status either route gives is private and JSON", () => {
 });
 
 // ---------------------------------------------------------------------------------------------------------------------
-// R5b-e: nothing but a marker
+// Nothing but a marker
 
 describe("neither route writes anything but the notice marker", () => {
   it("leaves the audit ledger, the availability head, the active version and the draft as they were across both routes, every outcome included", async () => {
@@ -1115,40 +1115,39 @@ describe("neither route writes anything but the notice marker", () => {
 
 describe("a store that fails answers a constant body and leaks nothing", () => {
   const CANARY = "CNRY-SQL-select * from price_notices where design_id = $1";
-  const failures = [
+  const operation = "read a design's acknowledged prices";
+  const storeErrors = [
     [
       "a DashboardStoreError, unavailable",
       () =>
-        new DashboardStoreError(
-          "read a design's acknowledged prices",
-          "unavailable",
-          { cause: new Error(CANARY) },
-        ),
+        new DashboardStoreError(operation, "unavailable", {
+          cause: new Error(CANARY),
+        }),
     ],
     [
       "a DashboardStoreError, database",
       () =>
-        new DashboardStoreError(
-          "read a design's acknowledged prices",
-          "database",
-          { cause: new Error(CANARY) },
-        ),
+        new DashboardStoreError(operation, "database", {
+          cause: new Error(CANARY),
+        }),
     ],
     [
       "a DashboardStoreError, invalid-request",
       () =>
-        new DashboardStoreError(
-          "read a design's acknowledged prices",
-          "invalid-request",
-          { cause: new Error(CANARY) },
-        ),
+        new DashboardStoreError(operation, "invalid-request", {
+          cause: new Error(CANARY),
+        }),
     ],
+  ] as const;
+  const unexpectedThrows = [
     ["a plain Error", () => new Error(CANARY)],
     [
       "an Error with a cause",
       () => new Error("outer", { cause: new Error(CANARY) }),
     ],
   ] as const;
+  const UNEXPECTED_BODY = { status: "unexpected" };
+  const UNAVAILABLE_BODY = { status: "unavailable" };
 
   async function allBodiesOf(responses: readonly Response[]): Promise<string> {
     return (
@@ -1156,7 +1155,7 @@ describe("a store that fails answers a constant body and leaks nothing", () => {
     ).join("\n");
   }
 
-  it.each(failures)(
+  it.each(storeErrors)(
     "on the GET: %s is 503 {status: unavailable}, never true, and writes no marker",
     async (_label, make) => {
       const failing = vi
@@ -1167,14 +1166,32 @@ describe("a store that fails answers a constant body and leaks nothing", () => {
       failing.mockRestore();
 
       expect(answer.status).toBe(503);
-      expect(await jsonOf(answer)).toEqual({ status: "unavailable" });
+      expect(await jsonOf(answer)).toEqual(UNAVAILABLE_BODY);
       expect(await allBodiesOf([answer])).not.toContain(CANARY);
       expect(logText()).not.toContain(CANARY);
       expect(await marker()).toEqual({ kind: "never-recorded" });
     },
   );
 
-  it.each(failures)(
+  it.each(unexpectedThrows)(
+    "on the GET: %s is a defect, 500 {status: unexpected}, never true, and writes no marker",
+    async (_label, make) => {
+      const failing = vi
+        .spyOn(priceWorld.stores.notices, "readAcknowledged")
+        .mockRejectedValue(make());
+
+      const answer = await readNotice({ cookie: OWNER_WRITE_COOKIE });
+      failing.mockRestore();
+
+      expect(answer.status).toBe(500);
+      expect(await jsonOf(answer)).toEqual(UNEXPECTED_BODY);
+      expect(await allBodiesOf([answer])).not.toContain(CANARY);
+      expect(logText()).not.toContain(CANARY);
+      expect(await marker()).toEqual({ kind: "never-recorded" });
+    },
+  );
+
+  it.each(storeErrors)(
     "on the GET's first-open insert: %s is 503, not a notice",
     async (_label, make) => {
       vi.spyOn(priceWorld.stores.notices, "recordIfAbsent").mockRejectedValue(
@@ -1184,13 +1201,45 @@ describe("a store that fails answers a constant body and leaks nothing", () => {
       const answer = await readNotice({ cookie: OWNER_WRITE_COOKIE });
 
       expect(answer.status).toBe(503);
-      expect(await jsonOf(answer)).toEqual({ status: "unavailable" });
+      expect(await jsonOf(answer)).toEqual(UNAVAILABLE_BODY);
       expect(logText()).not.toContain(CANARY);
     },
   );
 
-  it.each(failures)(
-    "on the POST: %s is 503 or the 400 of a refused shape, never a 5xx with its text",
+  it.each(unexpectedThrows)(
+    "on the GET's first-open insert: %s is 500 {status: unexpected}, not a notice",
+    async (_label, make) => {
+      vi.spyOn(priceWorld.stores.notices, "recordIfAbsent").mockRejectedValue(
+        make(),
+      );
+
+      const answer = await readNotice({ cookie: OWNER_WRITE_COOKIE });
+
+      expect(answer.status).toBe(500);
+      expect(await jsonOf(answer)).toEqual(UNEXPECTED_BODY);
+      expect(await allBodiesOf([answer])).not.toContain(CANARY);
+      expect(logText()).not.toContain(CANARY);
+    },
+  );
+
+  it.each(storeErrors)(
+    "on the POST: %s is 503, or the 400 of a refused shape for invalid-request, and holds none of its text",
+    async (label, make) => {
+      vi.spyOn(
+        priceWorld.stores.notices,
+        "recordAcknowledged",
+      ).mockRejectedValue(make());
+
+      const answer = await ackWith(await displayedPair());
+
+      expect(answer.status).toBe(label.endsWith("invalid-request") ? 400 : 503);
+      expect(await allBodiesOf([answer])).not.toContain(CANARY);
+      expect(logText()).not.toContain(CANARY);
+    },
+  );
+
+  it.each(unexpectedThrows)(
+    "on the POST: %s is a defect, 500 {status: unexpected}, and holds none of its text",
     async (_label, make) => {
       vi.spyOn(
         priceWorld.stores.notices,
@@ -1199,7 +1248,8 @@ describe("a store that fails answers a constant body and leaks nothing", () => {
 
       const answer = await ackWith(await displayedPair());
 
-      expect([400, 503]).toContain(answer.status);
+      expect(answer.status).toBe(500);
+      expect(await jsonOf(answer)).toEqual(UNEXPECTED_BODY);
       expect(await allBodiesOf([answer])).not.toContain(CANARY);
       expect(logText()).not.toContain(CANARY);
     },
@@ -1236,7 +1286,7 @@ describe("a store that fails answers a constant body and leaks nothing", () => {
 });
 
 // ---------------------------------------------------------------------------------------------------------------------
-// R5b-h: the judgement, rows the route cannot reach by publishing alone
+// The judgement, rows the route cannot reach by publishing alone
 
 describe("pricesChangedFor: the active side is asked first, whatever the seen side is", () => {
   const design = KITCHEN_L_DESIGN;
@@ -1355,7 +1405,7 @@ describe("pricesChangedFor: the active side is asked first, whatever the seen si
 });
 
 // ---------------------------------------------------------------------------------------------------------------------
-// R5b-l: the wire, nested
+// The wire, nested
 
 describe("the nested keys of a notice with a sheet and a removed accessory", () => {
   it("holds, on the real route's JSON, exactly the members the wire names, in every row", async () => {

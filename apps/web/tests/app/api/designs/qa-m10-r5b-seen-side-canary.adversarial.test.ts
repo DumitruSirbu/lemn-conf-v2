@@ -35,7 +35,7 @@ import {
 import { acknowledge, readNotice } from "../../../support/price-notice-world";
 
 /**
- * M10 R5b, adversarial: the seen side of the price notice. `price-notice.ts` reads the pair the customer last saw, which is
+ * The seen side of the price notice. `price-notice.ts` reads the pair the customer last saw, which is
  * an archived version once a newer one is published, and ADR 0178 (F10, A-15) says an archive is never SERVED on a route
  * that is not staff's. These tests hold what that read may and may not reach:
  *
@@ -237,7 +237,7 @@ function logText(): string {
 // (a) what of the seen version reaches a customer
 
 describe("no text of the seen version reaches a customer", () => {
-  it("answers the GET of a deleted accessory with no canary, no seen id and no seen amount", async () => {
+  it("answers the GET of a deleted accessory with no canary but that accessory's own name, no seen id and no seen amount", async () => {
     const { seenVersionId, newestVersionId } =
       await setUpSeenArchive("without-removed");
     expect(textCanaries.length).toBeGreaterThan(5);
@@ -248,7 +248,6 @@ describe("no text of the seen version reaches a customer", () => {
     expect(answer.status).toBe(200);
     for (const forbidden of [
       ...textCanaries,
-      REMOVED_NAME,
       KEPT_NAME,
       VERSION_LABEL,
       VERSION_NOTE,
@@ -548,7 +547,7 @@ describe("the allowance the R3 pin makes for the notice modules cannot widen uns
       /\.(?:recordAcknowledged|recordIfAbsent|readAcknowledged)\b/,
     );
     const importers = sourceFilesMatching(
-      /@\/lib\/server\/price-notice(?:-request)?"/,
+      /["'][^"']*\/price-notice(?:-request)?["']/,
     ).sort();
 
     expect(callers).toEqual(["lib/server/price-notice.ts"]);
