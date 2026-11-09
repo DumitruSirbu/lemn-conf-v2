@@ -539,6 +539,34 @@ describe("the reset line, arm by arm", () => {
     return { editor, lines: confirmationLines(editor) };
   }
 
+  it("asks no question before the apply, though a stored colour will be rewritten: the one dialog is the sheet, and one press changes the material", async () => {
+    serveWorld({ notices: [notice(), notice()] });
+    hydrate(
+      kitchenWith({ materialTierId: "material.veneer", finish: VENEER_OAK }),
+    );
+    const editor = await mountEditor({
+      priceRoot: rootSwitchingOff(VENEER_OFF),
+    });
+    expect(editor.container.querySelectorAll('[role="dialog"]')).toHaveLength(
+      1,
+    );
+
+    press(required(editor, "replacement-choose"));
+    press(optionNamed(editor, tierName("material.melamine")));
+    press(required(editor, "replacement-apply"));
+
+    expect(
+      useConfiguratorStore.getState().design.settings?.materialTierId,
+    ).toBe("material.melamine");
+    expect(useConfiguratorStore.getState().design.settings?.finish).toEqual(
+      WHITE,
+    );
+    expect(byTestId(editor, "back-confirm-dialog")).toBeNull();
+    expect(editor.container.querySelectorAll('[role="dialog"]')).toHaveLength(
+      0,
+    );
+  });
+
   it("shows it for a global colour that is the only stored one, after the material line", async () => {
     const { lines } = await replaceVeneerWith(
       kitchenWith({ materialTierId: "material.veneer", finish: VENEER_OAK }),
@@ -791,5 +819,39 @@ describe("a resolved row, when availability comes back", () => {
     await rerenderUnder(ROOT_NOTHING_OFF_AT_PAIR);
 
     expect(byTestId(editor, "replacement-sheet")).toBeNull();
+  });
+});
+
+describe("a handle row resolved by availability coming back, while another row keeps the sheet open", () => {
+  // The state a customer can see: the sheet stays open on the material, and the handle row, switched back on behind it, is
+  // drawn resolved. Nothing replaced the handle, so it cannot say the kitchen's other handle did (inferred from the colour
+  // arm, which names a colour that came back as the colour it still is).
+  it("names the cabinet's own handle that came back as that handle, not as the kitchen's other one", async () => {
+    serveWorld({ notices: [notice(), notice()] });
+    hydrate(
+      withCabinets(
+        kitchenWith({
+          materialTierId: "material.painted-mdf",
+          handle: "steel",
+        }),
+        [{ handle: "black" }],
+      ),
+    );
+    const mdfOff = {
+      kind: "material",
+      tierId: "material.painted-mdf",
+    } as const;
+    const editor = await mountEditor({
+      priceRoot: rootSwitchingOff(mdfOff, BLACK_OFF),
+    });
+    expect(rowsOf(editor)).toHaveLength(2);
+
+    await rerenderUnder(rootSwitchingOff(mdfOff));
+
+    const handleRow = rowAbout(editor, ro.globalSettings.kitchenHandleHeading);
+    expect(byTestId(editor, "replacement-sheet")).not.toBeNull();
+    expect(handleRow?.dataset.resolved).toBe("true");
+    expect(controlOf(handleRow)).toBeNull();
+    expect(handleRow?.textContent).toContain(ro.panel.handleLabels.black);
   });
 });

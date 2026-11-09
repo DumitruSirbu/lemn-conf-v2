@@ -1,9 +1,12 @@
 // @vitest-environment happy-dom
 //
 // ADR 0081 stays whole in the SETTINGS sheet (Q5b, ruling 1): a voluntary material change that would discard a chosen colour
-// still asks first, can be declined without losing the colour, and says nothing after it. The forced-replacement sheet is
-// the one place that announces after the fact (A-16): the same material change there asks nothing before it. The second
-// half is pinned in `tests/price/qa-m10-q5b-sheet.adversarial.dom.test.ts`; this file holds the half that must not move.
+// still asks first and can be declined without losing the colour. The forced-replacement sheet is the one place that
+// announces after the fact (A-16): the same material change there asks nothing before it, which is pinned by the
+// implementer's "asks no confirmation before the material apply" in `tests/price/q5b-replacement-sheet-colour-handle.dom.test.ts`
+// and by the "asks no question before the apply" in `tests/price/qa-m10-q5b-sheet.adversarial.dom.test.ts`. The reset
+// line itself cannot be asserted absent here: its region is mounted by the editor, not by this sheet, so this file pins what
+// the settings sheet does (the question, the decline, the confirm) and not the absence of a line it has no place to draw.
 import { KITCHEN_L_DESIGN, paletteFinish } from "@lemnaria/configurator-domain";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -17,12 +20,9 @@ vi.mock("@/i18n/use-content", async () => {
 import { GlobalSettings } from "@/settings/global-settings";
 import { useConfiguratorStore } from "@/store/configurator-store";
 
-import roMessages from "../../src/messages/ro.json";
 import { underSamplePriceBook } from "../support/sample-price-root";
 
 const CHOSEN_COLOUR = paletteFinish("pal.antracit");
-const REVERTED_LEAD =
-  roMessages.replacementSheet.colourReverted.split("{colour}")[0] ?? "";
 const CONFIRM = '[data-testid="global-settings-confirm"]';
 
 let host: HTMLDivElement;
@@ -104,7 +104,7 @@ describe("a voluntary material change in the settings sheet, with a colour chose
     expect(storedColour()).toEqual(CHOSEN_COLOUR);
   });
 
-  it("resets the colour only after the customer confirms, and then shows no 'the colour went back' line (the sheet closes without one)", () => {
+  it("resets the colour only after the customer confirms, and the sheet closes on the confirmation", () => {
     const materialBefore = storedMaterial();
     chooseAnotherMaterial();
     pressTestId("global-settings-apply");
@@ -113,12 +113,8 @@ describe("a voluntary material change in the settings sheet, with a colour chose
 
     expect(storedMaterial()).not.toBe(materialBefore);
     expect(storedColour()).not.toEqual(CHOSEN_COLOUR);
-    expect(document.body.textContent).not.toContain(REVERTED_LEAD.trim());
     expect(
-      document.querySelector('[data-testid="replacement-confirmation"]'),
-    ).toBeNull();
-    expect(
-      document.querySelector('[data-testid="replacement-sheet"]'),
+      host.querySelector('[data-testid="global-settings-surface"]'),
     ).toBeNull();
   });
 });

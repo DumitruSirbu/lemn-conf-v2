@@ -319,16 +319,26 @@ function withBodies(
 }
 
 describe("a resolved row names only what is stored now", () => {
+  // The sheet is drawn only while some row is owed, so the row under test is resolved beside a material row that is still
+  // owed: that is the state a customer can see (with nothing owed the session clears and the sheet is gone).
+  const OWED_MATERIAL: ReplacementRequired = {
+    item: { kind: "material", tierId: "material.painted-mdf" },
+    remaining: [{ kind: "material", tierId: "material.melamine" }],
+  };
   const viewAfterAvailabilityReturned = (design: Design, item: ItemRef) => {
-    const { vocabulary } = worldOf(design, []);
+    const { vocabulary } = worldOf(design, [OWED_MATERIAL.item]);
     return describeReplacementSheet({
-      seen: [{ item, remaining: [item] }],
-      live: [],
+      seen: [OWED_MATERIAL, { item, remaining: [item] }],
+      live: [OWED_MATERIAL],
       design,
       accessoryNames: [],
       vocabulary,
     });
   };
+  const resolvedRowOf = (design: Design, item: ItemRef) =>
+    viewAfterAvailabilityReturned(design, item).rows.find(
+      (row) => row.kind === item.kind && row.isResolved,
+    );
 
   it("names a colour that availability gave back as the colour it still is, wherever it is stored", () => {
     const stored = withBodies(
@@ -336,10 +346,7 @@ describe("a resolved row names only what is stored now", () => {
       [{ finish: paletteFinish("pal.alb") }],
     );
 
-    const [row] = viewAfterAvailabilityReturned(stored, {
-      kind: "finish",
-      finishId: "pal.alb",
-    }).rows;
+    const row = resolvedRowOf(stored, { kind: "finish", finishId: "pal.alb" });
 
     expect(row?.isResolved).toBe(true);
     expect(row?.valueText).toBe(ro.finishName("pal.alb"));
@@ -347,16 +354,14 @@ describe("a resolved row names only what is stored now", () => {
 
   // A handle stored only on a cabinet and switched off, then switched back on with the sheet open: nothing replaced it, so
   // the row cannot say the kitchen's own handle replaced it. The colour arm answers "as it was" (`nameOfColourInPlaceOf`);
-  // the handle arm reads `settings.handle` alone.
+  // the handle arm (`nameNowApplying`) reads `settings.handle` alone. The expected value is an INFERENCE from the colour arm:
+  // ruling 4 says only "names what replaced it", and nothing did.
   it("names a handle that availability gave back as the handle it still is, not as the kitchen's other handle", () => {
     const stored = withBodies(kitchenWith({ handle: "steel" }), [
       { handle: "black" },
     ]);
 
-    const [row] = viewAfterAvailabilityReturned(stored, {
-      kind: "handle",
-      handle: "black",
-    }).rows;
+    const row = resolvedRowOf(stored, { kind: "handle", handle: "black" });
 
     expect(row?.isResolved).toBe(true);
     expect(row?.valueText).toBe(ro.panel.handleLabels.black);
@@ -365,19 +370,16 @@ describe("a resolved row names only what is stored now", () => {
   it("names a handle stored on the top row only, given back, as itself", () => {
     const stored = kitchenWith({ handle: "steel", topRowHandle: "black" });
 
-    const [row] = viewAfterAvailabilityReturned(stored, {
-      kind: "handle",
-      handle: "black",
-    }).rows;
+    const row = resolvedRowOf(stored, { kind: "handle", handle: "black" });
 
     expect(row?.valueText).toBe(ro.panel.handleLabels.black);
   });
 
   it("says nothing, with no value node to draw, for a handle row when no handle is stored anywhere", () => {
-    const [row] = viewAfterAvailabilityReturned(kitchenWith({}), {
+    const row = resolvedRowOf(kitchenWith({}), {
       kind: "handle",
       handle: "black",
-    }).rows;
+    });
 
     expect(row?.valueText).toBeUndefined();
   });
