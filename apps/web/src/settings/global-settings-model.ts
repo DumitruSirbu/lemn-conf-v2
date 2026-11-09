@@ -64,7 +64,7 @@ export interface TierGroupView {
    *  runs. Empty when no book can be read. */
   readonly tierIds: readonly string[];
   readonly options: readonly TierOption[];
-  /** The one line this group shows instead of options when no book can be read (R-b). Absent, never empty, when the
+  /** The one line this group shows instead of options when no book can be read. Absent, never empty, when the
    *  group is offered. It carries no figure: the group shows no option, no delta and no default. */
   readonly unavailableText?: string;
 }
@@ -187,7 +187,7 @@ export interface SettingsPillRung {
 /**
  * This surface has no unavailable state of its own, unlike `price-breakdown-model.ts`: it is the control that
  * chooses tiers, and a design carrying a withdrawn tier is the one that cannot be priced. Tiers come from the book
- * and deltas and the figure are absent when there is no price. With no book at all (R-b) each tier group is one
+ * and deltas and the figure are absent when there is no price. With no book at all each tier group is one
  * `unavailableText` line instead of options.
  */
 export interface GlobalSettingsView {
@@ -325,9 +325,10 @@ export function describeGlobalSettings(
 
 /**
  * What the sheet opens editing: what it displays, not what the document says. A stored tier the book has
- * withdrawn, or availability has switched off, resolves to the group's default, so the checked radio and pending
- * agree; with that default switched off too it resolves to nothing, because a pending tier must be one the sheet
- * offers or *Aplică* would send an id the command refuses.
+ * withdrawn resolves to the group's default, so the checked radio and pending agree; with that default switched off
+ * it resolves to nothing, because a pending tier must be one the sheet offers or *Aplică* would send an id the
+ * command refuses. A stored tier the book still holds but availability has switched off stays as stored: no radio is
+ * checked for it, and an untouched *Aplică* writes nothing.
  *
  * An absent choice stays absent: seeding the default would make *Aplică* on an untouched sheet stamp
  * defaults into the document. The depth is not resolved here: committing one rebuilds the scene (ADR 0074).
@@ -349,19 +350,28 @@ export function resolveOpeningChoice(
   return withoutAFinishTheMaterialRefuses(resolved);
 }
 
-/** One group's opening id: absent stays absent, an offered id is kept, anything else becomes the fallback the
- *  group already displays when that is offered, and is dropped when it is not. */
+/** One group's opening id: absent stays absent, an id the book holds (offered or switched off) is kept, and an id it
+ *  no longer holds becomes the group's default when that is offered, and is dropped when it is not. */
 function withOfferedTier(
   chosen: WholeKitchenChoice,
   key: "materialTierId" | "hardwareTierId",
   group: OfferedTierGroup,
 ): WholeKitchenChoice {
   const appliedTierId = chosen[key];
-  if (appliedTierId === undefined || group.tierIds.includes(appliedTierId))
+  if (appliedTierId === undefined || isHeldByTheBook(group, appliedTierId))
     return chosen;
   if (group.tierIds.includes(group.defaultTierId))
     return { ...chosen, [key]: group.defaultTierId };
   return withoutTier(chosen, key);
+}
+
+/** Offered, or held by the book and switched off: either way the kitchen's own id stays as stored, so an untouched
+ *  *Aplică* rewrites nothing. Only an id the book no longer holds has no standing. */
+function isHeldByTheBook(group: OfferedTierGroup, tierId: string): boolean {
+  return (
+    group.tierIds.includes(tierId) ||
+    group.switchedOffTiers.some((tier) => tier.tierId === tierId)
+  );
 }
 
 function withoutTier(
@@ -703,13 +713,13 @@ function countLabelOf(hiddenCount: number): string {
   return `${HIDDEN_SETTINGS_MARK}${String(hiddenCount)}`;
 }
 
-/** What the pill draws at the rung the fit model chose. The floor of one label is enforced here as well as decided
- *  there (ADR 0104 decision 3): a rung naming nothing would be a bare counter. */
+/** What the pill draws at the rung the fit model chose. The floor of one named label is enforced here as well as
+ *  decided there (ADR 0104 decision 3): a rung naming nothing would be a bare counter. */
 export function describePillRung(
   pill: SettingsPillView,
   visibleCount: number,
 ): SettingsPillRung {
-  const shown = Math.min(Math.max(visibleCount, 1), pill.settings.length);
+  const shown = shownSettingCount(pill, visibleCount);
   const hiddenCount = pill.settings.length - shown;
   return {
     // A shown setting with no name adds no label and no separator, and is not counted as hidden.
@@ -719,6 +729,17 @@ export function describePillRung(
       .filter((label) => label !== ""),
     ...(hiddenCount === 0 ? {} : { counter: countLabelOf(hiddenCount) }),
   };
+}
+
+/** How many settings the rung draws: the fit model's count, widened to reach the first named setting when the ones it
+ *  chose are all nameless (a free colour leading a pill that names no tier). */
+function shownSettingCount(
+  pill: SettingsPillView,
+  visibleCount: number,
+): number {
+  const decided = Math.min(Math.max(visibleCount, 1), pill.settings.length);
+  const firstNamed = pill.settings.findIndex((setting) => setting.label !== "");
+  return firstNamed < 0 ? decided : Math.max(decided, firstNamed + 1);
 }
 
 /** The pill's material, named by the tier the kitchen carries. Nothing with no tier offer. */
@@ -802,7 +823,7 @@ function spokenColourOf(applied: WholeKitchenChoice, content: Content): string {
     : nameOfFinish(finish, content);
 }
 
-/** The two tier groups, or with no tier offer the two lines that stand in for them (R-b). */
+/** The two tier groups, or with no tier offer the two lines that stand in for them. */
 function toTierGroupViews(
   input: DescribeGlobalSettingsInput,
 ): readonly TierGroupView[] {

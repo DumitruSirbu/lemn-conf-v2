@@ -59,7 +59,7 @@ export interface WholeKitchenTierOffer {
   readonly hardware: OfferedTierGroup;
 }
 
-/** There is no book to offer tiers from (R-b). Not an empty offer: a group with no tiers would invent a default. */
+/** There is no book to offer tiers from. Not an empty offer: a group with no tiers would invent a default. */
 export interface NoTierOffer {
   readonly kind: "none";
 }

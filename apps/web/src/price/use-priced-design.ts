@@ -63,8 +63,14 @@ export function useWholeKitchenTierOffer(): TierOfferAnswer {
   );
 }
 
-/** What the page's book says is switched off, for the settings sheet's handle row. Absent where no book was supplied. */
-export function useCatalogueAvailability(): CatalogueAvailability | undefined {
+/** With no book there is nothing to have switched off, so the handle row still shows and works. */
+const NOTHING_SWITCHED_OFF: CatalogueAvailability = Object.freeze({
+  revision: "0",
+  disabled: [],
+});
+
+/** What the page's book says is switched off, for the settings sheet's handle row. Nothing, with no book. */
+export function useCatalogueAvailability(): CatalogueAvailability {
   const root = usePriceBookRoot();
-  return root.kind === "active" ? root.availability : undefined;
+  return root.kind === "active" ? root.availability : NOTHING_SWITCHED_OFF;
 }

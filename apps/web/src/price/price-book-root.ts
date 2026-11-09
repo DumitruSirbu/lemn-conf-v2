@@ -55,7 +55,9 @@ export const NO_PRICE_BOOK_DETAIL = "No price book is active";
 /**
  * There is no book to read a figure from. Raised only by `requireDeepCabinetPercent`, which has no honest degraded
  * answer: 0 % would say the depth is free. The tier offer answers `NO_TIER_OFFER` instead, and every price surface
- * answers with a refusal, rendered as no figure.
+ * answers with a refusal, rendered as no figure. No production code calls `requireDeepCabinetPercent` today (the
+ * settings sheet reads `deepCabinetPercentOf` and words its own absence); both are kept for a caller that must not
+ * proceed without a figure.
  */
 export class UnreadablePriceBookError extends Error {
   constructor(detail: string) {

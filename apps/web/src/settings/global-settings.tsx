@@ -112,8 +112,9 @@ export function GlobalSettings({ visibleCount }: GlobalSettingsProps) {
   // Whether a confirmation is owed is `view.materialResetConfirm`'s presence; this records only that
   // the customer has been asked and has not answered.
   const [isConfirming, setIsConfirming] = useState(false);
-  // Chosen and not yet applied; re-seeded on every open through `resolveOpeningChoice`, so a tier the
-  // book has withdrawn opens as the fallback the sheet displays.
+  // Chosen and not yet applied; re-seeded on every open through `resolveOpeningChoice`, so a tier the book has
+  // withdrawn opens as the default the sheet displays (or with no key when that is switched off), and a tier the
+  // book holds but has switched off stays as stored.
   const [pending, setPending] = useState<WholeKitchenChoice>({});
   /** The last press this sheet refused. Not read from the store: `lastRejection` cannot be told apart
    *  from a refusal already on screen when the sheet opened. */
@@ -378,7 +379,10 @@ function tierIdsOffered(
   view: GlobalSettingsView,
   key: WholeKitchenGroupKey,
 ): readonly string[] {
-  return view.groups.find((group) => group.key === key)?.tierIds ?? [];
+  const group = view.groups.find((one) => one.key === key);
+  if (group === undefined)
+    throw new Error(`The sheet describes no ${key} group`);
+  return group.tierIds;
 }
 
 /** The sheet itself, given a view: no store, no pricing, no open state. */
