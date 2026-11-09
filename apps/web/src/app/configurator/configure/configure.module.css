@@ -403,11 +403,8 @@
 }
 
 /* Frames 2A `:517` and D2A `:567`. Both frames draw it taller than `--touch-target`, so it needs no
- * hit area of its own. **Drawn exactly as the frames draw it and wired to nothing**
- * (ADR 0104 decision 6): it leads to M8's review step, which is not built and has no route. Not a
- * `button`, no `role`, no `tabindex` and no `cursor: pointer` — the frames use a non-interactive
- * element in both files, and this file already requires that of an inert control. It is meaningful
- * text and is announced as text. */
+ * hit area of its own. Drawn as the frames draw it. It is a link to the review step; while a
+ * replacement is owed it is a `role="link"` span with `aria-disabled`, drawn disabled below. */
 .reviewCta {
   display: flex;
   flex: 1;
