@@ -1205,7 +1205,7 @@ function failWithReplacements(
   return {
     code: "REPLACEMENT_REQUIRED",
     detail: boundedFailureReason(
-      `The design names ${String(items.length)} item(s) to replace: switched off by the catalogue or no longer in the book`,
+      `The design names ${String(items.length)} item(s) to replace (switched off, or no longer in the book)`,
     ),
     items,
   };

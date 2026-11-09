@@ -1,5 +1,4 @@
-// The items a design names that availability can switch off (ADR 0062 Amendment 3 and the 2026-10-26 Amendment, A-16,
-// A-17). The one list both `priceDesign`, which refuses on it, and `replacementsRequired`, which builds the sheet from
+// The items a design names that availability can switch off (ADR 0062 Amendment 3, A-16, A-17). The one list both `priceDesign`, which refuses on it, and `replacementsRequired`, which builds the sheet from
 // it, read, so the refusal and the sheet cannot drift apart.
 //
 // A design names a tier by choosing it or, when it chose none, by being priced at the book's fallback tier (A-9): a
@@ -7,15 +6,9 @@
 // (`coloursAndHandlesNamedBy`). An accessory is never named by a design and never needs replacing: a switched-off one
 // is simply not billed (`earned-accessories.ts`).
 //
-// While the design's material is a vanished one, its colours are not listed (ADR 0057: a material change resets the
-// colour; Q5 owns the reset).
-//
-// A tier the book does not hold is not a switchable item (`itemsNamedBy` leaves it out), but a design that CHOSE one
-// names an item that is no longer offered, and `disabledItemsNamedBy` lists it beside the switched-off ones: it is a
-// replacement like any other (ADR 0178, Amendment of 2026-11-04, decision 1). A design that chose nothing, priced at a
-// fallback the book does not hold, names no choice that vanished: that is a book fault, and stays `UNKNOWN_TIER`'s. The
-// order is the items' own (`distinctItemsInOrder`), so it does not depend on how the design or `availability.disabled`
-// was ordered.
+// A tier the design chose that the book no longer holds is listed too (see ADR 0178 decision 1); a choice-less design
+// priced at a fallback the book lacks is a book fault and stays `UNKNOWN_TIER`'s. The order is the items' own
+// (`distinctItemsInOrder`), so it does not depend on how the design or `availability.disabled` was ordered.
 import type { Design } from "../design.js";
 
 import {
@@ -54,13 +47,11 @@ export function itemsNamedBy(query: NamedItemsQuery): readonly ItemRef[] {
 
 /**
  * The items the design names that must be replaced, once each, in `distinctItemsInOrder`'s order: the ones
- * `availability` switches off, and a material or hardware tier the design chose that the book does not hold (deleted
- * since the customer chose it). The items returned are the design's own references, so a result cannot carry anything
- * availability merely lists.
+ * `availability` switches off, and a material or hardware tier the design chose that the book does not hold. The items
+ * returned are the design's own references, so a result cannot carry anything availability merely lists.
  *
- * A colour is left out while the design's material is one the book no longer holds: the colour is a palette entry of a
- * material that is gone, so the sheet has no group to offer it a replacement from, and replacing the material resets
- * the colour (ADR 0057), which the customer then chooses afresh.
+ * A colour of a vanished material needs no row: the material change resets the colour (ADR 0057, 0081), and palette
+ * ids are namespaced by material, so none of that palette is on offer for the new one.
  *
  * A design that chose no tier, whose fallback the book does not hold, lists no tier: that is a malformed book, not a
  * choice that vanished, and `priceDesign` answers it `UNKNOWN_TIER`.
@@ -75,14 +66,16 @@ export function disabledItemsNamedBy(
   );
   return distinctItemsInOrder([
     ...vanished,
-    ...(vanished.some(isMaterialItem)
-      ? withoutColours(switchedOff)
-      : switchedOff),
+    ...dropColoursOfVanishedMaterial(switchedOff, vanished),
   ]);
 }
 
-function isMaterialItem(item: ItemRef): boolean {
-  return item.kind === "material";
+function dropColoursOfVanishedMaterial(
+  switchedOff: readonly ItemRef[],
+  vanished: readonly ItemRef[],
+): readonly ItemRef[] {
+  const isMaterialVanished = vanished.some((item) => item.kind === "material");
+  return isMaterialVanished ? withoutColours(switchedOff) : switchedOff;
 }
 
 function vanishedTiersChosenBy({

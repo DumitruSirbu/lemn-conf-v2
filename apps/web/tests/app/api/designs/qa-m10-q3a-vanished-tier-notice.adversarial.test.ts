@@ -35,8 +35,8 @@ import {
 import { acknowledge, readNotice } from "../../../support/price-notice-world";
 
 /**
- * M10 Q3a through `GET /api/designs/[id]/price-notice`: a stored kitchen naming a material or hardware tier the active
- * book does not hold is a replacement row, never an unknown tier (ADR 0178, Amendment of 2026-11-04), and a linked
+ * `GET /api/designs/[id]/price-notice`: a stored kitchen naming a material or hardware tier the active
+ * book does not hold is a replacement row, never an unknown tier (see ADR 0178 decision 1), and a linked
  * accessory the kitchen earned and a later version deleted is a removed accessory shown until acknowledged. Every kitchen
  * here is one the save route accepts, since that route checks the shape of a tier id and not that a book holds it.
  */
@@ -289,13 +289,9 @@ describe("a vanished tier beside a colour the kitchen wears", () => {
     }
   });
 
-  // FINDING Q3a-F1 (QA, 2026-11-09). A stored kitchen naming a material no declaration holds (an id the book never
-  // held, or a created class) and a palette colour switched off is refused REPLACEMENT_REQUIRED by the price, but the
-  // sheet cannot offer the colour a replacement (the colour group is the palette of a material nothing declares) and
-  // `replacementsRequired` throws `NoReplacementOptionError`: this route answers 500, writes no marker, and the customer
-  // reaches no sheet. Before Q3a the vanished material hid the colour row and the answer was a 200 with no rows. Resolved
-  // by the ruling: a colour is not listed while its material has vanished (ADR 0057; Q5 owns the reset).
-  it("FINDING Q3a-F1: answers 200 with rows when the kitchen names a vanished undeclared material and a switched-off palette colour", async () => {
+  // The colour of a vanished material has no group to be replaced from, so it is not a row: without that, the sheet
+  // would throw `NoReplacementOptionError` and this route would answer 500 with no sheet for the customer.
+  it("answers 200 with rows when the kitchen names a vanished undeclared material and a switched-off palette colour", async () => {
     store(
       kitchenWith({
         materialTierId: "material.ghost",

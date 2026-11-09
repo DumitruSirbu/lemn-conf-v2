@@ -1,4 +1,4 @@
-// M10 Q3a, FINDING Q3a-F1 reachability. The save route checks the shape of a tier id and not that any book holds it, and
+// Reachability of a vanished-material kitchen wearing a palette colour. The save route checks the shape of a tier id and not that any book holds it, and
 // the design write seam reports no unoffered colour for a material no declaration names (ADR 0078), so a kitchen naming a
 // material nothing declares AND wearing a palette colour reaches storage. This holds that fact through the real routes;
 // `qa-m10-q3a-vanished-tier-notice.adversarial.test.ts` holds what the notice route then answers for it.

@@ -1,5 +1,5 @@
-// M10 Q3a, Q3-g: a material or hardware tier the design chose and the active book does not hold is a replacement, never
-// `UNKNOWN_TIER` (ADR 0178, Amendment of 2026-11-04, decision 1; plan, Q3 split ruling 1).
+// A material or hardware tier the design chose and the active book does not hold is a replacement, never
+// `UNKNOWN_TIER` (see ADR 0178 decision 1).
 //
 // The range keeps to designs whose bodies the catalogue holds (`UNKNOWN_BODY` is decided first and would turn the
 // property red for the wrong reason) and to books whose defaults are their own tiers (a book whose default names no tier
@@ -209,7 +209,7 @@ const arbitraryScenario = arbitraryBook.chain((book) =>
   ),
 );
 
-describe("Q3-g: a chosen tier the active book does not hold is a replacement", () => {
+describe("a chosen tier the active book does not hold is a replacement", () => {
   it("is refused REPLACEMENT_REQUIRED listing that tier, offers exactly the group's active tiers, preselects nothing", () => {
     fc.assert(
       fc.property(
@@ -322,7 +322,7 @@ describe("what stays UNKNOWN_TIER", () => {
   });
 });
 
-describe("a colour is not listed while its material has vanished (ruling on FINDING Q3a-F1; ADR 0057 resets it)", () => {
+describe("a colour is not listed while its material has vanished (the material change resets it, ADR 0057)", () => {
   it("lists the vanished material alone, in the refusal and the sheet, though its palette colour is switched off", () => {
     const design = withSettings({
       cabinetDepthMm: 600,

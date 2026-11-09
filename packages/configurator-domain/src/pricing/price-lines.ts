@@ -153,15 +153,13 @@ export type PricingFailureCode =
   /** A fixed-size row is built wider than every size the book lists for it. Never priced at zero and never at
    *  the nearest listed size (ADR 0177 A-7). */
   | "NO_PRICE_FOR_SIZE"
-  /** A book's own default names a tier the book does not hold (a book fault), reached only by a design that chose no
-   *  tier. A tier the design chose that the book lacks, or holds and availability switches off, is
-   *  `REPLACEMENT_REQUIRED` and never this (ADR 0178, Amendment of 2026-11-04). */
+  /** A book's own default names a tier the book does not hold (a book fault), reached by a design that chose no tier in
+   *  that group. A chosen tier the book lacks is `REPLACEMENT_REQUIRED`, never this. */
   | "UNKNOWN_TIER"
   /** The design names an item to replace: one availability switches off (a material, a hardware class, a colour or a
-   *  handle, whether chosen or the book's own fallback tier; ADR 0062 Amendment 3, A-17), or a material or hardware tier
-   *  it chose that the book no longer holds. Carries every such item; a colour is left out while its material is one the
-   *  book no longer holds (ADR 0057 resets it). The kitchen has no price until each is replaced: a figure at the default tier would be
-   *  a different kitchen's. */
+   *  handle, chosen or the book's own fallback tier; ADR 0062 Amendment 3), or a chosen tier the book no longer holds.
+   *  Carries every such item. The kitchen has no price until each is replaced: a figure at the default tier would be a
+   *  different kitchen's. */
   | "REPLACEMENT_REQUIRED"
   /** The row a body is priced as declares no usable door-leaf count at the body's width (`describePricedBody`).
    *  Raised on that path alone, never on a hardware quantity: a body whose mechanisms cannot be counted, or whose
@@ -207,9 +205,8 @@ export interface OrdinaryPricingFailure extends PricingFailureCommon {
   readonly code: OrdinaryPricingFailureCode;
 }
 
-/** The refusal that is about a set of items. `items` is every item to replace the design names (switched off, or a chosen
- *  tier the book no longer holds), once each, in one order (`distinctItemsInOrder`): the rows the replacement sheet is
- *  built from, never a subset. */
+/** The refusal that is about a set of items. `items` is every item to replace the design names, once each, in one order
+ *  (`distinctItemsInOrder`): the rows the replacement sheet is built from, never a subset. */
 export interface ReplacementRequiredFailure extends PricingFailureCommon {
   readonly code: "REPLACEMENT_REQUIRED";
   readonly items: readonly ItemRef[];

@@ -1,5 +1,5 @@
-// M10 Q3a: a linked accessory the kitchen earned under the book the customer saw, and the active book no longer states,
-// is a removed accessory (ADR 0178, Amendment of 2026-11-04, decision 1; plan, Q3 split ruling 3).
+// A linked accessory the kitchen earned under the book the customer saw, and the active book no longer states, is a
+// removed accessory (see ADR 0178 decision 1).
 import { describe, expect, it } from "vitest";
 
 import { KITCHEN_L_DESIGN } from "../../src/fixtures/kitchen-l-design.js";

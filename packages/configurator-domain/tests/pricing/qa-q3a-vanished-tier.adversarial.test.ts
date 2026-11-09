@@ -1,6 +1,6 @@
-// M10 Q3a QA: counterexample hunting against "a chosen tier the book does not hold is a replacement" (ADR 0178, Amendment of
-// 2026-11-04, decision 1; plan, Q3 split, rulings 1 and 3). The implementer's suite sweeps a vanished id the sample book
-// dropped or nobody held, over books that drop tiers. This adds what it lacks: an id another GROUP holds, the claim that
+// Counterexample hunting against "a chosen tier the book does not hold is a replacement" (see ADR 0178 decision 1).
+// `q3a-vanished-tier-is-a-replacement.test.ts` sweeps a vanished id the sample book dropped or nobody held, over books
+// that drop tiers. This adds what it lacks: an id another GROUP holds, the claim that
 // `UNKNOWN_TIER` is unreachable over every design and availability, byte determinism, the full order of a refusal
 // written out by hand, and the colour row beside a vanished material.
 import fc from "fast-check";
@@ -249,7 +249,7 @@ describe("what a refusal lists, written out by hand", () => {
     ]);
   });
 
-  // CURRENT BEHAVIOUR, not a ruling: a vanished chosen tier is decided before `selectTier` reads the fallback, so a kitchen
+  // A vanished chosen tier is decided before `selectTier` reads the fallback, so a kitchen
   // that has both a vanished choice and a book whose OTHER group's fallback is missing is a replacement, and the book
   // fault surfaces only after the customer replaces it.
   it("is a replacement, not the book fault, when a vanished choice meets a missing fallback of the other group", () => {
@@ -336,7 +336,7 @@ describe("a vanished material the code still declares, wearing a switched-off co
   });
 });
 
-describe("the kitchen of FINDING Q3a-F1 is one a stored document can be", () => {
+describe("a vanished undeclared material wearing a palette colour is a kitchen a stored document can be", () => {
   const ghostWearingAPaletteColour = withSettings({
     cabinetDepthMm: 600,
     materialTierId: "material.ghost",
@@ -360,7 +360,7 @@ describe("the kitchen of FINDING Q3a-F1 is one a stored document can be", () => 
     expect(loaded.settings?.materialTierId).toBe("material.ghost");
   });
 
-  it("is refused by the price with the vanished material alone: its switched-off colour is not listed (ruling on FINDING Q3a-F1; ADR 0057 resets it)", () => {
+  it("is refused by the price with the vanished material alone: its switched-off colour is not listed (the material change resets it, ADR 0057)", () => {
     expect(
       itemsOfRefusal(
         priceUnder(
@@ -407,9 +407,9 @@ describe("the seeded kitchen is untouched by the new rule", () => {
   });
 });
 
-// The plan keeps `itemsNamedBy` as it was ("a switchable item the book holds"), so the dashboard's switch universe does not
-// move; only `disabledItemsNamedBy` gains the vanished tier. Without this pin, moving the change into `itemsNamedBy`
-// instead leaves every other test green (a sabotage QA ran on 2026-11-09).
+// `itemsNamedBy` stays "a switchable item the book holds", so the dashboard's switch universe does not move; only
+// `disabledItemsNamedBy` gains the vanished tier. Without this pin, moving the change into `itemsNamedBy` instead leaves
+// every other test green.
 describe("itemsNamedBy keeps its meaning: a switchable item the book holds", () => {
   it("leaves out a chosen tier the book does not hold, while disabledItemsNamedBy lists it", () => {
     const design = withSettings({
@@ -431,10 +431,10 @@ describe("itemsNamedBy keeps its meaning: a switchable item the book holds", () 
   });
 });
 
-// Whether FINDING Q3a-F1 is Q3a's or older: a book that HOLDS a material tier no code declares (a created class) has the
-// same sheet defect with no vanished tier at all. Q3a does not touch a held tier, so this case behaves identically at the
-// base commit bcc93179 (run there by QA on 2026-11-09): F1 is a pre-existing defect that Q3a extends to vanished ids.
-describe("FINDING Q3a-F1 is older than Q3a: a HELD material no code declares has it too", () => {
+// A book that HOLDS a material tier no code declares (a created class) has the same sheet defect with no vanished tier at
+// all: the colour group is the palette the code declares for the material, and it declares none. A vanished tier does
+// not touch this case; it belongs to the colour replacement work.
+describe("a held material no code declares, wearing a switched-off palette colour", () => {
   const createdMaterial = {
     ...BOOK.material.tiers[0],
     tierId: "material.created",
@@ -475,7 +475,7 @@ describe("FINDING Q3a-F1 is older than Q3a: a HELD material no code declares has
   });
 
   it.fails(
-    "FINDING Q3a-F1 (older form): builds a sheet without throwing for a held, undeclared material wearing a switched-off palette colour",
+    "KNOWN DEFECT: a switched-off colour under a created material class throws instead of building a sheet; the fix belongs to the colour replacement work",
     () => {
       expect(() =>
         replacementsRequired({

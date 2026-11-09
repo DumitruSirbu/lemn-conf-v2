@@ -1,6 +1,5 @@
 // What a customer must replace before a kitchen has a price, and what they may replace it with (ADR 0062 Amendment 3,
-// A-16, A-17): one row per switched-off item the kitchen names, and per material or hardware tier it chose that the
-// book no longer holds (ADR 0178, Amendment of 2026-11-04), each with the options that remain.
+// A-16, A-17): one row per item to replace the kitchen names, each with the options that remain.
 //
 // It sits beside the other queries, not under `pricing/`, because the colours a material offers are the palette's
 // (`materials.ts`), which nothing under `pricing/` may import (ADR 0071 decision 1). What it asks of pricing is the one

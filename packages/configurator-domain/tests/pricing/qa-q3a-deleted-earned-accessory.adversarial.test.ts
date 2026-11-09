@@ -1,6 +1,6 @@
-// M10 Q3a QA: `removedAccessoriesSince` against a hand-written oracle over every combination of the five facts that can
-// decide a linked accessory (ADR 0178, Amendment of 2026-11-04, decision 1; plan, Q3 split, ruling 3). The implementer's
-// suite pins six examples; this sweeps the product, so a branch it did not think of has nowhere to hide.
+// `removedAccessoriesSince` against a hand-written oracle over every combination of the five facts that can decide a
+// linked accessory (see ADR 0178 decision 1). `q3a-deleted-earned-accessory-is-removed.test.ts` pins six examples; this
+// sweeps the product, so a branch it did not think of has nowhere to hide.
 //
 // The oracle is written from the rule in words, not from the filter in the source: an accessory is reported when the
 // kitchen earned it under the seen book, the customer did not see it switched off, and it is gone now, gone meaning the
