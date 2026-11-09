@@ -2693,6 +2693,7 @@ block stays R4c's.
 5. The `:104` flip and the `:119` pin deletion, with R-j and R-d's end-to-end sequence (after R4b).
 
 That is the 5-item limit. R4c's own plan may split it.
+**(Amended 2026-11-09, architect: split into R4c1, R4c2 and R4c3, with the files corrected (`draft-plans.ts` and `deletion-facts.ts` join; the pre-check is a new module). See *Q5 split and R4c plan*, Lane Q.)**
 
 *Risks and residuals.*
 - **The walk keeps running after the deadline.** `countEach` takes no cancellation signal (`m10-ports.ts:376-378`),
@@ -3717,7 +3718,7 @@ Amendment; ADR 0062 Amendments 3 and 5; ADR 0104 (chrome specification); `apps/w
 | **Q2b** a cabinet follows the kitchen handle again (added 2026-10-26; **pending OQ-15**, default = mirror colour) | (1) a `clearHandle` command in `set-appearance.ts`, mirroring `clearFinish` (ADR 0099 d8): it removes the cabinet's own handle, so the kitchen handle applies again; (2) a panel option "Ca restul bucătăriei" in the cabinet's handle control, as the colour control has; (3) the copy leaf, requested from T | `commands/set-appearance.ts`, the panel handle control, `store/apply-command-result.ts` (if a new effect branch is needed) | Q2 | ADR 0099 d8 (`clearFinish`); `set-appearance.ts`; OQ-15 |
 | **Q3** forced replacement and merged notice (**split 2026-11-09 into Q3a, T4, Q3b, Q3c and Q3d: dispatch the sub-waves, never this row whole; see *Q3 split* below the Q acceptance.** **Widened 2026-10-27, R1-Q1 deferral: with no active book the whole editor `/d/[id]` and the share view `/s/[token]` crash, not only the settings sheet, because `use-top-bar-fit.ts:72` calls `useWholeKitchenTierOffer()` unconditionally and there is no `error.tsx`; Q3's `NO_TIER_OFFER` work must cover `describeSettingsPill` and the top bar too, see R-b**) | C4A–C4D (a modal sheet, not dismissable except by ‹; first "Alege" focused; rows announced; "Prețul apare după ce alegi"; only remaining options, the disabled one struck through; nothing preselected; accessory rows informational); C4C confirmation merged with C1's sentence (the mockup's choice [mock L810]); C1 standalone when there is nothing to replace; acknowledging writes the marker (the version and availability pair). The sheet and the accessory info rows follow **current availability**, so they appear on the next open after a disable, with no publish (A-17). **Widened 2026-11-04 (ADR 0178, Amendment on a deletion that gains a user):** a material or hardware tier the active book no longer holds is a sheet row too, and a deleted linked accessory the kitchen earned is an info row. Q3 holds four P-lane files for this. Items and criterion Q3-g are in Lane S, *Publish and a deletion that gains a user* | `replacement-sheet.tsx`, `use-price-notice.ts`, `price-notice-banner.tsx`, `price-bar.tsx` (mod), `whole-kitchen-tiers.ts` (disabled tiers hidden or struck) | P4a, R5, T1 | Frames C1, C4A–D [mock L763, L792-811]; A-11, A-16; ADR 0072 Amendment *Consequence*; ADR 0062 Amendment 3; `whole-kitchen-tiers.ts:91-162` |
 | **Q4** sent-kitchen note (**amended 2026-11-09 by *Q3 split*: depends on Q3c, reads `isSent` from Q3c's `use-price-notice.ts` and never issues its own `GET`; never concurrent with Q3d, since both edit `configure-screen.tsx`**) | C5A/C5AD: a closable, non-blocking note above the price when `isSent` | `sent-kitchen-note.tsx`, editor placement | R5, T1 | Frames C5A, C5AD [mock L805-807]; ADR 0062 Amendment 5, point 3; ADR 0165 |
-| **Q5** lone colour and handle replacement | A disabled colour or handle as a sheet row; choosing replaces it at every level where it appears (A-16); "Culoarea a revenit la Alb" when a material change resets it | `replacement-sheet.tsx` (mod), `store/whole-kitchen-apply.ts` (mod) | Q3, Q2, H1, P4a | A-16, A-17; ADR 0057, 0081, 0086, 0099; `chosen-finishes.ts`, `resolved-finish.ts` |
+| **Q5** lone colour and handle replacement (**split 2026-11-09 into T5, Q5a, Q5c and Q5b: dispatch the sub-waves, never this row whole; see *Q5 split and R4c plan* below the Q3 split. Q5a and Q5b are Full, a recorded upgrade from this lane's "Q5 Light"**) | A disabled colour or handle as a sheet row; choosing replaces it at every level where it appears (A-16); "Culoarea a revenit la Alb" when a material change resets it | `replacement-sheet.tsx` (mod), `store/whole-kitchen-apply.ts` (mod) | Q3, Q2, H1, P4a | A-16, A-17; ADR 0057, 0081, 0086, 0099; `chosen-finishes.ts`, `resolved-finish.ts` |
 
 **Q acceptance:**
 
@@ -4033,6 +4034,385 @@ pair below.
 - **OQ-42** — when accessories were removed and nothing needs replacing, the notice is the non-blocking C1 banner with
   the accessory line, not the modal sheet. Default: the banner (ruling 6).
 - **OQ-11g** — T4's two new Romanian leaves, built as drafted.
+
+**Q5 split and R4c plan** (architect, 2026-11-09; plan step at `m10-price-dashboard` @ `9cd3986c`, with Q3d read at
+`m10/q3d` @ `c6211abd`, built and in QA, **not merged**; nothing built, no test run, only reads and greps). Q5's row,
+its extra duties (*Q3 sub-waves T4, Q3a, Q3c, Q4, Q3b merged*, "Remaining order"), H1-a/H1-b as Q5-a, and R4c's scope
+(*R4a split*, *R4c's scope, as this split leaves it*, and the R4a4 and R4a6 hand-offs to R4c) come to about twenty
+items. Under `docs/WORKFLOW.md`'s limit they split into **T5, Q5a, Q5b, Q5c** and **R4c1, R4c2, R4c3**. Each merges
+alone. **Dispatch the sub-waves, never the Q5 row or R4c whole.** Every criterion already recorded (A-16, Q5-a, R-i,
+R-j, R-d's M5 arm) stands; this block says which sub-wave delivers it.
+
+*Evidence.* Every source claim below was read at `9cd3986c`, or at `c6211abd` for the four Q3d files
+(`git show m10/q3d:<path>`), with its line (source-verified). **[inf]** marks an inference and says what would falsify
+it. Owner rulings and records are doc-quoted.
+
+*What the code says, which shapes the split* (source-verified).
+1. **A lone colour or handle row has no way forward.** `isChoosableKind` admits material and hardware only
+   (`replacement-sheet-model.ts:39-44`). A row that is not choosable is drawn with no button (`replacement-sheet.tsx:441-455`),
+   the sheet stays open while any row is owed (`isPending: live.length > 0`, `:199`), and Escape and the scrim do nothing
+   (`:50-54`). A kitchen whose only owed row is a colour or a handle can only leave by ‹.
+2. **The sheet learns nothing from an apply.** It applies through `applyWholeKitchenSettings` (`replacement-sheet.tsx:176-182`),
+   which answers `{committed: true}` and no effect (`configurator-store.ts:611-631`). `setMaterialTier`'s
+   `resolvedFinishCount` counts cabinet resets only; the global colour's reset (`set-whole-kitchen-settings.ts:169-183`)
+   is not counted. "A colour was reset" is therefore read by comparing the stored colours before and after the apply.
+3. **No command replaces a colour or a handle at every level.** `setGlobalFinish` cannot reach a placement by its input's
+   shape (ADR 0099 decision 2; `set-whole-kitchen-settings.ts:54-93`), `setKitchenHandle` writes `settings.handle` only
+   (`set-kitchen-handle.ts:25-46`), and `setFinish`/`setHandle` act on one placement. A design names a colour or a handle
+   at `settings.finish`, `settings.handle`, `settings.topRowHandle` and each cabinet whose catalogue row lets it carry one
+   (`coloursAndHandlesNamedBy`, `catalogue-availability.ts`). The whole-kitchen effects branch at
+   `store/apply-command-result.ts:138-142`.
+4. **The universe is small.** Handles are `steel | black | push` (`design.ts:44`). `steel` and `push` are fixed defaults
+   that are never switched off (`defaults-judgement.ts:42-50`; `kitchen-handle.ts:8, :10`), so today a handle row can
+   only be `black`, and its options are `steel` and `push`. Each declared material's default colour is fixed too; a free
+   colour is not an item, so MDF has no colour row.
+5. **The created-class colour defect is a contract gap that throws.** Under a material no code declares,
+   `coloursOfTheDesignsMaterial` answers `[]` (`replacements-required.ts:105-116`), so `activeOptionsReplacing` throws
+   `NoReplacementOptionError` (`:87-91`). Q3d's `pendingReplacements` catches it and answers `[]`
+   (`replacement-sheet-model.ts:52-68`): no sheet, the price refused, nothing to press. **Reachability:** materials cannot
+   be created (`price-dashboard/structural-changes.ts:38-39` creates hardware classes and linked accessories only; the U4b
+   record says the same); the seed holds the three declared ids (`sample-price-book.ts:430-448`, `materials.ts:17-21`); and
+   no book reader checks a material tier against the declaration (`rtk proxy grep` for `MATERIAL_IDS|lookUpMaterial`
+   under `pricing/` and `price-dashboard/` finds only `defaults-judgement.ts`). So it is unreachable through the app today,
+   and reachable by a release that drops a declaration while the active book still holds it, or by an out-of-band write
+   **[inf: falsified by a book path that refuses an undeclared material tier]**. Nothing ever said what a colour row offers
+   under such a material: a contract gap, fixed in the domain (ruling 5), not in the sheet.
+6. **Ordering inside the sheet.** A held switched-off material and a switched-off colour give two rows, and the colour
+   row offers the switched-off material's palette (*P4a merged*, the Q5 hand-off). Choosing the colour first and the
+   material second discards the colour (ADR 0057). A row resolved by that reset stays drawn (`rememberRows`), and
+   `chosenName` answers `undefined` for a colour or a handle (`replacement-sheet-model.ts:301-315`), so its value is empty.
+7. **The pill names a material the kitchen does not carry.** `selectedTierIn` names a switched-off tier by its own name
+   and a vanished one by the book default's name (`global-settings-model.ts:890-902`, used by `materialEntryOf`,
+   `:746-760`). Frames C4A, C4B and C4BD draw the header's material as "Material de ales" while the material is owed
+   [mock L793-804]. The leaf exists (`replacementSheet.headerMaterialToChoose`, `ro.json:1923`) and nothing in
+   `apps/web/src` reads it. Label widths are measured per render (`settings-pill-fit.ts:28-29`), so no fit-model edit is
+   expected **[inf: falsified by a clipped label in the visual pass]**.
+8. **Copy.** `replacementSheet.changedHandle` and `colourReverted` exist and are unread. No leaf says a colour was
+   replaced by choice.
+9. **The route's refusal of a deletion is in two files.** `draft-requests.ts:457` refuses `item-deleted` by its kind for
+   change and revert (`isDeletion`, `:471-474`). `draft-plans.ts:222-224` refuses any revert whose removal holds a
+   deletion, the deletion's own address included.
+10. **The client gate.** `fetching-item-lifecycle-client.ts:61-62` sets `canDeleteStatedItems: false`, which
+    `deleteStandOf` reads (`item-lifecycle-model.ts:133-149`).
+11. **Publish already judges deletions in the request** (`deletion-refusal.ts:35-46`, `price-dashboard-service.ts:634-661`).
+    The publish page's count is unbucketed and runs 50 probes at a time (`deletion-facts.ts:166-175`).
+12. **The usage route's one-read-in-flight slot lives in the route module** (`staff-item-usage.ts:120-130`), not in
+    `item-usage-read.ts` or `deletion-facts.ts`. A pre-check built on `readDeletionFacts` does not take it, so the delete
+    dialog's count and the confirming write cannot collide on a `429` **[inf until R4c2's security review confirms]**.
+13. **Deferred tests about deletion** (`grep -rn "it\.fails"` over `apps/web/tests/app/api/staff` and
+    `tests/price-dashboard`): `qa-m10-u4a-wire.adversarial.test.ts:104` (pin `:119`), `material-wire.test.ts:196` (pin
+    `:213`), `publish-client-against-routes.test.ts:566` and `:583`. Not R4c's: `qa-m10-r4a4-creation-limits…:94, :109`
+    (the queued `LIMIT_REACHED` wave). No `it.fails` marks a deleted row's ↺; R4a4's "QA's `it.fails` will mark when" has
+    no marker in the tree.
+
+*Rulings this plan records* (architect; **[inf] until the coordinator accepts them**; the owner may overturn any).
+
+1. **ADR 0081 and the forced sheet.** *Under ADR 0081 as written, an after-the-fact announcement is not acceptable.*
+   Decision 8 rules every material change, and a forced replacement is one. Decisions 2 and 3, with ADR 0057 decision 3,
+   ask for a blocking confirmation before the apply. Decision 6 forbids the consequence as a toast, banner or note after
+   it. A-16 (ADR 0178, 2026-10-26, later) rules the C4 sheet the other way, "announced (… C4C)", and frame C4C draws
+   "Culoarea a revenit la Alb." after the choice. A-16 names ADR 0086, not 0081, so **two live records disagree on this
+   path**. Settled for the C4 sheet only, in A-16's favour:
+   - ADR 0072's Amendment (*Consequence*) left "whether a withdrawn tier needs … the warn-before-apply shape of ADR 0057"
+     to the dashboard's waves to decide. A-16 is that decision.
+   - ADR 0081's intent is "we inform, and if he agrees, we change": the customer may decline and keep the colour. In the
+     sheet nothing can be declined. Every declared material's palette is disjoint from every other's (ADR 0078 decision
+     1), so every remaining option discards the colour, and the only exit, ‹, leaves the kitchen unpriced. A confirmation
+     here would be the unconditional one ADR 0081 rejects ("a modal that always appears is a modal that is always
+     dismissed").
+   - **Owed:** the scribe writes a dated amendment to ADR 0081 naming decisions 2, 3, 6 and 8, recording that on the
+     forced-replacement path A-16 governs (an announcement after the apply, no confirmation before), and a pointer from
+     A-16 to it. It is written at Q5b's close, before Q5b merges. This plan does not write it.
+   - **Unchanged:** the settings sheet's voluntary material change keeps ADR 0081 whole. Q5b's QA pins it (Q5b, below).
+2. **When the reset is announced.** "Culoarea a revenit la {colour}" shows exactly when the material apply rewrote at
+   least one stored colour, global or a cabinet's. It names the new material's default colour, as the app names a colour
+   elsewhere: a palette entry by its name, MDF's free default by `globalSettings.pillColourValue`, which prints the hex.
+   That is OQ-11's item (a) again, not a new question, and it follows whatever that item rules. It never shows when no
+   stored colour changed. A kitchen with no stored colour that visibly repaints stays silent, as ADR 0081's
+   owner-confirmed consequence (2026-09-05) has it.
+3. **One command replaces a switched-off colour or handle at every level** (A-16). It is two domain functions,
+   `replaceColour` and `replaceHandle` (no flag argument), each one `CommandResult` with one new effect (ADR 0057 decision
+   2). `setGlobalFinish` and `setKitchenHandle` are not widened (ADR 0099 decision 2's shape guarantee). Each command
+   rewrites every stored occurrence equal to the replaced item, and nothing else. For a colour that is `settings.finish`
+   and each `body.finish` (`sameFinish`). For a handle it is `settings.handle`, `settings.topRowHandle` and each
+   `body.handle`. Each command refuses what `setGlobalFinish`/`setKitchenHandle` refuse (`INVALID_OCCURRED_AT`,
+   `FINISH_NOT_OFFERED` against the design's material, `UNKNOWN_HANDLE`). Availability is the caller's (H-4). No new
+   refusal code.
+4. **A colour row waits for an unresolved material row.** While a material row is unresolved, a colour row in the same
+   sheet has no "Alege". Resolving the material resolves every colour row the reset cleared. Such a row is then drawn
+   resolved, naming the colour it reverted to. A colour row still owed after the material is resolved becomes choosable
+   (only an undeclared new material, which resets nothing, can leave one). A resolved colour or handle row names what
+   replaced it, never an empty value and never an id.
+5. **Under an undeclared material, a colour row offers its entry's own palette**: the active entries of the declared
+   material whose palette holds the switched-off entry (palette ids are namespaced by material, `materials.ts:28-31`).
+   *Why:* it never throws, so parity between the refusal's items and the sheet's rows holds. Any entry passes
+   `setGlobalFinish`'s offer under an undeclared material (ADR 0078 decision 3). M3's last-active guard is per material
+   palette and each palette's default colour is fixed, so that group never empties. `NoReplacementOptionError` stays the
+   answer only when a group has no active option. *Rejected:* dropping the colour row (the price would still refuse on
+   it, so the parity breaks); offering every declared palette (unbounded and arbitrary).
+6. **The pill's material entry reads `headerMaterialToChoose` exactly while the domain owes a material row**, computed
+   from the offer and the applied choice alone (a chosen id among the switched-off tiers or held by neither list, or no
+   choice and a switched-off book default). The parity criterion is in Q5c. The rule is the same on every surface that
+   draws the pill, the share view included, because it is a fact of the kitchen. The hardware entry while a hardware row
+   is owed is OQ-43 (default: the entry is left out, so the pill never names a tier the kitchen does not carry).
+7. **The colour and handle choosers** follow C4B's shape: the heading is `globalSettings.colourHeading` or
+   `kitchenHandleHeading`, the options are the row's `remaining` in order, the kitchen's own switched-off item is struck
+   and cannot be chosen, nothing is preselected, and "Aplică" stays off until a choice. A colour option draws its name
+   and its swatch. There is no "Se aplică tuturor celor N dulapuri" line: that leaf counts every cabinet, and a colour
+   replacement reaches only the cabinets wearing that colour.
+8. **The draft-write pre-check (R4c2).** The order is the change route's own checks, then the stale draft revision, then
+   the plan (which refuses a fixed default as `400 ITEM_IS_DEFAULT` through `applyChanges`). Only after that, and only
+   for a deletion of a row the active book states, comes the pre-check:
+   - the saved defaults (R4a1's read; an unparseable row is `503`) answer `400 ITEM_IS_DEFAULT`;
+   - then one count through `readDeletionFacts` (SQL probes against the active book only, never the walk, under
+     R4a2's deadline) answers `400 ITEM_IN_USE` when it is above 0;
+   - a failed or late read is `503` and writes nothing.
+
+   A row the draft created needs no count. It does not take the usage route's slot (point 12).
+9. **The word for a fixed default is settled at the change.** The change route answers `400 ITEM_IS_DEFAULT` for a
+   fixed default and a saved one alike, so no stored draft written through the app holds a fixed-default deletion. A
+   draft stored out of band keeps publish's `409 candidate-refused`, which fails closed and writes nothing.
+   `publish-client-against-routes.test.ts:583` (`blocked is-default` at publish) is therefore retired by QA citing this
+   ruling, not flipped. U5c's fixed-default wording at publish is not needed, so no copy is owed. *Alternative, one more
+   file:* map a candidate refusal of `ITEM_IS_DEFAULT` on a deletion to `409 item-is-default` in `publish-plan.ts`. The
+   coordinator may prefer it.
+10. **Precedence (R4a6 hand-off 2).** A deleting publish with a stale `expectedAvailabilityRevision` and an item now in
+    use answers `item-in-use`, as S2c's recorded order does. Nothing is written either way. It is recorded as accepted,
+    with no pre-check.
+11. **The publish page's count is bounded before deletions can enter a draft** (R4a6 hand-off 3). `deletion-facts.ts`
+    gains a per-process memo of the page's counts. It is keyed by (draft revision, active sequence, availability head),
+    lives a short time (proposed 60 s **[inf]**, the owner's to retune), and remembers only a whole answer. Publish never
+    reads it (R-i).
+12. **Restore with a pending deletion** (M4) keeps the deletion and adds no change for a row the draft deletes, so
+    `[delete T, rate on T]` never arises. Owner-visible on staff screens: OQ-44.
+13. **Reverting a deletion past the 20-class or 50-accessory cap** answers `409 candidate-refused`, as built, and the
+    deletion stays. It joins R4a4's queued `LIMIT_REACHED` wave. It is pinned, not changed.
+14. **One book for a creation's rates** (R4a4 hand-off). Falsify it first. QA's property: for any draft holding
+    deletions, a class can still be created whenever the active book allows one. If the property is red, `ratesOf` and
+    `prepareTierCreation` read `hardwareRatesOf(activeBook)` (M4's rule). If it is green, the hand-off is closed as
+    unreachable.
+15. **A conflict while deleting** (`deletionSettlementOf`'s `conflict`) re-reads the draft and re-counts before Delete
+    can be pressed again. A second press never sends a deletion judged on the facts from before the conflict.
+
+*Why Q5 precedes R4c.* Colours and handles are not deletable kinds (`book-field-address.ts`'s deletable kinds are a
+hardware class, a material and a linked accessory). Turning deletion on makes a **vanished material** reachable in
+production, and so makes its colour reset (ruling 2) and its colour row (ruling 4) reachable too. R-j's hard gate is
+Q3d. Q5 is the recorded order ("Q3d and Q5 merge together before any push", "then Q5, then R4c").
+
+*Sub-waves.* Separate worktrees; one writing agent per tree (R2); at most two implementers at once beside Q3d's QA and
+review.
+
+| Sub-wave | Items (≤ 5) | Production files | Depends on, and base | Tier | Visual | Reading |
+| --- | --- | --- | --- | --- | --- | --- |
+| **T5** Q5's new leaf | (1) `replacementSheet.changedColour`, RO draft "Culoare schimbată în {name}. Prețul a fost actualizat." (2) An RU agent draft, marked, never pinned. (3) The copy lock lists it `Drafted` (OQ-11h) | `ro.json`, `ru.json`, `ro.d.json.ts` (regenerated); copy lock `tests/support/approved-romanian-messages.ts`. Three | none; base `m10-price-dashboard` | Light, copy only (the coordinator checks the leaf against the lock) | None | T4's row; ADR 0095 decision 2; ADR 0106 Amendment A |
+| **Q5a** the domain: replace at every level; a colour under an undeclared material | (1) Ruling 3: `replaceColour`, `replaceHandle` and one effect each. (2) Both effects join `CommandEffect`, with their branch beside the whole-kitchen effects in `apply-command-result.ts:138-142`, in one change (H-6). (3) Ruling 5 in `replacements-required.ts` (P-lane file, held in a stated window as Q3 held it). (4) Exports. (5) Paired tests; QA flips the `it.fails` | domain `commands/replace-switched-off-appearance.ts` (new), `commands/command-result.ts`, `index.ts` (exports), `queries/replacements-required.ts`; web `store/apply-command-result.ts`. Five | merged only; base `m10-price-dashboard` (touches no Q3d file); **may start now** | **Full** (logic and clean-code): it rewrites stored documents at two levels | None: domain and store adapter | This block (points 3–6; rulings 3 and 5); A-16; ADR 0057 decisions 2 and 4; ADR 0078 decisions 1, 3 and 5; ADR 0099 decisions 2, 6 and 8; H-4, H-6, H1-a, H1-b, H2-b; `set-whole-kitchen-settings.ts`; `set-kitchen-handle.ts`; `set-appearance.ts`; `catalogue-availability.ts:139-245`; `replacements-required.ts`; `named-items.ts`; `defaults-judgement.ts:36-50`; `apply-command-result.ts` |
+| **Q5c** the pill while a material is owed | (1) Ruling 6: `materialEntryOf` reads `headerMaterialToChoose` while a material row is owed. (2) OQ-43's default for the hardware entry. (3) The C4D frame's header still reads "Material de ales" after the material row is resolved (`base4(L.matN …)`, mock L802). That is a mockup inconsistency, recorded as a departure: the label names the chosen tier once the row resolves | `settings/global-settings-model.ts`. One (`use-top-bar-fit.ts` only if a type needs it) | merged only (Q3b); base `m10-price-dashboard`; **may start now** | Light (one combined reviewer) | **Verify-visual**: the top bar at 390 × 844, 900 × 500 and 1440 × 900 (ADR 0104 Amendment H's give widths), with a material owed and after the choice, under `CI=1` through the stored vanished-material design (Q3-g's path) | This block (point 7; ruling 6); frames C4A, C4B, C4BD, C4D [mock L793-807]; ADR 0104 decision 3 and Amendment H; Q3b's residuals 2 and 3; `global-settings-model.ts:673-800, :890-902`; `settings-pill-fit.ts`; `use-top-bar-fit.ts:72-75`; `browser-and-visual-qa.md` |
+| **Q5b** the sheet resolves a colour and a handle | (1) Colour and handle rows are choosable through ruling 7's chooser. The `ChoosableKind` interim ends. (2) The request carries a replacement. `WholeKitchenSettingsRequest` gains one optional replacement (colour or handle, from and to) that the preflight runs through Q5a's command, so the sheet keeps the store's one-commit action and `configurator-store.ts` is not edited. (3) Ruling 4 (the colour row waits) and the resolved-row names. (4) Ruling 2: the sheet compares stored colours before and after a material apply and records the reset. C4C's lines run in order: material, "Culoarea a revenit la …", hardware, colour (T5's leaf), handle (`changedHandle`), then `alsoUpdated` (ruling 8 of *Q3 split* unchanged). (5) Narrow `pendingReplacements`' catch: it stays for `NoReplacementOptionError` only. Its comment states the one remaining cause (every option of a group switched off) | `price/replacement-sheet-model.ts`, `price/replacement-sheet.tsx`, `price/use-price-notice.ts` (`ReplacementChange` widened; the confirmation), `store/whole-kitchen-apply.ts`, `price/replacement-sheet.module.css` (the colour option's swatch). Five | Q5a and T5 merged; **Q3d merged locally after its QA and reviews** (Q5b edits Q3d's files; never branch from `c6211abd` while Q3d's QA is open) | **Full** (logic and clean-code) + visual. **A recorded upgrade from Lane Q's "Q5 Light"**: it carries A-16 and the ADR 0081 exception (ruling 1) | **Verify-visual**: C4A and C4D with a colour row and a handle row, the colour and handle choosers, and C4C with the reset line, at 390 × 844 and 1440 × 900. **Colour and handle rows run on a dedicated `next dev` server of the visual agent's own** (never port 4320, never a server another spec uses; `agent-coordination.md`), where it switches an item off through the staff route and back. **C4C's reset line also runs under `CI=1`** through a stored design naming `material.ghost` with a stored palette colour (Q3-g's path, no publish, no availability write) | This block (points 1, 2, 6, 8; rulings 1, 2, 4 and 7); *Q3 split* rulings 5 and 8; A-16; ADR 0057; ADR 0081 (decisions 2, 3, 6 and 8); ADR 0072 Amendment *Consequence*; ADR 0086; ADR 0099; frames C4A–C4D, C4AD, C4BD [mock L792-811]; Q3d's four files at its final tip; `whole-kitchen-apply.ts`; `configurator-store.ts:560-720` (read only); `chosen-finishes.ts`, `resolved-finish.ts` (read only); `browser-and-visual-qa.md` |
+| **R4c1** deletion's edges, before deletion is on | (1) Ruling 12 in `restore-plan.ts`. (2) Ruling 13, pinned. (3) Ruling 14: the property first, then the fix only if red. (4) Ruling 10, pinned. Everything is tested through stored drafts that hold `item-deleted`, which the stored reader accepts since R4a3. The route still refuses one | `lib/server/price-dashboard/restore-plan.ts`; only if ruling 14's property is red: `creation-plans.ts` and domain `price-dashboard/structural-changes.ts` (M-lane file, a stated window). One to three | merged only; base `m10-price-dashboard`; may run beside Q5b (disjoint files) | Full + security (Lane R) | None: server only | This block (rulings 10, 12–14); the M4 hand-offs (*M4 hand-offs*, "Decide whether restore keeps a pending deletion"); R4a4's hand-offs to R4c; `restore-plan.ts`; `creation-plans.ts:104`; `structural-changes.ts:88-130`; `draft-structure.ts:69`; `qa-m10-r4a4-creation-limits.adversarial.test.ts` |
+| **R4c2** deletion on at the draft route | (1) `draft-requests.ts` accepts `item-deleted` as a change (value `true` only) and as a revert. The named refusal goes. (2) `draft-plans.ts` lets a revert take back a deletion by its own address, and keeps R4a3's `400 NOT_EDITABLE` for a field revert of a row the draft deletes. (3) Ruling 8's pre-check in a new module, called by the change write. (4) Ruling 11's memo. (5) The `price-draft-changed` audit row with `changeKind: item-deleted`, and the revert's row naming the deletion (R4a3's audit ruling), each in the write's transaction | `draft-requests.ts`, `draft-plans.ts`, `price-dashboard-service.ts` (the change write calls the pre-check), `lib/server/price-dashboard/draft-deletion-check.ts` (new), `deletion-facts.ts`. Five | **Q3d, T5, Q5a, Q5c, Q5b and R4c1 merged, and S2c (merged `64d98623`). The branch's first commit descends from the Q5b merge** (R-j, below) | **Full + security** | None: server only | This block (points 9, 11–13; rulings 8–11); the deletion-race block (all), R-i, R-j, R-d; ADR 0178 Amendment of 2026-11-04; ADR 0062 Amendment 3, item 2; R4a2 and R4a6 records and hand-offs; `draft-requests.ts`; `draft-plans.ts:200-280`; `price-dashboard-service.ts:340-420, :520-661` (the order of checks); `deletion-facts.ts`; `deletion-refusal.ts`; `item-usage-read.ts`; `staff-item-usage.ts:120-130`; wire `:90-100, :159-245` |
+| **R4c3** Delete on in the dashboard | (1) `canDeleteStatedItems: true` in the fetching client. (2) Ruling 15 in `deletionSettlementOf` and its caller. (3) D7's ↺ on a deleted row (`publish-model.ts`), reverting by the deletion's address. (4) The stale-draft list's deleted line gets the same ↺ (`stale-draft.ts:18, :26`). (5) OQ-11f's `cannot-judge` note on Delete stops being a standing state in production. No wording change; recorded | `fetching-item-lifecycle-client.ts`, `item-flows.ts`, `use-item-availability.ts` (only if ruling 15 needs it), `publish-model.ts`, `stale-draft.ts`. Five | R4c2 merged | Full + visual. No security review, as R4a5 had none: client files only, and every judgement stays on the server (a recorded choice; the coordinator re-tiers if a server file joins) | **Verify-visual and e2e under `CI=1` with the draft lock** (`support/price-draft-lock.ts`), publishing nothing (below) | This block (point 10; ruling 15); R4a5's row and record; R4a4's hand-offs; U5b, U5c records; frames D4E/F, D5C/D/G, D6C [mock L779-781] and the publish page's D7; `item-lifecycle-model.ts:120-150`; `item-flows.ts:140-207`; `publish-model.ts:185-410`; `stale-draft.ts`; `browser-and-visual-qa.md` |
+
+*Order and the R-j check.*
+1. **Now, while Q3d finishes QA and review:** Q5a ∥ Q5c. T5 any time; it is minutes and copy only.
+2. **Q3d merges locally** (no push), then **Q5b** branches from the tip holding Q3d, Q5a and T5. **R4c1** may run
+   beside Q5b.
+3. **Q3d, Q5a, Q5c and Q5b are all merged before any push** (the recorded rule).
+4. **R4c2** branches from the tip holding the Q5b merge. **R-j, made checkable:** at R4c2's merge, run
+   `git merge-base --is-ancestor <Q5b merge> <R4c2's first commit>` and the same for the Q3d merge. Both must exit 0.
+   Also read `rtk proxy git log -p <Q5b merge>..<R4c2 merge> -- apps/web/src/lib/server/price-dashboard/draft-requests.ts`:
+   no commit before R4c2's may remove the named refusal. A branch cut earlier and merged later breaks R-j, because the
+   rule is about every commit the merge makes reachable.
+5. **R4c3** after R4c2. *Must-not:* the client gate opens in a commit where the route still refuses `item-deleted`.
+6. Then the Z gate.
+
+*Pins that move* (QA sorts each file and states its verdict in its report; implementers edit no QA pin, §9.1).
+- **Q5a:** `packages/configurator-domain/tests/pricing/qa-q3a-vanished-tier.adversarial.test.ts:477` loses `it.fails`.
+  Tests that enumerate `CommandEffect` or whole-kitchen effects gain arms. QA greps `kitchen_handle_set` under
+  `packages/configurator-domain/tests` and `apps/web/tests/store`. None is expected to flip **[inf]**.
+- **Q5b:** Q3d's `tests/price/q3d-replacement-sheet-model.test.ts`, `q3d-replacement-sheet.dom.test.ts` and Q3d QA's
+  adversarial files. Each assertion that a colour or handle row has no button, `isChoosable: false`, or `ChoosableKind`
+  material and hardware only, moves. Each `NoReplacementOptionError`-means-no-sheet assertion is kept for the all-off
+  group only.
+- **Q5c:** pill tests that pin a switched-off or vanished material's label (`tests/settings/**`, Q3b's QA files, and
+  `tests/app/configurator/**` for the top bar). QA greps `pillMaterial` and `switchedOffTiers`.
+- **R4c1:** none expected **[inf]**.
+- **R4c2:** `qa-m10-u4a-wire.adversarial.test.ts:104` flips and its pin `:119` is deleted. `material-wire.test.ts:196`
+  flips and its pin `:213` is deleted. `publish-client-against-routes.test.ts:566` flips. `:583` is retired (ruling 9).
+  The kind × reader cells "refused until R4c" in `qa-m10-r4a3-structural-routes.adversarial.test.ts`, and the R-i "R4a
+  merges with deletion still off" arms in `qa-m10-r4a6-publish-deletions.adversarial.test.ts` and
+  `price-dashboard-draft-route.test.ts`, move **[inf: not opened; QA lists them]**.
+- **R4c3:** `qa-m10-r4a5-delete-gate.adversarial.test.ts` (its R4a5 must-not becomes the positive),
+  `fetching-item-lifecycle-client.test.ts`, `accessory-linked-switch-off-production.dom.test.ts:131`,
+  `qa-m10-r4b2-production-source.adversarial.test.ts` if it pins Delete off, and `stale-draft.test.ts` /
+  `publish-structural-rows*` where they pin "a deleted row has no ↺".
+
+*Acceptance.*
+- **T5:** the leaf exists in RO, appears in every locale's declaration, carries no figure, and the lock lists it
+  `Drafted`. RU is marked as an agent draft.
+- **Q5a:**
+  - **property (fast-check; the `javascript-testing-expert` skill applies):** for any design and any switched-off
+    colour or handle it names, `replaceColour`/`replaceHandle` with any option from `replacementsRequired`'s row yields a
+    design that `disabledItemsNamedBy` no longer lists that item for. Every stored value that differed from the
+    replaced item is byte-identical before and after. That covers a cabinet's own other colour or handle (H1-a, ADR 0099
+    decision 2), an absent finish staying absent (ADR 0078 decision 5) and `settings.topRowHandle` when it is another
+    handle;
+  - after a handle replacement, H1-b holds: the push-to-open count equals the resolved push bodies, and a top-row body
+    with `canHandle: false` stays push and latched (H2-b);
+  - one call is one `CommandResult` and one effect; a refusal returns the design by identity;
+  - H-6: the new effects are members of `CommandEffect`, and `applyCommandResult` leaves the selection where it was for
+    them. Sabotage: drop the branch and the store test goes red;
+  - ruling 5: the `it.fails` at `:477` passes as `it`. Under an undeclared material, the colour row offers its entry's
+    own palette's active entries in palette order, and the refusal's items equal the rows' items. `NoReplacementOptionError`
+    is thrown only when that palette has no active entry. Sabotage: restore `return []` for the undeclared lookup and
+    the flip goes red;
+  - **must-not:** a stored colour or handle that is not the replaced item moves. A colour the design's declared material
+    does not offer is accepted. The usage reader's answers move (S-e's parity holds byte-identical).
+- **Q5c:**
+  - **parity property:** over designs, books and availabilities, the material label is `headerMaterialToChoose` if and
+    only if `replacementsRequired` lists a material item;
+  - after the row resolves, the label names the chosen tier;
+  - **must-not:** while a material is owed, the pill names the book default for a vanished choice, or the switched-off
+    tier's name;
+  - with no book the material entry is absent, as Q3b left it;
+  - OQ-43's default: the hardware entry is absent while a hardware row is owed, and present otherwise.
+- **Q5b:**
+  - **no dead end (property):** for any set of owed rows drawn from the domain, each unresolved row either has an
+    enabled "Alege" or is a colour row waiting on an unresolved material row that has one. *Must-not:* `isPending` is
+    true while no unresolved row can be chosen;
+  - **lone colour, lone handle (DOM):** a kitchen whose only owed row is a switched-off colour, or a switched-off
+    handle, opens the sheet. Choosing an option and pressing "Aplică" makes one store commit and one save. The price
+    shows once the save lands (ruling 8 of *Q3 split*). The marker is written, and C4C carries `changedColour` or
+    `changedHandle`;
+  - **A-16 at every level (DOM over the store):** after the choice, no level of the design names the switched-off item,
+    and each other stored colour or handle is unchanged;
+  - **ruling 2:** a vanished or switched-off material replaced on a design carrying a stored colour that the new material
+    does not offer shows "Culoarea a revenit la {the new default}" in C4C, after the material line, only after the save
+    landed. A design with no stored colour shows no such line (the silent repaint). A design whose stored colour the new
+    material offers (an undeclared vanished material wearing `pal.antracit`, replaced by PAL) shows none. The trigger is
+    a before-and-after comparison of stored colours, global included. Sabotage: read `resolvedFinishCount` instead, and
+    the global-colour-only arm goes red;
+  - **ADR 0081, both directions:** inside the sheet no confirmation step appears before a material apply. In the
+    settings sheet, a voluntary material change that would discard a chosen colour still confirms before it, and never
+    shows the reset line after it. The pins at `global-settings*` stay green;
+  - ruling 4: with a switched-off material and a switched-off colour, the colour row has no "Alege" until the material
+    resolves, then shows resolved and names its reverted colour. A choice made first can never be discarded by a later
+    one in the same sheet;
+  - Q5-a in the browser: C4C's reset line, and the vanished-material path, under `CI=1` (no publish, no availability
+    write). H1-a and H1-b for a handle replacement run on the visual agent's dedicated server. Under `CI=1` they are DOM
+    and domain tests, because a switched-off handle needs a global availability write. This is a recorded residual,
+    as Q3-e's;
+  - accessibility: the chooser is in the same dialog and trap. Focus moves to its first enabled option. A struck option
+    is disabled and is not announced as selected.
+- **R4c1:**
+  - ruling 12, through the restore route: a draft holding `item-deleted` on T and a restore of a version that prices T
+    answer `200`. The draft still deletes T and holds no change addressed to T. `applyChanges` accepts the result;
+  - ruling 13: reverting a deletion when the draft creates enough accessories that the revert passes 50 answers
+    `409 candidate-refused`. The draft is unchanged, and the store holds one draft revision;
+  - ruling 14: the property, green or fixed, with its verdict in the report;
+  - ruling 10: the precedence, pinned by a route test that writes nothing.
+- **R4c2 (R-j, R-i again, R-d):**
+  - **R-j ordering:** the ancestry checks above exit 0 and are quoted in the merge report;
+  - **R-i through the real route:**
+    - the change route deletes an unused T (`200`);
+    - a design then saves naming T, and publish answers `409 item-in-use {T}` (the domain's arm);
+    - the store's arm, with the route's usage stubbed to 0 after the count, answers the same;
+    - neither arm writes anything;
+  - **the pre-check:**
+    - a design naming T before the deletion makes the change `400 ITEM_IN_USE`, nothing is written and no audit row
+      is written;
+    - a saved D9 default is `400 ITEM_IS_DEFAULT`, and so is a fixed default (through `applyChanges`);
+    - unreadable defaults, a failed count or a count past the deadline are `503` and write nothing. Sabotage: answer
+      `0` on a timeout, and the suite goes red;
+  - **R-d's M5 arm, end to end:**
+    - the change route deletes X;
+    - R4b1's `PUT` saves defaults naming X;
+    - publish answers `409 item-is-default {X}` and writes nothing;
+  - **revert:** ↺ on the deletion's address answers `200` and the draft no longer deletes the row; a field revert of a
+    row the draft deletes stays `400 NOT_EDITABLE`;
+  - **created then deleted:** deleting a row the same draft created asks no count. A test fails if a probe reaches the
+    reader;
+  - **security must-nots:**
+    - a body member other than `address`, `value` and `expectedDraftRevision` is `400` before any count;
+    - a value other than `true` is `400`;
+    - an operator session is `403` and spends nothing;
+    - an address naming an item the active book does not state is refused before any probe;
+    - a `migrated-design` probe never reaches the reader at the pre-check;
+    - the `ITEM_IN_USE` body is exactly `{issues: [{field: "address", code: "ITEM_IN_USE"}]}`, with no count, no
+      design id and no name;
+    - the always-present built-in (OQ-31's cover) is refused;
+    - one `price-draft-changed` row per accepted deletion and per revert, in the same transaction, and an audit
+      failure is `503` with the change absent;
+  - **ruling 11:** two page renders at one key inside the TTL issue one set of counts. A render after the draft
+    revision moves recounts. Publish issues its own counts whatever the memo holds. Sabotage: let publish read the memo,
+    and R-i's "a page's count never reaches the judgement" goes red.
+- **R4c3:**
+  - in a production build, Delete of a stated row is offered when the defaults are readable and the row is not a
+    default (the R4a5 must-not inverted);
+  - ruling 15: after a `409 changed-meanwhile` on a deletion, the next press re-reads and re-counts first (a request
+    counter in a DOM test);
+  - D7 and the stale-draft list offer ↺ on a deleted row, and it reverts by the deletion's address;
+  - **browser, `CI=1`, draft lock held, nothing published** (mobile and desktop): delete an unused, non-default stated
+    class into the draft (the dialog's count reads 0), see it on D7 with ↺, take it back with ↺, and discard in
+    `afterEach`;
+  - **cannot run in a browser without publishing, and so run as route or DOM tests over the fake world:**
+    - publishing a deletion: a publish moves the active version for every spec (the U5c record);
+    - a non-zero count and `ITEM_IN_USE`: the seeded fake reader counts only planted designs (R4a5 record);
+    - R-d end to end;
+    - the store's race arm;
+    - a customer meeting the deleted tier (that browser arm waits for the Z gate, as Q3-g's deleting version does);
+  - a D9 save in a browser is also avoided, because the defaults store is shared by every spec.
+
+*Owner questions this plan queues* (each built on its default; none blocks a dispatch).
+- **OQ-43** — while a hardware row is owed, what does the settings pill say for hardware? Default: the hardware entry is
+  left out, so the pill never names a tier the kitchen does not carry, and no copy is new. The alternative is a leaf
+  such as "Feronerie de ales" (new copy).
+- **OQ-44** — a restore while the draft deletes a row the restored version prices. Default: the deletion stays and the
+  restore changes nothing on that row (ruling 12). The alternative drops the deletion.
+- **OQ-11h** — T5's leaf `replacementSheet.changedColour`, built as drafted.
+- Not new: the hex in "Culoarea a revenit la #eceeeb" follows OQ-11's item (a).
+
+*Risks and residuals.*
+- **Q5b edits Q3d's two largest files** (`replacement-sheet.tsx` is 584 lines at `c6211abd`). Any review fix to Q3d
+  moves them, so Q5b starts only from Q3d's merged tip.
+- **The ADR 0081 amendment is owed before Q5b merges** (ruling 1). Without it, two live records disagree on the forced
+  path.
+- **Colour and handle rows have no `CI=1` browser arm.** A switched-off item is a global availability write. The
+  dedicated-server visual pass is evidence only of what it captured.
+- **Ruling 5's group** is reachable only by a release that drops a material declaration. It is defence that keeps the
+  sheet total, not a live path.
+- **R4c makes deletion live in production at R4c3** (after the Z gate applies `0023`–`0029`). Publish still judges every
+  deletion in its request, and the store guard holds (S-j). A page left open since before a publish is ADR 0178's path
+  (ii), owned by Q3 and Q5.
+- **The pre-check races a save,** as the publish count does. It is a courtesy, not the guard. Publish and the store are
+  the guard (R-i).
+- **Ruling 11's memo** can show a count up to the TTL old. It is display only.
+
+*Verification, per sub-wave.*
+- Domain properties with `fast-check` (Q5a, Q5c's parity, R4c1's ruling 14).
+- DOM tests over the store (Q5b, Q5c, R4c3).
+- Route tests over the fake world (R4c1, R4c2), and `qa-m10-u4a-wire` and `material-wire` flips, each in the commit
+  that keeps its promise.
+- `CI=1` browser specs: Q5b's reset line, Q5c's label, R4c3's draft round trip. The dedicated-server visual pass is for
+  Q5b's colour and handle rows.
+- `pnpm check` on each merge, `pnpm format:check` whole-tree last, and `pnpm ci:local` before the push that follows
+  Q5b's merge. R4c2's merge report quotes the R-j ancestry commands.
+
+*Reading, QA and reviewers.*
+- **QA of each sub-wave:** its row's Reading, its acceptance bullets and its pins above. Q5a adds
+  `packages/configurator-domain/tests/commands/**`, `tests/queries/**`, `tests/pricing/qa-q3a-*` and
+  `apps/web/tests/store/**`. Q5b adds `apps/web/tests/price/**`, `tests/settings/global-settings*`, the editor's e2e
+  specs and `browser-and-visual-qa.md`. Q5c adds `tests/settings/**` and `tests/app/configurator/**`. R4c1 and R4c2 add
+  `apps/web/tests/app/api/staff/**`. R4c3 adds `apps/web/tests/price-dashboard/**` and `tests/e2e/hardware*`,
+  `materials*`, `accessories*`, `publish-page*`.
+- **Logic review (Q5a, Q5b, R4c1, R4c2, R4c3):** the row's Reading, plus §5 A-16, A-17 and A-18, ADR 0178's Amendment
+  of 2026-11-04, and rulings 1–15 above. For Q5b, also ADR 0081 whole and ADR 0057.
+- **Clean-code review (the same waves):** the diff and `engineering-conventions.md`. For R4c2, also
+  `price-dashboard-service.ts`'s header (the order of checks).
+- **Security review (R4c1, R4c2):** the row's Reading, plus ADR 0019, 0156, 0172 D7, 0173, R4a2's limits, and this
+  block's point 12 (confirm the slot).
+- **Combined review (Q5c):** the row's Reading and the diff.
+- **Visual review (Q5b, Q5c, R4c3):** the frames in each row and `browser-and-visual-qa.md`.
+- **T5:** the coordinator checks the leaf against the copy lock; no reviewer.
 
 ### Lane Z — Integration and close
 
