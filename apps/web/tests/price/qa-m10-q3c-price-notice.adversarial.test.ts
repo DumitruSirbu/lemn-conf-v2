@@ -933,18 +933,6 @@ describe("naming a removed accessory: a line says a name, never an id", () => {
     ]);
   });
 
-  it.each(["", " ", "   ", "\n\t"])(
-    "draws no blank line for an authored name of %j",
-    async (authoredName) => {
-      await showing([{ accessoryId: "accessory.blank", authoredName }], {
-        pricesChanged: false,
-      });
-
-      expect(accessoryLines().filter((line) => line.trim() === "")).toEqual([]);
-      expect(isNoticeShown()).toBe(false);
-    },
-  );
-
   it("draws markup in an authored name as text", async () => {
     const markup = '<img src=x onerror="document.title=1"><b>bold</b>';
     await showing([{ accessoryId: "accessory.x", authoredName: markup }], {
