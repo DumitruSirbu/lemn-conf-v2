@@ -144,6 +144,8 @@ coordinator's reading that creating an accessory linked to a cabinet type is in 
 
 **2026-11-08 (M10 R4b3) [relayed from the coordinator; reviewers' reports; the scribe ran nothing].** R4b3 is built and reviewed on branch `m10/r4b3`, **unmerged**; R4c is next. The `CI=1` e2e specs and the visual pass are not done. Detail: the *R4b3 built and reviewed* block in [`M10-price-dashboard.md`](milestones/M10-price-dashboard.md).
 
+**2026-11-09 (M10 R5b) [relayed from the coordinator; source-verified by the coordinator; the scribe ran nothing].** R5b is merged (`26606c74`): the price-notice GET and acknowledge routes. QA green; full `apps/web` vitest 1156 files / 28788 passed / 2 skipped; `tsc` and `eslint` clean; logic, clean-code and security reviews found no blocker. Next: Q3, Q4, Q5, then R4c, then the Z gate. Detail and the five residuals: the *R5b merged* block in [`M10-price-dashboard.md`](milestones/M10-price-dashboard.md).
+
 ## 2. Phase table
 
 Read column: **No** = do not open. A row marked **UNCLEAR** would be a contradiction inside the history, left

@@ -2910,6 +2910,18 @@ R4b1's reviews (2026-11-05) hand on the following.
 - **Backlog candidates (clean-code):** memo keyed on the stores object instead of a test reset; the repeated apply-if-given pattern in the domain stamp; `completionOf({}, {})` repeated; QA-wave-named test files to fold at the milestone-close audit; an optional `StampRefusedError`.
 - **Not yet done:** the `CI=1` e2e specs. `global-colour`, `kitchen-handle-row` and `seeded-design.qa` are edited but not run. The QA agent also listed: `global-settings*`, `design-return-*`, `qa-8g-leave-while-waiting`, `price-breakdown*`, `price-footer-growth`, `preset-owner-loop*`, `ceiling-row-tappable`, `kitchen-stage`, `overflow-mark`, `pixel-counter-witness*`, `mint-limit-production-policy`. Also not done: the visual pass and the merge. R4c is next.
 
+**R5b merged (`26606c74`), 2026-11-09 [relayed from the coordinator; source-verified by the coordinator; the scribe ran nothing].**
+- **Built:** `GET /api/designs/[id]/price-notice` and `POST /api/designs/[id]/price-notice/acknowledge`. The judgement is in `apps/web/src/lib/server/price-notice.ts`; request handling is in `price-notice-request.ts`.
+- **Evidence:** QA green. Full `apps/web` vitest: 1156 files, 28788 passed, 2 skipped. `tsc` and `eslint` clean. Logic, clean-code and security reviews found no blocker.
+- **Decision (error mapping):** an unexpected throw (not a `DashboardStoreError`, not a `loadEditable` or `getPriceStores` failure) answers `500 {status:"unexpected"}`, as a defect rather than an outage. `DashboardStoreError` and `loadEditable`/`getPriceStores` failures stay `503`.
+- **Residuals:**
+  1. A wrong token spends the save buckets, as a save does.
+  2. Acknowledging an older pair moves the marker back, so one extra notice is possible.
+  3. The pinned-marker cost (security Low) is accepted. The mitigation is to be decided after measuring at the Z gate.
+  4. The seen-book `authoredName` fallback is unreachable until Q3 item 2 changes `removedAccessoriesSince`. Q3 must update the pins that move, including `qa-m10-r5b-seen-side-canary.adversarial.test.ts`.
+  5. Check-then-write residual.
+- **Next:** Q3, Q4, Q5, then R4c, then the Z gate.
+
 **Recorded:** an extra member in the defaults body answers `400 invalid-request` with no field, as every draft write does. This corrects the acceptance bullet's "naming the field".
 
 R4a4 hands to Q3: an end-to-end arm showing that publishing a created class blanks the deltas, written when Q3 flips `qa-p4a-tier-offer-switched-off…:56`.
