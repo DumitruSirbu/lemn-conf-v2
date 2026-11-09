@@ -2569,6 +2569,10 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     changedMaterial: "Material schimbat în {name}. Prețul a fost actualizat.",
     changedHardware: "Feronerie schimbată în {name}. Prețul a fost actualizat.",
     changedHandle: "Mânere schimbate în {name}. Prețul a fost actualizat.",
+    // Drafted, not approved: the agent's draft of the confirmation a lone colour replacement shows, built on the
+    // `changedMaterial` pattern, so it carries the new colour's `{name}` and no figure (plan M10, wave T5; Q5 split;
+    // OQ-11h). The Russian is an agent draft.
+    changedColour: "Culoare schimbată în {name}. Prețul a fost actualizat.",
     colourReverted: "Culoarea a revenit la {colour}.",
     // Drafted, not approved: the agent's draft of the row for a vanished choice no code can name (a created class), so
     // no `{name}` and never a raw id (plan M10, wave T4; Q3 split, ruling 2; OQ-11g). The Russian is an agent draft.
