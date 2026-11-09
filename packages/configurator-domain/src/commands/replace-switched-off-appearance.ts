@@ -1,21 +1,7 @@
-// The colour and the handle replaced at every level a design stores them (ADR 0057 decision 2, A-16).
-//
-// A design names a colour or a handle at `settings.finish`, `settings.handle`, `settings.topRowHandle` and on each
-// cabinet's own body. The setters reach one level each: `setGlobalFinish` and `setKitchenHandle` cannot touch a
-// placement by the shape of their input (ADR 0099 decision 2), and `setFinish`/`setHandle` act on one. These two are
-// the commands for the customer who must replace an item the shop switched off: every stored occurrence of it, once,
-// as one result.
-//
+// A switched-off colour or handle replaced at every level a design stores it, as one result (A-16).
 // Two functions, not one taking a kind: they refuse with different codes and publish different effects, so a
-// discriminator would be a flag argument. Neither is `setMaterialTier`, whose reset moves colours the *material*
-// does not offer; these move colours and handles that equal the item replaced, and nothing else. A value that differs,
-// a cabinet's own other colour or handle included, is the very same object after the call, and an absent colour or
-// handle stays absent (ADR 0078 decision 5).
-//
-// Availability is the caller's (H-4): the options come from `replacementsRequired`, and these commands judge only the
-// input's validity, as the setters they stand beside do. They take no catalogue: a stored occurrence on a body whose
-// definition takes no colour or handle is never read by the scene (`coloursAndHandlesNamedBy`), so rewriting it is
-// harmless and keeps one rule, equality, in place of one per body kind.
+// discriminator would be a flag argument. They take no catalogue: a stored occurrence on a body that takes no colour or
+// handle is never read, so equality is the one rule. Availability is the caller's, as for the setters (ADR 0099).
 import { designOffersFinish } from "../design-material.js";
 import {
   HandleSchema,
@@ -56,7 +42,7 @@ export interface ReplaceHandleInput {
  * `from` that is no well-formed colour (a switched-off one is well-formed, and an absent one matches nothing) or a `to`
  * the design's material does not offer (`FINISH_NOT_OFFERED`, as `setGlobalFinish` does; an undeclared material offers
  * anything schema-valid, ADR 0078 decision 3), returning the design as given. Replacing a colour by itself, or one the
- * design does not store, is not a refusal and rewrites nothing.
+ * design does not store, is not a refusal and changes no stored value (`updatedAt` still moves).
  */
 export function replaceColour(
   input: ReplaceColourInput,
@@ -87,9 +73,8 @@ export function replaceColour(
 /**
  * Rewrites `settings.handle`, `settings.topRowHandle` and each `body.handle` that is `from` to `to`. Refuses an invalid
  * timestamp, then a `from` or `to` outside `HandleSchema` (`UNKNOWN_HANDLE`; an absent `from` would otherwise match every
- * absent handle), returning the design as given. A top-row body
- * with no handle of its own is untouched, so it keeps following `topRowHandle`, and a body that takes no handle stays
- * push and latched whatever is stored (H2-b).
+ * absent handle), returning the design as given. A body with no handle of its
+ * own is untouched, so it keeps following the kitchen's or the top row's.
  */
 export function replaceHandle(
   input: ReplaceHandleInput,
@@ -105,18 +90,24 @@ export function replaceHandle(
   }
   const { from, to } = input;
   const design = rewritten(input.design, input.occurredAt, {
-    settings: (settings) =>
-      settings.handle === from || settings.topRowHandle === from
-        ? {
-            ...settings,
-            ...(settings.handle === from ? { handle: to } : {}),
-            ...(settings.topRowHandle === from ? { topRowHandle: to } : {}),
-          }
-        : settings,
+    settings: (settings) => withHandlesReplaced(settings, from, to),
     body: (body) => (body.handle === from ? { ...body, handle: to } : body),
   });
   return succeedWith(design, { type: "handle_replaced", from, to });
 }
+
+/** The kitchen's handle and the top row's, each rewritten only when it is `from`; the same object when neither is. */
+function withHandlesReplaced(
+  settings: DesignSettings,
+  from: Handle,
+  to: Handle,
+): DesignSettings {
+  const stored = HANDLE_KEYS.filter((key) => settings[key] === from);
+  if (stored.length === 0) return settings;
+  return { ...settings, ...Object.fromEntries(stored.map((key) => [key, to])) };
+}
+
+const HANDLE_KEYS = ["handle", "topRowHandle"] as const;
 
 /** How each level of the document is rewritten; each returns what it was given when nothing there is the item. */
 interface LevelRewrites {

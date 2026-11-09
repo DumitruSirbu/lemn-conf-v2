@@ -57,8 +57,7 @@ export interface ReplacementsRequiredRequest {
  * longer holds, each with its remaining options (a tier's are its group's active tiers, whatever the design chose), in
  * the order `priceDesign` lists them. Empty when the design names none. A colour's options are the active entries of
  * the design's own material: a customer replaces a colour within the material they are on. Under a material no code
- * declares (a class the shop created) there is no such palette, so a colour's options are the active entries of the
- * palette that holds the colour itself.
+ * declares, a colour's options are the active entries of the palette that holds the colour itself.
  */
 export function replacementsRequired({
   design,
@@ -104,10 +103,8 @@ function declaredOptionsFor(
   );
 }
 
-/** The palette entries the design's material offers, or, when no declaration names that material, the entries of the
- *  palette holding `finishId`: palette ids are namespaced by material (`materials.ts`), so the colour's own material is
- *  the one answer, and it is the only choice that never leaves the row empty while that palette has an active entry.
- *  None for a material that offers no entries (a free-colour picker), which holds no colour item. */
+/** The design's material's palette; under a material no code declares, the palette holding the colour itself, since a
+ *  colour's own material is the one answer that cannot leave the row empty (returning `[]` there makes the row throw). */
 function coloursReplacing(
   finishId: string,
   design: Design,
