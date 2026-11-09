@@ -1,0 +1,68 @@
+/* Frame C5A (`Lemnaria Dashboard.dc.html`, the `snote` block): a paper card with a hairline, a 14 px radius and a soft
+ * shadow, the "i" glyph, the sentence, and a 44 px close mark at the right edge. It stands in the scene's bottom stack
+ * above the price bar, which ignores pointers (`configure.module.css`, `.sceneFooter`), so the card takes them back
+ * for itself. */
+.note {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 6px 12px 14px;
+  margin: 0 12px 12px;
+  pointer-events: auto;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 10px 28px rgb(28 24 20 / 12%);
+}
+
+.glyph {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  font: 700 11px/18px var(--font-ui);
+  color: var(--paper);
+  text-align: center;
+  background: var(--accent);
+  border-radius: 50%;
+}
+
+/* The frame's "i", drawn here and not in the markup: it is a mark and not a word. */
+.glyph::before {
+  content: "i";
+}
+
+.body {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font: 400 13px/1.5 var(--font-ui);
+  color: var(--ink);
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+}
+
+/* 44 px (`--touch-target`) as the frame draws it; the negative block margin keeps the card's height at the sentence's. */
+.close {
+  flex: 0 0 var(--touch-target);
+  width: var(--touch-target);
+  height: var(--touch-target);
+  margin-block: -12px;
+  font: 400 22px/1 var(--font-ui);
+  color: var(--ink-muted);
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+}
+
+.close:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: -2px;
+}
+
+@media (min-width: 900px) {
+  .note {
+    max-width: 440px;
+    margin-inline: auto;
+  }
+}
