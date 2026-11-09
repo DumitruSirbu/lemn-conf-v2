@@ -1,5 +1,4 @@
-/* Frames C4A-C4D and C4AD (`Lemnaria Dashboard.dc.html`, `c4a` to `c4d`): a modal sheet on the phone, a centred dialog from
- * 900 px. Paper, a hairline, a 22 px radius on the top corners and a soft shadow, the same family as the settings sheet.
+/* The forced-replacement sheet: a modal sheet on the phone, a centred dialog from 900 px. Paper, a hairline, a 22 px radius on the top corners and a soft shadow, the same family as the settings sheet.
  *
  * It is a direct child of the screen's `<main>`, at the dialog layer `7` (`configure.module.css`, the stacking table), so
  * it paints over the price bar, the rail and the breakdown's popover. A dialog opened later (the back confirmation) mounts
@@ -113,6 +112,11 @@
 
 /* One row per unavailable item: what it is and what is wrong with it on the left, the one action on the right. */
 .row {
+  /* The resolved row's green, local to this module: no other surface wears it. */
+  --resolved-bg: #eef1ea;
+  --resolved-line: #d3dccb;
+  --resolved-ink: #2d5016;
+
   display: flex;
   gap: 12px;
   align-items: center;
@@ -123,8 +127,7 @@
   border-radius: 12px;
 }
 
-/* An open row is bordered in the accent and its value struck, as C4A draws it; a resolved one is green with a check
- * (C4D). The 2 px border is paid for in padding so the row does not grow when it resolves. */
+/* An open row is bordered in the accent and its value struck; a resolved one is green with a check. The 2 px border is paid for in padding so the row does not grow when it resolves. */
 .row[data-resolved="false"] {
   padding: 11px 13px;
   border: 2px solid var(--accent);
@@ -137,12 +140,12 @@
 }
 
 .row[data-resolved="true"] {
-  background: #eef1ea;
-  border-color: #d3dccb;
+  background: var(--resolved-bg);
+  border-color: var(--resolved-line);
 }
 
 .row[data-resolved="true"] .rowKind {
-  color: #2d5016;
+  color: var(--resolved-ink);
 }
 
 /* The check is the row's own first item, never the kind's generated content: the kind labels the button, and a glyph
@@ -154,9 +157,10 @@
   font: 700 11px/20px var(--font-ui);
   color: var(--paper);
   text-align: center;
+  /* The second declaration gives the glyph an empty spoken alternative where supported; the first stands where it is not. */
   content: "\2713";
   content: "\2713" / "";
-  background: #2d5016;
+  background: var(--resolved-ink);
   border-radius: 50%;
 }
 
@@ -186,13 +190,13 @@
   color: var(--ink-muted);
 }
 
-/* An accessory taken out of the kitchen: information, and nothing to press (C4D). */
+/* An accessory taken out of the kitchen: information, and nothing to press. */
 .info {
   display: flex;
   gap: 10px;
   align-items: flex-start;
   padding: 12px 13px;
-  background: #f5f3f0;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 12px;
   font: 400 13px/1.45 var(--font-ui);
@@ -261,7 +265,7 @@
   outline-offset: 4px;
 }
 
-/* C4B: the options the group still offers. Nothing is selected on open; the chosen one takes a second border, as the
+/* The options the group still offers. Nothing is selected on open; the chosen one takes a second border, as the
  * settings sheet marks a tier. The kitchen's own switched-off tier is shown struck and cannot be taken. */
 .options {
   display: flex;
@@ -356,7 +360,7 @@
   margin-left: auto;
 }
 
-/* Frame C4C's toast: dark ink on the scene, above the price. It stands in the scene's bottom stack, which takes no
+/* The confirmation toast: dark ink on the scene, above the price. It stands in the scene's bottom stack, which takes no
  * pointer, and it has nothing to press. An empty region is a 0 px block. */
 .confirmationRegion {
   display: block;
@@ -380,7 +384,7 @@
 }
 
 @media (min-width: 900px) {
-  /* Frame C4AD: a centred dialog, 540 px wide. */
+  /* A centred dialog, 540 px wide. */
   .surface {
     top: 50%;
     right: auto;

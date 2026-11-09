@@ -3,7 +3,7 @@
 // - Rows are live: `replacementsRequired` run on the store's design and the page's availability, so a disable shows the
 //   sheet on the next open and a re-enable removes it, with no new book version.
 // - A name comes only from a book row the page still holds. A tier the book no longer holds gets the generic line, never
-//   its id. See ADR 0062 Amendment 3.
+//   its id (ADR 0062 Amendment 3).
 import {
   cornerDirectionOf,
   countDisplayedBodies,
@@ -27,7 +27,11 @@ import {
 import { swatchOf } from "@lemnaria/three-adapter";
 
 import type { Content, ContentTranslator } from "@/i18n/content";
-import type { AppearanceReplacement } from "@/store/whole-kitchen-apply";
+import {
+  finishesStoredIn,
+  handlesStoredIn,
+  type AppearanceReplacement,
+} from "@/store/whole-kitchen-apply";
 
 import type { ActivePriceBook } from "./price-book-root";
 import {
@@ -108,7 +112,8 @@ const CHANGED_LEAF = {
   handle: "replacementSheet.changedHandle",
 } as const satisfies Record<ReplacementKind, string>;
 
-const NAME_MARKER = "\u0001";
+/** A control character no leaf contains, so it marks exactly where `{name}` falls in a translated leaf. */
+const NAME_PLACEHOLDER = "\u0001";
 
 /**
  * A "changed to {name}" line without its closing "the price was updated" sentence, for the confirmation to say that
@@ -120,11 +125,17 @@ function withoutPriceSentence(
   leaf: (typeof CHANGED_LEAF)[ReplacementKind],
   name: string,
 ): string {
-  const [head, tail] = translate(leaf, { name: NAME_MARKER }).split(
-    NAME_MARKER,
+  const parts = translate(leaf, { name: NAME_PLACEHOLDER }).split(
+    NAME_PLACEHOLDER,
   );
+  const [head, tail] = parts;
   const sentenceStart = tail?.indexOf(". ") ?? -1;
-  if (head === undefined || tail === undefined || sentenceStart < 0) {
+  if (
+    parts.length !== 2 ||
+    head === undefined ||
+    tail === undefined ||
+    sentenceStart < 0
+  ) {
     return translate(leaf, { name });
   }
   return `${head}${name}${tail.slice(0, sentenceStart + 1)}`;
@@ -203,7 +214,7 @@ export interface ReplacementSheetView {
   readonly title: string;
   readonly body: string;
   readonly rows: readonly ReplacementRowView[];
-  /** Accessories removed with nothing to choose instead: information only (C4D). */
+  /** Accessories removed with nothing to choose instead: information only. */
   readonly infoLines: readonly string[];
   readonly priceLine: string;
   readonly exitHint: string;
@@ -418,12 +429,9 @@ function nameOfHandleAsItWas(
   design: Design,
   content: Content,
 ): string | undefined {
-  const { handle: kitchen, topRowHandle } = design.settings ?? {};
-  const isStored =
-    kitchen === handle ||
-    topRowHandle === handle ||
-    design.placements.some((placement) => placement.body.handle === handle);
-  return isStored ? content.panel.handleLabels[handle] : undefined;
+  return handlesStoredIn(design).includes(handle)
+    ? content.panel.handleLabels[handle]
+    : undefined;
 }
 
 function nameOfCurrentTier(
@@ -472,17 +480,11 @@ function defaultColourOfMaterial(design: Design): Finish | undefined {
   return lookup.kind === "declared" ? lookup.material.defaultFinish : undefined;
 }
 
-function finishesStoredIn(design: Design): readonly Finish[] {
-  const kitchen = design.settings?.finish;
-  const bodies = design.placements.map((placement) => placement.body.finish);
-  return [kitchen, ...bodies].filter((finish) => finish !== undefined);
-}
-
 /**
  * The colour a material change returned the kitchen to, when it rewrote a stored colour at any level: the kitchen's, or a
  * cabinet's. Read by comparing the two designs, because `resolvedFinishCount` counts cabinets only and so misses a
- * design whose one stored colour is the kitchen's (ADR 0099 decision 6). A design with no stored colour that visibly
- * repaints stays silent (ADR 0081's consequence). The name is the new material's own default colour (A-16, ruling 2).
+ * design whose one stored colour is the kitchen's. A design with no stored colour that visibly repaints stays silent
+ * (ADR 0081). The name is the new material's own default colour.
  */
 export function colourRevertedBy({
   before,
@@ -550,7 +552,7 @@ export interface ChooserOptionView {
   readonly isStruck: boolean;
 }
 
-/** C4B: one group's chooser. Carries no figure: the design cannot be priced until the choice is made, so no delta is
+/** One tier group's chooser. Carries no figure: the design cannot be priced until the choice is made, so no delta is
  *  measured, and the bar says the price comes after "Aplică". */
 export interface ChooserView {
   readonly kind: TierKind;
@@ -575,7 +577,7 @@ export interface AppearanceOptionView {
   readonly isStruck: boolean;
 }
 
-/** C4B's shape for a colour or a handle (ruling 7): the options are the row's own `remaining`, with no line saying how
+/** The chooser's shape for a colour or a handle: the options are the row's own `remaining`, with no line saying how
  *  many cabinets it applies to, because a replacement reaches only the cabinets wearing the replaced item. */
 export interface AppearanceChooserView {
   readonly kind: "finish" | "handle";
@@ -655,7 +657,7 @@ function remainingOptions(
     const tier = group.tiers.find(
       (offered) => offered.tierId === option.tierId,
     );
-    return tier === undefined ? [] : [optionOf(tier, false, content)];
+    return tier === undefined ? [] : [remainingOptionOf(tier, content)];
   });
 }
 
@@ -666,20 +668,26 @@ function struckOptions(
   content: Content,
 ): readonly ChooserOptionView[] {
   const own = group.switchedOffTiers.find((tier) => tier.tierId === ownTierId);
-  return own === undefined ? [] : [optionOf(own, true, content)];
+  return own === undefined ? [] : [struckOptionOf(own, content)];
 }
 
-function optionOf(
+function remainingOptionOf(
   tier: OfferedTier,
-  isStruck: boolean,
   content: Content,
 ): ChooserOptionView {
   return {
     tierId: tier.tierId,
     name: tierNameOf(tier, content),
     description: content.bookText(tier.description, tier.descriptionKey),
-    isStruck,
+    isStruck: false,
   };
+}
+
+function struckOptionOf(
+  tier: OfferedTier,
+  content: Content,
+): ChooserOptionView {
+  return { ...remainingOptionOf(tier, content), isStruck: true };
 }
 
 /** The colour or handle chooser for a row: its remaining options in the domain's order, then the kitchen's own item struck. */
@@ -690,12 +698,11 @@ function describeAppearanceChooser(
   const { item } = row;
   if (item.kind !== "finish" && item.kind !== "handle") return undefined;
   const options = [
-    ...row.remaining.map((remaining) => [remaining, false] as const),
-    [item, true] as const,
-  ].flatMap(([option, isStruck]) => {
-    const view = appearanceOptionOf(option, isStruck, content);
-    return view === undefined ? [] : [view];
-  });
+    ...row.remaining.flatMap((remaining) =>
+      optionalOption(remainingAppearanceOptionOf(remaining, content)),
+    ),
+    ...optionalOption(struckAppearanceOptionOf(item, content)),
+  ];
   return {
     kind: item.kind,
     heading: kindLabelOf(item.kind, content),
@@ -706,9 +713,14 @@ function describeAppearanceChooser(
   };
 }
 
-function appearanceOptionOf(
+function optionalOption(
+  option: AppearanceOptionView | undefined,
+): readonly AppearanceOptionView[] {
+  return option === undefined ? [] : [option];
+}
+
+function remainingAppearanceOptionOf(
   item: ItemRef,
-  isStruck: boolean,
   content: Content,
 ): AppearanceOptionView | undefined {
   if (item.kind === "handle") {
@@ -717,7 +729,7 @@ function appearanceOptionOf(
       optionId: item.handle,
       name: content.panel.handleLabels[item.handle],
       swatch: undefined,
-      isStruck,
+      isStruck: false,
     };
   }
   if (item.kind !== "finish") return undefined;
@@ -729,8 +741,16 @@ function appearanceOptionOf(
     optionId: item.finishId,
     name: nameOfFinish(finish, content),
     swatch: { colour: color, isWood },
-    isStruck,
+    isStruck: false,
   };
+}
+
+function struckAppearanceOptionOf(
+  item: ItemRef,
+  content: Content,
+): AppearanceOptionView | undefined {
+  const option = remainingAppearanceOptionOf(item, content);
+  return option === undefined ? undefined : { ...option, isStruck: true };
 }
 
 /** What a colour or handle choice asks of the store: the item replaced and the one chosen, as the values it stores. */
@@ -768,7 +788,7 @@ export function describeApplyRefusal({
   );
 }
 
-/** The order C4C says what changed in; a colour the material reset is said straight after the material. */
+/** The order the confirmation says what changed in; a colour the material reset is said straight after the material. */
 const CHANGE_ORDER: readonly ReplacementKind[] = [
   "material",
   "hardware",
@@ -777,7 +797,7 @@ const CHANGE_ORDER: readonly ReplacementKind[] = [
 ];
 
 /**
- * C4C's lines, in the mockup's order: the material, the colour it reset, then hardware, colour and handle, then
+ * The confirmation's lines: the material, the colour it reset, then hardware, colour and handle, then
  * accessories removed that the sheet did not show, then the merged prices sentence when the second `GET` says so. Each
  * item the customer replaced is one line; the "price was updated" sentence closes the last of them, once.
  */

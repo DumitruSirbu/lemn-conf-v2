@@ -62,7 +62,7 @@ export interface PriceNoticeBanner {
   readonly accessoryNames: readonly string[];
 }
 
-/** One item the customer replaced in the sheet, named for C4C's confirmation. Two items of one kind are two changes: the
+/** One item the customer replaced in the sheet, named for the confirmation. Two items of one kind are two changes: the
  *  kitchen's colour and a cabinet's own are both reachable, so the confirmation is keyed by `itemKey` and not by `kind`. */
 export interface ReplacementChange {
   /** The replaced item, as `replacedItemKey` says it: the kind and the id. */
@@ -79,7 +79,7 @@ export interface AwaitedReplacement {
   readonly revertedColour?: string | undefined;
 }
 
-/** C4C: what the sheet's flow ends in. `alsoUpdated` is true exactly when the second `GET` said the prices moved, and
+/** What the sheet's flow ends in. `alsoUpdated` is true exactly when the second `GET` said the prices moved, and
  *  `accessoryNames` are accessories that answer names which the sheet never showed. */
 export interface ReplacementOutcome {
   readonly changes: readonly ReplacementChange[];
@@ -102,12 +102,12 @@ export interface PriceNotice {
    *  a real design id, an active book): the share view mounts the same screen, so the sheet cannot rely on the `GET`'s
    *  gate having stopped it, and it holds this one. */
   readonly owedReplacements: readonly ReplacementRequired[];
-  /** The accessories the kitchen lost that this page can name, for the sheet's information rows (C4D). */
+  /** The accessories the kitchen lost that this page can name, for the sheet's information rows. */
   readonly removedAccessoryNames: readonly string[];
   /** After the last choice: waits for that choice's save to land, asks again, carries the prices sentence if and only if
    *  the new answer says the prices moved, then acknowledges the displayed pair. */
   readonly awaitReplacementSave: (replacement: AwaitedReplacement) => void;
-  /** C4C, once the flow has ended; C1 is never drawn beside it. */
+  /** The confirmation, once the flow has ended; the standalone notice is never drawn beside it. */
   readonly confirmation: ReplacementOutcome | undefined;
   readonly dismissConfirmation: () => void;
 }
@@ -419,7 +419,7 @@ function stampOfRoot(root: ActivePriceBook): PriceStampWire {
 }
 
 /**
- * C1 stands alone: the active arm, nothing to replace (a replacement is C4's sheet, which carries the sentence itself),
+ * C1 stands alone: the active arm, nothing to replace (a replacement is the replacement sheet's, which carries the sentence itself),
  * and something to say, the prices or an accessory taken out. On a stale page (the answer's `current` is not the pair
  * this page displays) it says nothing, and so acknowledges nothing: the next open compares again.
  */

@@ -54,11 +54,12 @@ import type {
 import { useWholeKitchenTierOffer } from "./use-priced-design";
 import {
   isTierOffered,
+  type TierOfferAnswer,
   type WholeKitchenTierOffer,
 } from "./whole-kitchen-tiers";
 import type { WholeKitchenSettingsRequest } from "@/store/whole-kitchen-apply";
 
-// The forced-replacement sheet (frames C4A-C4D). Which rows it holds, and every sentence, are `replacement-sheet-model.ts`'s;
+// The forced-replacement sheet. Which rows it holds, and every sentence, are `replacement-sheet-model.ts`'s;
 // the one `GET` and the wait for the save are `use-price-notice.ts`'s. This file holds the sheet's own state (which row is
 // being chosen, what has been applied) and draws it.
 //
@@ -117,36 +118,91 @@ export function useReplacementSheet(
   const copy = useReplacementSheetCopy();
   const offer = useWholeKitchenTierOffer();
   const design = useConfiguratorStore((state) => state.design);
-  const catalog = useConfiguratorStore((state) => state.catalog);
   const canWrite = useConfiguratorStore((state) => state.canWrite);
   const saveStatus = useConfiguratorStore((state) => state.saveStatus);
-  const applyWholeKitchenSettings = useConfiguratorStore(
-    (state) => state.applyWholeKitchenSettings,
-  );
   const session = useReplacementSession(priceNotice);
-  const { live, shown, step, setStep } = session;
-
   const vocabulary: SheetVocabulary = { content, copy, offer };
-  const chooser =
-    step.kind === "choose"
-      ? describeRowChooser({ row: step.row, design, catalog, vocabulary })
-      : undefined;
   const editability = describeEditability(
     { canWrite, saveStatus },
     content.panel,
   );
+  const choosing = useChoosing({
+    session,
+    vocabulary,
+    offer,
+    design,
+    isReadOnly: editability.isReadOnly,
+  });
+
+  return {
+    isPending: session.live.length > 0,
+    priceLine: copy.priceAfterChoosing,
+    view: describeReplacementSheet({
+      seen: session.shown,
+      live: session.live,
+      design,
+      accessoryNames: priceNotice.removedAccessoryNames,
+      vocabulary,
+      chosenNames: session.chosenNames,
+    }),
+    ...choosing,
+    isReadOnly: editability.isReadOnly,
+    disabledReason: editability.disabledReason,
+    confirmationLines:
+      priceNotice.confirmation === undefined
+        ? []
+        : describeConfirmationLines({ ...priceNotice.confirmation, copy }),
+    dismissConfirmation: priceNotice.dismissConfirmation,
+  };
+}
+
+type Choosing = Pick<
+  ReplacementSheetState,
+  | "chooser"
+  | "pickedOptionId"
+  | "refusal"
+  | "choose"
+  | "pick"
+  | "stepBack"
+  | "apply"
+>;
+
+/** The sheet's choosing: which row's chooser is open, what is picked in it, and the press that applies the pick. */
+function useChoosing({
+  session,
+  vocabulary,
+  offer,
+  design,
+  isReadOnly,
+}: {
+  readonly session: ReplacementSession;
+  readonly vocabulary: SheetVocabulary;
+  readonly offer: TierOfferAnswer;
+  readonly design: ConfiguratorState["design"];
+  readonly isReadOnly: boolean;
+}): Choosing {
+  const catalog = useConfiguratorStore((state) => state.catalog);
+  const applyWholeKitchenSettings = useConfiguratorStore(
+    (state) => state.applyWholeKitchenSettings,
+  );
+  const { live, shown, step, setStep } = session;
+  const chooser =
+    step.kind === "choose"
+      ? describeRowChooser({ row: step.row, design, catalog, vocabulary })
+      : undefined;
 
   function apply(): void {
     if (step.kind !== "choose" || chooser === undefined) return;
-    if (step.pickedOptionId === undefined || editability.isReadOnly) return;
+    if (step.pickedOptionId === undefined || isReadOnly) return;
     if (!isTierOffered(offer)) return;
     const outcome = commitChoice({
       row: step.row,
       chooser,
       optionId: step.pickedOptionId,
       offer,
+      design,
       applyWholeKitchenSettings,
-      content,
+      content: vocabulary.content,
     });
     if (outcome.committed) {
       session.recordChoice(outcome.change, outcome.revertedColour);
@@ -156,21 +212,9 @@ export function useReplacementSheet(
   }
 
   return {
-    isPending: live.length > 0,
-    priceLine: copy.priceAfterChoosing,
-    view: describeReplacementSheet({
-      seen: shown,
-      live,
-      design,
-      accessoryNames: priceNotice.removedAccessoryNames,
-      vocabulary,
-      chosenNames: session.chosenNames,
-    }),
     chooser,
     pickedOptionId: step.kind === "choose" ? step.pickedOptionId : undefined,
     refusal: step.kind === "choose" ? step.refusal : undefined,
-    isReadOnly: editability.isReadOnly,
-    disabledReason: editability.disabledReason,
     choose: (row) => {
       if (!row.isChoosable) return;
       const target = rowToChooseFrom(row, live, shown);
@@ -194,11 +238,6 @@ export function useReplacementSheet(
       setStep(LIST_STEP);
     },
     apply,
-    confirmationLines:
-      priceNotice.confirmation === undefined
-        ? []
-        : describeConfirmationLines({ ...priceNotice.confirmation, copy }),
-    dismissConfirmation: priceNotice.dismissConfirmation,
   };
 }
 
@@ -298,6 +337,7 @@ function commitChoice({
   chooser,
   optionId,
   offer,
+  design,
   applyWholeKitchenSettings,
   content,
 }: {
@@ -305,42 +345,53 @@ function commitChoice({
   readonly chooser: SheetChooser;
   readonly optionId: string;
   readonly offer: WholeKitchenTierOffer;
+  /** The design the press starts from, which a refusal is worded against and a reset is read from. */
+  readonly design: ConfiguratorState["design"];
   readonly applyWholeKitchenSettings: ConfiguratorState["applyWholeKitchenSettings"];
   readonly content: Content;
 }): AppliedChoice {
-  const option = chooser.options.find(
-    (candidate) => optionIdOf(candidate) === optionId && !candidate.isStruck,
-  );
-  if (option === undefined) {
-    throw new Error("The picked option is not one the chooser offers");
-  }
-  const request = requestOf(row, option, offer);
-  const { kind } = chooser;
-  const before = useConfiguratorStore.getState().design;
-  const outcome = applyWholeKitchenSettings(request);
+  const option = pickedOption(chooser, optionId);
+  const outcome = applyWholeKitchenSettings(requestOf(row, option, offer));
   if (!outcome.committed) {
     return {
       committed: false,
       refusal: describeApplyRefusal({
-        kind,
+        kind: chooser.kind,
         reason: outcome.reason,
-        design: before,
+        design,
         content,
       }),
     };
   }
   return {
     committed: true,
-    change: { itemKey: replacedItemKey(row.item), kind, name: option.name },
+    change: {
+      itemKey: replacedItemKey(row.item),
+      kind: chooser.kind,
+      name: option.name,
+    },
     revertedColour:
-      kind === "material"
+      chooser.kind === "material"
         ? colourRevertedBy({
-            before,
+            before: design,
             after: useConfiguratorStore.getState().design,
             content,
           })
         : undefined,
   };
+}
+
+function pickedOption(
+  chooser: SheetChooser,
+  optionId: string,
+): SheetChooserOption {
+  const option = chooser.options.find(
+    (candidate) => optionIdOf(candidate) === optionId && !candidate.isStruck,
+  );
+  if (option === undefined) {
+    throw new Error("The picked option is not one the chooser offers");
+  }
+  return option;
 }
 
 /** One press asks for one thing: a tier of its group, or a replacement of the colour or handle. The offered tier lists
@@ -492,37 +543,29 @@ function ListStep({
     (row) => !row.isResolved && row.isChoosable,
   )?.key;
   return (
-    <>
-      <div className={styles.body}>
-        <p id={bodyId} className={styles.lead} data-testid="replacement-body">
-          {view.body}
-        </p>
-        <ul className={styles.rows}>
-          {view.rows.map((row) => (
-            <ReplacementRow
-              key={row.key}
-              row={row}
-              buttonLabel={row.isResolved ? view.changeLabel : view.chooseLabel}
-              onChoose={sheet.choose}
-              {...(row.key === firstOpenKey
-                ? { buttonRef: firstChooseRef }
-                : {})}
-            />
-          ))}
-          {view.infoLines.map((line) => (
-            <li
-              key={line}
-              className={styles.info}
-              data-testid="replacement-info"
-            >
-              <span className={styles.infoGlyph} aria-hidden="true" />
-              <span>{line}</span>
-            </li>
-          ))}
-        </ul>
-        <p className={styles.hint}>{view.exitHint}</p>
-      </div>
-    </>
+    <div className={styles.body}>
+      <p id={bodyId} className={styles.lead} data-testid="replacement-body">
+        {view.body}
+      </p>
+      <ul className={styles.rows}>
+        {view.rows.map((row) => (
+          <ReplacementRow
+            key={row.key}
+            row={row}
+            buttonLabel={row.isResolved ? view.changeLabel : view.chooseLabel}
+            onChoose={sheet.choose}
+            {...(row.key === firstOpenKey ? { buttonRef: firstChooseRef } : {})}
+          />
+        ))}
+        {view.infoLines.map((line) => (
+          <li key={line} className={styles.info} data-testid="replacement-info">
+            <span className={styles.infoGlyph} aria-hidden="true" />
+            <span>{line}</span>
+          </li>
+        ))}
+      </ul>
+      <p className={styles.hint}>{view.exitHint}</p>
+    </div>
   );
 }
 
@@ -714,7 +757,7 @@ function firstChoosableOptionId(chooser: SheetChooser): string | undefined {
   return first === undefined ? undefined : optionIdOf(first);
 }
 
-/** Frame C4C: what changed, in the screen's own words, with the prices sentence merged in when the second `GET` said so.
+/** What changed, in the screen's own words, with the prices sentence merged in when the second `GET` said so.
  *  The region is mounted before its first line so the lines are announced. It goes by itself after a while. */
 export function ReplacementConfirmation({
   lines,

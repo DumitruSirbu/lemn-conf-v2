@@ -35,8 +35,9 @@ export type WholeKitchenSetting =
   | "handle"
   | "cabinetDepth";
 
-/** A switched-off colour or handle replaced at every level the design stores it (A-16). A press carries at most one, and
- *  never beside a material change: that change resets colours (ADR 0057), so the two belong in separate presses. */
+/** A colour or handle replaced at every level the design stores it. A press carries at most one. A material change in
+ *  the same press runs first and resets colours (ADR 0057), so a caller that means to replace a colour sends it in a
+ *  press of its own. */
 export type AppearanceReplacement =
   | { readonly kind: "finish"; readonly from: Finish; readonly to: Finish }
   | { readonly kind: "handle"; readonly from: Handle; readonly to: Handle };
@@ -195,7 +196,9 @@ function isHandleChange(
 }
 
 /** Whether the replacement would rewrite anything: a swap of an item for itself, or of one the design does not store at
- *  any level, is dropped, never run as a no-op the store would still save. Every level is read, as the commands write. */
+ *  any level, is dropped, never run as a no-op the store would still save. Every level is read, as the commands write.
+ *  `from` is judged against the design as it stands before the press, while the command runs on the design the press's
+ *  earlier changes left, so a replacement is only reliable on its own. */
 function isOwedReplacement(
   requested: AppearanceReplacement | undefined,
   design: Design,
@@ -215,13 +218,15 @@ function isOwedReplacement(
   );
 }
 
-function finishesStoredIn(design: Design): readonly Finish[] {
+/** Every colour the design stores: the kitchen's and each cabinet's own. */
+export function finishesStoredIn(design: Design): readonly Finish[] {
   const kitchen = design.settings?.finish;
   const bodies = design.placements.map((placement) => placement.body.finish);
   return [kitchen, ...bodies].filter((finish) => finish !== undefined);
 }
 
-function handlesStoredIn(design: Design): readonly Handle[] {
+/** Every handle the design stores: the kitchen's, the top row's and each cabinet's own. */
+export function handlesStoredIn(design: Design): readonly Handle[] {
   const { handle, topRowHandle } = design.settings ?? {};
   const bodies = design.placements.map((placement) => placement.body.handle);
   return [handle, topRowHandle, ...bodies].filter(
