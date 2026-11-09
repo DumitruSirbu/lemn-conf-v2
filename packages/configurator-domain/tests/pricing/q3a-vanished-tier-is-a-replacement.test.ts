@@ -9,7 +9,11 @@ import { describe, expect, it } from "vitest";
 
 import type { Design } from "../../src/design.js";
 import { KITCHEN_L_DESIGN } from "../../src/fixtures/kitchen-l-design.js";
-import { lookUpMaterial, paletteEntriesOf } from "../../src/materials.js";
+import {
+  lookUpMaterial,
+  paletteEntriesOf,
+  paletteFinish,
+} from "../../src/materials.js";
 import {
   finishItems,
   isItemDisabled,
@@ -315,6 +319,42 @@ describe("what stays UNKNOWN_TIER", () => {
       failureOf(priceUnder(availabilityOf([premium]), design)),
     ).toMatchObject({ code: "REPLACEMENT_REQUIRED", items: [premium] });
     expect(priceUnder(NOTHING_DISABLED, design).ok).toBe(true);
+  });
+});
+
+describe("a colour is not listed while its material has vanished (ruling on FINDING Q3a-F1; ADR 0057 resets it)", () => {
+  it("lists the vanished material alone, in the refusal and the sheet, though its palette colour is switched off", () => {
+    const design = withSettings({
+      cabinetDepthMm: 600,
+      materialTierId: "material.deleted",
+      finish: paletteFinish("pal.antracit"),
+    });
+    const availability = availabilityOf([colour("pal.antracit")]);
+    const deleted = tierRef("material", "material.deleted");
+
+    const failure = failureOf(priceUnder(availability, design));
+    const rows = replacementsRequired({
+      design,
+      book: BOOK,
+      availability,
+      catalog: CATALOG,
+    });
+
+    expect(failure).toMatchObject({ items: [deleted] });
+    expect(rows.map(({ item }) => item)).toEqual([deleted]);
+  });
+
+  it("still lists the colour while the material is held", () => {
+    const design = withSettings({
+      cabinetDepthMm: 600,
+      materialTierId: "material.melamine",
+      finish: paletteFinish("pal.antracit"),
+    });
+    const antracit = colour("pal.antracit");
+
+    expect(
+      failureOf(priceUnder(availabilityOf([antracit]), design)),
+    ).toMatchObject({ items: [antracit] });
   });
 });
 

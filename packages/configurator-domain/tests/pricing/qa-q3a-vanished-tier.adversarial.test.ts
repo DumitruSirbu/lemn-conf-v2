@@ -214,7 +214,7 @@ describe("the refusal is the same bytes whatever order availability lists its it
 });
 
 describe("what a refusal lists, written out by hand", () => {
-  it("lists a vanished material, a vanished hardware class, a colour and a handle in kind order", () => {
+  it("lists a vanished material, a vanished hardware class and a handle in kind order, and not the colour of the vanished material", () => {
     const design = withSettings({
       cabinetDepthMm: 600,
       materialTierId: "material.ghost",
@@ -230,7 +230,6 @@ describe("what a refusal lists, written out by hand", () => {
     expect(itemsOfRefusal(priceUnder(availability, design))).toEqual([
       { kind: "material", tierId: "material.ghost" },
       { kind: "hardware", tierId: "hardware.ghost" },
-      { kind: "finish", finishId: "pal.antracit" },
       { kind: "handle", handle: "black" },
     ]);
   });
@@ -321,7 +320,7 @@ describe("a vanished material the code still declares, wearing a switched-off co
     finish: paletteFinish("veneer.nuc"),
   });
 
-  it("builds both rows: the material's from the book's tiers, the colour's from the palette the code declares for it", () => {
+  it("builds the material's row alone, from the book's tiers: the colour row is omitted while its material is replaced (ADR 0057)", () => {
     const rows = replacementsRequired({
       design,
       book: bookWithoutVeneer,
@@ -329,15 +328,11 @@ describe("a vanished material the code still declares, wearing a switched-off co
       catalog: CATALOG,
     });
 
-    expect(rows.map(({ item }) => item)).toEqual([
-      material("material.veneer"),
-      colour("veneer.nuc"),
-    ]);
+    expect(rows.map(({ item }) => item)).toEqual([material("material.veneer")]);
     expect(rows[0]?.remaining).toEqual([
       material("material.melamine"),
       material("material.painted-mdf"),
     ]);
-    expect(rows[1]?.remaining).toEqual([colour("veneer.stejar")]);
   });
 });
 
@@ -365,7 +360,7 @@ describe("the kitchen of FINDING Q3a-F1 is one a stored document can be", () => 
     expect(loaded.settings?.materialTierId).toBe("material.ghost");
   });
 
-  it("is refused by the price with the vanished material and the switched-off colour", () => {
+  it("is refused by the price with the vanished material alone: its switched-off colour is not listed (ruling on FINDING Q3a-F1; ADR 0057 resets it)", () => {
     expect(
       itemsOfRefusal(
         priceUnder(
@@ -373,7 +368,7 @@ describe("the kitchen of FINDING Q3a-F1 is one a stored document can be", () => 
           ghostWearingAPaletteColour,
         ),
       ),
-    ).toEqual([material("material.ghost"), colour("pal.antracit")]);
+    ).toEqual([material("material.ghost")]);
   });
 
   it("is a replacement for the material alone when the colour is not switched off", () => {

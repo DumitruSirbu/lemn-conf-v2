@@ -268,7 +268,7 @@ describe("a stored kitchen naming a tier the active book does not hold", () => {
 });
 
 describe("a vanished tier beside a colour the kitchen wears", () => {
-  it("asks for the colour too, from the palette of the vanished material the code still declares, and answers 200", async () => {
+  it("asks for the vanished material alone, not its switched-off colour (ADR 0057 resets it), and answers 200", async () => {
     store(
       kitchenWith({
         materialTierId: "material.veneer",
@@ -283,7 +283,6 @@ describe("a vanished tier beside a colour the kitchen wears", () => {
 
     expect(notice.replacementsRequired.map(({ item }) => item)).toEqual([
       { kind: "material", tierId: "material.veneer" },
-      { kind: "finish", finishId: "veneer.nuc" },
     ]);
     for (const { remaining } of notice.replacementsRequired) {
       expect(remaining.length).toBeGreaterThan(0);
@@ -294,24 +293,21 @@ describe("a vanished tier beside a colour the kitchen wears", () => {
   // held, or a created class) and a palette colour switched off is refused REPLACEMENT_REQUIRED by the price, but the
   // sheet cannot offer the colour a replacement (the colour group is the palette of a material nothing declares) and
   // `replacementsRequired` throws `NoReplacementOptionError`: this route answers 500, writes no marker, and the customer
-  // reaches no sheet. Before Q3a the vanished material hid the colour row and the answer was a 200 with no rows. The
-  // marker comes off with the coordinator's ruling on what the sheet does for that colour.
-  it.fails(
-    "FINDING Q3a-F1: answers 200 with rows when the kitchen names a vanished undeclared material and a switched-off palette colour",
-    async () => {
-      store(
-        kitchenWith({
-          materialTierId: "material.ghost",
-          finish: paletteFinish("pal.antracit"),
-        }),
-      );
-      await switchOff({ kind: "finish", finishId: "pal.antracit" });
+  // reaches no sheet. Before Q3a the vanished material hid the colour row and the answer was a 200 with no rows. Resolved
+  // by the ruling: a colour is not listed while its material has vanished (ADR 0057; Q5 owns the reset).
+  it("FINDING Q3a-F1: answers 200 with rows when the kitchen names a vanished undeclared material and a switched-off palette colour", async () => {
+    store(
+      kitchenWith({
+        materialTierId: "material.ghost",
+        finish: paletteFinish("pal.antracit"),
+      }),
+    );
+    await switchOff({ kind: "finish", finishId: "pal.antracit" });
 
-      const answer = await readNotice({ cookie: OWNER_WRITE_COOKIE });
+    const answer = await readNotice({ cookie: OWNER_WRITE_COOKIE });
 
-      expect(answer.status).toBe(200);
-    },
-  );
+    expect(answer.status).toBe(200);
+  });
 });
 
 describe("a linked accessory the kitchen earned and a later version deleted", () => {

@@ -7,6 +7,9 @@
 // (`coloursAndHandlesNamedBy`). An accessory is never named by a design and never needs replacing: a switched-off one
 // is simply not billed (`earned-accessories.ts`).
 //
+// While the design's material is a vanished one, its colours are not listed (ADR 0057: a material change resets the
+// colour; Q5 owns the reset).
+//
 // A tier the book does not hold is not a switchable item (`itemsNamedBy` leaves it out), but a design that CHOSE one
 // names an item that is no longer offered, and `disabledItemsNamedBy` lists it beside the switched-off ones: it is a
 // replacement like any other (ADR 0178, Amendment of 2026-11-04, decision 1). A design that chose nothing, priced at a
@@ -24,6 +27,7 @@ import {
   type CustomisableBodies,
   type ItemRef,
   type TierKind,
+  withoutColours,
 } from "./catalogue-availability.js";
 import type { PriceBook, TierGroup, TierIdentity } from "./price-book.js";
 import type { WholeKitchenSelections } from "./whole-kitchen-selections.js";
@@ -54,6 +58,10 @@ export function itemsNamedBy(query: NamedItemsQuery): readonly ItemRef[] {
  * since the customer chose it). The items returned are the design's own references, so a result cannot carry anything
  * availability merely lists.
  *
+ * A colour is left out while the design's material is one the book no longer holds: the colour is a palette entry of a
+ * material that is gone, so the sheet has no group to offer it a replacement from, and replacing the material resets
+ * the colour (ADR 0057), which the customer then chooses afresh.
+ *
  * A design that chose no tier, whose fallback the book does not hold, lists no tier: that is a malformed book, not a
  * choice that vanished, and `priceDesign` answers it `UNKNOWN_TIER`.
  */
@@ -61,10 +69,20 @@ export function disabledItemsNamedBy(
   query: NamedItemsQuery,
   availability: CatalogueAvailability,
 ): readonly ItemRef[] {
+  const vanished = vanishedTiersChosenBy(query);
+  const switchedOff = itemsNamedBy(query).filter((item) =>
+    isItemDisabled(availability, item),
+  );
   return distinctItemsInOrder([
-    ...vanishedTiersChosenBy(query),
-    ...itemsNamedBy(query).filter((item) => isItemDisabled(availability, item)),
+    ...vanished,
+    ...(vanished.some(isMaterialItem)
+      ? withoutColours(switchedOff)
+      : switchedOff),
   ]);
+}
+
+function isMaterialItem(item: ItemRef): boolean {
+  return item.kind === "material";
 }
 
 function vanishedTiersChosenBy({

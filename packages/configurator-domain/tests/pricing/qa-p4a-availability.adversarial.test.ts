@@ -958,7 +958,7 @@ describe("RULED (ADR 0178 Amendment 2026-11-04): a design that chose a tier the 
     expect(fatal).toEqual([]);
   });
 
-  it("lists the vanished tier, then whatever else is switched off, and is never UNKNOWN_TIER", () => {
+  it("lists the vanished tier alone when what else is switched off is its own colour, and is never UNKNOWN_TIER", () => {
     const everythingOff = availabilityOf([
       ...PALETTE_ENTRY_IDS.map(colour),
       ...HandleSchema.options.map(handle),
@@ -967,10 +967,10 @@ describe("RULED (ADR 0178 Amendment 2026-11-04): a design that chose a tier the 
 
     expect(
       refusalItemsOf(priceUnder(colourOff, unknownMaterialAndAColour)),
-    ).toEqual([vanished, colour("pal.antracit")]);
+    ).toEqual([vanished]);
     expect(
       refusalItemsOf(priceUnder(everythingOff, unknownMaterialAndAColour)),
-    ).toEqual([vanished, colour("pal.antracit")]);
+    ).toEqual([vanished]);
     expect(
       refusalItemsOf(priceUnder(NOTHING_DISABLED, unknownMaterialAndAColour)),
     ).toEqual([vanished]);
@@ -1013,22 +1013,19 @@ describe("RULED (ADR 0178 Amendment 2026-11-04): a design that chose a tier the 
   // FINDING Q3a-F1 (QA, 2026-11-09). The design above is one the write seam accepts (the first test), and the price
   // refuses it with two items. The sheet cannot offer the colour row an option: the colour group is the palette of the
   // design's material, and a material no declaration names offers none, so `NoReplacementOptionError` is thrown. Before
-  // Q3a the early return hid it (the sheet answered []). Remove the marker with the ruling that decides what the sheet
-  // does for a colour whose material is itself being replaced (ADR 0057 resets the colour on a material change).
-  it.fails(
-    "FINDING Q3a-F1: builds a sheet without throwing for a vanished material wearing a switched-off palette colour",
-    () => {
-      const rows = replacementsRequired({
-        design: unknownMaterialAndAColour,
-        book: BOOK,
-        availability: colourOff,
-        catalog: CATALOG,
-      });
+  // Q3a the early return hid it (the sheet answered []). Resolved by the ruling: a colour is not listed while its
+  // material has vanished (ADR 0057 resets the colour on a material change; Q5 owns the reset).
+  it("FINDING Q3a-F1: builds a sheet without throwing for a vanished material wearing a switched-off palette colour", () => {
+    const rows = replacementsRequired({
+      design: unknownMaterialAndAColour,
+      book: BOOK,
+      availability: colourOff,
+      catalog: CATALOG,
+    });
 
-      expect(rows.length).toBeGreaterThan(0);
-      for (const { remaining } of rows) expect(remaining).not.toHaveLength(0);
-    },
-  );
+    expect(rows.length).toBeGreaterThan(0);
+    for (const { remaining } of rows) expect(remaining).not.toHaveLength(0);
+  });
 });
 
 describe("whenever the price refuses REPLACEMENT_REQUIRED, the sheet can be built (P4a-c)", () => {
