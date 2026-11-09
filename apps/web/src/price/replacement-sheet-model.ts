@@ -1,15 +1,12 @@
-// The forced-replacement sheet (frames C4A-C4D, ADR 0062 Amendment 3, ADR 0072 Amendment *Consequence*), as values. This
-// module owns every rule and sentence; `replacement-sheet.tsx` draws them and `use-price-notice.ts` owns the one `GET`.
-//
-// - **Rows are live.** They come from `replacementsRequired`, the domain query the route's `GET` also uses, run on the
-//   store's design and the page's root. So the sheet follows current availability: a disable shows it on the next open and
-//   a re-enable makes it go (Q3-e), with no new book version.
-// - **Nothing is preselected and nothing is guessed.** A row offers the remaining options of its group and no more.
-// - **A name only from what the page can honestly read.** A tier the book still holds (switched off) is named from the
-//   book; a tier the book no longer holds has no name on the client (the wire carries none for a replacement row), so it
-//   gets the generic line and never its id (OQ-41).
+// The forced-replacement sheet as values: its rows, names, chooser and confirmation lines. `replacement-sheet.tsx` draws
+// them and `use-price-notice.ts` owns the one `GET`.
+// - Rows are live: `replacementsRequired` run on the store's design and the page's availability, so a disable shows the
+//   sheet on the next open and a re-enable removes it, with no new book version.
+// - A name comes only from a book row the page still holds. A tier the book no longer holds gets the generic line, never
+//   its id. See ADR 0062 Amendment 3.
 import {
   cornerDirectionOf,
+  countDisplayedBodies,
   itemIdOf,
   isSameItem,
   NoReplacementOptionError,
@@ -33,10 +30,10 @@ import {
   type TierOfferAnswer,
 } from "./whole-kitchen-tiers";
 
-/** The four kinds a replacement row can be about. An accessory is never one: it is removed, not replaced (OQ-42). */
+/** The four kinds a replacement row can be about. An accessory is never one: it is removed, not replaced. */
 export type ReplacementKind = "material" | "hardware" | "finish" | "handle";
 
-/** The two kinds the sheet can resolve itself. A colour or a handle is drawn, and chosen in Q5. */
+/** The two kinds the sheet can resolve itself. A colour or a handle is drawn, and cannot be chosen here. */
 export type ChoosableKind = "material" | "hardware";
 
 export function isChoosableKind(kind: ReplacementKind): kind is ChoosableKind {
@@ -71,8 +68,8 @@ function isReplaceableRow(row: ReplacementRequired): boolean {
   return row.item.kind !== "accessory";
 }
 
-/** The rows the sheet has shown since it opened, so a row the customer has resolved stays drawn as resolved (C4D, with
- *  *Schimbă*) and not as a row that vanished. A row is kept as first seen. Answers `seen` itself when nothing is new, so
+/** The rows the sheet has shown since it opened, so a row the customer has resolved stays drawn as resolved and not
+ *  as a row that vanished. A row is kept as first seen. Answers `seen` itself when nothing is new, so
  *  the caller can tell by identity. */
 export function rememberRows(
   seen: readonly ReplacementRequired[],
@@ -152,8 +149,8 @@ export interface ReplacementRowView {
   readonly item: ItemRef;
   readonly kind: ReplacementKind;
   readonly kindLabel: string;
-  /** The item's name, or the generic line where the page has none to give. */
-  readonly valueText: string;
+  /** The item's name, or the generic line where the page has none to give. Absent for a resolved row with nothing to say. */
+  readonly valueText: string | undefined;
   /** `"nu mai este disponibil"`, or nothing where the generic line already says it. */
   readonly statusText: string;
   /** What a screen reader announces for the row: "{name} nu mai este disponibil", or the generic line. */
@@ -161,7 +158,7 @@ export interface ReplacementRowView {
   /** What the body's "Producătorul nu mai oferă" lists: "Material · MDF vopsit mat", or the kind alone where unnamed. */
   readonly itemPhrase: string;
   readonly isResolved: boolean;
-  /** Whether the sheet can resolve it itself; a colour or a handle waits for Q5. */
+  /** Whether the sheet can resolve it itself; a colour or a handle cannot be chosen here. */
   readonly isChoosable: boolean;
 }
 
@@ -236,7 +233,7 @@ function describeRow({
     kind,
     kindLabel,
     valueText: isResolved
-      ? (chosen ?? "")
+      ? chosen
       : (unavailableName ?? copy.unnamedOptionUnavailable),
     statusText:
       isResolved || unavailableName === undefined ? "" : copy.unavailable,
@@ -275,7 +272,7 @@ function kindLabelOf(kind: ReplacementKind, content: Content): string {
 }
 
 /** The name of an item that is no longer available, where the page can read one. A tier the book still holds is named by
- *  its book row; a tier it does not hold is not named (OQ-41). A colour or a handle is named from the code. */
+ *  its book row; a tier it does not hold is not named. A colour or a handle is named from the code. */
 function nameOfUnavailable(
   item: ItemRef,
   { content, offer }: SheetVocabulary,
@@ -390,7 +387,9 @@ export function describeChooser({
   return {
     kind: item.kind,
     heading: content.globalSettings.groupHeadings[item.kind],
-    appliesTo: copy.chooserAppliesTo(countDisplayedBodies(design, catalog)),
+    appliesTo: copy.chooserAppliesTo(
+      countDisplayedBodies(projectDesignForDisplay(design, catalog)),
+    ),
     hint: copy.chooseFromRemaining,
     options: [
       ...remainingOptions(row, group, content),
@@ -438,13 +437,6 @@ function optionOf(
   };
 }
 
-function countDisplayedBodies(design: Design, catalog: BodyCatalog): number {
-  return projectDesignForDisplay(design, catalog).reduce(
-    (count, group) => count + group.entries.length,
-    0,
-  );
-}
-
 /** The sentence a refused press is answered with: the setting's name, then the domain's reason, as the settings sheet says it. */
 export function describeApplyRefusal({
   kind,
@@ -463,9 +455,11 @@ export function describeApplyRefusal({
   );
 }
 
-/** C4C's lines, in the mockup's order: what changed, then the merged prices sentence when the second `GET` says so. */
+/** C4C's lines, in the mockup's order: what changed, accessories removed that the sheet did not show, then the merged
+ *  prices sentence when the second `GET` says so. */
 export function describeConfirmationLines({
   changes,
+  accessoryNames = [],
   alsoUpdated,
   copy,
 }: {
@@ -473,6 +467,7 @@ export function describeConfirmationLines({
     readonly kind: ChoosableKind;
     readonly name: string;
   }[];
+  readonly accessoryNames?: readonly string[];
   readonly alsoUpdated: boolean;
   readonly copy: ReplacementSheetCopy;
 }): readonly string[] {
@@ -481,5 +476,8 @@ export function describeConfirmationLines({
       ? copy.changedMaterial(name)
       : copy.changedHardware(name),
   );
-  return alsoUpdated ? [...changed, copy.alsoUpdated] : changed;
+  const removed = accessoryNames.map(copy.accessoryRemoved);
+  return alsoUpdated
+    ? [...changed, ...removed, copy.alsoUpdated]
+    : [...changed, ...removed];
 }

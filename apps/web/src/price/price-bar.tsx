@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 
 import { useContent } from "@/i18n/use-content";
 
@@ -97,6 +97,12 @@ export function PriceBar({
 
 /** Frames C4A / C4B / C4D: the bar keeps its reserved height and says when the price comes. No figure, anywhere. */
 function PendingReplacementBar({ prompt }: { readonly prompt: string }) {
+  // The live region is in the page empty and the words come after, because a region that appears together with its text
+  // is announced late or not at all.
+  const [announced, setAnnounced] = useState("");
+  useEffect(() => {
+    setAnnounced(prompt);
+  }, [prompt]);
   return (
     <div
       className={styles.bar}
@@ -108,7 +114,7 @@ function PendingReplacementBar({ prompt }: { readonly prompt: string }) {
         aria-live="polite"
         data-testid="price-bar-replacement-pending"
       >
-        {prompt}
+        {announced}
       </p>
     </div>
   );

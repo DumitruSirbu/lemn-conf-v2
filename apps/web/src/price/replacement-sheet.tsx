@@ -16,10 +16,14 @@ import {
 } from "react";
 
 import { trapTab, useModalFocus } from "@/components/use-modal-focus";
+import type { Content } from "@/i18n/content";
 import { useContent } from "@/i18n/use-content";
 import { Link } from "@/i18n/navigation";
 import { describeEditability } from "@/store/editability";
-import { useConfiguratorStore } from "@/store/configurator-store";
+import {
+  useConfiguratorStore,
+  type ConfiguratorState,
+} from "@/store/configurator-store";
 
 import {
   describeApplyRefusal,
@@ -36,19 +40,22 @@ import {
 } from "./replacement-sheet-model";
 import styles from "./replacement-sheet.module.css";
 import type {
+  AwaitedReplacement,
   PriceNotice,
   ReplacementChange,
-  SettlingReplacement,
 } from "./use-price-notice";
 import { useWholeKitchenTierOffer } from "./use-priced-design";
-import { isTierOffered } from "./whole-kitchen-tiers";
+import {
+  isTierOffered,
+  type WholeKitchenTierOffer,
+} from "./whole-kitchen-tiers";
 
 // The forced-replacement sheet (frames C4A-C4D). Which rows it holds, and every sentence, are `replacement-sheet-model.ts`'s;
 // the one `GET` and the wait for the save are `use-price-notice.ts`'s. This file holds the sheet's own state (which row is
 // being chosen, what has been applied) and draws it.
 //
-// **A modal that can be left only by ‹.** The sheet makes the rest of the screen inert (`useModalFocus`), and the top bar's
-// own ‹ is part of that screen. So ‹ is drawn in the sheet's head too, as the same link asking the same question
+// A modal that can be left only by ‹. The sheet makes the rest of the screen inert (`useModalFocus`), and the top bar's own
+// ‹ is part of that screen. So ‹ is drawn in the sheet's head too, as the same link asking the same question
 // (`BackConfirmation`). Escape and the scrim do nothing.
 
 const NOTHING_TO_DISMISS = (): void => undefined;
@@ -72,7 +79,7 @@ export interface LeaveKitchen {
 }
 
 export interface ReplacementSheetState {
-  /** A choice is owed. The bar says so, "Continuă" is off, and the sheet is open. */
+  /** A choice is owed. The bar says so, the review control is off, and the sheet is open. */
   readonly isPending: boolean;
   readonly priceLine: string;
   readonly view: ReplacementSheetView;
@@ -91,18 +98,15 @@ export interface ReplacementSheetState {
 
 /**
  * Everything the sheet and its neighbours need, in one place so the screen can read `isPending` for the bar and the
- * review control and pass the rest to the sheet. Open exactly where the notice hook's `GET` runs (`isReplacementAllowed`):
- * the share view, a page whose write access is not settled to `true`, and a page with no book get no sheet and no flash.
+ * review control and pass the rest to the sheet. Open exactly where the notice hook's `GET` runs (`owedReplacements` is
+ * empty elsewhere): the share view, a page whose write access is not settled to `true`, and a page with no book get no
+ * sheet and no flash.
  */
 export function useReplacementSheet(
   priceNotice: PriceNotice,
 ): ReplacementSheetState {
   const content = useContent();
-  const translate = useTranslations();
-  const copy = useMemo(
-    () => resolveReplacementSheetCopy(translate),
-    [translate],
-  );
+  const copy = useReplacementSheetCopy();
   const offer = useWholeKitchenTierOffer();
   const design = useConfiguratorStore((state) => state.design);
   const catalog = useConfiguratorStore((state) => state.catalog);
@@ -111,33 +115,10 @@ export function useReplacementSheet(
   const applyWholeKitchenSettings = useConfiguratorStore(
     (state) => state.applyWholeKitchenSettings,
   );
-
-  const live = priceNotice.owedReplacements;
-  const [seen, setSeen] = useState<readonly ReplacementRequired[]>(NO_ROWS);
-  const [step, setStep] = useState<Step>(LIST_STEP);
-  const [settling, setSettling] = useState<SettlingReplacement | undefined>();
-  const shown = rememberRows(seen, live);
-
-  useEffect(() => {
-    if (live.length > 0) {
-      setSeen(shown);
-      return;
-    }
-    // Nothing is owed any more: the customer's last choice, or availability coming back before any choice was made.
-    if (settling !== undefined) priceNotice.beginSettling(settling);
-    setSettling(undefined);
-    setSeen(NO_ROWS);
-    setStep(LIST_STEP);
-  }, [live.length, shown, settling, priceNotice.beginSettling]);
+  const session = useReplacementSession(priceNotice);
+  const { live, shown, step, setStep } = session;
 
   const vocabulary: SheetVocabulary = { content, copy, offer };
-  const view = describeReplacementSheet({
-    seen: shown,
-    live,
-    design,
-    accessoryNames: priceNotice.removedAccessoryNames,
-    vocabulary,
-  });
   const chooser =
     step.kind === "choose"
       ? describeChooser({ row: step.row, design, catalog, vocabulary })
@@ -150,55 +131,29 @@ export function useReplacementSheet(
   function apply(): void {
     if (step.kind !== "choose" || chooser === undefined) return;
     if (step.pickedTierId === undefined || editability.isReadOnly) return;
-    const outcome = applyPick({ row: step.row, tierId: step.pickedTierId });
-    if (!outcome.committed) {
-      setStep({ ...step, refusal: outcome.refusal });
-      return;
-    }
-    setSettling({
-      revisionAtChoice: useConfiguratorStore.getState().revision,
-      changes: withChange(settling?.changes, outcome.change),
+    if (!isTierOffered(offer)) return;
+    const outcome = commitChoice({
+      chooser,
+      tierId: step.pickedTierId,
+      offer,
+      applyWholeKitchenSettings,
+      design,
+      content,
     });
-    setStep(LIST_STEP);
-  }
-
-  function applyPick({
-    row,
-    tierId,
-  }: {
-    readonly row: ReplacementRequired;
-    readonly tierId: string;
-  }): AppliedPick {
-    const kind = row.item.kind;
-    if (!isTierOffered(offer) || (kind !== "material" && kind !== "hardware")) {
-      return { committed: false, refusal: undefined };
-    }
-    const outcome = applyWholeKitchenSettings({
-      ...(kind === "material"
-        ? { materialTierId: tierId }
-        : { hardwareTierId: tierId }),
-      availableMaterialTierIds: offer.material.tierIds,
-      availableHardwareTierIds: offer.hardware.tierIds,
-    });
-    if (!outcome.committed) {
-      return {
-        committed: false,
-        refusal: describeApplyRefusal({
-          kind,
-          reason: outcome.reason,
-          design,
-          content,
-        }),
-      };
-    }
-    const name = chooser?.options.find((o) => o.tierId === tierId)?.name;
-    return { committed: true, change: { kind, name: name ?? "" } };
+    if (outcome.committed) session.recordChoice(outcome.change);
+    else setStep({ ...step, refusal: outcome.refusal });
   }
 
   return {
     isPending: live.length > 0,
     priceLine: copy.priceAfterChoosing,
-    view,
+    view: describeReplacementSheet({
+      seen: shown,
+      live,
+      design,
+      accessoryNames: priceNotice.removedAccessoryNames,
+      vocabulary,
+    }),
     chooser,
     pickedTierId: step.kind === "choose" ? step.pickedTierId : undefined,
     refusal: step.kind === "choose" ? step.refusal : undefined,
@@ -231,48 +186,152 @@ export function useReplacementSheet(
     confirmationLines:
       priceNotice.confirmation === undefined
         ? []
-        : describeConfirmationLines({
-            changes: priceNotice.confirmation.changes,
-            alsoUpdated: priceNotice.confirmation.alsoUpdated,
-            copy,
-          }),
+        : describeConfirmationLines({ ...priceNotice.confirmation, copy }),
     dismissConfirmation: priceNotice.dismissConfirmation,
   };
 }
 
-type AppliedPick =
+function useReplacementSheetCopy() {
+  const translate = useTranslations();
+  return useMemo(() => resolveReplacementSheetCopy(translate), [translate]);
+}
+
+interface ReplacementSession {
+  /** What is still owed. */
+  readonly live: readonly ReplacementRequired[];
+  /** Every row shown since the sheet opened, so a resolved row stays drawn. */
+  readonly shown: readonly ReplacementRequired[];
+  readonly step: Step;
+  readonly setStep: (step: Step | ((current: Step) => Step)) => void;
+  /** The customer's choice was applied: back to the list, and its save is waited for once nothing more is owed. */
+  readonly recordChoice: (change: ReplacementChange) => void;
+}
+
+/**
+ * The sheet's state across choices: the rows seen, the step, and the changes made. When nothing is owed any more, by the
+ * last choice or by availability coming back before any, the state is cleared; after a choice the notice hook is told to
+ * wait for its save.
+ */
+function useReplacementSession(priceNotice: PriceNotice): ReplacementSession {
+  const live = priceNotice.owedReplacements;
+  const { awaitReplacementSave } = priceNotice;
+  const [seen, setSeen] = useState<readonly ReplacementRequired[]>(NO_ROWS);
+  const [step, setStep] = useState<Step>(LIST_STEP);
+  const [choice, setChoice] = useState<AwaitedReplacement | undefined>();
+  const shown = rememberRows(seen, live);
+
+  useEffect(() => {
+    if (live.length > 0) {
+      setSeen(shown);
+      return;
+    }
+    if (choice !== undefined) awaitReplacementSave(choice);
+    setChoice(undefined);
+    setSeen(NO_ROWS);
+    setStep(LIST_STEP);
+  }, [live.length, shown, choice, awaitReplacementSave]);
+
+  return {
+    live,
+    shown,
+    step,
+    setStep,
+    recordChoice: (change) => {
+      const revisionAtChoice = useConfiguratorStore.getState().revision;
+      setChoice((earlier) => ({
+        revisionAtChoice,
+        changes: withChange(earlier?.changes ?? [], change),
+      }));
+      setStep(LIST_STEP);
+    },
+  };
+}
+
+type AppliedChoice =
   | { readonly committed: true; readonly change: ReplacementChange }
-  | { readonly committed: false; readonly refusal: string | undefined };
+  | { readonly committed: false; readonly refusal: string };
+
+/** Applies one picked tier through the store's one-commit path, naming it for the confirmation. */
+function commitChoice({
+  chooser,
+  tierId,
+  offer,
+  applyWholeKitchenSettings,
+  design,
+  content,
+}: {
+  readonly chooser: ChooserView;
+  readonly tierId: string;
+  readonly offer: WholeKitchenTierOffer;
+  readonly applyWholeKitchenSettings: ConfiguratorState["applyWholeKitchenSettings"];
+  readonly design: ConfiguratorState["design"];
+  readonly content: Content;
+}): AppliedChoice {
+  const option = chooser.options.find(
+    (candidate) => candidate.tierId === tierId && !candidate.isStruck,
+  );
+  if (option === undefined) {
+    throw new Error("The picked tier is not one the chooser offers");
+  }
+  const { kind } = chooser;
+  const outcome = applyWholeKitchenSettings({
+    ...(kind === "material"
+      ? { materialTierId: tierId }
+      : { hardwareTierId: tierId }),
+    availableMaterialTierIds: offer.material.tierIds,
+    availableHardwareTierIds: offer.hardware.tierIds,
+  });
+  if (!outcome.committed) {
+    return {
+      committed: false,
+      refusal: describeApplyRefusal({
+        kind,
+        reason: outcome.reason,
+        design,
+        content,
+      }),
+    };
+  }
+  return { committed: true, change: { kind, name: option.name } };
+}
 
 /** The latest choice of each kind: choosing again for a row replaces what was said about it. */
 function withChange(
-  earlier: readonly ReplacementChange[] | undefined,
+  earlier: readonly ReplacementChange[],
   change: ReplacementChange,
 ): readonly ReplacementChange[] {
-  return [
-    ...(earlier ?? []).filter(({ kind }) => kind !== change.kind),
-    change,
-  ];
+  return [...earlier.filter(({ kind }) => kind !== change.kind), change];
 }
 
 /** The modal. Mounted only while a choice is owed, so its modal behaviour lives exactly as long as the sheet. */
 export function ReplacementSheet({
   sheet,
   leave,
+  returnFocusRef,
 }: {
   readonly sheet: ReplacementSheetState;
   readonly leave: LeaveKitchen;
+  /** Where focus goes when the sheet closes and nothing that had it on open can take it back. */
+  readonly returnFocusRef: RefObject<HTMLElement | null>;
 }) {
   if (!sheet.isPending) return null;
-  return <OpenReplacementSheet sheet={sheet} leave={leave} />;
+  return (
+    <OpenReplacementSheet
+      sheet={sheet}
+      leave={leave}
+      returnFocusRef={returnFocusRef}
+    />
+  );
 }
 
 function OpenReplacementSheet({
   sheet,
   leave,
+  returnFocusRef,
 }: {
   readonly sheet: ReplacementSheetState;
   readonly leave: LeaveKitchen;
+  readonly returnFocusRef: RefObject<HTMLElement | null>;
 }) {
   const content = useContent();
   const hostRef = useRef<HTMLDivElement>(null);
@@ -280,15 +339,14 @@ function OpenReplacementSheet({
   const firstChooseRef = useRef<HTMLButtonElement>(null);
   const titleId = useId();
   const bodyId = useId();
-  const isChoosing = sheet.chooser !== undefined;
 
   useModalFocus({
     hostRef,
     initialFocusRef: firstChooseRef,
     focusFallbackRef: surfaceRef,
     dismiss: NOTHING_TO_DISMISS,
+    returnFocus: { fallbackRef: returnFocusRef },
   });
-  useRefocusOnStepChange(isChoosing, firstChooseRef, surfaceRef);
 
   return (
     <div className={styles.host} ref={hostRef}>
@@ -333,28 +391,6 @@ function OpenReplacementSheet({
   );
 }
 
-/** The focused control follows the step: the first "Alege" on the list, the first option in a chooser. Not on open, which
- *  `useModalFocus` has already done. */
-function useRefocusOnStepChange(
-  isChoosing: boolean,
-  firstChooseRef: RefObject<HTMLButtonElement | null>,
-  surfaceRef: RefObject<HTMLDivElement | null>,
-): void {
-  const isFirstRender = useRef(true);
-  useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      return;
-    }
-    const first = isChoosing
-      ? surfaceRef.current?.querySelector<HTMLElement>(
-          "[data-option]:not([disabled])",
-        )
-      : firstChooseRef.current;
-    (first ?? surfaceRef.current)?.focus();
-  }, [isChoosing, firstChooseRef, surfaceRef]);
-}
-
 function ListStep({
   sheet,
   bodyId,
@@ -365,6 +401,9 @@ function ListStep({
   readonly firstChooseRef: RefObject<HTMLButtonElement | null>;
 }) {
   const { view } = sheet;
+  useEffect(() => {
+    firstChooseRef.current?.focus();
+  }, [firstChooseRef]);
   const firstOpenKey = view.rows.find(
     (row) => !row.isResolved && row.isChoosable,
   )?.key;
@@ -431,9 +470,11 @@ function ReplacementRow({
         <span id={kindId} className={styles.rowKind}>
           {row.kindLabel}
         </span>
-        <span className={styles.rowValue} data-testid="replacement-row-value">
-          {row.valueText}
-        </span>
+        {row.valueText === undefined ? null : (
+          <span className={styles.rowValue} data-testid="replacement-row-value">
+            {row.valueText}
+          </span>
+        )}
         {row.statusText === "" ? null : (
           <span className={styles.rowStatus}>{row.statusText}</span>
         )}
@@ -467,6 +508,13 @@ function ChooserStep({
   readonly bodyId: string;
 }) {
   const content = useContent();
+  const firstOptionRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    firstOptionRef.current?.focus();
+  }, []);
+  const firstOptionKey = chooser.options.find(
+    (option) => !option.isStruck,
+  )?.tierId;
   const isApplyOff = sheet.pickedTierId === undefined || sheet.isReadOnly;
   return (
     <>
@@ -483,6 +531,11 @@ function ChooserStep({
             <button
               key={`${option.tierId}:${String(option.isStruck)}`}
               type="button"
+              ref={
+                !option.isStruck && option.tierId === firstOptionKey
+                  ? firstOptionRef
+                  : undefined
+              }
               data-option=""
               className={styles.option}
               data-selected={

@@ -2,7 +2,7 @@
 
 import { cameraPresetsForRoom } from "@lemnaria/three-adapter";
 import dynamic from "next/dynamic";
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 
 import {
   AccountControl,
@@ -96,6 +96,8 @@ export function ConfigureScreen({
   // The forced-replacement sheet (C4A-D). It opens only where the notice hook's `GET` runs, so the share view and a page
   // that cannot write get no sheet, no pending bar and no disabled control: they refuse the price as they always did.
   const replacementSheet = useReplacementSheet(priceNotice);
+  // Where focus lands when the sheet closes and the control that had it before is gone.
+  const reviewCtaRef = useRef<HTMLAnchorElement>(null);
   const backGuard = useBackGuard({
     isOwner: variant === "owner",
     isLinkQuestionOpen: backConfirmation.isAsking,
@@ -331,6 +333,7 @@ export function ConfigureScreen({
           {typeof designId === "string" && !replacementSheet.isPending ? (
             // Not prefetched: the review's page runs the owned lookup, which a visible link must not.
             <Link
+              ref={reviewCtaRef}
               className={styles.reviewCta}
               data-testid="review-cta"
               href={reviewHref(designId)}
@@ -342,7 +345,9 @@ export function ConfigureScreen({
             <span
               className={styles.reviewCta}
               data-testid="review-cta"
-              {...(replacementSheet.isPending ? { "aria-disabled": true } : {})}
+              {...(replacementSheet.isPending
+                ? { role: "link", "aria-disabled": true }
+                : {})}
             >
               {content.configure.reviewCta}
             </span>
@@ -354,6 +359,7 @@ export function ConfigureScreen({
       <ReplacementSheet
         sheet={replacementSheet}
         leave={{ href: roomHref, onClick: backConfirmation.ask }}
+        returnFocusRef={reviewCtaRef}
       />
       {backConfirmation.isAsking && (
         <BackConfirmation roomHref={roomHref} onStay={backConfirmation.stay} />

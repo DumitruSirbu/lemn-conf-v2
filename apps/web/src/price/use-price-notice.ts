@@ -70,14 +70,16 @@ export interface ReplacementChange {
 
 /** The last choice, handed over for the hook to wait on: the revision the store stood at when it was applied, and what
  *  was changed, for the confirmation to say. */
-export interface SettlingReplacement {
+export interface AwaitedReplacement {
   readonly revisionAtChoice: DesignRevision | null;
   readonly changes: readonly ReplacementChange[];
 }
 
-/** C4C: what the sheet's flow ends in. `alsoUpdated` is true exactly when the second `GET` said the prices moved. */
-export interface ReplacementConfirmation {
+/** C4C: what the sheet's flow ends in. `alsoUpdated` is true exactly when the second `GET` said the prices moved, and
+ *  `accessoryNames` are accessories that answer names which the sheet never showed. */
+export interface ReplacementOutcome {
   readonly changes: readonly ReplacementChange[];
+  readonly accessoryNames: readonly string[];
   readonly alsoUpdated: boolean;
 }
 
@@ -98,10 +100,10 @@ export interface PriceNotice {
   /** The accessories the kitchen lost that this page can name, for the sheet's information rows (C4D). */
   readonly removedAccessoryNames: readonly string[];
   /** After the last choice: waits for that choice's save to land, asks again, carries the prices sentence if and only if
-   *  the new answer says the prices moved, then acknowledges the displayed pair (ruling 8). */
-  readonly beginSettling: (replacement: SettlingReplacement) => void;
+   *  the new answer says the prices moved, then acknowledges the displayed pair. */
+  readonly awaitReplacementSave: (replacement: AwaitedReplacement) => void;
   /** C4C, once the flow has ended; C1 is never drawn beside it. */
-  readonly confirmation: ReplacementConfirmation | undefined;
+  readonly confirmation: ReplacementOutcome | undefined;
   readonly dismissConfirmation: () => void;
 }
 
@@ -128,13 +130,7 @@ export function usePriceNotice({ isOwner }: { isOwner: boolean }): PriceNotice {
     if (askableId === undefined || askedFor.current === askableId) return;
     askedFor.current = askableId;
     void FETCHING_PRICE_NOTICE_CLIENT.read(askableId).then((read) => {
-      // A late first answer never replaces what is already held for this design: the sheet's flow may have asked again,
-      // and its answer is the newer one, held as already acknowledged.
-      setHeld((previous) =>
-        previous?.designId === askableId
-          ? previous
-          : { designId: askableId, read, hasAcknowledged: false },
-      );
+      setHeld((previous) => heldAfterFirstAnswer(previous, askableId, read));
     });
   }, [askableId]);
 
@@ -184,9 +180,16 @@ export function usePriceNotice({ isOwner }: { isOwner: boolean }): PriceNotice {
     acknowledgeAgainst(answer);
   }, [acknowledgeAgainst, answer]);
 
-  const settling = useReplacementSettling({
+  const removedAccessoryNames = removedAccessoryNamesOf({
+    answer,
+    displayed,
+    nameOf,
+  });
+  const awaited = useAwaitedReplacement({
     askableId,
     displayed,
+    nameOf,
+    shownAccessoryNames: removedAccessoryNames,
     acknowledgeAgainst,
     setHeld,
   });
@@ -198,69 +201,73 @@ export function usePriceNotice({ isOwner }: { isOwner: boolean }): PriceNotice {
     banner: isShown ? bannerOf({ answer, displayed, nameOf }) : undefined,
     acknowledge,
     owedReplacements,
-    removedAccessoryNames: removedAccessoryNamesOf({
-      answer,
-      displayed,
-      nameOf,
-    }),
-    ...settling,
+    removedAccessoryNames,
+    ...awaited,
   };
 }
 
 /**
- * The sheet's flow after the last choice (ruling 8). It waits on the store and not on `saveStatus`: the revision must
- * have moved past the one held when the choice was applied **and** the design on screen must be the one the server
- * confirmed. Only then is the `GET` asked again: before that the active side may still refuse, and the answer would
- * judge the old design. There is no timeout. A save that never lands (a conflict, a limit, a refusal) never confirms and
- * never acknowledges, and the next open judges afresh.
+ * The sheet's flow after the last choice. It waits on the store and not on `saveStatus`: the revision must have moved past
+ * the one held when the choice was applied **and** the design on screen must be the one the server confirmed. Only then is
+ * the `GET` asked again: before that the active side may still refuse, and the answer would judge the old design. There is
+ * no timeout. A save that never lands (a conflict, a limit, a refusal) never confirms and never acknowledges, and the next
+ * open judges afresh.
  */
-function useReplacementSettling({
+function useAwaitedReplacement({
   askableId,
   displayed,
+  nameOf,
+  shownAccessoryNames,
   acknowledgeAgainst,
   setHeld,
 }: {
   readonly askableId: string | undefined;
   readonly displayed: PriceStampWire | undefined;
+  readonly nameOf: (accessory: RemovedAccessoryWire) => string | undefined;
+  readonly shownAccessoryNames: readonly string[];
   readonly acknowledgeAgainst: (answer: PriceNoticeWire | undefined) => void;
   readonly setHeld: Dispatch<SetStateAction<HeldAnswer | undefined>>;
 }): Pick<
   PriceNotice,
-  "beginSettling" | "confirmation" | "dismissConfirmation"
+  "awaitReplacementSave" | "confirmation" | "dismissConfirmation"
 > {
   const revision = useConfiguratorStore((state) => state.revision);
   const isEverythingSaved = useConfiguratorStore(
     (state) => state.design === state.savedDesign,
   );
-  const [settling, setSettling] = useState<SettlingReplacement | undefined>();
+  const [awaited, setAwaited] = useState<AwaitedReplacement | undefined>();
   const [confirmation, setConfirmation] = useState<
-    ReplacementConfirmation | undefined
+    ReplacementOutcome | undefined
   >();
 
   useEffect(() => {
-    if (settling === undefined) return;
+    if (awaited === undefined) return;
     const hasLanded = hasReplacementSaveLanded({
-      revisionAtChoice: settling.revisionAtChoice,
+      revisionAtChoice: awaited.revisionAtChoice,
       revision,
       isEverythingSaved,
     });
     if (!hasLanded) return;
     // Latched before the request: this effect runs again on every change of the store while the answer is awaited.
-    setSettling(undefined);
+    setAwaited(undefined);
     void askAgainAndConfirm({
-      settling,
+      awaited,
       askableId,
       displayed,
+      nameOf,
+      shownAccessoryNames,
       acknowledgeAgainst,
       setHeld,
       setConfirmation,
     });
   }, [
-    settling,
+    awaited,
     revision,
     isEverythingSaved,
     askableId,
     displayed,
+    nameOf,
+    shownAccessoryNames,
     acknowledgeAgainst,
     setHeld,
   ]);
@@ -268,23 +275,31 @@ function useReplacementSettling({
   const dismissConfirmation = useCallback(() => {
     setConfirmation(undefined);
   }, []);
-  return { beginSettling: setSettling, confirmation, dismissConfirmation };
+  return {
+    awaitReplacementSave: setAwaited,
+    confirmation,
+    dismissConfirmation,
+  };
 }
 
 async function askAgainAndConfirm({
-  settling,
+  awaited,
   askableId,
   displayed,
+  nameOf,
+  shownAccessoryNames,
   acknowledgeAgainst,
   setHeld,
   setConfirmation,
 }: {
-  readonly settling: SettlingReplacement;
+  readonly awaited: AwaitedReplacement;
   readonly askableId: string | undefined;
   readonly displayed: PriceStampWire | undefined;
+  readonly nameOf: (accessory: RemovedAccessoryWire) => string | undefined;
+  readonly shownAccessoryNames: readonly string[];
   readonly acknowledgeAgainst: (answer: PriceNoticeWire | undefined) => void;
   readonly setHeld: Dispatch<SetStateAction<HeldAnswer | undefined>>;
-  readonly setConfirmation: (confirmation: ReplacementConfirmation) => void;
+  readonly setConfirmation: (confirmation: ReplacementOutcome) => void;
 }): Promise<void> {
   const read =
     askableId === undefined
@@ -296,11 +311,35 @@ async function askAgainAndConfirm({
     // the acknowledgement landing.
     setHeld((previous) => heldAfterAskingAgain(previous, askableId, read));
   }
+  // An accessory is acknowledged only once it has been said: the sheet showed the first answer's, and this answer's other
+  // names are said here, so the marker never moves past one the customer was not told about.
+  const unshownNames = removedAccessoryNamesOf({
+    answer: fresh,
+    displayed,
+    nameOf,
+  }).filter((name) => !shownAccessoryNames.includes(name));
   setConfirmation({
-    changes: settling.changes,
+    changes: awaited.changes,
+    accessoryNames: unshownNames,
     alsoUpdated: pricesMovedOnThisPage(fresh, displayed),
   });
   if (isFullyResolved(fresh)) acknowledgeAgainst(fresh);
+}
+
+/**
+ * What is held when the first answer arrives. A first answer never replaces a newer one held for this design (the sheet's
+ * flow may have asked again), except a failed read: that held nothing to say, so the first answer takes its place and keeps
+ * its acknowledged state.
+ */
+function heldAfterFirstAnswer(
+  previous: HeldAnswer | undefined,
+  designId: string,
+  read: NoticeRead,
+): HeldAnswer {
+  if (previous?.designId !== designId) {
+    return { designId, read, hasAcknowledged: false };
+  }
+  return previous.read.kind === "notice" ? previous : { ...previous, read };
 }
 
 /**
