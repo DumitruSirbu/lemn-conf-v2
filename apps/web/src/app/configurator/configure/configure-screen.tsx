@@ -15,6 +15,7 @@ import { FlaggedTotalWarning } from "@/price/flagged-total-warning";
 import { PriceBar } from "@/price/price-bar";
 import { PriceBreakdown } from "@/price/price-breakdown";
 import { PriceNoticeBanner } from "@/price/price-notice-banner";
+import { SentKitchenNote } from "@/price/sent-kitchen-note";
 import { usePriceNotice } from "@/price/use-price-notice";
 import { usePanelView } from "@/panel/use-panel-view";
 import { WebGLUnavailable } from "@/components/webgl-unavailable";
@@ -247,6 +248,9 @@ export function ConfigureScreen({
               banner={priceNotice.banner}
               onAcknowledge={priceNotice.acknowledge}
             />
+            {/* Frames C5A / C5AD: a kitchen already sent says so, softly, above the price. `isSent` is the one
+                `GET`'s answer, which the share view never asks, so the note is never drawn there. */}
+            <SentKitchenNote isSent={priceNotice.isSent} />
             {/* The owner's ruling of 2026-10-17: *Salvează ca preset* at the bottom of the editor, on the
                 right, in every environment the server allows it in (ADR 0112 Amendment A). It is first in
                 the stack, so it rides above the hint, the flagged total and the warning band and shares
