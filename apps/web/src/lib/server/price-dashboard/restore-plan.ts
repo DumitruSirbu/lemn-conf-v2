@@ -28,8 +28,8 @@ import { readVersionBook } from "@/lib/server/price-dashboard/version-wire";
 // field the draft already edits emits nothing and the candidate keeps the pending value. So a restore is made against
 // the candidate the draft makes, and replaces by address: the pending changes of every field the archived book states
 // are dropped, the archived values that differ from the active book are added, and a pending change to anything else
-// stays. A row the draft deletes is outside the restore (OQ-44): the book its earlier changes make no longer states it,
-// so a price added for it would make the draft refuse itself.
+// stays. A row the draft deletes is outside the restore: a price added for it would make the draft refuse itself,
+// since the book the earlier changes make no longer states the row. see ADR 0178 A-15
 
 /**
  * What restoring `version` writes: the draft it becomes, or the refusal. The active version has nothing to restore (the
@@ -140,6 +140,7 @@ function isOnDeletedRow(
   return row !== undefined && deleted.some((item) => isSameItem(item, row));
 }
 
+/** Must agree with `rowOfField` in `price-dashboard/publish-model.ts`. */
 function rowOfPriceAddress(address: BookFieldAddress): ItemRef | undefined {
   switch (address.kind) {
     case "hardware":
