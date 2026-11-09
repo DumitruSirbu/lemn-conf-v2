@@ -2926,6 +2926,39 @@ R4b1's reviews (2026-11-05) hand on the following.
 
 R4a4 hands to Q3: an end-to-end arm showing that publishing a created class blanks the deltas, written when Q3 flips `qa-p4a-tier-offer-switched-off…:56`.
 
+**Q3 sub-waves T4, Q3a, Q3c, Q4, Q3b merged locally, 2026-11-09 [relayed from the coordinator; facts source-verified by the coordinator with merged-tree gates: `tsc` and `eslint` exit 0, `apps/web` vitest all passed at each merge; the scribe ran nothing]. All unpushed.**
+- **Correction:** S2c was already merged on 2026-11-05 (`64d98623`; see *S2c and K3 merged* above). Any text here that lists it as unbuilt is stale. R4c now waits only on Q3d, Q5 and the Z gate sequence below.
+- **T4** (`b1905701`): two Romanian leaves, `globalSettings.pricesUnavailable` and `replacementSheet.unnamedOptionUnavailable`, **drafted, not approved** (OQ-11g). The Russian leaves are agent drafts.
+- **Q3a** (`49e4787f`; commits `cfa1b4d1`, `76c2b751`, `9ed918f5`; QA `1499d84d`):
+  - a vanished material or hardware tier is `REPLACEMENT_REQUIRED`; `UNKNOWN_TIER` is now only for a book whose default names no tier;
+  - `removedAccessoriesSince` reports a deleted earned linked accessory;
+  - the colour row is omitted only for a **vanished** material; a held switched-off material keeps its colour row (pinned by P4a);
+  - 14 pins moved;
+  - **known failure kept as `it.fails`:** a switched-off colour under a held undeclared (created) material class throws `NoReplacementOptionError`. It is Q5's.
+  - Evidence at merge: domain 462 files / 13592 tests; web 1165 files / 29131 passed.
+- **Q3c** (merge of `m10/q3c` and `m10/q3c-qa`; fix `490940c0`, overflow-wrap): price-notice client, the hook (acknowledge is guarded: only the active-version arm and only the displayed pair), and the C1 banner.
+  - Extra members in a 200 answer are tolerated, by ruling.
+  - Visual check at 390x844 and 1440x900 passed, against a stubbed answer.
+  - **Missing copy:** a removed linked accessory with no `authoredName` that is not built-in shows no line (never its id).
+- **Q4** (`ef07a617`, `84bdbd2a`): the sent-kitchen note; it reads `isSent` from the hook.
+  - **Deviation:** on desktop the placement is a centred card in the scene footer, not the C5AD right rail, because that panel does not exist at this step. **The owner may overrule.**
+  - Visual check passed. Web 1167 files / 29182 passed.
+- **Q3b** (`90324563`; `m10/q3b` plus `m10/q3b-qa` `9bdf60a9`): `NO_TIER_OFFER` with no book; switched-off tiers are out of `tierIds` and out of the delta measurement. Review fixes: **B1** (the handle row shows with no book, through an empty availability), **M1** (a held-but-off carried tier stays as stored), **M2** (the pill floor draws a named label). Web 1176 files / 29355 passed.
+  - **Residuals:**
+    1. An availability-store outage reads as `NO_PRICE_BOOK`, so the handle row offers switched-off handles, which later forces a replacement. The fix would give `NoPriceBook` a reason. Owner call.
+    2. The fit model (`settings-pill-fit.ts`, `top-bar-fit.ts`) still measures the old no-label width at the pill floor.
+    3. `availability?` in `DescribeGlobalSettingsInput` is still optional, with two unreachable branches.
+    4. `requireDeepCabinetPercent` and `UnreadablePriceBookError` have no production caller.
+    5. The no-book arm is DOM-tested only (dev, test and e2e always seed a book).
+- **Q3d** is built (`c6211abd` on `m10/q3d`) and in QA. **Not merged.**
+- **Remaining order:** Q3d QA, reviews and visual, then Q5, then R4c, then the Z gate. Q5 also owns:
+  - a colour or handle as the only owed row has no way forward but the back button;
+  - the top-bar pill label `headerMaterialToChoose`;
+  - the created-class colour `it.fails` (Q3a, above).
+  
+  **Q3d and Q5 merge together before any push.**
+- **Test hygiene:** about 11 stray designs were left in the e2e test database by visual checks (ids unknown for some). Clean them before the Z gate.
+
 *R4a5: record amendment (2026-11-05).* The R4a5 row said "R4a5 changes no server file, route or auth path". That
 premise broke. R4a5 changed the usage route's answer (`staff-item-usage.ts`, `item-usage-read.ts`). It touches 11
 production files against the row's 5. The security downgrade was therefore re-checked: R4a2's security reviewer

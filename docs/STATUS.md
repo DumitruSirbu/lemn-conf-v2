@@ -146,6 +146,8 @@ coordinator's reading that creating an accessory linked to a cabinet type is in 
 
 **2026-11-09 (M10 R5b) [relayed from the coordinator; source-verified by the coordinator; the scribe ran nothing].** R5b is merged (`26606c74`): the price-notice GET and acknowledge routes. QA green; full `apps/web` vitest 1156 files / 28788 passed / 2 skipped; `tsc` and `eslint` clean; logic, clean-code and security reviews found no blocker. Next: Q3, Q4, Q5, then R4c, then the Z gate. Detail and the five residuals: the *R5b merged* block in [`M10-price-dashboard.md`](milestones/M10-price-dashboard.md).
 
+**2026-11-09, later (M10 T4, Q3a, Q3c, Q4, Q3b) [relayed from the coordinator; source-verified by the coordinator with merged-tree gates (`tsc` and `eslint` exit 0, `apps/web` vitest all passed at each merge); the scribe ran nothing].** T4, Q3a, Q3c, Q4 and Q3b are merged locally, **unpushed** (tip `90324563`). **Correction:** S2c was merged on 2026-11-05 (`64d98623`); any line listing it as unbuilt is stale. **Q3d is built (`c6211abd`, `m10/q3d`) and in QA, not merged.** Remaining order: Q3d QA, reviews and visual, then Q5, then R4c, then the Z gate; Q3d and Q5 merge together before any push. Open: T4's two Romanian leaves are drafted, not approved (OQ-11g); Q4's desktop placement (scene-footer card, not the C5AD rail) may be overruled by the owner; Q3b's availability-outage residual is an owner call; about 11 stray e2e designs to clean before the Z gate. Detail, figures and residuals: the *Q3 sub-waves T4, Q3a, Q3c, Q4, Q3b merged* block in [`M10-price-dashboard.md`](milestones/M10-price-dashboard.md).
+
 ## 2. Phase table
 
 Read column: **No** = do not open. A row marked **UNCLEAR** would be a contradiction inside the history, left
