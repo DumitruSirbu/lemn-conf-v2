@@ -171,6 +171,48 @@ describe.each([
   );
 });
 
+describe("a colour row the material change resolves while another row is still owed (C4D)", () => {
+  it("says what the kitchen wears now, instead of drawing the resolved row with nothing in it", async () => {
+    serveWorld({ notices: [notice(), notice()] });
+    hydrate(
+      kitchenWith({
+        materialTierId: "material.veneer",
+        finish: paletteFinish("veneer.stejar"),
+        hardwareTierId: "hardware.premium",
+      }),
+    );
+    const editor = await mountEditor({
+      priceRoot: rootSwitchingOff(
+        { kind: "material", tierId: "material.veneer" },
+        { kind: "finish", finishId: "veneer.stejar" },
+        { kind: "hardware", tierId: "hardware.premium" },
+      ),
+    });
+    expect(
+      editor.container.querySelectorAll('[data-testid="replacement-row"]'),
+    ).toHaveLength(3);
+
+    await chooseTier(
+      editor,
+      ro.bookText(
+        SAMPLE_PRICE_ROOT.book.material.tiers[0]?.name ?? "",
+        SAMPLE_PRICE_ROOT.book.material.tiers[0]?.nameKey,
+      ),
+    );
+
+    const resolved = [
+      ...editor.container.querySelectorAll<HTMLElement>(
+        '[data-testid="replacement-row"][data-resolved="true"]',
+      ),
+    ];
+    expect(resolved).toHaveLength(2);
+    for (const row of resolved) {
+      const value = row.querySelector('[data-testid="replacement-row-value"]');
+      expect(value?.textContent.trim()).not.toBe("");
+    }
+  });
+});
+
 describe("a colour or a handle owed beside a material", () => {
   it("lets the customer resolve the material, then leaves the modal open on the colour row with no way on", async () => {
     const world = serveWorld({ notices: [notice(), notice()] });

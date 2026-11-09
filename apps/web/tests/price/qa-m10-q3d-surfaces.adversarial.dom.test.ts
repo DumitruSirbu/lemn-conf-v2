@@ -50,6 +50,7 @@ import {
   hydrate,
   mountEditor,
   notice,
+  present,
   press,
   required,
   requestsOf,
@@ -109,7 +110,14 @@ describe("no figure anywhere while a replacement is owed (Q3-a)", () => {
 
       expect(byTestId(editor, "replacement-sheet")).not.toBeNull();
       expect(byTestId(editor, "price-breakdown-trigger")).toBeNull();
+      // The real pill is in the scan: without this a pill that rendered nothing would let the scan pass for the wrong reason.
+      const pillLabel = present(
+        byTestId(editor, "global-settings-pill-label"),
+        "the settings pill's label",
+      );
+      expect(pillLabel.textContent.trim()).not.toBe("");
       const said = everythingSaidIn(editor.container);
+      expect(said).toContain(pillLabel.textContent);
       expect(said).not.toMatch(AN_AMOUNT);
       expect(said).not.toMatch(/\d[\d\s.,]*\s?(MDL|lei|EUR|€|%)/u);
       expect(said).not.toMatch(A_ZERO_WITH_A_UNIT);

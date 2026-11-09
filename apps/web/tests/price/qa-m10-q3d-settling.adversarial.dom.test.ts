@@ -461,7 +461,7 @@ describe("a first answer that is still on its way when the flow ends", () => {
   async function endTheFlowBeforeTheFirstAnswerArrives(): Promise<{
     readonly editor: Editor;
     readonly world: ReturnType<typeof serveWorld>;
-    readonly arrive: () => Promise<void>;
+    readonly arrive: (late?: Record<string, unknown>) => Promise<void>;
   }> {
     let releaseFirstAnswer: (answer: NoticeAnswer) => void = () => undefined;
     const firstAnswer = new Promise<NoticeAnswer>((resolve) => {
@@ -480,12 +480,34 @@ describe("a first answer that is still on its way when the flow ends", () => {
     return {
       editor,
       world,
-      arrive: async () => {
-        releaseFirstAnswer(notice({ pricesChanged: true }));
+      arrive: async (late = notice({ pricesChanged: true })) => {
+        releaseFirstAnswer(late);
         await settle();
       },
     };
   }
+
+  // PRECONDITION of the two reds below: the first answer must say "prices moved" with nothing left to replace, so the server must
+  // have evaluated that first `GET` after the choice's `PUT` committed, while the response is still in flight (or queued) when
+  // the customer has chosen, saved, and the second answer has come back. A first `GET` the server evaluated BEFORE the save still
+  // lists the owed row and draws no C1 (the green test that follows), so the race needs a slow response, not a slow server read.
+  it("CONTROL: a late first answer that still lists the owed row draws no C1", async () => {
+    const { editor, arrive } = await endTheFlowBeforeTheFirstAnswerArrives();
+
+    await arrive(
+      notice({
+        pricesChanged: true,
+        replacementsRequired: [
+          {
+            item: { kind: "material", tierId: SWITCHED_OFF_MATERIAL },
+            remaining: [{ kind: "material", tierId: "material.melamine" }],
+          },
+        ],
+      }),
+    );
+
+    expect(byTestId(editor, "price-notice")).toBeNull();
+  });
 
   it("does not bring C1 back once the confirmation has said the prices sentence and the pair has been acknowledged", async () => {
     const { editor, arrive } = await endTheFlowBeforeTheFirstAnswerArrives();
