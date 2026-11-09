@@ -14,6 +14,8 @@ import { EditorPanel } from "@/panel/editor-panel";
 import { FlaggedTotalWarning } from "@/price/flagged-total-warning";
 import { PriceBar } from "@/price/price-bar";
 import { PriceBreakdown } from "@/price/price-breakdown";
+import { PriceNoticeBanner } from "@/price/price-notice-banner";
+import { usePriceNotice } from "@/price/use-price-notice";
 import { usePanelView } from "@/panel/use-panel-view";
 import { WebGLUnavailable } from "@/components/webgl-unavailable";
 import { Link } from "@/i18n/navigation";
@@ -83,6 +85,8 @@ export function ConfigureScreen({
   const backConfirmation = useBackConfirmation();
   const sessionExpiry = useSessionExpiry();
   const savePreset = useSaveAsPresetControl(variant === "owner");
+  // The one reader of the price notice's `GET`; the share view never asks (it mounts this screen with `variant="shared"`).
+  const priceNotice = usePriceNotice({ isOwner: variant === "owner" });
   const backGuard = useBackGuard({
     isOwner: variant === "owner",
     isLinkQuestionOpen: backConfirmation.isAsking,
@@ -237,6 +241,12 @@ export function ConfigureScreen({
               2026-09-09 (ADR 0104 decision 8b), which took it out of the top bar so the header keeps
               frame D2A's shape on a flagged design as well as a seeded one. */}
           <div className={styles.sceneFooter}>
+            {/* Frame C1: first in the stack, so the card stands above everything the stack holds and the
+                price bar below it stays in view. A region with nothing in it takes no height. */}
+            <PriceNoticeBanner
+              banner={priceNotice.banner}
+              onAcknowledge={priceNotice.acknowledge}
+            />
             {/* The owner's ruling of 2026-10-17: *Salvează ca preset* at the bottom of the editor, on the
                 right, in every environment the server allows it in (ADR 0112 Amendment A). It is first in
                 the stack, so it rides above the hint, the flagged total and the warning band and shares

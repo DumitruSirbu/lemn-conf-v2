@@ -24,6 +24,7 @@ import {
   resolveClaimDialogCopy,
   resolveContent,
   resolveLogoutEverywhereCopy,
+  resolvePriceNoticeCopy,
   resolveSessionExpiredSheetCopy,
   resolveStaffActionsCopy,
   resolveStaffAuditCopy,
@@ -114,6 +115,10 @@ export function useAccountKitchensCopy() {
 
 export function useLogoutEverywhereCopy() {
   return useResolved(resolveLogoutEverywhereCopy);
+}
+
+export function usePriceNoticeCopy() {
+  return useResolved(resolvePriceNoticeCopy);
 }
 
 export function useSessionExpiredSheetCopy() {
