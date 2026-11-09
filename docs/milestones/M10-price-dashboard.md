@@ -2968,8 +2968,27 @@ R4a4 hands to Q3: an end-to-end arm showing that publishing a created class blan
     3. `availability?` in `DescribeGlobalSettingsInput` is still optional, with two unreachable branches.
     4. `requireDeepCabinetPercent` and `UnreadablePriceBookError` have no production caller.
     5. The no-book arm is DOM-tested only (dev, test and e2e always seed a book).
+- *(Superseded by the block below: Q5b, Q5d and R4c1 are merged, R4c2 is started.)*
 - **Q3d** is built (`c6211abd` on `m10/q3d`) and in QA. **Not merged.**
-- **Remaining order:** Q3d QA, reviews and visual, then Q5, then R4c, then the Z gate. Q5 also owns:
+**Q5b, Q5d, R4c1 merged locally; R4c2 started, 2026-11-09, latest [relayed from the coordinator; facts verified by the coordinator on merged trees: `tsc` and `eslint` exit 0; `apps/web` vitest 1212 files / 30005 tests passed at the R4c1 merge; the scribe ran nothing]. All unpushed.**
+- **Q5b** (colour and handle rows choosable in the replacement sheet; `fe992f4d`, `56c18187`, `cbc9f7e3`, `9c36d068` plus QA).
+  - **Ruling 4's text was falsified** and is corrected in place: an undeclared OLD material also leaves a colour row owed, appearing only after the material is replaced.
+  - **Departure from the Q5-a acceptance** ("the price shows once the save lands"): built and pinned, the price shows straight after Apply; the second `GET`, the marker `POST` and the C4C line wait for the save. An unsaved kitchen cannot be sent (review gates on `hasUnsavedEdit`; contact refuses `REPLACEMENT_REQUIRED` server-side). Acceptance wording fixed.
+  - **Follow-up (T lane):** the price sentence is said once by cutting the approved leaf at runtime (`withoutPriceSentence`); a standalone "changed to {name}." leaf would remove the cut.
+  - **Departure:** a resolved handle row the design no longer stores shows no value, against "never an empty value". Unreachable today.
+  - **GATE BEFORE ANY PUSH:** the ADR 0081 amendment is still **proposed**, awaiting owner confirmation.
+- **Q5d** (polish): the review control has the frame's disabled look; an owed row is read once (group label removed).
+  - **Open:** the Russian pill "Выбери материал" is clipped at 390, because frame 2A's 150px cap is about 6px narrower than one ru label plus a counter. That cap is ADR 0104 decision 3's owner-ruled rung-4 floor and is **not changed**. Options for the owner: shorten the ru string (agent draft), soften the cap (needs an ADR 0104 amendment), or accept.
+  - **Dead code left:** `ReplacementRowView.announcement`, `copy.unavailableAria` and the leaf `replacementSheet.unavailableAria` have no reader in `src`. `qa-m10-q5d-unread-announcement.test.ts` is to be deleted with them.
+- **R4c1** (merge of `m10/r4c1`): a restore beside a draft that deletes a row. Rows the draft deletes are outside the restore; a pending change on such a row survives; a restore differing only on deleted rows answers `409` nothing-differs. This is ruling 12 and the OQ-44 default.
+  - It **narrows ADR 0178 A-15**. Owed: an amendment pointer from A-15 to ruling 12 and OQ-44, when the owner answers OQ-44 (not written; ADR untouched by this scribe step).
+  - Acceptance wording corrected: "holds no change addressed to T" is now "adds no change addressed to T".
+  - **Ruling 13's route acceptance moves to R4c2** (a revert of a deletion answers `409 candidate-refused`); the `it.fails` in `price-dashboard-revert-deletion-past-cap.test.ts` flips there.
+  - **Ruling 14 (creation rates from two books) is a real defect** for books whose classes state different rate sets (`creation-plans.ts:109`, `structural-changes.ts:120`, `apply-changes.ts:140`, `editable-fields.ts:372`). Closed as unreachable for app-written books, by induction: the seed states all five rates on every class; creation copies the running book's rate set; rate edits cannot add a field; restore sets only fields both books state; the default class cannot be deleted; publish stores the parsed candidate. But the parser requires only `perLiftMinor` and `perPushRunnerMinor`, so a parse pass cannot catch it. **Added to the Z gate:** every hardware class in the active version's book states the same rate fields (or the parser requires all five). The `it.fails` stays as the known-defect pin; owner: that Z-gate check, or the fix in `apply-changes.ts` / `structural-changes.ts`.
+  - **Security review:** no exploitable issue. Informational, later improvements and not this wave: a server-side cap on changes per draft, or refusing `item-deleted` for a row the same draft created, would remove a slow-growth path; the restore route has no per-request deadline (the rate bucket is the only CPU bound).
+- **R4c2** (branch `m10/r4c2`) is started, **not merged**. Remaining: R4c2 QA, reviews (security) and merge; R4c3 (Delete on in the dashboard; Full + visual); then the Z gate, which needs the owner's go-ahead before touching the shared test DB.
+- **Owner decisions pending:** see STATUS section 1 (2026-11-09, close).
+- *(The order below is older; Q3d, Q5a, Q5b, Q5c, Q5d and R4c1 are now merged.)* **Remaining order:** Q3d QA, reviews and visual, then Q5, then R4c, then the Z gate. Q5 also owns:
   - a colour or handle as the only owed row has no way forward but the back button;
   - the top-bar pill label `headerMaterialToChoose`;
   - the created-class colour `it.fails` (Q3a, above).
@@ -4157,9 +4176,12 @@ it. Owner rulings and records are doc-quoted.
    refusal code.
 4. **A colour row waits for an unresolved material row.** While a material row is unresolved, a colour row in the same
    sheet has no "Alege". Resolving the material resolves every colour row the reset cleared. Such a row is then drawn
-   resolved, naming the colour it reverted to. A colour row still owed after the material is resolved becomes choosable
-   (only an undeclared new material, which resets nothing, can leave one). A resolved colour or handle row names what
-   replaced it, never an empty value and never an id.
+   resolved, naming the colour it reverted to. A colour row still owed after the material is resolved becomes choosable.
+   **Corrected 2026-11-09 (Q5b built, owner-relayed):** the earlier text said only an undeclared *new* material, which
+   resets nothing, can leave one. That is false: an undeclared *old* material also leaves a colour row owed, and the row
+   appears only after the material is replaced. A resolved colour or handle row names what replaced it, never an empty
+   value and never an id (departure, see the *Q5b, Q5d, R4c1 merged* block: a resolved handle row the design no longer
+   stores shows no value).
 5. **Under an undeclared material, a colour row offers its entry's own palette**: the active entries of the declared
    material whose palette holds the switched-off entry (palette ids are namespaced by material, `materials.ts:28-31`).
    *Why:* it never throws, so parity between the refusal's items and the sheet's rows holds. Any entry passes
@@ -4299,7 +4321,10 @@ review.
     true while no unresolved row can be chosen;
   - **lone colour, lone handle (DOM):** a kitchen whose only owed row is a switched-off colour, or a switched-off
     handle, opens the sheet. Choosing an option and pressing "Aplică" makes one store commit and one save. The price
-    shows once the save lands (ruling 8 of *Q3 split*). The marker is written, and C4C carries `changedColour` or
+    shows once the save lands (ruling 8 of *Q3 split*). **Reworded 2026-11-09 to what is built and pinned:** the price
+    shows straight after Apply; the second `GET`, the marker `POST` and the C4C line wait for the save. An unsaved kitchen
+    cannot be sent (review gates on `hasUnsavedEdit`; contact refuses `REPLACEMENT_REQUIRED` server-side). Recorded as a
+    departure from the Q5-a acceptance as first written. The marker is written, and C4C carries `changedColour` or
     `changedHandle`;
   - **A-16 at every level (DOM over the store):** after the choice, no level of the design names the switched-off item,
     and each other stored colour or handle is unchanged;
@@ -4325,10 +4350,10 @@ review.
     is disabled and is not announced as selected.
 - **R4c1:**
   - ruling 12, through the restore route: a draft holding `item-deleted` on T and a restore of a version that prices T
-    answer `200`. The draft still deletes T and holds no change addressed to T. `applyChanges` accepts the result;
-  - ruling 13: reverting a deletion when the draft creates enough accessories that the revert passes 50 answers
+    answer `200`. The draft still deletes T and adds no change addressed to T (reworded 2026-11-09 from "holds no change"). `applyChanges` accepts the result;
+  - ruling 13 **(moved to R4c2, 2026-11-09: the route cannot revert a deletion until R4c2; the `it.fails` in `price-dashboard-revert-deletion-past-cap.test.ts` flips there)**: reverting a deletion when the draft creates enough accessories that the revert passes 50 answers
     `409 candidate-refused`. The draft is unchanged, and the store holds one draft revision;
-  - ruling 14: the property, green or fixed, with its verdict in the report;
+  - ruling 14: the property, green or fixed, with its verdict in the report **(verdict 2026-11-09: a real defect, closed as unreachable for app-written books and moved to the Z gate; see the *Q5b, Q5d, R4c1 merged* block)**;
   - ruling 10: the precedence, pinned by a route test that writes nothing.
 - **R4c2 (R-j, R-i again, R-d):**
   - **R-j ordering:** the ancestry checks above exit 0 and are quoted in the merge report;
