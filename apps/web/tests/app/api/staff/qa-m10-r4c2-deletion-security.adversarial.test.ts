@@ -497,6 +497,22 @@ describe("a request refused before the plan never reaches the draft, the saved d
 // What the reader is asked
 
 describe("what the pre-check asks of the stores", () => {
+  it("is bounded by the draft bucket alone: a refused deletion and an accepted one each spend it once, and the usage bucket never", async () => {
+    aDesignNaming(VENEER);
+    limiterLedger.counted.length = 0;
+
+    await deleteRow(VENEER);
+    await deleteRow(PREMIUM);
+
+    const draftSpent = limiterLedger.counted.filter(
+      (name) => name === STAFF_PRICE_DRAFT_BY_ACCOUNT_POLICY.name,
+    );
+    expect(draftSpent.length).toBeGreaterThanOrEqual(2);
+    expect(
+      limiterLedger.counted.filter((name) => name.includes("usage")),
+    ).toEqual([]);
+  });
+
   it.each(DELETABLE.map((item) => [JSON.stringify(item), item] as const))(
     "makes exactly one read of the defaults and one count of one probe for an unused %s",
     async (_name, item) => {

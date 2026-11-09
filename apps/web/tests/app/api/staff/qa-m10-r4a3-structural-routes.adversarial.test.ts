@@ -40,8 +40,8 @@ vi.mock("@/lib/server/price-stores", () =>
   ),
 );
 
-// The structural kinds against the draft route as the tree has it: a draft planted in the store (no route makes a
-// creation or a deletion yet), then the requests a hostile or confused client could send. The assertions state what a
+// The structural kinds against the draft route as the tree has it: a draft planted in the store (the creation routes
+// mint their own ids; R4c2 takes a deletion at the change route), then the requests a hostile or confused client could send. The assertions state what a
 // route must answer; a red test names a request that gets another answer.
 
 let prices: PriceDashboardWorld;

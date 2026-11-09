@@ -6,7 +6,7 @@ import {
   type PriceBook,
 } from "@lemnaria/configurator-domain";
 
-import { PUT } from "@/app/api/staff/prices/draft/route";
+import { DELETE, PUT } from "@/app/api/staff/prices/draft/route";
 import {
   DELETION_FACTS_MEMO_TTL_MS,
   forgetRememberedDeletionFacts,
@@ -28,6 +28,7 @@ import {
 import { deleting, plantDraft } from "../../../support/planted-draft";
 import {
   changeRequest,
+  revertRequest,
   currentDraftRevision,
 } from "../../../support/price-dashboard-requests";
 import {
@@ -259,13 +260,34 @@ describe("a page that renders beside the draft route's deletion check", () => {
     const counting = countsOfTheReader();
     await readPublishPage();
     await deleteViaRoute(VENEER);
+    counting.mockClear();
 
     const withDeletion = await readPublishPage();
+    const callsForTheDeletion = counting.mock.calls.length;
+    await DELETE(
+      revertRequest({
+        cookie,
+        json: {
+          expectedDraftRevision: await currentDraftRevision(),
+          target: {
+            kind: "change",
+            address: { kind: "item-deleted", item: VENEER },
+          },
+        },
+      }),
+    );
+    counting.mockClear();
+    const afterTheRevert = await readPublishPage();
 
+    expect(callsForTheDeletion).toBe(1);
+    expect(counting).not.toHaveBeenCalled();
     expect(withDeletion.kind).toBe("ready");
-    expect(counting).toHaveBeenCalledTimes(2);
-    if (withDeletion.kind !== "ready") return;
+    expect(afterTheRevert.kind).toBe("ready");
+    if (withDeletion.kind !== "ready" || afterTheRevert.kind !== "ready") {
+      return;
+    }
     expect(withDeletion.input.deletionFacts?.usage).toHaveLength(1);
+    expect(afterTheRevert.input.deletionFacts?.usage).toEqual([]);
   });
 
   it("only reads: a render of the page writes no audit row, moves no revision and spends no bucket", async () => {

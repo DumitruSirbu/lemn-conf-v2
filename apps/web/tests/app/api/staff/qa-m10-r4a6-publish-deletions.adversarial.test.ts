@@ -59,7 +59,8 @@ vi.mock("@/lib/server/price-stores", () =>
 /**
  * Adversarial QA of `POST /api/staff/prices/publish` over stored drafts that delete rows: chunk boundaries, answers of the
  * reader that are partial or malformed, writes that land between the count and the store's guard, and the draft route's
- * refusal of a deletion on every path. Deletions can only be planted straight into the store.
+ * answer to a deletion on every path (R4c2: the draft route takes one, and a deletion can also be planted straight into
+ * the store, as a draft written out of band holds one).
  */
 
 type CountEach = KitchenUsageReader["countEach"];
