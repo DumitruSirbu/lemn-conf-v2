@@ -112,8 +112,12 @@ function linked(accessoryId: string, name: string): LinkedAccessoryRule {
     linkedBuildId: "base-3drawer",
     perUnitMinor: SEEN_AMOUNT_MINOR,
     name,
-    description: `CNRY-description-of-${accessoryId}`,
+    description: descriptionCanaryOf(accessoryId),
   };
+}
+
+function descriptionCanaryOf(accessoryId: string): string {
+  return `CNRY-description-of-${accessoryId}`;
 }
 
 /** The seen version's book: canary text in every field, two linked accessories, a distinctive amount. */
@@ -237,18 +241,30 @@ function logText(): string {
 // (a) what of the seen version reaches a customer
 
 describe("no text of the seen version reaches a customer", () => {
-  it("answers the GET of a deleted accessory with no canary but that accessory's own name, no seen id and no seen amount", async () => {
+  // Since M10 Q3a a deleted linked accessory the kitchen earned is a removed one, so its name is read from the seen book
+  // (ADR 0178 Amendment of 2026-11-04). That name is the one allowed exception: it appears exactly once, as the
+  // `authoredName` of the one row, and nothing else of the seen version appears with it.
+  it("answers the GET of a deleted accessory with that accessory's own name once, and no other canary, no seen id and no seen amount", async () => {
     const { seenVersionId, newestVersionId } =
       await setUpSeenArchive("without-removed");
     expect(textCanaries.length).toBeGreaterThan(5);
 
     const answer = await readNotice({ cookie: OWNER_WRITE_COOKIE });
     const text = await answer.clone().text();
+    const textWithoutTheAllowedName = text.replace(REMOVED_NAME, "");
 
     expect(answer.status).toBe(200);
+    expect(
+      (JSON.parse(text) as { removedAccessories: unknown }).removedAccessories,
+    ).toEqual([
+      { accessoryId: REMOVED_ACCESSORY_ID, authoredName: REMOVED_NAME },
+    ]);
+    expect(text.split(REMOVED_NAME)).toHaveLength(2);
     for (const forbidden of [
       ...textCanaries,
       KEPT_NAME,
+      descriptionCanaryOf(REMOVED_ACCESSORY_ID),
+      descriptionCanaryOf(KEPT_ACCESSORY_ID),
       VERSION_LABEL,
       VERSION_NOTE,
       SUMMARY_TEXT,
@@ -256,7 +272,7 @@ describe("no text of the seen version reaches a customer", () => {
       seenVersionId,
       "CNRY",
     ]) {
-      expect(text, forbidden).not.toContain(forbidden);
+      expect(textWithoutTheAllowedName, forbidden).not.toContain(forbidden);
     }
     expect(text).toContain(newestVersionId);
     expect(logText()).not.toContain("CNRY");

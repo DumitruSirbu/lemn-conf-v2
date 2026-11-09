@@ -806,10 +806,25 @@ describe("8H criterion 7: the three refusals, in ADR 0148's order, when more tha
       },
     ],
     [
-      "a design naming a tier the book does not offer",
-      "UNKNOWN_TIER",
+      "a design naming a tier the book no longer holds (a replacement since Q3a)",
+      "REPLACEMENT_REQUIRED",
       WITH_A_TIER_NOT_OFFERED,
       SHIPPED,
+    ],
+    [
+      "a book whose own fallback tier is missing, for a design that chose no tier",
+      "UNKNOWN_TIER",
+      KITCHEN_L_DESIGN,
+      {
+        ...SHIPPED,
+        book: {
+          ...SAMPLE_PRICE_BOOK,
+          material: {
+            ...SAMPLE_PRICE_BOOK.material,
+            defaultTierId: "material.retired",
+          },
+        },
+      },
     ],
   ];
 

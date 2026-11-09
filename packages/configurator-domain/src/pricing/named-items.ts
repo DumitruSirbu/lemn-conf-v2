@@ -1,5 +1,4 @@
-// The items a design names that availability can switch off (ADR 0062 Amendment 3 and the 2026-10-26 Amendment, A-16,
-// A-17). The one list both `priceDesign`, which refuses on it, and `replacementsRequired`, which builds the sheet from
+// The items a design names that availability can switch off (ADR 0062 Amendment 3, A-16, A-17). The one list both `priceDesign`, which refuses on it, and `replacementsRequired`, which builds the sheet from
 // it, read, so the refusal and the sheet cannot drift apart.
 //
 // A design names a tier by choosing it or, when it chose none, by being priced at the book's fallback tier (A-9): a
@@ -7,9 +6,9 @@
 // (`coloursAndHandlesNamedBy`). An accessory is never named by a design and never needs replacing: a switched-off one
 // is simply not billed (`earned-accessories.ts`).
 //
-// A tier the book does not hold is not listed, and a design that chose one is refused no replacement at all: that is
-// `UNKNOWN_TIER`'s. The order is the items' own (`distinctItemsInOrder`), so it does not depend on how the design or
-// `availability.disabled` was ordered.
+// A tier the design chose that the book no longer holds is listed too (see ADR 0178 decision 1); a choice-less design
+// priced at a fallback the book lacks is a book fault and stays `UNKNOWN_TIER`'s. The order is the items' own
+// (`distinctItemsInOrder`), so it does not depend on how the design or `availability.disabled` was ordered.
 import type { Design } from "../design.js";
 
 import {
@@ -21,6 +20,7 @@ import {
   type CustomisableBodies,
   type ItemRef,
   type TierKind,
+  withoutColours,
 } from "./catalogue-availability.js";
 import type { PriceBook, TierGroup, TierIdentity } from "./price-book.js";
 import type { WholeKitchenSelections } from "./whole-kitchen-selections.js";
@@ -46,31 +46,56 @@ export function itemsNamedBy(query: NamedItemsQuery): readonly ItemRef[] {
 }
 
 /**
- * The items the design names that `availability` switches off, once each, in `distinctItemsInOrder`'s order. The items
+ * The items the design names that must be replaced, once each, in `distinctItemsInOrder`'s order: the ones
+ * `availability` switches off, and a material or hardware tier the design chose that the book does not hold. The items
  * returned are the design's own references, so a result cannot carry anything availability merely lists.
  *
- * Empty for a design whose chosen tier the book does not hold, whatever is switched off: that design is
- * `UNKNOWN_TIER`'s (the recovery path of ADR 0072), and a replacement sheet for it could not be built, since its
- * options are read from the tiers and the material it names.
+ * A colour of a vanished material needs no row: the material change resets the colour (ADR 0057, 0081), and palette
+ * ids are namespaced by material, so none of that palette is on offer for the new one.
+ *
+ * A design that chose no tier, whose fallback the book does not hold, lists no tier: that is a malformed book, not a
+ * choice that vanished, and `priceDesign` answers it `UNKNOWN_TIER`.
  */
 export function disabledItemsNamedBy(
   query: NamedItemsQuery,
   availability: CatalogueAvailability,
 ): readonly ItemRef[] {
-  if (namesATierTheBookDoesNotHold(query)) return [];
-  return itemsNamedBy(query).filter((item) =>
+  const vanished = vanishedTiersChosenBy(query);
+  const switchedOff = itemsNamedBy(query).filter((item) =>
     isItemDisabled(availability, item),
   );
+  return distinctItemsInOrder([
+    ...vanished,
+    ...dropColoursOfVanishedMaterial(switchedOff, vanished),
+  ]);
 }
 
-function namesATierTheBookDoesNotHold({
+function dropColoursOfVanishedMaterial(
+  switchedOff: readonly ItemRef[],
+  vanished: readonly ItemRef[],
+): readonly ItemRef[] {
+  const isMaterialVanished = vanished.some((item) => item.kind === "material");
+  return isMaterialVanished ? withoutColours(switchedOff) : switchedOff;
+}
+
+function vanishedTiersChosenBy({
   book,
   chosen,
-}: NamedItemsQuery): boolean {
-  return (
-    !holdsTier(book.material, chosen?.materialTierId) ||
-    !holdsTier(book.hardware, chosen?.hardwareTierId)
-  );
+}: NamedItemsQuery): readonly ItemRef[] {
+  return [
+    ...vanishedTier(book.material, chosen?.materialTierId, "material"),
+    ...vanishedTier(book.hardware, chosen?.hardwareTierId, "hardware"),
+  ];
+}
+
+/** The chosen tier as an item when the group does not hold it; nothing when none was chosen, whatever the fallback. */
+function vanishedTier(
+  group: TierGroup<TierIdentity>,
+  chosenTierId: string | undefined,
+  kind: TierKind,
+): readonly ItemRef[] {
+  if (chosenTierId === undefined || holdsTier(group, chosenTierId)) return [];
+  return [tierRef(kind, chosenTierId)];
 }
 
 function holdsTier(

@@ -621,8 +621,18 @@ describe("fail whole, on every path", () => {
       code: "UNKNOWN_BODY",
     },
     {
-      name: "a tier nothing offers",
+      name: "a tier nothing offers (a replacement since Q3a, never an unknown tier)",
       overrides: { selections: { hardwareTierId: "hardware.gone" } },
+      code: "REPLACEMENT_REQUIRED",
+    },
+    {
+      name: "a book whose own default names no tier",
+      overrides: {
+        book: {
+          ...BOOK,
+          hardware: { ...BOOK.hardware, defaultTierId: "hardware.retired" },
+        },
+      },
       code: "UNKNOWN_TIER",
     },
     {

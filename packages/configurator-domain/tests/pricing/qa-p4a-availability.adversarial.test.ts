@@ -792,7 +792,7 @@ describe("A-9 fallback tiers: a design that names no tier is priced at the book'
     expect(result.ok).toBe(true);
   });
 
-  it("names the fallback and not a tier the document does not hold: the design's chosen unknown tier is UNKNOWN_TIER's, whatever is off", () => {
+  it("names the vanished tier the design chose, and not the switched-off fallback it never used (Q3a: a replacement, not UNKNOWN_TIER)", () => {
     const result = priceUnder(
       availabilityOf([
         material(BOOK.material.defaultTierId),
@@ -804,7 +804,7 @@ describe("A-9 fallback tiers: a design that names no tier is priced at the book'
       }),
     );
 
-    expect(codeOf(result)).toBe("UNKNOWN_TIER");
+    expect(refusalItemsOf(result)).toEqual([material("material.unobtainium")]);
   });
 });
 
@@ -940,7 +940,9 @@ describe("CURRENT BEHAVIOUR for the architect: a palette colour on a material th
   });
 });
 
-describe("RULED: a design that chose a tier the book does not hold is UNKNOWN_TIER whatever is switched off", () => {
+// The P4a ruling here (`UNKNOWN_TIER` whatever is switched off) was superseded by name in ADR 0178's Amendment of
+// 2026-11-04, decision 1: a tier a publish deleted is a replacement, so a stored design never reaches `UNKNOWN_TIER`.
+describe("RULED (ADR 0178 Amendment 2026-11-04): a design that chose a tier the book does not hold is REPLACEMENT_REQUIRED whatever is switched off", () => {
   const unknownMaterialAndAColour = withSettings({
     cabinetDepthMm: 600,
     materialTierId: "material.unobtainium",
@@ -956,21 +958,22 @@ describe("RULED: a design that chose a tier the book does not hold is UNKNOWN_TI
     expect(fatal).toEqual([]);
   });
 
-  it("is refused UNKNOWN_TIER, switched-off colour or not, and also with every colour and handle switched off", () => {
+  it("lists the vanished tier alone when what else is switched off is its own colour, and is never UNKNOWN_TIER", () => {
     const everythingOff = availabilityOf([
       ...PALETTE_ENTRY_IDS.map(colour),
       ...HandleSchema.options.map(handle),
     ]);
+    const vanished = material("material.unobtainium");
 
-    expect(codeOf(priceUnder(colourOff, unknownMaterialAndAColour))).toBe(
-      "UNKNOWN_TIER",
-    );
-    expect(codeOf(priceUnder(everythingOff, unknownMaterialAndAColour))).toBe(
-      "UNKNOWN_TIER",
-    );
     expect(
-      codeOf(priceUnder(NOTHING_DISABLED, unknownMaterialAndAColour)),
-    ).toBe("UNKNOWN_TIER");
+      refusalItemsOf(priceUnder(colourOff, unknownMaterialAndAColour)),
+    ).toEqual([vanished]);
+    expect(
+      refusalItemsOf(priceUnder(everythingOff, unknownMaterialAndAColour)),
+    ).toEqual([vanished]);
+    expect(
+      refusalItemsOf(priceUnder(NOTHING_DISABLED, unknownMaterialAndAColour)),
+    ).toEqual([vanished]);
   });
 
   it("holds for an unknown hardware class as well", () => {
@@ -980,21 +983,48 @@ describe("RULED: a design that chose a tier the book does not hold is UNKNOWN_TI
       handle: "black",
     });
 
-    expect(codeOf(priceUnder(availabilityOf([handle("black")]), design))).toBe(
-      "UNKNOWN_TIER",
-    );
+    expect(
+      refusalItemsOf(priceUnder(availabilityOf([handle("black")]), design)),
+    ).toEqual([hardware("hardware.unobtainium"), handle("black")]);
   });
 
   // The guard that caught the defect: the sheet is built for a design the price refuses, never thrown from.
-  it("builds the sheet for such a design with no row, and does not throw", () => {
+  it("builds the sheet for a vanished material alone: one row offering every active material tier", () => {
+    const design = withSettings({
+      cabinetDepthMm: 600,
+      materialTierId: "material.unobtainium",
+    });
+
     expect(
       replacementsRequired({
-        design: unknownMaterialAndAColour,
+        design,
         book: BOOK,
-        availability: colourOff,
+        availability: NOTHING_DISABLED,
         catalog: CATALOG,
       }),
-    ).toEqual([]);
+    ).toEqual([
+      {
+        item: material("material.unobtainium"),
+        remaining: MATERIAL_TIER_IDS.map(material),
+      },
+    ]);
+  });
+
+  // FINDING Q3a-F1 (QA, 2026-11-09). The design above is one the write seam accepts (the first test), and the price
+  // refuses it with two items. The sheet cannot offer the colour row an option: the colour group is the palette of the
+  // design's material, and a material no declaration names offers none, so `NoReplacementOptionError` is thrown. Before
+  // Q3a the early return hid it (the sheet answered []). Resolved by the ruling: a colour is not listed while its
+  // material has vanished (ADR 0057 resets the colour on a material change; Q5 owns the reset).
+  it("FINDING Q3a-F1: builds a sheet without throwing for a vanished material wearing a switched-off palette colour", () => {
+    const rows = replacementsRequired({
+      design: unknownMaterialAndAColour,
+      book: BOOK,
+      availability: colourOff,
+      catalog: CATALOG,
+    });
+
+    expect(rows.length).toBeGreaterThan(0);
+    for (const { remaining } of rows) expect(remaining).not.toHaveLength(0);
   });
 });
 

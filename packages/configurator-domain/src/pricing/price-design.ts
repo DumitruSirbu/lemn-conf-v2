@@ -166,8 +166,8 @@ function finishPricing(
 
 /** Every refusal that can be decided before a line exists: the book, then the version, then the
  *  design against the catalogue, then the design against availability (before any tier is selected, so a switched-off
- *  tier the book holds is never read as an unknown one; a design that chose a tier the book lacks is passed on to
- *  `UNKNOWN_TIER`, whatever is switched off). */
+ *  tier, and a chosen tier the book no longer holds, are replacements and never read as an unknown one: a stored
+ *  design cannot reach `UNKNOWN_TIER`, which only a book whose own fallback tier is missing does). */
 function refuseUnusableRequest(
   request: PriceDesignRequest,
 ): PricingFailure | undefined {
@@ -1205,7 +1205,7 @@ function failWithReplacements(
   return {
     code: "REPLACEMENT_REQUIRED",
     detail: boundedFailureReason(
-      `The design names ${String(items.length)} item(s) the catalogue has switched off`,
+      `The design names ${String(items.length)} item(s) to replace (switched off, or no longer in the book)`,
     ),
     items,
   };

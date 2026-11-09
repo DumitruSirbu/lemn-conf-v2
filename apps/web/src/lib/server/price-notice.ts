@@ -439,8 +439,7 @@ function removedAccessoriesFor(
 }
 
 /** A built-in is named by the client from its messages; a linked row by the first book that states it, the active
- *  book's before the seen one's. The seen-book arm is the forward half of ADR 0178's deleted-linked-accessory naming: it is
- *  reached once `removedAccessoriesSince` reports a row the active book no longer states, which it does not yet. */
+ *  book's before the seen one's. The seen book names a linked accessory the active book no longer states. */
 function removedAccessoryWire(
   accessoryId: string,
   books: readonly PriceBook[],

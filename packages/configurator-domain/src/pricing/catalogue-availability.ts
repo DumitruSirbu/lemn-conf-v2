@@ -194,6 +194,10 @@ export function finishRef(finishId: string): ItemRef {
   return { kind: "finish", finishId };
 }
 
+export function withoutColours(items: readonly ItemRef[]): readonly ItemRef[] {
+  return items.filter((item) => item.kind !== "finish");
+}
+
 export function tierItems(
   group: TierListing,
   kind: TierKind,
