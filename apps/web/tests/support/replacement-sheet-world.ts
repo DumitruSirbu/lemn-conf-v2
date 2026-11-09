@@ -23,6 +23,7 @@ import {
 } from "@/store/configurator-store";
 
 import roMessages from "../../src/messages/ro.json";
+import ruMessages from "../../src/messages/ru.json";
 import { ro } from "./romanian-content";
 import { SAMPLE_PRICE_ROOT } from "./sample-price-root";
 import {
@@ -305,13 +306,24 @@ export function serveWorld({
   return serving;
 }
 
-function editorTree(root: PriceBookRoot, variant: ConfigureScreenVariant) {
+export type EditorLocale = "ro" | "ru";
+
+const MESSAGES_OF: Record<EditorLocale, typeof roMessages> = {
+  ro: roMessages,
+  ru: ruMessages as typeof roMessages,
+};
+
+function editorTree(
+  root: PriceBookRoot,
+  variant: ConfigureScreenVariant,
+  locale: EditorLocale,
+) {
   return createElement(PriceBookProvider, {
     root,
     children: createElement(NextIntlClientProvider, {
       children: createElement(ConfigureScreen, { variant }),
-      locale: "ro",
-      messages: roMessages,
+      locale,
+      messages: MESSAGES_OF[locale],
       timeZone: "Europe/Chisinau",
     }),
   });
@@ -320,9 +332,11 @@ function editorTree(root: PriceBookRoot, variant: ConfigureScreenVariant) {
 export async function mountEditor({
   variant = "owner",
   priceRoot = ROOT_WITH_MDF_OFF,
+  locale = "ro",
 }: {
   readonly variant?: ConfigureScreenVariant;
   readonly priceRoot?: PriceBookRoot;
+  readonly locale?: EditorLocale;
 } = {}): Promise<Editor> {
   const container = document.createElement("div");
   document.body.append(container);
@@ -330,7 +344,7 @@ export async function mountEditor({
   editorRoot = root;
   editorContainer = container;
   act(() => {
-    root.render(editorTree(priceRoot, variant));
+    root.render(editorTree(priceRoot, variant, locale));
   });
   await settle();
   return { container };
@@ -344,7 +358,7 @@ export async function rerenderUnder(
   const root = editorRoot;
   if (root === undefined) throw new Error("no editor is mounted");
   act(() => {
-    root.render(editorTree(priceRoot, variant));
+    root.render(editorTree(priceRoot, variant, "ro"));
   });
   await settle();
 }
