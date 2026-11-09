@@ -95,6 +95,7 @@ describe("no client module names a book", () => {
     expect(readers.sort()).toEqual([
       "account/kitchens/kitchen-card.tsx",
       "contact/use-contact-submission.ts",
+      "price/use-price-notice.ts",
       "price/use-priced-design.ts",
       "staff/staff-kitchen-view.tsx",
     ]);
