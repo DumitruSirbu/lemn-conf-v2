@@ -669,7 +669,8 @@ export interface DescribeSettingsPillInput {
  * Frame D2A's pill, as a value. Exported on its own because the row above needs its labels to decide which
  * rung it reaches (`app/configurator/configure/top-bar-fit.ts`). The colour is absent only where the applied
  * material is undeclared, and `N` then counts from three. With no tier offer the pill names no tier: the book is what
- * names one, and a stored id is not a name.
+ * names one, and a stored id is not a name. While a material row is owed the material entry reads "to choose" and the
+ * hardware entry is left out when its own row is owed, so the pill never names a tier the kitchen does not carry.
  */
 export function describeSettingsPill(
   input: DescribeSettingsPillInput,
@@ -743,12 +744,21 @@ function shownSettingCount(
   return firstNamed < 0 ? decided : Math.max(decided, firstNamed + 1);
 }
 
-/** The pill's material, named by the tier the kitchen carries. Nothing with no tier offer. */
+/** The pill's material, named by the tier the kitchen carries; while a material row is owed, by the leaf that says
+ *  one is still to choose, since the tier it carries is one the kitchen no longer has. Nothing with no tier offer. */
 function materialEntryOf(
   input: DescribeSettingsPillInput,
 ): readonly SettingsPillEntry[] {
   const { offer, applied, content } = input;
   if (!isTierOffered(offer)) return [];
+  if (isTierOwed(offer.material, applied.materialTierId)) {
+    return [
+      {
+        key: "material",
+        label: content.replacementSheet.headerMaterialToChoose,
+      },
+    ];
+  }
   const tier = selectedTierIn(offer.material, applied.materialTierId);
   return [
     {
@@ -760,12 +770,14 @@ function materialEntryOf(
   ];
 }
 
-/** The pill's hardware, named by the tier the kitchen carries. Nothing with no tier offer. */
+/** The pill's hardware, named by the tier the kitchen carries. Nothing with no tier offer, and nothing while a
+ *  hardware row is owed: a tier the kitchen does not carry is not named (OQ-43's default). */
 function hardwareEntryOf(
   input: DescribeSettingsPillInput,
 ): readonly SettingsPillEntry[] {
   const { offer, applied, content } = input;
   if (!isTierOffered(offer)) return [];
+  if (isTierOwed(offer.hardware, applied.hardwareTierId)) return [];
   const tier = selectedTierIn(offer.hardware, applied.hardwareTierId);
   return [
     {
@@ -776,6 +788,23 @@ function hardwareEntryOf(
       ),
     },
   ];
+}
+
+/**
+ * Whether the domain owes a replacement row for this group's tier, read off the offer and the applied choice alone
+ * (`disabledItemsNamedBy`'s rule for a tier): the chosen id is switched off or held by neither list, or nothing is
+ * chosen and the book's default is switched off. The same answer `replacementsRequired` lists as a tier row.
+ */
+function isTierOwed(
+  group: OfferedTierGroup,
+  chosenTierId: string | undefined,
+): boolean {
+  const effectiveTierId = chosenTierId ?? group.defaultTierId;
+  if (group.tiers.some((tier) => tier.tierId === effectiveTierId)) return false;
+  const isSwitchedOff = group.switchedOffTiers.some(
+    (tier) => tier.tierId === effectiveTierId,
+  );
+  return isSwitchedOff || chosenTierId !== undefined;
 }
 
 /**
