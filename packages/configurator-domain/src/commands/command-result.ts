@@ -156,6 +156,21 @@ export interface KitchenHandleSetEffect {
   readonly handle: Handle;
 }
 
+/** A switched-off colour replaced at every level the design stores it (`replaceColour`). It names no placement: it
+ *  points at no one cabinet, which tells the store its selection was not moved. */
+export interface ColourReplacedEffect {
+  readonly type: "colour_replaced";
+  readonly from: Finish;
+  readonly to: Finish;
+}
+
+/** `ColourReplacedEffect` for a handle (`replaceHandle`): the kitchen's, the top row's and each cabinet's own. */
+export interface HandleReplacedEffect {
+  readonly type: "handle_replaced";
+  readonly from: Handle;
+  readonly to: Handle;
+}
+
 export type CommandEffect =
   | PlacementRemovedEffect
   | BodyInsertedEffect
@@ -168,6 +183,8 @@ export type CommandEffect =
   | HardwareTierSetEffect
   | GlobalFinishSetEffect
   | KitchenHandleSetEffect
+  | ColourReplacedEffect
+  | HandleReplacedEffect
   | CabinetDepthSetEffect;
 
 export interface CommandSuccess<TEffect extends CommandEffect = CommandEffect> {

@@ -1094,7 +1094,7 @@ describe("whenever the price refuses REPLACEMENT_REQUIRED, the sheet can be buil
   });
 });
 
-describe("NAMED EXCLUSIONS from that property: two states where the refusal and the sheet disagree, neither a stored kitchen", () => {
+describe("NAMED EXCLUSION from that property: a palette colour on a declared material that offers none, neither a stored kitchen", () => {
   it("a palette colour on painted MDF: the price refuses naming it and the sheet throws; the write seam refuses the document", () => {
     const design = withSettings({
       cabinetDepthMm: 600,
@@ -1118,42 +1118,140 @@ describe("NAMED EXCLUSIONS from that property: two states where the refusal and 
       fatalDesignValidationIssues(validateDesignForCatalog(design, CATALOG)),
     ).not.toEqual([]);
   });
+});
 
-  it("a book material that materials.ts does not declare, chosen with a switched-off colour: the same disagreement", () => {
-    const veneer = BOOK.material.tiers.find(
-      (tier) => tier.tierId === "material.veneer",
-    );
-    if (veneer === undefined) throw new Error("the sample book has no veneer");
-    const bookWithAnUndeclaredMaterial: PriceBook = {
-      ...BOOK,
-      material: {
-        ...BOOK.material,
-        tiers: [
-          ...BOOK.material.tiers,
-          { ...veneer, tierId: "material.exotic", ruleId: "material.exotic" },
-        ],
-      },
-    };
+// Q5a ruling 5 retired the second named exclusion (a book material that materials.ts does not declare, wearing a
+// switched-off palette colour: the sheet threw while the price refused). The property above could not include such a
+// material because `aNamingSpec` draws declared tier ids only, so it is repeated here over a book that holds one.
+describe("whenever the price refuses a colour under a material no code declares, the sheet offers that colour's own palette (P4a-c, Q5a ruling 5)", () => {
+  const veneer = BOOK.material.tiers.find(
+    (tier) => tier.tierId === "material.veneer",
+  );
+  if (veneer === undefined) throw new Error("the sample book has no veneer");
+  const bookWithAnUndeclaredMaterial: PriceBook = {
+    ...BOOK,
+    material: {
+      ...BOOK.material,
+      tiers: [
+        ...BOOK.material.tiers,
+        { ...veneer, tierId: "material.exotic", ruleId: "material.exotic" },
+      ],
+    },
+  };
+  const HELD_UNDECLARED = "material.exotic";
+
+  it("is the flipped exclusion: the sheet builds and offers the melamine palette's other active entries, in palette order", () => {
     const design = withSettings({
       cabinetDepthMm: 600,
-      materialTierId: "material.exotic",
+      materialTierId: HELD_UNDECLARED,
       finish: paletteFinish("pal.antracit"),
     });
     const availability = availabilityOf([colour("pal.antracit")]);
 
-    const refused = refusalItemsOf(
-      priceUnder(availability, design, bookWithAnUndeclaredMaterial),
-    );
-
-    expect(refused).toEqual([colour("pal.antracit")]);
-    expect(() =>
+    expect(
+      refusalItemsOf(
+        priceUnder(availability, design, bookWithAnUndeclaredMaterial),
+      ),
+    ).toEqual([colour("pal.antracit")]);
+    expect(
       replacementsRequired({
         design,
         book: bookWithAnUndeclaredMaterial,
         availability,
         catalog: CATALOG,
       }),
-    ).toThrow(NoReplacementOptionError);
+    ).toEqual([
+      {
+        item: colour("pal.antracit"),
+        remaining: [
+          "pal.alb",
+          "pal.stejar-bardolino",
+          "pal.stejar-halifax",
+          "pal.gri-havanna",
+          "pal.nuc-warmia",
+        ].map(colour),
+      },
+    ]);
+  });
+
+  const COLOUR_GROUPS: readonly (readonly ItemRef[])[] = MATERIALS.map(
+    (declared) =>
+      paletteEntriesOf(declared).map((entry) => colour(entry.entryId)),
+  ).filter((group) => group.length > 0);
+
+  const aSetLeavingEveryGroupAnOption: fc.Arbitrary<ItemRef[]> = fc
+    .tuple(
+      ...[
+        HARDWARE_TIER_IDS.map(hardware),
+        HandleSchema.options.map(handle),
+        ...COLOUR_GROUPS,
+      ].map((group) =>
+        fc.shuffledSubarray([...group], {
+          minLength: 0,
+          maxLength: group.length - 1,
+        }),
+      ),
+    )
+    .map((groups) => groups.flat());
+
+  const aPaletteColour = fc.constantFrom(...PALETTE_ENTRY_IDS);
+
+  it("names the refusal's items, each colour row offering the active entries of the palette that holds it", () => {
+    let refusedOnAColour = 0;
+    fc.assert(
+      fc.property(
+        fc.option(aPaletteColour, { nil: undefined }),
+        fc.option(aPaletteColour, { nil: undefined }),
+        aSetLeavingEveryGroupAnOption,
+        (kitchenColour, cabinetColour, disabled) => {
+          const settings = {
+            cabinetDepthMm: 600,
+            materialTierId: HELD_UNDECLARED,
+            ...(kitchenColour ? { finish: paletteFinish(kitchenColour) } : {}),
+          };
+          const design = {
+            ...withBodyOf(
+              CUSTOMISABLE_PLACEMENT_ID,
+              cabinetColour ? { finish: paletteFinish(cabinetColour) } : {},
+            ),
+            settings,
+          };
+          const availability = availabilityOf(disabled);
+          const refusedOn = refusalItemsOf(
+            priceUnder(availability, design, bookWithAnUndeclaredMaterial),
+          );
+          if (refusedOn === undefined) return;
+
+          const rows = replacementsRequired({
+            design,
+            book: bookWithAnUndeclaredMaterial,
+            availability,
+            catalog: CATALOG,
+          });
+
+          expect(rows.map((row) => row.item)).toEqual(refusedOn);
+          for (const row of rows) {
+            const { item } = row;
+            if (item.kind !== "finish") continue;
+            refusedOnAColour += 1;
+            const ownPalette = MATERIALS.map((declared): readonly string[] =>
+              paletteEntriesOf(declared).map((entry) => entry.entryId),
+            ).find((entries) => entries.includes(item.finishId));
+            expect(row.remaining).toEqual(
+              (ownPalette ?? [])
+                .map(colour)
+                .filter(
+                  (candidate) =>
+                    !disabled.some((off) => isSameItem(off, candidate)),
+                ),
+            );
+            expect(row.remaining.length).toBeGreaterThan(0);
+          }
+        },
+      ),
+      { numRuns: 400 },
+    );
+    expect(refusedOnAColour).toBeGreaterThan(50);
   });
 });
 

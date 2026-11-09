@@ -18,7 +18,7 @@ import {
 } from "../pricing/catalogue-availability.js";
 import type { PriceBook } from "../pricing/price-book.js";
 import { disabledItemsNamedBy } from "../pricing/named-items.js";
-import { lookUpMaterial, paletteEntriesOf } from "../materials.js";
+import { MATERIALS, lookUpMaterial, paletteEntriesOf } from "../materials.js";
 import type { BodyCatalog } from "../void-engine.js";
 
 /** One row of the replacement sheet: a switched-off item the kitchen names, or a tier it chose that the book no longer
@@ -56,7 +56,8 @@ export interface ReplacementsRequiredRequest {
  * The switched-off items this design names (material, hardware class, colour, handle) and the chosen tiers the book no
  * longer holds, each with its remaining options (a tier's are its group's active tiers, whatever the design chose), in
  * the order `priceDesign` lists them. Empty when the design names none. A colour's options are the active entries of
- * the design's own material: a customer replaces a colour within the material they are on.
+ * the design's own material: a customer replaces a colour within the material they are on. Under a material no code
+ * declares, a colour's options are the active entries of the palette that holds the colour itself.
  */
 export function replacementsRequired({
   design,
@@ -97,20 +98,26 @@ function declaredOptionsFor(
   design: Design,
   book: PriceBook,
 ): readonly ItemRef[] {
-  return declaredOptionsOfGroup(item, book, () =>
-    coloursOfTheDesignsMaterial(design, book),
+  return declaredOptionsOfGroup(item, book, (finishId) =>
+    coloursReplacing(finishId, design, book),
   );
 }
 
-/** The palette entries the design's material offers; none for a material that offers no entries (a free-colour picker)
- *  or that no declaration names. */
-function coloursOfTheDesignsMaterial(
+/** The design's material's palette; under a material no code declares, the palette holding the colour itself, since a
+ *  colour's own material is the one answer that cannot leave the row empty (returning `[]` there makes the row throw). */
+function coloursReplacing(
+  finishId: string,
   design: Design,
   book: PriceBook,
 ): readonly ItemRef[] {
   const lookup = lookUpMaterial(
     design.settings?.materialTierId ?? book.material.defaultTierId,
   );
-  if (lookup.kind === "undeclared") return [];
-  return finishItems(paletteEntriesOf(lookup.material));
+  if (lookup.kind === "declared") {
+    return finishItems(paletteEntriesOf(lookup.material));
+  }
+  const owner = MATERIALS.find((material) =>
+    paletteEntriesOf(material).some((entry) => entry.entryId === finishId),
+  );
+  return owner === undefined ? [] : finishItems(paletteEntriesOf(owner));
 }
