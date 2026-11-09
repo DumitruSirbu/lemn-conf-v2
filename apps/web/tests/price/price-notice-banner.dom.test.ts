@@ -417,7 +417,7 @@ describe("a stale page", () => {
 
 describe("a refused acknowledgement", () => {
   it.each(["unknown-version", "revision-ahead"])(
-    "a 400 %s ends the notice for this view and sends no second POST",
+    "a 400 %s keeps the notice on screen for this view and sends no second POST",
     async (word) => {
       serverAnswers({
         notice: activeNotice(),
@@ -426,18 +426,12 @@ describe("a refused acknowledgement", () => {
       const mounted = await mountAndSettle();
 
       await pressUnderstood(mounted.container);
-      act(() => {
-        mounted.container
-          .querySelector<HTMLButtonElement>(
-            '[data-testid="price-notice-acknowledge"]',
-          )
-          ?.click();
-      });
-      await settle();
+      expect(notice(mounted.container)).not.toBe(null);
+      await pressUnderstood(mounted.container);
 
+      expect(notice(mounted.container)).not.toBe(null);
       expect(requestsOf("POST")).toHaveLength(1);
       expect(requestsOf("GET")).toHaveLength(1);
-      expect(notice(mounted.container)).toBe(null);
     },
   );
 
@@ -458,7 +452,7 @@ describe("a refused acknowledgement", () => {
     expect(requestsOf("POST")).toHaveLength(1);
   });
 
-  it("a failed POST is not retried", async () => {
+  it("a failed POST keeps the notice, retries nothing by itself, and lets the next press try again", async () => {
     serverAnswers({
       notice: activeNotice(),
       acknowledgement: "network-failure",
@@ -468,8 +462,26 @@ describe("a refused acknowledgement", () => {
     await pressUnderstood(mounted.container);
     await settle();
 
+    expect(notice(mounted.container)).not.toBe(null);
     expect(requestsOf("POST")).toHaveLength(1);
     expect(requestsOf("GET")).toHaveLength(1);
+
+    await pressUnderstood(mounted.container);
+
+    expect(requestsOf("POST")).toHaveLength(2);
+    expect(requestsOf("GET")).toHaveLength(1);
+  });
+
+  it("a 500 keeps the notice on screen", async () => {
+    serverAnswers({
+      notice: activeNotice(),
+      acknowledgement: { status: 500, body: { status: "unexpected" } },
+    });
+    const mounted = await mountAndSettle();
+
+    await pressUnderstood(mounted.container);
+
+    expect(notice(mounted.container)).not.toBe(null);
   });
 });
 

@@ -35,8 +35,7 @@ import type { ActivePriceBook, PriceBookRoot } from "./price-book-root";
 interface HeldAnswer {
   readonly designId: string;
   readonly read: NoticeRead;
-  /** Set on the press, whatever the `POST` then answers: the person has said they understood, and the next open judges
-   *  again. */
+  /** Set when the route has recorded the pair. A refusal or a failure leaves the notice on screen: nothing was written. */
   readonly hasAcknowledged: boolean;
 }
 
@@ -85,17 +84,28 @@ export function usePriceNotice({ isOwner }: { isOwner: boolean }): PriceNotice {
   const nameOf = (accessory: RemovedAccessoryWire): string | undefined =>
     nameOfRemoved(accessory, root, content.bookText);
 
+  const hideNoticeFor = useCallback((acknowledgedDesignId: string) => {
+    setHeld((previous) =>
+      previous?.designId === acknowledgedDesignId
+        ? { ...previous, hasAcknowledged: true }
+        : previous,
+    );
+  }, []);
+
   const acknowledge = useCallback(() => {
     if (answer === undefined || displayed === undefined) return;
     if (acknowledgedFor.current === designId || designId === null) return;
+    // Latched before the request, so a second press while it is in flight sends nothing.
     acknowledgedFor.current = designId;
-    setHeld((previous) =>
-      previous === undefined
-        ? previous
-        : { ...previous, hasAcknowledged: true },
+    void FETCHING_PRICE_NOTICE_CLIENT.acknowledge(designId, displayed).then(
+      (outcome) => {
+        if (outcome.kind === "acknowledged") hideNoticeFor(designId);
+        // A failure wrote nothing that anyone can vouch for, so a press may try again; a refusal of the route's own
+        // word (the pair is unknown or ahead of the head) will not change by asking again, and the latch stays.
+        if (outcome.kind === "failed") acknowledgedFor.current = undefined;
+      },
     );
-    void FETCHING_PRICE_NOTICE_CLIENT.acknowledge(designId, displayed);
-  }, [answer, displayed, designId]);
+  }, [answer, displayed, designId, hideNoticeFor]);
 
   const isShown = held?.hasAcknowledged !== true;
   return {
