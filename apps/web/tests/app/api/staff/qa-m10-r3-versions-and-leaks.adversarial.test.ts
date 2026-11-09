@@ -561,6 +561,12 @@ describe("a draft or an archive reaches no customer (R-d)", () => {
       // saved defaults, and never the draft or an archive; `stamping-new-kitchens-sources.test.ts` pins that.
       /^app\/api\/designs\/route\.ts$/,
       /^app\/\[locale\]\/configurator\/room\/page\.tsx$/,
+      // The price notice (R5b): `price-notice.ts` reads the published version a customer last saw, to judge whether a price
+      // moved, and `price-notice-request.ts` takes the dashboard's request parsers. No text of that version reaches an answer
+      // or the log, the draft is never read, and the census that keeps these two entries from widening is
+      // `designs/qa-m10-r5b-seen-side-canary.adversarial.test.ts`.
+      /^lib\/server\/price-notice\.ts$/,
+      /^lib\/server\/price-notice-request\.ts$/,
     ];
 
     const readers = sourceFilesMatching(READS_DRAFT_OR_ARCHIVE).filter(
