@@ -347,55 +347,96 @@ describe("a deletion in the draft and a revert of a field of the deleted item", 
     },
   );
 
-  it("is refused by its own address, as the revert route's named refusal", async () => {
+  it("is taken back by its own address (R4c2), which leaves the draft without it and writes one reverted row", async () => {
     await plant([DELETION]);
-    const before = await snapshot();
+    const rowsBefore = auditRows().length;
 
     const answer = await revertOf(DELETION.address);
 
-    await expectRefusedAndUntouched(
-      answer,
-      { status: 400, body: issue("address", "NOT_EDITABLE") },
-      before,
-    );
+    expect(answer.status).toBe(200);
+    expect(await storedChanges()).toEqual([]);
+    expect(auditRows()).toHaveLength(rowsBefore + 1);
+    expect(auditRows().at(-1)?.action).toBe("price-draft-reverted");
   });
 });
 
 describe("item-deleted through every request path", () => {
   const DELETION_ADDRESS = { kind: "item-deleted", item: SOFT_CLOSE };
+  const RAW_REPEATED_KIND_DELETION =
+    '{"address":{"kind":"depth-rule","kind":"item-deleted","item":{"kind":"hardware","tierId":"hardware.soft-close"}},"value":true}';
+
+  it("is stored by the change route as a well-formed deletion of an unused row, with one audit row naming it", async () => {
+    const rowsBefore = auditRows().length;
+
+    const answer = await sendChange({ address: DELETION_ADDRESS, value: true });
+
+    expect(answer.status).toBe(200);
+    expect(await storedChanges()).toEqual([
+      { address: DELETION_ADDRESS, value: true },
+    ]);
+    expect(auditRows()).toHaveLength(rowsBefore + 1);
+    expect(auditRows().at(-1)).toMatchObject({
+      action: "price-draft-changed",
+      detail: { changeKind: "item-deleted", itemKind: "hardware" },
+    });
+  });
 
   it.each([
-    ["a well-formed deletion", DELETION_ADDRESS],
-    ["a deletion with an extra member", { ...DELETION_ADDRESS, extra: 1 }],
-    ["a deletion with no item", { kind: "item-deleted" }],
-    ["a deletion of an item of no kind", { kind: "item-deleted", item: {} }],
-    ["a deletion of an accessory", { kind: "item-deleted", item: PLINTH }],
-  ])("is refused on the change route: %s", async (_name, address) => {
+    [
+      "a deletion with an extra member",
+      { ...DELETION_ADDRESS, extra: 1 },
+      { status: "invalid-request" },
+    ],
+    [
+      "a deletion with no item",
+      { kind: "item-deleted" },
+      issue("address", "UNKNOWN_ADDRESS"),
+    ],
+    [
+      "a deletion of an item of no kind",
+      { kind: "item-deleted", item: {} },
+      issue("address", "UNKNOWN_ADDRESS"),
+    ],
+    [
+      "a deletion of a colour, which is not a deletable kind",
+      { kind: "item-deleted", item: { kind: "colour", colourId: "walnut" } },
+      issue("address", "UNKNOWN_ADDRESS"),
+    ],
+    [
+      "a deletion of an accessory the book does not state",
+      { kind: "item-deleted", item: PLINTH },
+      issue("change", "UNKNOWN_ITEM"),
+    ],
+  ])("is refused on the change route: %s", async (_name, address, body) => {
     const before = await snapshot();
 
     const answer = await sendChange({ address, value: true });
 
-    await expectRefusedAndUntouched(
-      answer,
-      { status: 400, body: issue("address", "NOT_EDITABLE") },
-      before,
-    );
+    await expectRefusedAndUntouched(answer, { status: 400, body }, before);
   });
 
   it.each([
-    ["a well-formed deletion", DELETION_ADDRESS],
-    ["a deletion with an extra member", { ...DELETION_ADDRESS, extra: 1 }],
-    ["a deletion with no item", { kind: "item-deleted" }],
-  ])("is refused on the revert route: %s", async (_name, address) => {
+    [
+      "a deletion the draft does not hold",
+      DELETION_ADDRESS,
+      issue("address", "UNKNOWN_ADDRESS"),
+    ],
+    [
+      "a deletion with an extra member",
+      { ...DELETION_ADDRESS, extra: 1 },
+      { status: "invalid-request" },
+    ],
+    [
+      "a deletion with no item",
+      { kind: "item-deleted" },
+      issue("address", "UNKNOWN_ADDRESS"),
+    ],
+  ])("is refused on the revert route: %s", async (_name, address, body) => {
     const before = await snapshot();
 
     const answer = await revertOf(address);
 
-    await expectRefusedAndUntouched(
-      answer,
-      { status: 400, body: issue("address", "NOT_EDITABLE") },
-      before,
-    );
+    await expectRefusedAndUntouched(answer, { status: 400, body }, before);
   });
 
   it.each([
@@ -437,15 +478,28 @@ describe("item-deleted through every request path", () => {
     expect(await storedChanges()).toEqual(before.changes);
   });
 
-  it("is refused in a raw body whose address repeats the kind with a later one", async () => {
+  // JSON takes the later of two equal keys, so this body IS a deletion: it must be stored as exactly the canonical one,
+  // and it must meet the same count as any other (a design using the class refuses it), never reach a field of a rule.
+  it("is read as the deletion its later kind makes, canonical in the draft, in a raw body whose address repeats the kind", async () => {
+    const answer = await sendRawChange(RAW_REPEATED_KIND_DELETION);
+
+    expect(answer.status).toBe(200);
+    expect(await storedChanges()).toEqual([
+      { address: DELETION_ADDRESS, value: true },
+    ]);
+  });
+
+  it("meets the count all the same, in a raw body whose address repeats the kind", async () => {
+    prices.designs.plant({ designId: "d-1", uses: [SOFT_CLOSE] });
     const before = await snapshot();
 
-    const answer = await sendRawChange(
-      '{"address":{"kind":"depth-rule","kind":"item-deleted","item":{"kind":"hardware","tierId":"hardware.soft-close"}},"value":true}',
-    );
+    const answer = await sendRawChange(RAW_REPEATED_KIND_DELETION);
 
-    expect(answer.status).toBe(400);
-    expect(await storedChanges()).toEqual(before.changes);
+    await expectRefusedAndUntouched(
+      answer,
+      { status: 400, body: issue("change", "ITEM_IN_USE") },
+      before,
+    );
   });
 });
 

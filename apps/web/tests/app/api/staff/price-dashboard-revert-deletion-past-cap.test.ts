@@ -40,8 +40,8 @@ vi.mock("@/lib/server/price-stores", () =>
 );
 
 // Taking back a deletion past the bound (20 classes, 50 linked accessories) leaves a candidate that is no book, so the
-// revert is `candidate-refused`. The route refuses a revert naming `item-deleted` first (`draft-requests.ts`
-// `withAddress`, `draft-plans.ts` `removalOfChange`), so the first arms judge what `planRevert` will judge.
+// revert is `candidate-refused` (R4c2: a revert takes a deletion back by its own address), so the first arms judge what
+// `planRevert` will judge.
 
 const MOST_ACCESSORIES = 50;
 const MOST_CLASSES = 20;
@@ -180,25 +180,21 @@ describe("the revert route, over a stored draft that deletes a row and fills its
     vi.restoreAllMocks();
   });
 
-  // Answers 400 NOT_EDITABLE until R4c2 lets a revert take back a deletion by its own address; it flips to `it` then.
-  it.fails(
-    "answers 409 candidate-refused, and the store holds the one draft revision it held",
-    async () => {
-      const { changes, item } = accessoriesAtTheBound();
-      await plantDraft(world, changes);
-      const before = await world.prices.stores.priceBook.readDraft();
+  it("answers 409 candidate-refused, and the store holds the one draft revision it held", async () => {
+    const { changes, item } = accessoriesAtTheBound();
+    await plantDraft(world, changes);
+    const before = await world.prices.stores.priceBook.readDraft();
 
-      const answer = await revertAs(world.cookie, {
-        kind: "change",
-        address: { kind: "item-deleted", item },
-      });
+    const answer = await revertAs(world.cookie, {
+      kind: "change",
+      address: { kind: "item-deleted", item },
+    });
 
-      expect({ status: answer.status, body: await jsonOf(answer) }).toEqual({
-        status: 409,
-        body: { status: "candidate-refused" },
-      });
-      expect(await world.prices.stores.priceBook.readDraft()).toEqual(before);
-      expect(await storedChangesOf(world.prices)).toEqual(changes);
-    },
-  );
+    expect({ status: answer.status, body: await jsonOf(answer) }).toEqual({
+      status: 409,
+      body: { status: "candidate-refused" },
+    });
+    expect(await world.prices.stores.priceBook.readDraft()).toEqual(before);
+    expect(await storedChangesOf(world.prices)).toEqual(changes);
+  });
 });

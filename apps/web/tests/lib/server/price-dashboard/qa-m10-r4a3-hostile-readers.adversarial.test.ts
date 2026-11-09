@@ -401,17 +401,26 @@ describe("the request readers and the structural kinds", () => {
     },
   );
 
+  it("reads a deletion on both readers, as the rebuilt address, for each deletable kind (R4c2)", () => {
+    const items = [TIER, PLINTH, { kind: "material", tierId: "m" }];
+    for (const item of items) {
+      const address = { kind: "item-deleted", item };
+      const viaChange = readDraftChangeRequest(
+        changeBody({ address, value: true }),
+      );
+      const viaRevert = readRevertRequest(
+        revertBody({ kind: "change", address }),
+      );
+      expect(viaChange).toMatchObject({ ok: true, value: { address } });
+      expect(viaRevert).toMatchObject({
+        ok: true,
+        value: { target: { kind: "change", address } },
+      });
+    }
+  });
+
   it("refuses a deletion on both readers, however the item is written", () => {
-    const items = [
-      TIER,
-      PLINTH,
-      { kind: "material", tierId: "m" },
-      {},
-      null,
-      "x",
-      [],
-      { kind: "__proto__" },
-    ];
+    const items = [{}, null, "x", [], { kind: "__proto__" }];
     for (const item of items) {
       const address = { kind: "item-deleted", item };
       const viaChange = readDraftChangeRequest(

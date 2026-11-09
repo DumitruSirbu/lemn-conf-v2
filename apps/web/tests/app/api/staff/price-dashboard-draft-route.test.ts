@@ -523,10 +523,6 @@ describe("a change that is refused, with M1's code", () => {
       "accessory-created",
       { kind: "accessory-created", accessoryId: "accessory.new" },
     ],
-    [
-      "item-deleted",
-      { kind: "item-deleted", item: { kind: "hardware", tierId: "h" } },
-    ],
   ])(
     "answers the %s kind, which this route does not take, NOT_EDITABLE on the address",
     async (_kind, address) => {
@@ -543,6 +539,26 @@ describe("a change that is refused, with M1's code", () => {
       await nothingWasWritten(before);
     },
   );
+
+  it("answers the item-deleted kind of a row the book does not state UNKNOWN_ITEM on the change, since R4c2 takes a deletion", async () => {
+    const { cookie } = await administrator();
+    const before = await currentDraftRevision();
+
+    const answer = await putChange(cookie, {
+      address: {
+        kind: "item-deleted",
+        item: { kind: "hardware", tierId: "h" },
+      },
+      value: true,
+    });
+
+    expect(answer.status).toBe(400);
+    expect(await jsonOf(answer)).toEqual({
+      status: "invalid-input",
+      issues: [{ field: "change", code: "UNKNOWN_ITEM" }],
+    });
+    await nothingWasWritten(before);
+  });
 
   it.each([
     ["no address", undefined],

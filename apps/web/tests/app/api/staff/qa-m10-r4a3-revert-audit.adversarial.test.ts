@@ -228,17 +228,22 @@ describe("a revert of a field of an item the draft deletes", () => {
     });
   });
 
-  it("does not take the deletion of a book item back by naming the deletion, whatever else is held", async () => {
+  it("takes the deletion of a book item back by naming the deletion (R4c2), and only the deletion, with a row naming it", async () => {
     await plant([RATE_OF_SOFT_CLOSE, DELETION]);
     const before = await snapshot();
 
     const answer = await revertOf(DELETION.address);
 
-    expect({ status: answer.status, body: await jsonOf(answer) }).toEqual({
-      status: 400,
-      body: issue("address", "NOT_EDITABLE"),
+    expect(answer.status).toBe(200);
+    expect(await storedChanges()).toEqual([RATE_OF_SOFT_CLOSE]);
+    expect(auditRows()).toHaveLength(before.rows + 1);
+    expect(auditRows().at(-1)?.action).toBe("price-draft-reverted");
+    expect(lastAuditDetail(before.rows)).toMatchObject({
+      changeKind: "item-deleted",
+      itemKind: "hardware",
+      itemId: SOFT_CLOSE.tierId,
+      revertedCount: 1,
     });
-    expect(await storedChanges()).toEqual(before.changes);
   });
 });
 

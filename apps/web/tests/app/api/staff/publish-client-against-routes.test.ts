@@ -561,42 +561,49 @@ describe("a draft that also holds a change that can no longer be applied", () =>
   });
 });
 
-describe("the draft routes and a deletion, until the stored-draft reader takes it", () => {
-  // R4a's reader takes the four structural kinds, and its publish judges the deletions; each test owes the flip to `it`.
-  it.fails(
-    "takes a deletion back out of the draft through the revert route",
-    async () => {
-      const revision = await storeDraft([DELETES_DEFAULT]);
+describe("the draft routes and a deletion (R4c2)", () => {
+  it("takes a deletion back out of the draft through the revert route", async () => {
+    const revision = await storeDraft([DELETES_DEFAULT]);
 
-      const outcome = await FETCHING_PUBLISH_CLIENT.revert({
-        expectedDraftRevision: revision,
-        target: { kind: "change", address: DELETES_DEFAULT.address },
-      });
+    const outcome = await FETCHING_PUBLISH_CLIENT.revert({
+      expectedDraftRevision: revision,
+      target: { kind: "change", address: DELETES_DEFAULT.address },
+    });
 
-      expect(outcome).toMatchObject({
-        kind: "changed",
-        draft: { changes: [] },
-      });
-    },
-  );
+    expect(outcome).toMatchObject({
+      kind: "changed",
+      draft: { changes: [] },
+    });
+  });
 
-  it.fails(
-    "refuses a publish that deletes the default hardware class, naming it, and publishes nothing",
-    async () => {
-      const state = await stateRead();
-      const revision = await storeDraft([DELETES_DEFAULT]);
+  // Ruling 9 retires the old pin that a publish names a deleted fixed default as `is-default`: the change route refuses
+  // the deletion itself, so no draft written through the app holds one.
+  it("refuses a deletion of the default hardware class at the change route as ITEM_IS_DEFAULT, and the draft holds none", async () => {
+    const revision = await storeDraft([]);
 
-      const outcome = await FETCHING_PUBLISH_CLIENT.publish({
-        ...publishRequestOf(state),
-        expectedDraftRevision: revision,
-      });
+    const outcome = await FETCHING_PUBLISH_CLIENT.change({
+      expectedDraftRevision: revision,
+      change: DELETES_DEFAULT,
+    });
 
-      expect(outcome).toEqual({
-        kind: "blocked",
-        block: { kind: "is-default", item: DEFAULT_HARDWARE },
-      });
-    },
-  );
+    expect(outcome).toEqual({ kind: "refused", code: "ITEM_IS_DEFAULT" });
+    expect((await stateRead()).draft.changes).toEqual([]);
+  });
+
+  it("refuses a publish of a deletion of the default hardware class stored out of band as candidate-refused, and publishes nothing", async () => {
+    const state = await stateRead();
+    const revision = await storeDraft([DELETES_DEFAULT]);
+
+    const outcome = await FETCHING_PUBLISH_CLIENT.publish({
+      ...publishRequestOf(state),
+      expectedDraftRevision: revision,
+    });
+
+    expect(outcome).toMatchObject({ kind: "candidate-refused" });
+    expect((await stateRead()).active.sequenceNumber).toBe(
+      state.active.sequenceNumber,
+    );
+  });
 });
 
 describe("a publish that deletes a row the request's judgement refuses, read by the fetching client", () => {

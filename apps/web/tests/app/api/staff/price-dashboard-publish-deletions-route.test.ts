@@ -352,7 +352,7 @@ describe("what a publish asks the usage reader", () => {
 });
 
 describe("a draft that deletes an item, with the draft route", () => {
-  it("still refuses a deletion on the change route, and leaves the stored deletion as it was", async () => {
+  it("takes a second deletion on the change route (R4c2), beside the stored one, which stays", async () => {
     await plantDraft(tokenHash, deleting(VENEER));
     const before = await stateOfTheWorld();
 
@@ -367,7 +367,9 @@ describe("a draft that deletes an item, with the draft route", () => {
       },
     });
 
-    expect(answer.status).toBe(400);
-    expect(await stateOfTheWorld()).toEqual(before);
+    expect(answer.status).toBe(200);
+    expect((await stateOfTheWorld()).draft.changes).toEqual(
+      deleting(VENEER, PAINTED),
+    );
   });
 });
