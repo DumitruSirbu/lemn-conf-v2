@@ -123,8 +123,8 @@ export async function countDeletedItems(
   return usage;
 }
 
-/** What a count of the page's deletions was read at: it changes whenever a count could, or the draft, the book or the
- *  defaults it is judged by do. */
+/** What a count of the page's deletions was read at: it moves with the draft, the book, the availability or the
+ *  defaults. A saved design moves no part of it, so a count can be one TTL stale. */
 export interface DeletionMemoKey {
   readonly draftRevision: string;
   readonly activeSequence: number;

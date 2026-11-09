@@ -23,19 +23,17 @@ import { readSavedDefaults } from "@/lib/server/price-dashboard/saved-defaults";
 import type { PriceStores } from "@/lib/server/price-stores";
 import type { DraftChangeRefusalCode } from "@/price-dashboard/price-dashboard-wire-contract";
 
-// The check a draft write that deletes a row makes before it is stored (R4c2, ruling 8): the saved defaults, then one
-// count of the saved designs using the row, both read in this request under one deadline. It runs after the plan has
-// judged the change (which refuses a fixed default, an unknown row and a built-in accessory before any read), and only for
-// a row the active book states: a row the draft created has no user. A refusal is the change's own, on the member
-// `change`, and carries no count and no design. A read that fails or runs late is thrown, so it is `503` and nothing is
-// written: it is never read as an unused row.
+// The check a draft write that deletes a row makes before it is stored: the saved defaults, then one count of the saved
+// designs using the row, both read under one deadline. It runs after the plan has judged the change, and only for a row
+// the active book states. A refusal carries no count and no design. A read that fails or runs late is thrown (`503`,
+// nothing written), never read as an unused row.
 
 type CheckRefusalCode = Extract<
   DraftChangeRefusalCode,
   "ITEM_IS_DEFAULT" | "ITEM_IN_USE"
 >;
 
-/** A row the book states that no deletion guard could be built for: refused as a defect rather than left unguarded. */
+/** A row the book states that no deletion guard could be built for: thrown as a defect (`503`, nothing written) rather than left unguarded. */
 export class UnguardedDeletionError extends Error {
   constructor() {
     super("A deleted row the book states has no usage guard.");

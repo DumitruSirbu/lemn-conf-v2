@@ -34,7 +34,7 @@ export interface ItemLifecycleClient {
   /**
    * Whether a row the active book states may be deleted from here. Where it may not, only a row the draft alone holds
    * can be: taking that one out of the draft deletes nothing published. Kept apart from `canWrite` so that making
-   * defaults readable never opens a deletion the draft route cannot yet take.
+   * defaults readable does not by itself open a deletion of a stated row.
    */
   readonly canDeleteStatedItems: boolean;
   setActive(request: AvailabilityRequestWire): Promise<AvailabilityOutcome>;
