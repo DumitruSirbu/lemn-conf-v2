@@ -1,6 +1,6 @@
-// H-6 for M10 Q5a: the two replacement effects are members of `CommandEffect` and the store's selection fold carries
-// the held selection through them, as it does for every other effect that names no one cabinet. Without the branch in
-// `intendSelection` the fold reads `effect.placementId`, which these effects do not have, and the selection is lost.
+// The two replacement effects are members of `CommandEffect`, and the store's selection fold carries the held selection
+// through them, as it does for every other effect that names no one cabinet. Without the branch in `intendSelection`
+// the fold reads `effect.placementId`, which these effects do not have, and the selection is lost.
 import {
   buildKitchenLBodyCatalog,
   deriveRecordedColumns,

@@ -1,6 +1,5 @@
-// A colour row under a material no code declares (M10 Q5a, ruling 5): the shop created a material class, a design wears
-// one of PAL's colours under it, and the colour is switched off. The row offers the active entries of the palette that
-// holds the colour, in palette order, and the sheet and the price's refusal agree on the items.
+// A switched-off colour under a material no code declares: the row offers the active entries of the palette that holds
+// the colour, in palette order, and the sheet and the price's refusal agree on the items.
 import { describe, expect, it } from "vitest";
 
 import type { Design } from "../../src/design.js";
@@ -16,7 +15,6 @@ import {
   NoReplacementOptionError,
   replacementsRequired,
 } from "../../src/queries/replacements-required.js";
-import type { PriceBook } from "../../src/pricing/price-book.js";
 import {
   availabilityOf,
   BOOK,
@@ -25,30 +23,21 @@ import {
   priceUnder,
   withSettings,
 } from "../support/availability-kitchens.js";
+import {
+  bookHoldingMaterial,
+  UNDECLARED_MATERIAL_ID,
+  wearing,
+} from "../support/replacement-kitchens.js";
 
-const CREATED_MATERIAL_ID = "material.created";
-const createdTier = {
-  ...BOOK.material.tiers[0],
-  tierId: CREATED_MATERIAL_ID,
-  ruleId: CREATED_MATERIAL_ID,
-  nameKey: undefined,
-  descriptionKey: undefined,
-};
-const BOOK_HOLDING_IT = {
-  ...BOOK,
-  material: { ...BOOK.material, tiers: [...BOOK.material.tiers, createdTier] },
-} as unknown as PriceBook;
+const CREATED_MATERIAL_ID = UNDECLARED_MATERIAL_ID;
+const BOOK_HOLDING_IT = bookHoldingMaterial(CREATED_MATERIAL_ID);
 
 const PAL_ENTRY_IDS = paletteEntriesOf(materialById("material.melamine")).map(
   ({ entryId }) => entryId,
 );
 
-function wearing(entryId: PaletteEntryId): Design {
-  return withSettings({
-    cabinetDepthMm: 600,
-    materialTierId: CREATED_MATERIAL_ID,
-    finish: paletteFinish(entryId),
-  });
+function wearingColour(entryId: PaletteEntryId): Design {
+  return wearing(entryId, undefined, CREATED_MATERIAL_ID);
 }
 
 function rowsUnder(design: Design, switchedOff: readonly string[]) {
@@ -62,7 +51,7 @@ function rowsUnder(design: Design, switchedOff: readonly string[]) {
 
 describe("a switched-off colour under a held material no code declares", () => {
   it("is offered its own palette's active entries, in palette order, without throwing", () => {
-    const [row] = rowsUnder(wearing("pal.antracit"), ["pal.antracit"]);
+    const [row] = rowsUnder(wearingColour("pal.antracit"), ["pal.antracit"]);
 
     expect(row?.item).toEqual(colour("pal.antracit"));
     expect(row?.remaining).toEqual(
@@ -71,13 +60,13 @@ describe("a switched-off colour under a held material no code declares", () => {
   });
 
   it("is offered the palette of the colour it wears, whichever material owns that colour", () => {
-    const [row] = rowsUnder(wearing("veneer.nuc"), ["veneer.nuc"]);
+    const [row] = rowsUnder(wearingColour("veneer.nuc"), ["veneer.nuc"]);
 
     expect(row?.remaining).toEqual([colour("veneer.stejar")]);
   });
 
   it("never offers another switched-off colour of that palette", () => {
-    const [row] = rowsUnder(wearing("pal.antracit"), [
+    const [row] = rowsUnder(wearingColour("pal.antracit"), [
       "pal.antracit",
       "pal.alb",
       "pal.nuc-warmia",
@@ -91,7 +80,7 @@ describe("a switched-off colour under a held material no code declares", () => {
   });
 
   it("names the same items as the refusal the price gives, so the sheet and the refusal cannot drift", () => {
-    const design = wearing("pal.antracit");
+    const design = wearingColour("pal.antracit");
     const availability = availabilityOf([colour("pal.antracit")]);
 
     const refused = priceUnder(availability, design, BOOK_HOLDING_IT);
@@ -106,11 +95,11 @@ describe("a switched-off colour under a held material no code declares", () => {
 
   it("throws NoReplacementOptionError only when that palette has no active entry left", () => {
     expect(() =>
-      rowsUnder(wearing("pal.antracit"), PAL_ENTRY_IDS.slice(0, -1)),
+      rowsUnder(wearingColour("pal.antracit"), PAL_ENTRY_IDS.slice(0, -1)),
     ).not.toThrow();
-    expect(() => rowsUnder(wearing("pal.antracit"), PAL_ENTRY_IDS)).toThrow(
-      NoReplacementOptionError,
-    );
+    expect(() =>
+      rowsUnder(wearingColour("pal.antracit"), PAL_ENTRY_IDS),
+    ).toThrow(NoReplacementOptionError);
   });
 });
 

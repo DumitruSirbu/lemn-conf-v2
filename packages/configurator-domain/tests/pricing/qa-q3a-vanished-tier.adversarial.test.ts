@@ -436,9 +436,8 @@ describe("itemsNamedBy keeps its meaning: a switchable item the book holds", () 
   });
 });
 
-// A book that HOLDS a material tier no code declares (a created class) has the same sheet defect with no vanished tier at
-// all: the colour group is the palette the code declares for the material, and it declares none. Q5a's ruling 5 fixed
-// it: the row offers the palette holding the colour itself.
+// A book that holds a material tier no code declares (a created class) declares no palette for it, so the colour row
+// offers the palette that holds the colour itself.
 describe("a held material no code declares, wearing a switched-off palette colour", () => {
   const createdMaterial = {
     ...BOOK.material.tiers[0],
@@ -479,7 +478,7 @@ describe("a held material no code declares, wearing a switched-off palette colou
     ).toEqual([colour("pal.antracit")]);
   });
 
-  it("builds a sheet whose colour row offers the palette that holds the colour, instead of throwing (Q5a ruling 5)", () => {
+  it("builds a sheet whose colour row offers the palette that holds the colour, instead of throwing", () => {
     const rows = replacementsRequired({
       design: wearingItWithAPaletteColour,
       book: bookHoldingIt,
