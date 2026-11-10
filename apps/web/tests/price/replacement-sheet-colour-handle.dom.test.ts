@@ -2,8 +2,8 @@
 //
 // A colour or a handle owed in the replacement sheet is chosen there: the lone row opens the sheet and has its own chooser,
 // one press is one commit and one save, no level of the design names the switched-off item afterwards, and the confirmation
-// says what changed per item. A colour waits behind a material row, and the reset the material change causes is announced only
-// when it rewrote a stored colour, the kitchen's included.
+// says what changed per item. A colour waits behind a material row, the sheet says once that the material's colours go with it
+// (and nothing after the choice), and a colour the material's reset cleared is drawn resolved with no value and no line.
 import { paletteFinish } from "@lemnaria/configurator-domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -46,11 +46,7 @@ import {
   WHITE_OFF,
   withCabinets,
 } from "../support/replacement-kitchens";
-import {
-  full,
-  reverted,
-  stem,
-} from "../support/replacement-confirmation-lines";
+import { full, stem } from "../support/replacement-confirmation-lines";
 import {
   chooseOption,
   confirmationLines,
@@ -237,7 +233,24 @@ describe("a switched-off colour beside a switched-off material", () => {
     ).toBeNull();
   });
 
-  it("shows the colour row resolved by the material change, naming the colour it returned to, and announces the reset after the material line", async () => {
+  it("says once, before any choice, that the material and its colours are unavailable, and goes when the material is chosen", async () => {
+    serveWorld({ notices: [notice(), notice()] });
+    hydrate(veneerKitchenOnPremiumHardware);
+    const editor = await mountEditor({
+      priceRoot: rootSwitchingOff(...owedWithHardware),
+    });
+
+    expect(byTestId(editor, "replacement-material-note")?.textContent).toBe(
+      TEXT.materialAndColoursUnavailable,
+    );
+
+    await chooseTier(editor, tierName("material.melamine"));
+
+    expect(byTestId(editor, "replacement-material-note")).toBeNull();
+    expect(byTestId(editor, "replacement-sheet")).not.toBeNull();
+  });
+
+  it("shows the colour row resolved by the material change with no value and no control, and says no reset in the confirmation", async () => {
     const world = serveWorld({ notices: [notice(), notice()] });
     hydrate(veneerKitchenOnPremiumHardware);
     const editor = await mountEditor({
@@ -252,7 +265,10 @@ describe("a switched-off colour beside a switched-off material", () => {
       "false",
       "true",
     ]);
-    expect(rows[2]?.textContent).toContain(ro.finishName("pal.alb"));
+    expect(
+      rows[2]?.querySelector('[data-testid="replacement-row-value"]'),
+    ).toBeNull();
+    expect(rows[2]?.textContent).not.toContain(ro.finishName("pal.alb"));
     expect(
       rows[2]?.querySelector('[data-testid="replacement-choose"]'),
     ).toBeNull();
@@ -260,12 +276,11 @@ describe("a switched-off colour beside a switched-off material", () => {
     await landSavesUntilConfirmed(editor, world);
     expect(confirmationLines(editor)).toEqual([
       stem("changedMaterial", tierName("material.melamine")),
-      reverted(ro.finishName("pal.alb")),
       full("changedHardware", tierName("hardware.standard")),
     ]);
   });
 
-  it("says no reset when the kitchen stored no colour, which repaints without a word", async () => {
+  it("says only the material when the kitchen stored no colour, which repaints without a word", async () => {
     const world = serveWorld({ notices: [notice(), notice()] });
     hydrate(kitchenWith({ materialTierId: "material.veneer" }));
     const editor = await mountEditor({

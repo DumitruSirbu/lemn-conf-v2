@@ -1,6 +1,6 @@
 // The sheet's colour and handle rows as values, attacked. Counterexamples first: the closing sentence cut
 // (`withoutPriceSentence`) against names and leaves of other shapes, a resolved row that names something that replaced nothing,
-// the colour reset read through the MDF default; then the sweeps: the whole flow driven to the end over generated kitchens (no
+// a colour row the material's reset cleared read through every declared material (MDF's free default included); then the sweeps: the whole flow driven to the end over generated kitchens (no
 // dead end, no row left owed), the waiting rule, and the choosers.
 // Facts these pin: an undeclared OLD material also leaves a colour row owed, which appears only after that material is
 // replaced; a resolved handle row the design no longer stores shows no value.
@@ -25,7 +25,6 @@ import { describe, expect, it } from "vitest";
 
 import {
   appearanceReplacementOf,
-  colourRevertedBy,
   describeConfirmationLines,
   describeReplacementSheet,
   describeRowChooser,
@@ -209,20 +208,13 @@ describe("the confirmation's lines: the price sentence is said once", () => {
       messages.replacementSheet.changedMaterial,
     );
 
-    propertyTest.prop(
-      [
-        fc.array(changeArb, { minLength: 1, maxLength: 7 }),
-        fc.option(fc.string({ minLength: 1, maxLength: 8 }), {
-          nil: undefined,
-        }),
-      ],
-      { numRuns: 300 },
-    )(
-      "exactly one line carries the sentence, it is the last change in the mockup's order, and a single change is the approved leaf",
-      (changes, revertedColour) => {
+    propertyTest.prop([fc.array(changeArb, { minLength: 1, maxLength: 7 })], {
+      numRuns: 300,
+    })(
+      "exactly one line carries the sentence, it is the last change in the mockup's order, every line is one of the customer's own changes, and a single change is the approved leaf",
+      (changes) => {
         const lines = describeConfirmationLines({
           changes,
-          revertedColour,
           alsoUpdated: false,
           copy,
         });
@@ -236,10 +228,8 @@ describe("the confirmation's lines: the price sentence is said once", () => {
         expect(carrying[0]).toBe(
           copy.changed(last?.kind ?? "material", last?.name ?? ""),
         );
-        expect(lines).toHaveLength(
-          changes.length + (revertedColour === undefined ? 0 : 1),
-        );
-        if (changes.length === 1 && revertedColour === undefined) {
+        expect(lines).toHaveLength(changes.length);
+        if (changes.length === 1) {
           const [only] = changes;
           expect(lines).toEqual([
             copy.changed(only?.kind ?? "material", only?.name ?? ""),
@@ -267,24 +257,32 @@ describe("the confirmation's lines: the price sentence is said once", () => {
     expect(lines).toHaveLength(2);
   });
 
-  it("puts the reset line straight after the material line and before hardware, with the sentence on the last change only", () => {
+  it("says no reset line after a material change: the material line is followed straight by hardware, with the sentence on the last change only", () => {
     const lines = describeConfirmationLines({
       changes: [
         { kind: "handle", name: "H" },
         { kind: "hardware", name: "F" },
         { kind: "material", name: "M" },
       ],
-      revertedColour: "Alb",
       alsoUpdated: false,
       copy: copyRo,
     });
 
     expect(lines).toEqual([
       copyRo.changedWithoutPriceSentence("material", "M"),
-      copyRo.colourReverted("Alb"),
       copyRo.changedWithoutPriceSentence("hardware", "F"),
       copyRo.changed("handle", "H"),
     ]);
+  });
+
+  it("is only the material's own line when a material is the one change, so nothing about a colour is said after it", () => {
+    expect(
+      describeConfirmationLines({
+        changes: [{ kind: "material", name: "M" }],
+        alsoUpdated: false,
+        copy: copyRo,
+      }),
+    ).toEqual([copyRo.changed("material", "M")]);
   });
 });
 
@@ -320,6 +318,34 @@ describe("a resolved row names only what is stored now", () => {
 
     expect(row?.isResolved).toBe(true);
     expect(row?.valueText).toBe(ro.finishName("pal.alb"));
+  });
+
+  it("names a colour that availability gave back even while a material row stays owed and would reset it (the row says what is stored now)", () => {
+    const stored = kitchenWith({
+      materialTierId: "material.veneer",
+      finish: paletteFinish("veneer.stejar"),
+    });
+    const item: ItemRef = { kind: "finish", finishId: "veneer.stejar" };
+    const owedMaterial: ReplacementRequired = {
+      item: { kind: "material", tierId: "material.veneer" },
+      remaining: [{ kind: "material", tierId: "material.melamine" }],
+    };
+    const { vocabulary } = worldOf(stored, [owedMaterial.item]);
+
+    const view = describeReplacementSheet({
+      seen: [owedMaterial, { item, remaining: [item] }],
+      live: [owedMaterial],
+      design: stored,
+      accessoryNames: [],
+      vocabulary,
+    });
+
+    const colour = view.rows.find((row) => row.kind === "finish");
+    expect(colour).toMatchObject({ isResolved: true, isChoosable: false });
+    expect(colour?.valueText).toBe(ro.finishName("veneer.stejar"));
+    expect(view.materialNote).toBe(
+      roMessages.replacementSheet.materialAndColoursUnavailable,
+    );
   });
 
   // A handle stored only on a cabinet and switched off, then switched back on with the sheet open: nothing replaced it, so
@@ -364,72 +390,6 @@ describe("a resolved row names only what is stored now", () => {
   });
 });
 
-describe("the colour a material change reset, through the MDF default", () => {
-  const afterMaterial = (design: Design, tierId: string): Design => {
-    const result = setMaterialTier({
-      design,
-      tierId,
-      availableTierIds: [...MATERIAL_TIER_IDS, tierId],
-      occurredAt: OCCURRED_AT,
-    });
-    if (!result.ok) throw new Error("the material change was refused");
-    return result.design;
-  };
-
-  it("names MDF's free default by its value, which is all it has, never by a palette name or an id", () => {
-    const before = kitchenWith({
-      materialTierId: "material.veneer",
-      finish: paletteFinish("veneer.stejar"),
-    });
-    const lookup = lookUpMaterial("material.painted-mdf");
-    if (lookup.kind !== "declared") throw new Error("MDF is declared");
-    const { defaultFinish } = lookup.material;
-    if (defaultFinish.kind === "palette-entry")
-      throw new Error("MDF's default is free");
-
-    const reverted = colourRevertedBy({
-      before,
-      after: afterMaterial(before, "material.painted-mdf"),
-      content: ro,
-    });
-
-    expect(reverted).toBe(
-      ro.globalSettings.pillColourValue(defaultFinish.value),
-    );
-    expect(reverted).not.toMatch(/pal\.|veneer\./);
-  });
-
-  it("is silent going from a kitchen with a stored colour onto the very same material (nothing is reset, ADR 0086 decision 3)", () => {
-    const before = kitchenWith({
-      materialTierId: "material.melamine",
-      finish: paletteFinish("pal.antracit"),
-    });
-
-    expect(
-      colourRevertedBy({
-        before,
-        after: afterMaterial(before, "material.melamine"),
-        content: ro,
-      }),
-    ).toBeUndefined();
-  });
-
-  it("is silent when the new material is one no code declares, even from a colour it would not offer", () => {
-    const before = kitchenWith({
-      materialTierId: "material.melamine",
-      finish: paletteFinish("pal.antracit"),
-    });
-
-    expect(
-      colourRevertedBy({
-        before,
-        after: afterMaterial(before, "material.created-and-since-deleted"),
-        content: ro,
-      }),
-    ).toBeUndefined();
-  });
-});
-
 const HANDLES = HandleSchema.options;
 const paletteIdsOf = (materialId: string): readonly PaletteEntryId[] => {
   const material = MATERIALS.find((held) => held.materialId === materialId);
@@ -442,6 +402,12 @@ const PALETTES = {
   "material.veneer": paletteIdsOf("material.veneer"),
 };
 const VANISHED = "ZZ-vanished-material";
+const MDF_DEFAULT_HEX = "#eceeeb";
+// An id is a dotted token the app never writes in prose: `material.veneer`, `pal.alb`. A sentence that merely ends in the word
+// "material." (the note's "Alege alt material.") is not one, so the group word must start a token and be followed by an id's
+// own characters.
+const ID_SHAPES =
+  /(^|[^\p{L}\p{N}_-])(pal|veneer|mdf|material|hardware)\.[a-z0-9]|created-and-since-deleted|ZZ-/u;
 
 /** Kitchens that store colours and handles at every level the design can: the kitchen's, the top row's, and cabinets' own. */
 const storedKitchen = fc
@@ -675,6 +641,180 @@ describe("the whole flow over generated kitchens", () => {
   );
 });
 
+describe("a colour row the material's reset cleared names no colour (ADR 0081, 2026-11-10)", () => {
+  const afterMaterial = (design: Design, tierId: string): Design => {
+    const result = setMaterialTier({
+      design,
+      tierId,
+      availableTierIds: MATERIAL_TIER_IDS,
+      occurredAt: OCCURRED_AT,
+    });
+    if (!result.ok) throw new Error("the material change was refused");
+    return result.design;
+  };
+  /** The names a reset could say: the colour the new material returns the kitchen to, and MDF's free value. */
+  const namesOfDefaultColour = (tierId: string): readonly string[] => {
+    const lookup = lookUpMaterial(tierId);
+    if (lookup.kind !== "declared") throw new Error(`${tierId} is declared`);
+    const { defaultFinish } = lookup.material;
+    return [
+      defaultFinish.kind === "palette-entry"
+        ? ro.finishName(defaultFinish.entryId)
+        : ro.globalSettings.pillColourValue(defaultFinish.value),
+      MDF_DEFAULT_HEX,
+    ];
+  };
+  const isStored = (design: Design, finishId: PaletteEntryId): boolean => {
+    const wanted = JSON.stringify(paletteFinish(finishId));
+    return [
+      design.settings?.finish,
+      ...design.placements.map(({ body }) => body.finish),
+    ].some((held) => JSON.stringify(held) === wanted);
+  };
+  /** The rows after a material change, as the sheet draws them with the colours switched off or given back. */
+  function rowsAfterReplacing(
+    before: Design,
+    owedMaterial: string,
+    storedColours: readonly PaletteEntryId[],
+    replacement: string,
+    colourCameBack: boolean,
+  ) {
+    const colourItems = storedColours.map(
+      (finishId): ItemRef => ({ kind: "finish", finishId }),
+    );
+    const materialItem: ItemRef = { kind: "material", tierId: owedMaterial };
+    const seen = worldOf(before, [materialItem, ...colourItems]).live;
+    const design = afterMaterial(before, replacement);
+    const { live, vocabulary } = worldOf(
+      design,
+      colourCameBack ? [materialItem] : [materialItem, ...colourItems],
+    );
+    const view = describeReplacementSheet({
+      seen,
+      live,
+      design,
+      accessoryNames: [],
+      vocabulary,
+    });
+    return { seen, design, view };
+  }
+
+  it.each([
+    ["material.melamine", "pal.antracit"],
+    ["material.veneer", "veneer.stejar"],
+  ] as const)(
+    "has no value for the colour %s's reset replaced, whichever material the kitchen returned to, MDF's free default included",
+    (oldMaterial, colourId) => {
+      const before = kitchenWith({
+        materialTierId: oldMaterial,
+        finish: paletteFinish(colourId),
+      });
+
+      for (const replacement of MATERIAL_TIER_IDS.filter(
+        (tierId) => tierId !== oldMaterial,
+      )) {
+        const { view, design } = rowsAfterReplacing(
+          before,
+          oldMaterial,
+          [colourId],
+          replacement,
+          false,
+        );
+
+        const colour = view.rows.find((row) => row.kind === "finish");
+        expect(colour?.isResolved).toBe(true);
+        expect(isStored(design, colourId)).toBe(false);
+        expect(colour?.valueText).toBeUndefined();
+        const drawn = JSON.stringify(view);
+        for (const name of namesOfDefaultColour(replacement)) {
+          expect(drawn).not.toContain(name);
+        }
+      }
+    },
+  );
+
+  it("never reads MDF's hex on any row after a veneer kitchen's colour is reset by MDF", () => {
+    const before = kitchenWith({
+      materialTierId: "material.veneer",
+      finish: paletteFinish("veneer.stejar"),
+    });
+
+    const { view, design } = rowsAfterReplacing(
+      before,
+      "material.veneer",
+      ["veneer.stejar"],
+      "material.painted-mdf",
+      false,
+    );
+
+    expect(design.settings?.finish).toMatchObject({ value: MDF_DEFAULT_HEX });
+    expect(JSON.stringify(view).toLowerCase()).not.toContain(MDF_DEFAULT_HEX);
+  });
+
+  const colourIndexes = fc.array(fc.nat(8), { minLength: 1, maxLength: 4 });
+  const owedMaterials = fc.constantFrom(
+    "material.melamine",
+    "material.veneer",
+    VANISHED,
+  );
+
+  propertyTest.prop(
+    [
+      owedMaterials,
+      fc.option(fc.nat(8), { nil: undefined }),
+      colourIndexes,
+      fc.constantFrom(...MATERIAL_TIER_IDS),
+      fc.boolean(),
+    ],
+    { numRuns: 400 },
+  )(
+    "a resolved colour row is named exactly when the design still stores its colour, and otherwise says nothing, never the new material's default",
+    (owed, kitchenIndex, cabinetIndexes, replacement, colourCameBack) => {
+      fc.pre(replacement !== owed);
+      const palette =
+        owed === "material.veneer"
+          ? PALETTES["material.veneer"]
+          : PALETTES["material.melamine"];
+      const colourAt = (index: number) =>
+        palette[index % palette.length] ?? "pal.alb";
+      const cabinetColours = cabinetIndexes.map(colourAt);
+      const before = withCabinets(
+        kitchenWith({
+          materialTierId: owed,
+          ...(kitchenIndex === undefined
+            ? {}
+            : { finish: paletteFinish(colourAt(kitchenIndex)) }),
+        }),
+        cabinetColours.map((entry) => ({ finish: paletteFinish(entry) })),
+      );
+      const storedColours = [
+        ...new Set([
+          ...(kitchenIndex === undefined ? [] : [colourAt(kitchenIndex)]),
+          ...cabinetColours,
+        ]),
+      ];
+
+      const { view, design } = rowsAfterReplacing(
+        before,
+        owed,
+        storedColours,
+        replacement,
+        colourCameBack,
+      );
+
+      for (const row of view.rows.filter(
+        (shown) => shown.kind === "finish" && shown.isResolved,
+      )) {
+        const finishId = row.key.slice("finish:".length) as PaletteEntryId;
+        expect(row.valueText).toBe(
+          isStored(design, finishId) ? ro.finishName(finishId) : undefined,
+        );
+        expect(row.isChoosable).toBe(false);
+      }
+    },
+  );
+});
+
 describe("the waiting rule, over generated owed sets", () => {
   propertyTest.prop([storedKitchen, switchedOff], { numRuns: 300 })(
     "a colour waits exactly while a material row is unresolved; nothing else ever waits; a resolved row never has a control but hardware and, without a colour chosen, material",
@@ -739,6 +879,39 @@ describe("the waiting rule, over generated owed sets", () => {
     },
   );
 
+  propertyTest.prop([storedKitchen, switchedOff], { numRuns: 400 })(
+    "the material note is present if and only if an unresolved material item is live, whichever other rows are owed or resolved",
+    (design, disabled) => {
+      const { root, vocabulary } = worldOf(design, disabled);
+      const live = pendingReplacements(root, design, KITCHEN_L_BODY_CATALOG);
+      const describeLive = (owedNow: typeof live) =>
+        describeReplacementSheet({
+          seen: live,
+          live: owedNow,
+          design,
+          accessoryNames: [],
+          vocabulary,
+        });
+      const note = roMessages.replacementSheet.materialAndColoursUnavailable;
+      const isMaterial = (row: (typeof live)[number]) =>
+        row.item.kind === "material";
+
+      expect(describeLive(live).materialNote).toBe(
+        live.some(isMaterial) ? note : undefined,
+      );
+      // The material row resolved while every other row is still owed: the note goes with it.
+      expect(
+        describeLive(live.filter((row) => !isMaterial(row))).materialNote,
+      ).toBeUndefined();
+      // Only the material row is owed: the note stays, however many rows were seen beside it.
+      expect(describeLive(live.filter(isMaterial)).materialNote).toBe(
+        live.some(isMaterial) ? note : undefined,
+      );
+      expect(describeLive([]).materialNote).toBeUndefined();
+      expect(describeLive(live).materialNote ?? "").not.toMatch(ID_SHAPES);
+    },
+  );
+
   propertyTest.prop([storedKitchen, switchedOff], { numRuns: 300 })(
     "no resolved row is drawn with an empty value, and no value or announcement carries an id",
     (design, disabled) => {
@@ -751,18 +924,15 @@ describe("the waiting rule, over generated owed sets", () => {
         accessoryNames: [],
         vocabulary,
       });
-      const idShapes =
-        /(^|[^\p{L}])(pal|veneer|mdf)\.[a-z-]+|material\.|hardware\.|ZZ-/u;
-
       for (const row of view.rows) {
         expect(row.valueText === undefined || row.valueText.trim() !== "").toBe(
           true,
         );
-        expect(row.valueText ?? "").not.toMatch(idShapes);
-        expect(row.announcement).not.toMatch(idShapes);
-        expect(row.itemPhrase).not.toMatch(idShapes);
+        expect(row.valueText ?? "").not.toMatch(ID_SHAPES);
+        expect(row.announcement).not.toMatch(ID_SHAPES);
+        expect(row.itemPhrase).not.toMatch(ID_SHAPES);
       }
-      expect(view.body).not.toMatch(idShapes);
+      expect(view.body).not.toMatch(ID_SHAPES);
     },
   );
 });

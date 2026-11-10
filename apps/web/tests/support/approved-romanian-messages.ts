@@ -2573,7 +2573,6 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     // `changedMaterial` pattern, so it carries the new colour's `{name}` and no figure (plan M10, wave T5; Q5 split;
     // OQ-11h). The Russian is an agent draft.
     changedColour: "Culoare schimbată în {name}. Prețul a fost actualizat.",
-    colourReverted: "Culoarea a revenit la {colour}.",
     // Drafted, not approved: the agent's draft of the one sentence the sheet says while a material row is owed, built
     // from the owner's words of 2026-11-10 (plan m10-c4-sheet-message-plan; OQ-11i). The Russian is an agent draft.
     materialAndColoursUnavailable:

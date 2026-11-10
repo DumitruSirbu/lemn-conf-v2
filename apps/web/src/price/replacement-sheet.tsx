@@ -28,7 +28,6 @@ import {
 
 import {
   appearanceReplacementOf,
-  colourRevertedBy,
   describeApplyRefusal,
   describeConfirmationLines,
   describeReplacementSheet,
@@ -205,7 +204,7 @@ function useChoosing({
       content: vocabulary.content,
     });
     if (outcome.committed) {
-      session.recordChoice(outcome.change, outcome.revertedColour);
+      session.recordChoice(outcome.change);
     } else {
       setStep({ ...step, refusal: outcome.refusal });
     }
@@ -267,12 +266,8 @@ interface ReplacementSession {
   readonly setStep: (step: Step | ((current: Step) => Step)) => void;
   /** What the customer's own choices were called, by item, for the rows they resolved. */
   readonly chosenNames: ChosenNames;
-  /** The customer's choice was applied: back to the list, and its save is waited for once nothing more is owed. A material
-   *  change that reset a stored colour brings the colour it returned to. */
-  readonly recordChoice: (
-    change: ReplacementChange,
-    revertedColour: string | undefined,
-  ) => void;
+  /** The customer's choice was applied: back to the list, and its save is waited for once nothing more is owed. */
+  readonly recordChoice: (change: ReplacementChange) => void;
 }
 
 /**
@@ -306,12 +301,11 @@ function useReplacementSession(priceNotice: PriceNotice): ReplacementSession {
     step,
     setStep,
     chosenNames,
-    recordChoice: (change, revertedColour) => {
+    recordChoice: (change) => {
       const revisionAtChoice = useConfiguratorStore.getState().revision;
       setChoice((earlier) => ({
         revisionAtChoice,
         changes: withChange(earlier?.changes ?? [], change),
-        revertedColour: revertedColour ?? earlier?.revertedColour,
       }));
       setStep(LIST_STEP);
     },
@@ -323,15 +317,10 @@ function namesOf(changes: readonly ReplacementChange[]): ChosenNames {
 }
 
 type AppliedChoice =
-  | {
-      readonly committed: true;
-      readonly change: ReplacementChange;
-      readonly revertedColour: string | undefined;
-    }
+  | { readonly committed: true; readonly change: ReplacementChange }
   | { readonly committed: false; readonly refusal: string };
 
-/** Applies one picked option through the store's one-commit path, naming it for the confirmation. A material change is
- *  checked for the colour it reset, which only the designs before and after can say. */
+/** Applies one picked option through the store's one-commit path, naming it for the confirmation. */
 function commitChoice({
   row,
   chooser,
@@ -345,7 +334,7 @@ function commitChoice({
   readonly chooser: SheetChooser;
   readonly optionId: string;
   readonly offer: WholeKitchenTierOffer;
-  /** The design the press starts from, which a refusal is worded against and a reset is read from. */
+  /** The design the press starts from, which a refusal is worded against. */
   readonly design: ConfiguratorState["design"];
   readonly applyWholeKitchenSettings: ConfiguratorState["applyWholeKitchenSettings"];
   readonly content: Content;
@@ -370,14 +359,6 @@ function commitChoice({
       kind: chooser.kind,
       name: option.name,
     },
-    revertedColour:
-      chooser.kind === "material"
-        ? colourRevertedBy({
-            before: design,
-            after: useConfiguratorStore.getState().design,
-            content,
-          })
-        : undefined,
   };
 }
 
@@ -547,6 +528,11 @@ function ListStep({
       <p id={bodyId} className={styles.lead} data-testid="replacement-body">
         {view.body}
       </p>
+      {view.materialNote === undefined ? null : (
+        <p className={styles.lead} data-testid="replacement-material-note">
+          {view.materialNote}
+        </p>
+      )}
       <ul className={styles.rows}>
         {view.rows.map((row) => (
           <ReplacementRow

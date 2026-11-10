@@ -71,19 +71,17 @@ export interface ReplacementChange {
   readonly name: string;
 }
 
-/** The last choice, handed over for the hook to wait on: the revision the store stood at when it was applied, what was
- *  changed, and the colour a material change returned the kitchen to, for the confirmation to say. */
+/** The last choice, handed over for the hook to wait on: the revision the store stood at when it was applied, and what was
+ *  changed. */
 export interface AwaitedReplacement {
   readonly revisionAtChoice: DesignRevision | null;
   readonly changes: readonly ReplacementChange[];
-  readonly revertedColour?: string | undefined;
 }
 
 /** What the sheet's flow ends in. `alsoUpdated` is true exactly when the second `GET` said the prices moved, and
  *  `accessoryNames` are accessories that answer names which the sheet never showed. */
 export interface ReplacementOutcome {
   readonly changes: readonly ReplacementChange[];
-  readonly revertedColour: string | undefined;
   readonly accessoryNames: readonly string[];
   readonly alsoUpdated: boolean;
 }
@@ -325,7 +323,6 @@ async function askAgainAndConfirm({
   }).filter((name) => !shownAccessoryNames.includes(name));
   setConfirmation({
     changes: awaited.changes,
-    revertedColour: awaited.revertedColour,
     accessoryNames: unshownNames,
     alsoUpdated: pricesMovedOnThisPage(fresh, displayed),
   });

@@ -1930,7 +1930,6 @@
     "changedHardware": "Фурнитура заменена на {name}. Цена обновлена.",
     "changedHandle": "Ручки заменены на {name}. Цена обновлена.",
     "changedColour": "Цвет заменён на {name}. Цена обновлена.",
-    "colourReverted": "Цвет вернулся к варианту {colour}.",
     "materialAndColoursUnavailable": "Материал и его цвета больше недоступны. Выбери другой материал.",
     "unnamedOptionUnavailable": "Один из выбранных вариантов больше недоступен"
   },

@@ -1,9 +1,9 @@
 // @vitest-environment happy-dom
 //
 // The mounted replacement sheet, attacked: a lone colour and a lone handle through the save-landed rule, the colour that waits,
-// the reset line in each arm of its rule (global colour only, a cabinet's only, none stored, offered by the new material),
-// two and three colours at once, and what is drawn (no id, a first option that is not a selection, no button on a resolved
-// colour).
+// the note said while a material is owed (where it sits, when it shows, both locales), no reset line in any arm of the old
+// rule (global colour only, a cabinet's only, none stored, offered by the new material, MDF), two and three colours at once,
+// and what is drawn (no id, a first option that is not a selection, no button on a resolved colour).
 // Facts these pin: an undeclared OLD material also leaves a colour row owed, which appears only after that material is
 // replaced; a resolved handle row the design no longer stores shows no value.
 import { KITCHEN_L_DESIGN, type Design } from "@lemnaria/configurator-domain";
@@ -37,6 +37,8 @@ vi.mock("next/navigation", async (importOriginal) => ({
 
 import { useConfiguratorStore } from "@/store/configurator-store";
 
+import roMessages from "../../src/messages/ro.json";
+import ruMessages from "../../src/messages/ru.json";
 import { ro } from "../support/romanian-content";
 import {
   ANTHRACITE,
@@ -55,7 +57,6 @@ import {
 import {
   full,
   PRICE_SENTENCE,
-  reverted,
   stem,
 } from "../support/replacement-confirmation-lines";
 import {
@@ -92,6 +93,9 @@ import {
 import { tierName } from "../support/tier-offer-world";
 
 const VANISHED_MATERIAL = "material.created-and-since-deleted";
+/** An id is a dotted token the app never writes in prose; the note's "Alege alt material." only ends in the word. */
+const LEAKED_ID =
+  /created-and-since-deleted|(^|[^\p{L}\p{N}_-])(pal|veneer|mdf|material|hardware)\.[a-z0-9]/u;
 
 beforeEach(() => {
   beginTest();
@@ -379,7 +383,7 @@ describe("a colour row that waits behind a material row", () => {
     expect(document.activeElement).toBe(controlOf(material));
   });
 
-  it("turns the colour row, once the material is chosen, into a resolved row naming where it went, without a control", async () => {
+  it("turns the colour row, once the material is chosen, into a resolved row with no value and no control", async () => {
     serveWorld({ notices: [notice(), notice()] });
     hydrate(veneerKitchen);
     const editor = await mountEditor({
@@ -394,7 +398,10 @@ describe("a colour row that waits behind a material row", () => {
     );
     const colour = rowAbout(editor, ro.globalSettings.colourHeading);
     expect(colour?.dataset.resolved).toBe("true");
-    expect(colour?.textContent).toContain(ro.finishName("pal.alb"));
+    expect(
+      colour?.querySelector('[data-testid="replacement-row-value"]'),
+    ).toBeNull();
+    expect(colour?.textContent).not.toContain(ro.finishName("pal.alb"));
     expect(controlOf(colour)).toBeNull();
     expect(controlOf(material)).not.toBeNull();
   });
@@ -417,15 +424,28 @@ describe("a colour row that waits behind a material row", () => {
 
     expect(rowsOf(editor).length).toBeGreaterThan(0);
     const everything = required(editor, "replacement-sheet").innerHTML;
-    expect(everything).not.toMatch(
-      /created-and-since-deleted|pal\.|veneer\.|material\.|hardware\./,
-    );
+    expect(byTestId(editor, "replacement-material-note")).not.toBeNull();
+    expect(everything).not.toMatch(LEAKED_ID);
+  });
+
+  it("would catch a real id wherever it leaks: the check matches ids as whole tokens, so the note's closing word is not one and an id is", () => {
+    expect("<p>Alege alt material.</p>").not.toMatch(LEAKED_ID);
+    for (const leaked of [
+      "<span>material.created-and-since-deleted</span>",
+      "<span>Alege alt material.veneer</span>",
+      "<span>hardware.premium</span>",
+      "<span>pal.alb</span>",
+      "<span>veneer.stejar</span>",
+      "<span>created-and-since-deleted</span>",
+    ]) {
+      expect(leaked).toMatch(LEAKED_ID);
+    }
   });
 });
 
-describe("the reset line, arm by arm", () => {
-  /** A veneer kitchen whose material is owed (alone), so choosing melamine rewrites whatever colours are stored. */
-  async function replaceVeneerWith(
+describe("no reset line, in any arm of the old rule", () => {
+  /** A kitchen whose material is owed (alone), so choosing the replacement rewrites whatever colours are stored. */
+  async function replaceMaterialWith(
     design: Design,
     to: string,
     material: { kind: "material"; tierId: string } = {
@@ -469,20 +489,22 @@ describe("the reset line, arm by arm", () => {
     );
   });
 
-  it("shows it for a global colour that is the only stored one, after the material line", async () => {
-    const { lines } = await replaceVeneerWith(
+  it("is only the material's line for a global colour that is the only stored one, though the colour was rewritten", async () => {
+    const { lines } = await replaceMaterialWith(
       kitchenWith({ materialTierId: "material.veneer", finish: VENEER_OAK }),
       "material.melamine",
     );
 
     expect(lines).toEqual([
       full("changedMaterial", tierName("material.melamine")),
-      reverted(ro.finishName("pal.alb")),
     ]);
+    expect(useConfiguratorStore.getState().design.settings?.finish).toEqual(
+      WHITE,
+    );
   });
 
-  it("shows it for a cabinet's own colour that is the only stored one", async () => {
-    const { lines } = await replaceVeneerWith(
+  it("is only the material's line for a cabinet's own colour that is the only stored one", async () => {
+    const { lines } = await replaceMaterialWith(
       withCabinets(kitchenWith({ materialTierId: "material.veneer" }), [
         { finish: VENEER_OAK },
       ]),
@@ -491,12 +513,11 @@ describe("the reset line, arm by arm", () => {
 
     expect(lines).toEqual([
       full("changedMaterial", tierName("material.melamine")),
-      reverted(ro.finishName("pal.alb")),
     ]);
   });
 
-  it("is silent when no colour is stored anywhere", async () => {
-    const { lines } = await replaceVeneerWith(
+  it("is only the material's line when no colour is stored anywhere", async () => {
+    const { lines } = await replaceMaterialWith(
       kitchenWith({ materialTierId: "material.veneer" }),
       "material.melamine",
     );
@@ -506,8 +527,8 @@ describe("the reset line, arm by arm", () => {
     ]);
   });
 
-  it("is silent when the new material offers the stored colour (a vanished material wearing a melamine colour, replaced by melamine)", async () => {
-    const { lines } = await replaceVeneerWith(
+  it("is only the material's line when the new material offers the stored colour, which is kept (a vanished material wearing a melamine colour, replaced by melamine)", async () => {
+    const { lines } = await replaceMaterialWith(
       withCabinets(
         kitchenWith({ materialTierId: VANISHED_MATERIAL, finish: ANTHRACITE }),
         [{ finish: ANTHRACITE }],
@@ -524,20 +545,19 @@ describe("the reset line, arm by arm", () => {
     );
   });
 
-  it("names MDF's default by its value when MDF is the new material", async () => {
-    const { lines } = await replaceVeneerWith(
+  it("is only the material's line when MDF is the new material, and its free default is named nowhere", async () => {
+    const { editor, lines } = await replaceMaterialWith(
       kitchenWith({ materialTierId: "material.veneer", finish: VENEER_OAK }),
       "material.painted-mdf",
     );
 
-    expect(lines).toHaveLength(2);
-    expect(lines[0]).toBe(
+    expect(lines).toEqual([
       full("changedMaterial", tierName("material.painted-mdf")),
-    );
-    expect(lines[1]).toMatch(/^Culoarea a revenit la #[0-9a-fA-F]{3,8}\.$/);
+    ]);
+    expect(editor.container.textContent).not.toMatch(/#[0-9a-fA-F]{3,8}/);
   });
 
-  it("with the price sentence on the last change only when hardware is chosen too, the reset line standing right after the material", async () => {
+  it("is the material and hardware lines, with the price sentence on the last change only, when hardware is chosen too", async () => {
     const world = serveWorld({ notices: [notice(), notice()] });
     hydrate(
       kitchenWith({
@@ -559,7 +579,6 @@ describe("the reset line, arm by arm", () => {
 
     expect(confirmationLines(editor)).toEqual([
       stem("changedMaterial", tierName("material.melamine")),
-      reverted(ro.finishName("pal.alb")),
       full("changedHardware", tierName("hardware.standard")),
     ]);
   });
@@ -620,9 +639,7 @@ describe("a material chosen again in the sheet", () => {
     );
   });
 
-  // The line is kept because the reset did happen earlier in this sheet. It would be stale only for a later press into a
-  // material that offers the stored colour, which needs an undeclared tier in the book: barely reachable, so pinned as is.
-  it("keeps the line that the colour went back after a later press that resets nothing", async () => {
+  it("says nothing about the colour after a later press either: the lines are the customer's own changes", async () => {
     const { editor, world } = await chooseMelamineThenChooseItAgain();
 
     await chooseTier(editor, tierName("hardware.standard"));
@@ -630,7 +647,6 @@ describe("a material chosen again in the sheet", () => {
 
     expect(confirmationLines(editor)).toEqual([
       stem("changedMaterial", tierName("material.melamine")),
-      reverted(ro.finishName("pal.alb")),
       full("changedHardware", tierName("hardware.standard")),
     ]);
   });
@@ -828,5 +844,188 @@ describe("a handle row resolved by availability coming back, while another row k
     expect(handleRow?.dataset.resolved).toBe("true");
     expect(controlOf(handleRow)).toBeNull();
     expect(handleRow?.textContent).toContain(ro.panel.handleLabels.black);
+  });
+});
+
+describe("the note that a material's colours go with it, as the customer meets it", () => {
+  const NOTE = roMessages.replacementSheet.materialAndColoursUnavailable;
+  const PREMIUM_OFF = { kind: "hardware", tierId: "hardware.premium" } as const;
+  const noteOf = (editor: Editor) =>
+    byTestId(editor, "replacement-material-note");
+
+  it("sits inside the dialog, straight after the lead and before the first row, as text a screen reader reads", async () => {
+    serveWorld({ notices: [notice(), notice()] });
+    hydrate(
+      kitchenWith({ materialTierId: "material.veneer", finish: VENEER_OAK }),
+    );
+    const editor = await mountEditor({
+      priceRoot: rootSwitchingOff(VENEER_OFF, {
+        kind: "finish",
+        finishId: "veneer.stejar",
+      }),
+    });
+
+    const note = present(noteOf(editor), "the material note");
+    const sheet = required(editor, "replacement-sheet");
+
+    expect(sheet.contains(note)).toBe(true);
+    expect(required(editor, "replacement-body").nextElementSibling).toBe(note);
+    expect(
+      note.compareDocumentPosition(present(rowsOf(editor)[0], "the first row")),
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(note.closest('[aria-hidden="true"]')).toBeNull();
+    expect(note.hidden).toBe(false);
+    expect(note.textContent).toBe(NOTE);
+  });
+
+  it.each([
+    [
+      "a named switched-off material",
+      () =>
+        kitchenWith({ materialTierId: "material.veneer", finish: VENEER_OAK }),
+      [VENEER_OFF],
+    ],
+    [
+      "a named switched-off material with a colour waiting behind it",
+      () =>
+        kitchenWith({ materialTierId: "material.veneer", finish: VENEER_OAK }),
+      [VENEER_OFF, { kind: "finish", finishId: "veneer.stejar" } as const],
+    ],
+    [
+      "a vanished material no code names",
+      () => kitchenWith({ materialTierId: VANISHED_MATERIAL }),
+      [PREMIUM_OFF],
+    ],
+    [
+      "a material owed on a kitchen that stores no colour",
+      () => kitchenWith({ materialTierId: "material.veneer" }),
+      [VENEER_OFF],
+    ],
+  ])("is shown for %s", async (_name, design, owed) => {
+    serveWorld({ notices: [notice(), notice()] });
+    hydrate(design());
+    const editor = await mountEditor({ priceRoot: rootSwitchingOff(...owed) });
+
+    expect(noteOf(editor)?.textContent).toBe(NOTE);
+    expect(
+      editor.container.querySelectorAll(
+        '[data-testid="replacement-material-note"]',
+      ),
+    ).toHaveLength(1);
+  });
+
+  it.each([
+    ["a lone colour", () => kitchenWith({ finish: WHITE }), [WHITE_OFF]],
+    ["a lone handle", () => kitchenWith({ handle: "black" }), [BLACK_OFF]],
+    [
+      "a lone hardware tier",
+      () => kitchenWith({ hardwareTierId: "hardware.premium" }),
+      [PREMIUM_OFF],
+    ],
+    [
+      "a colour and a handle",
+      () => kitchenWith({ finish: WHITE, handle: "black" }),
+      [WHITE_OFF, BLACK_OFF],
+    ],
+  ])("is not shown for %s", async (_name, design, owed) => {
+    serveWorld({ notices: [notice(), notice()] });
+    hydrate(design());
+    const editor = await mountEditor({ priceRoot: rootSwitchingOff(...owed) });
+
+    expect(byTestId(editor, "replacement-sheet")).not.toBeNull();
+    expect(noteOf(editor)).toBeNull();
+  });
+
+  it("is back on the list when the customer opens a chooser and cancels", async () => {
+    serveWorld({ notices: [notice(), notice()] });
+    hydrate(
+      kitchenWith({ materialTierId: "material.veneer", finish: VENEER_OAK }),
+    );
+    const editor = await mountEditor({
+      priceRoot: rootSwitchingOff(VENEER_OFF),
+    });
+
+    press(required(editor, "replacement-choose"));
+    press(required(editor, "replacement-chooser-back"));
+    expect(noteOf(editor)?.textContent).toBe(NOTE);
+  });
+
+  it("is gone once the material is chosen, while another row keeps the sheet open, and is not in the confirmation", async () => {
+    const world = serveWorld({ notices: [notice(), notice()] });
+    hydrate(
+      kitchenWith({
+        materialTierId: "material.veneer",
+        finish: VENEER_OAK,
+        hardwareTierId: "hardware.premium",
+      }),
+    );
+    const editor = await mountEditor({
+      priceRoot: rootSwitchingOff(VENEER_OFF, PREMIUM_OFF),
+    });
+    expect(noteOf(editor)).not.toBeNull();
+
+    await chooseTier(editor, tierName("material.melamine"));
+    expect(byTestId(editor, "replacement-sheet")).not.toBeNull();
+    expect(noteOf(editor)).toBeNull();
+
+    await chooseTier(editor, tierName("hardware.standard"));
+    await landSavesUntilConfirmed(editor, world);
+    expect(
+      byTestId(editor, "replacement-confirmation")?.textContent,
+    ).not.toContain(NOTE);
+  });
+
+  it("says the Russian leaf under /ru, which is not the Romanian one", async () => {
+    serveWorld({ notices: [notice(), notice()] });
+    hydrate(kitchenWith({ materialTierId: VANISHED_MATERIAL }));
+    const editor = await mountEditor({
+      locale: "ru",
+      priceRoot: rootSwitchingOff(PREMIUM_OFF),
+    });
+    const russian = ruMessages.replacementSheet.materialAndColoursUnavailable;
+
+    expect(russian.length).toBeGreaterThan(0);
+    expect(russian).not.toBe(NOTE);
+    expect(noteOf(editor)?.textContent).toBe(russian);
+  });
+
+  it("says the Romanian leaf under /ro", async () => {
+    serveWorld({ notices: [notice(), notice()] });
+    hydrate(kitchenWith({ materialTierId: VANISHED_MATERIAL }));
+    const editor = await mountEditor({
+      locale: "ro",
+      priceRoot: rootSwitchingOff(PREMIUM_OFF),
+    });
+
+    expect(noteOf(editor)?.textContent).toBe(NOTE);
+  });
+});
+
+describe("a colour row resolved because availability came back, beside a material row that stays owed", () => {
+  it("still names its own colour, has no control, and the note stays while the material is owed", async () => {
+    serveWorld({ notices: [notice(), notice()] });
+    hydrate(
+      kitchenWith({ materialTierId: "material.veneer", finish: VENEER_OAK }),
+    );
+    const editor = await mountEditor({
+      priceRoot: rootSwitchingOff(VENEER_OFF, {
+        kind: "finish",
+        finishId: "veneer.stejar",
+      }),
+    });
+    expect(rowsOf(editor)).toHaveLength(2);
+
+    await rerenderUnder(rootSwitchingOff(VENEER_OFF));
+
+    const colour = rowAbout(editor, ro.globalSettings.colourHeading);
+    expect(colour?.dataset.resolved).toBe("true");
+    expect(controlOf(colour)).toBeNull();
+    expect(
+      colour?.querySelector('[data-testid="replacement-row-value"]')
+        ?.textContent,
+    ).toBe(ro.finishName("veneer.stejar"));
+    expect(byTestId(editor, "replacement-material-note")?.textContent).toBe(
+      roMessages.replacementSheet.materialAndColoursUnavailable,
+    );
   });
 });

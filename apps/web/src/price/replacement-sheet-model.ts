@@ -9,7 +9,6 @@ import {
   countDisplayedBodies,
   itemIdOf,
   isSameItem,
-  lookUpMaterial,
   NoReplacementOptionError,
   PALETTE_ENTRY_IDS,
   paletteFinish,
@@ -167,8 +166,9 @@ export function resolveReplacementSheetCopy(translate: ContentTranslator) {
       translate(CHANGED_LEAF[kind], { name }),
     changedWithoutPriceSentence: (kind: ReplacementKind, name: string) =>
       withoutPriceSentence(translate, CHANGED_LEAF[kind], name),
-    colourReverted: (colour: string) =>
-      translate("replacementSheet.colourReverted", { colour }),
+    materialAndColoursUnavailable: translate(
+      "replacementSheet.materialAndColoursUnavailable",
+    ),
     unnamedOptionUnavailable: translate(
       "replacementSheet.unnamedOptionUnavailable",
     ),
@@ -213,6 +213,8 @@ export interface ReplacementRowView {
 export interface ReplacementSheetView {
   readonly title: string;
   readonly body: string;
+  /** Said while a material row is owed, before any choice: the material's colours go with it. */
+  readonly materialNote: string | undefined;
   readonly rows: readonly ReplacementRowView[];
   /** Accessories removed with nothing to choose instead: information only. */
   readonly infoLines: readonly string[];
@@ -267,6 +269,9 @@ export function describeReplacementSheet({
     title: copy.title,
     body:
       rows.length === 1 ? copy.bodyOne(itemsText) : copy.bodyMany(itemsText),
+    materialNote: isMaterialOwed
+      ? copy.materialAndColoursUnavailable
+      : undefined,
     rows,
     infoLines: accessoryNames.map(copy.accessoryRemoved),
     priceLine: copy.priceAfterChoosing,
@@ -411,7 +416,7 @@ function nameNowApplying(
     case "hardware":
       return nameOfCurrentTier(item.kind, design, offer, content);
     case "finish":
-      return nameOfColourInPlaceOf(item.finishId, design, content);
+      return nameOfColourAsItWas(item.finishId, design, content);
     case "handle":
       return nameOfHandleAsItWas(item.handle, design, content);
     case "accessory":
@@ -451,10 +456,10 @@ function nameOfCurrentTier(
 
 /**
  * A colour row resolved without a choice of the sheet's: availability came back, so the design still names the colour and
- * it is named as it was; or a material change reset it (ADR 0057), so it names the colour the material returned the
- * kitchen to, whichever level the reset reached.
+ * it is named as it was. A colour the design no longer stores has nothing to say: the material's reset replaced it, and
+ * the colour the kitchen returned to is never named in its place (ADR 0081).
  */
-function nameOfColourInPlaceOf(
+function nameOfColourAsItWas(
   finishId: string,
   design: Design,
   content: Content,
@@ -466,64 +471,7 @@ function nameOfColourInPlaceOf(
   ) {
     return nameOfFinish(named, content);
   }
-  const returnedTo = defaultColourOfMaterial(design) ?? design.settings?.finish;
-  return returnedTo === undefined
-    ? undefined
-    : nameOfFinish(returnedTo, content);
-}
-
-/** The colour the design's material returns a kitchen to; nothing where the material is not one the code declares. */
-function defaultColourOfMaterial(design: Design): Finish | undefined {
-  const tierId = design.settings?.materialTierId;
-  if (tierId === undefined) return undefined;
-  const lookup = lookUpMaterial(tierId);
-  return lookup.kind === "declared" ? lookup.material.defaultFinish : undefined;
-}
-
-/**
- * The colour a material change returned the kitchen to, when it rewrote a stored colour at any level: the kitchen's, or a
- * cabinet's. Read by comparing the two designs, because `resolvedFinishCount` counts cabinets only and so misses a
- * design whose one stored colour is the kitchen's. A design with no stored colour that visibly repaints stays silent
- * (ADR 0081). The name is the new material's own default colour.
- */
-export function colourRevertedBy({
-  before,
-  after,
-  content,
-}: {
-  readonly before: Design;
-  readonly after: Design;
-  readonly content: Content;
-}): string | undefined {
-  if (!isAnyStoredColourDifferent(before, after)) return undefined;
-  const returnedTo = defaultColourOfMaterial(after);
-  return returnedTo === undefined
-    ? undefined
-    : nameOfFinish(returnedTo, content);
-}
-
-function isAnyStoredColourDifferent(before: Design, after: Design): boolean {
-  if (!isSameStoredColour(before.settings?.finish, after.settings?.finish)) {
-    return true;
-  }
-  const colourBefore = new Map(
-    before.placements.map((placement) => [placement.id, placement.body.finish]),
-  );
-  return after.placements.some(
-    (placement) =>
-      !isSameStoredColour(
-        colourBefore.get(placement.id),
-        placement.body.finish,
-      ),
-  );
-}
-
-function isSameStoredColour(
-  one: Finish | undefined,
-  other: Finish | undefined,
-): boolean {
-  if (one === undefined || other === undefined) return one === other;
-  return sameFinish(one, other);
+  return undefined;
 }
 
 function nameOfHeldTier(
@@ -788,7 +736,7 @@ export function describeApplyRefusal({
   );
 }
 
-/** The order the confirmation says what changed in; a colour the material reset is said straight after the material. */
+/** The order the confirmation says what changed in. */
 const CHANGE_ORDER: readonly ReplacementKind[] = [
   "material",
   "hardware",
@@ -797,13 +745,12 @@ const CHANGE_ORDER: readonly ReplacementKind[] = [
 ];
 
 /**
- * The confirmation's lines: the material, the colour it reset, then hardware, colour and handle, then
+ * The confirmation's lines: the material, hardware, colour and handle, then
  * accessories removed that the sheet did not show, then the merged prices sentence when the second `GET` says so. Each
  * item the customer replaced is one line; the "price was updated" sentence closes the last of them, once.
  */
 export function describeConfirmationLines({
   changes,
-  revertedColour,
   accessoryNames = [],
   alsoUpdated,
   copy,
@@ -812,7 +759,6 @@ export function describeConfirmationLines({
     readonly kind: ReplacementKind;
     readonly name: string;
   }[];
-  readonly revertedColour?: string | undefined;
   readonly accessoryNames?: readonly string[];
   readonly alsoUpdated: boolean;
   readonly copy: ReplacementSheetCopy;
@@ -825,15 +771,8 @@ export function describeConfirmationLines({
       ? copy.changed(kind, name)
       : copy.changedWithoutPriceSentence(kind, name),
   );
-  const reverted =
-    revertedColour === undefined ? [] : [copy.colourReverted(revertedColour)];
-  const afterMaterial = ordered.filter(
-    ({ kind }) => kind === "material",
-  ).length;
   return [
-    ...lines.slice(0, afterMaterial),
-    ...reverted,
-    ...lines.slice(afterMaterial),
+    ...lines,
     ...accessoryNames.map(copy.accessoryRemoved),
     ...(alsoUpdated ? [copy.alsoUpdated] : []),
   ];

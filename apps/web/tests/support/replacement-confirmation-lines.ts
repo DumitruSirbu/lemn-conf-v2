@@ -1,5 +1,5 @@
 // What the replacement sheet's confirmation says, read from the leaves themselves so no Romanian wording is written in a test:
-// a "changed to {name}" line with its closing sentence, without it, and the line that says a colour went back.
+// a "changed to {name}" line with its closing sentence, and without it.
 import roMessages from "../../src/messages/ro.json";
 
 export type ChangedLeaf =
@@ -20,12 +20,4 @@ export function full(leaf: ChangedLeaf, name: string): string {
 /** The same change without the closing sentence, as every line but the last says it. */
 export function stem(leaf: ChangedLeaf, name: string): string {
   return full(leaf, name).replace(` ${PRICE_SENTENCE}`, "");
-}
-
-/** The line that says the colour went back to the new material's default. */
-export function reverted(colour: string): string {
-  return roMessages.replacementSheet.colourReverted.replace(
-    "{colour}",
-    () => colour,
-  );
 }
