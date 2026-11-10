@@ -3408,3 +3408,39 @@ Applies to a material, a hardware class and an accessory. **Ruled:** deleting st
 ## 290. A name made only of tabs, no-break spaces or zero-width characters shows blank instead of falling back to the reference — RECORDED 2026-10-27 (COORDINATOR-RELAYED FROM THE M10 S4 REVIEW); INFO
 
 **Observed (coordinator, relayed; the scribe ran nothing).** The digest's customer-name expression `nullif(btrim(a.name), '')` strips only U+0020, so a name consisting of tabs, NBSP or zero-width characters survives as non-empty and shows blank instead of falling back to the request reference. **Cost of deciding:** a stricter blank test in the statement (or a name rule at write time), with one fixture row. **Owner:** unassigned (lane S, `kitchen-change-statements.ts`).
+
+## 291. The C4 replacement sheet offers a colour that `replaceColour` refuses — RECORDED 2026-11-11 AT M10's Z2 (TEST AUDIT, APPENDIX A)
+
+**Observed (the Z2 audit, `docs/test-audits/m10-close-audit.md`; read there, not re-run by the scribe).** `packages/configurator-domain/tests/queries/qa-q5a-replacements-required.adversarial.test.ts:186` is an `it.fails` whose inner assertion fails today (`expected false to be true`): `replaceColour` refuses an option the sheet offers. The audit's reading: for a design with no `materialTierId`, under a book whose default material is not melamine, the colour row offers woods the command refuses. The audit found no earlier record (`DEFAULT_MATERIAL_ID` is mentioned in the M10 plan, not as this defect). A shipped defect pinned by a test that is green because it fails. **Cost of deciding:** the architect rules whether the sheet or the command moves, then the `it.fails` flips. **Owner:** unassigned; the architect.
+
+## 292. `creation-after-deletions.property.test.ts:155` pins a refusal with no record — RECORDED 2026-11-11 AT M10's Z2
+
+**Observed (the Z2 audit, Appendix A).** `apps/web/tests/lib/server/price-dashboard/creation-after-deletions.property.test.ts:155` is an `it.fails`; its inner assertion fails today with `expected 'refused' to be 'write'`. The audit found no record of the behaviour it pins. The audit also notes the matching unguarded mutant `structural-changes.ts:92` (`some` to `every`, reachable only by classes that state different optional rates). **Cost of deciding:** the architect says whether the refusal is the intended behaviour (then the `it.fails` is rewritten as a plain test) or a defect. **Owner:** unassigned; the architect.
+
+## 293. One desktop e2e fails once in a full run and passes when repeated — RECORDED 2026-11-11 AT M10's Z GATE
+
+**Observed (coordinator, relayed; the scribe ran nothing).** In the second full `pnpm ci:local` run of the M10 Z gate, one desktop e2e (`pixel-counter-witness:287`) failed once and passed 18/18 when repeated (M10 plan, the Z gate block). The Z1 visual pass also met a settings-sheet 1440 check that failed on a flake (M10 plan, C4 residual 2). The pattern is one unexplained e2e failure per full run; no cause is recorded. Related: entry 211 (cold-start `503` flake) and 117. **Cost of deciding:** run the spec alone N times under load and classify it as a test fault, a harness fault or a defect. **Owner:** unassigned.
+
+## 294. `candidate-refused` does not re-read the draft — RECORDED 2026-11-11 AT M10's Z GATE
+
+**Observed (coordinator, relayed, from the Z gate close-out item 6; the scribe ran nothing).** After `99857d26` closed R4c3 residuals 1 and 2, this one stays open: when the server answers `candidate-refused`, the client does not re-read the draft. **Cost of deciding:** a client re-read on that answer and a test. **Owner:** unassigned; the next dashboard client wave.
+
+## 295. The `deskDeleting` test helpers of R4c2 and R4c3 are duplicated — RECORDED 2026-11-11 AT M10's Z GATE
+
+**Observed (coordinator, relayed, Z gate close-out item 6).** The R4c2 and R4c3 tests each carry their own `deskDeleting` helper; merging them would touch dozens of call sites, so it was left. **Cost of deciding:** one shared support module and a mechanical edit of the call sites (no review tier, by the mechanical-change rule). **Owner:** unassigned.
+
+## 296. After a failed publish, the red failure banner stays while the retry shows "Se publică…" — RECORDED 2026-11-11 AT M10's Z1 VISUAL PASS; MINOR
+
+**Observed (the Z1 visual verifier, `docs/milestones/m10-z1-visual-pass-report.md`, observation 2, `app/d7e.png`; not re-run by the scribe).** After a failed publish (D7G), retrying through the confirm dialog shows "Se publică..." in the dialog while the red "Versiunea nu a fost publicată" banner stays on the page behind it. The mockup does not draw this combination; the verifier judged it probably acceptable. **Owner:** unassigned; a product question first.
+
+## 297. The phone editor's top bar has targets under 44 px — RECORDED 2026-11-11 AT M10's Z1 VISUAL PASS; MINOR (EXTENDS 192)
+
+**Observed (the Z1 report, observation 3).** On the customer editor at 390 px: the settings pill measures 136x30 (150x30 in Russian) and the language button 47x25. Not a dashboard surface and pre-existing; every staff page at 390 measured 0 controls under 44 px. The locale switcher's 25 px height is already entry 192. **Owner:** unassigned; the human, at the hand check.
+
+## 298. Every page logs a Permissions-Policy warning about `ambient-light-sensor` — RECORDED 2026-11-11 AT M10's Z1 VISUAL PASS; INFO
+
+**Observed (the Z1 report, observation 5).** The console warning "Error with Permissions-Policy header: Unrecognized feature: 'ambient-light-sensor'" appeared 107 times in the run, on a production build. **Cost of deciding:** drop the feature from the header. **Owner:** unassigned.
+
+## 299. The visual case of a cleared colour row was never reproduced — RECORDED 2026-11-11 AT M10's Z1
+
+**Observed (the Z1 report, owed items; the C4 wave's residual 1).** A colour row cleared by the reset needs a colour switched off in the book, and no dashboard screen does that (colours are managed separately), so the case is not reachable from the dashboard against the fake price book. Z1 tried a kitchen on a vanished material with a palette colour replaced by MDF: the sheet shows only the material row and the confirmation has no colour row. Also not reproduced in Z1: D1B (the verification widget cannot load in that environment, so the wrong-data state is unreachable) and the D10D e-mail. **Cost of deciding:** a book fixture that switches a colour off, or a real-store pass. **Owner:** unassigned.

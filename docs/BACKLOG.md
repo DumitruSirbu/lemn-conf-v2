@@ -321,6 +321,15 @@ status corrections, in one of these two files:
 | 288 | `enumerableFieldsOf` does not see an accessor defined on a prototype | open.md — recorded 2026-10-26; gap not yet characterised |
 | 289 | A fail-closed account-bucket refusal logs the same `[account]` line as a store failure | open.md — recorded 2026-10-27; Low, diagnostics, predates M10 |
 | 290 | A digest name of only tabs, NBSP or zero-width characters shows blank instead of falling back to the reference (`btrim` strips only U+0020) | open.md — recorded 2026-10-27; Info |
+| 291 | The C4 replacement sheet offers a colour that `replaceColour` refuses (pinned by an `it.fails`) | open.md — recorded 2026-11-11 from M10's Z2 audit; architect to rule |
+| 292 | `creation-after-deletions.property.test.ts:155` pins a refusal that has no record | open.md — recorded 2026-11-11 from M10's Z2 audit; architect to rule |
+| 293 | One desktop e2e fails once per full run and passes when repeated | open.md — recorded 2026-11-11 at M10's Z gate; no cause; related 117, 211 |
+| 294 | `candidate-refused` does not re-read the draft | open.md — recorded 2026-11-11 (M10 Z gate, R4c3 residual) |
+| 295 | The R4c2/R4c3 `deskDeleting` test helpers are duplicated | open.md — recorded 2026-11-11 (M10 Z gate); mechanical |
+| 296 | Failed-publish red banner stays while the retry shows "Se publică…" | open.md — recorded 2026-11-11 from M10's Z1 visual pass; minor |
+| 297 | Phone editor top bar: settings pill 136x30 and language button 47x25, under 44 px | open.md — recorded 2026-11-11 from M10's Z1; extends 192 |
+| 298 | Console warning: Permissions-Policy `ambient-light-sensor` unrecognised, on every page | open.md — recorded 2026-11-11 from M10's Z1; Info |
+| 299 | The visual case of a cleared colour row (and D1B, D10D) was not reproduced in Z1 | open.md — recorded 2026-11-11 from M10's Z1 |
 
 *Notes at the 8J2, 8U and 8V close (2026-10-17) on existing entries:* 145 (facing-labels flaky again), 160 (closed), 232 (the non-live recipe does not hold) carry dated notes in `open.md`.
 
