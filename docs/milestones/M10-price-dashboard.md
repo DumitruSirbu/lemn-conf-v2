@@ -3013,6 +3013,23 @@ R4a4 hands to Q3: an end-to-end arm showing that publishing a created class blan
   9. A defaults save moves the availability head, which is what keeps the defaults out of the memo key.
 - **Next:** R4c3 (Delete on in the dashboard; Full + visual), then the Z gate, which needs the owner's go-ahead before touching the shared test DB.
 
+**R4c3 merged and CLOSED (client Delete on), and the Z gate state, 2026-11-10 [relayed from the coordinator, who ran the commands; evidence tiers per line; the scribe ran nothing]. Unpushed. M10 itself and the Z gate stay open.**
+- **Closed by owner instruction (2026-11-10).** Per `docs/WORKFLOW.md` the archive rule of step 7 covers a whole phase, so only the wave is closed here; this file is not archived.
+- **Merge (run-and-quoted by the coordinator):** `c9dd3536` (`--no-ff`) on `m10-price-dashboard`; fixes `b7e86955` (a deletion recount judges one snapshot of the draft and stays closed when the draft was not read again) and `ce139f1c` (a recount after a deletion conflict yields to a newer request; e2e specs follow Delete being on); QA commit `328d6074`. R4c2's memo clock fix is `86028421` (listed above). Gates were green at merge; e2e and a visual pass were done (coordinator, relayed; no figures restated).
+- **Residuals:**
+  1. `readDraftNow` is still optional.
+  2. `canDeleteStatedItems` is vestigial; follow-up: remove it.
+  3. `candidate-refused` does not re-read the draft.
+  4. The R4c3 and R4c2 test helpers are duplicated.
+- **Visual deviations:** copy; desktop menu and focus after a delete; the 60 px shift of the counting notice; the publish page's layout.
+- **Unchecked:** the real usage-count path; D5G; deleting a draft-created accessory; Russian.
+- **Z gate so far:**
+  - Persistence live suite on staging (`lemn-conf-v2-staging`) green after `d0b122dd` (a jsonpath `?` in the publish statement was counted as a placeholder by the test helper) [run-and-quoted by the coordinator].
+  - Migrations 1-29 already applied in production (`lemn-conf-v2`) and staging, by read-only `migrate:status`; nothing was run [run-and-quoted].
+  - Production `price_book_versions` has 0 rows and `price_book_draft` 1 row (read-only count, owner-approved). The stored-version parse check and ruling 14's rate-uniformity check are therefore moot until a book is active. Staging's 2292 versions are all live-test fixtures [run-and-quoted].
+  - `pnpm ci:local` exited 1. PASS: format, lint, typecheck, test, build, boundary, lockfile, sca. **FAIL, open (being fixed in a separate wave, not fixed here):** `e2e-shard-budget` (desktop shard 5 has 81 tests against a budget of 67; needs 8 shards); `e2e` (8 mobile failures of 1415: 7 in `design-return-requests` and `qa-8k2-design-return` count an extra `/price-notice` GET as a design read; 1 `global-settings.e2e.spec.ts:262` times out waiting for `global-settings-confirm`) [run-and-quoted].
+- **Z gate still open:** live S7/S2/S4 runs; the C-grants check; S7 sabotages; un-skipping the demotion-write test; cleanup of about 25 stray e2e designs; grants SQL for the production application role (the owner's).
+
 *R4a5: record amendment (2026-11-05).* The R4a5 row said "R4a5 changes no server file, route or auth path". That
 premise broke. R4a5 changed the usage route's answer (`staff-item-usage.ts`, `item-usage-read.ts`). It touches 11
 production files against the row's 5. The security downgrade was therefore re-checked: R4a2's security reviewer
