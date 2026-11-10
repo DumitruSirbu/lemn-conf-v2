@@ -32,6 +32,18 @@ import { CATALOG, ruleOf, withFormula } from "./m2-support.js";
 const NUM_RUNS = 150;
 const GROUPS: readonly PriceGroupCode[] = ["base", "wall", "tall", "corner"];
 const TEN_LEI_MINOR = 1_000n;
+type NamedTarget = readonly [name: string, target: BulkTarget];
+const TARGETS_OF_THE_JUDGEMENT_SWEEP: readonly NamedTarget[] = [
+  ["all", { scope: "all" }],
+  ...GROUPS.map(
+    (groupCode) =>
+      [`group ${groupCode}`, { scope: "group", groupCode }] as const,
+  ),
+];
+/** Each scope plans all 390 non-zero percentages of the bound; one that plans under 200 has stopped being swept. The
+ *  five scopes as one test were asked for over 1 000 planned percentages between them, which is 200 each. */
+const MIN_PLANNED_PERCENTS_PER_SCOPE = 200;
+const JUDGEMENT_SWEEP_TIMEOUT_MS = 60_000;
 
 /** r10(x × (100 + p) / 100) from A-14 alone, in BigInt, for a non-negative x. */
 function oracleScaledMinor(amountMinor: number, percent: number): number {
@@ -274,14 +286,13 @@ describe("what a bulk change moves, and what it never moves (M2-a must-not)", ()
 });
 
 describe("the plan's result is a book that still prices every cabinet (never at or below zero, never above the bound)", () => {
-  it("is a book the catalogue judgement accepts, for a planned percentage of every integer in the bound and every scope", () => {
-    const targets: readonly BulkTarget[] = [
-      { scope: "all" },
-      ...GROUPS.map((groupCode) => ({ scope: "group", groupCode }) as const),
-    ];
-    let plannedCount = 0;
+  // One test per scope, not one for all five: each sweep prices the whole grid of the book 390 times over, so a single
+  // test for the lot is the longest test of the package, and a scope that is slow on a slow runner fails by itself.
+  it.each(TARGETS_OF_THE_JUDGEMENT_SWEEP)(
+    "is a book the catalogue judgement accepts, for a planned percentage of every integer in the bound, scope %s",
+    (_scopeName, target) => {
+      let plannedCount = 0;
 
-    for (const target of targets) {
       for (
         let percent = MIN_BULK_PERCENT;
         percent <= MAX_BULK_PERCENT;
@@ -298,10 +309,13 @@ describe("the plan's result is a book that still prices every cabinet (never at 
           ),
         ).toEqual({ ok: true });
       }
-    }
 
-    expect(plannedCount).toBeGreaterThan(1_000);
-  });
+      expect(plannedCount).toBeGreaterThan(MIN_PLANNED_PERCENTS_PER_SCOPE);
+    },
+    // The slowest scope takes 2.4 s locally; all five together took 8.8 s, and the CI runner (~10x slower) failed
+    // the default 30 s on that.
+    JUDGEMENT_SWEEP_TIMEOUT_MS,
+  );
 
   it("refuses exactly when the scaled rule would price a body at or below zero, and says PRICE_WOULD_BE_NEGATIVE", () => {
     // 64 000 - 6 x 6 000 = 28 000 at the narrowest width today; the rounding of the step and of the anchor decides which
