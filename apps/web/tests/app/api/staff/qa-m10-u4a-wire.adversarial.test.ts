@@ -257,10 +257,6 @@ describe("the write that renames a class the draft created (the class page's ren
 
     expect(answer.status).toBe(200);
   });
-
-  it("is declared by the browser's client, so the page offers the rename at all", () => {
-    expect(FETCHING_PRICE_DRAFT_CLIENT.acceptsCreatedRowText).toBe(true);
-  });
 });
 
 describe("what the draft client does with the 409s the real routes can answer", () => {

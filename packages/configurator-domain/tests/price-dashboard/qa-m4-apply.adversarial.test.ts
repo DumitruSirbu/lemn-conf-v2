@@ -151,6 +151,14 @@ describe("a change that names a row is judged against the draft so far", () => {
     );
   });
 
+  it("counts only a class's own rates: another class's complete set leaves this one owing all of its own", () => {
+    const changes = [createTier("hw.a"), ...tierDraft("hw.b")];
+
+    expect(refusalCodes(resultOf(BASE, changes))).toBe(
+      "0:CREATED_TIER_RATES_MISSING",
+    );
+  });
+
   it("owes the rates only after the creation: a rate set ahead of it is refused, and does not count", () => {
     const changes = [
       setRate("hw.a", "perHingeMinor", 1),

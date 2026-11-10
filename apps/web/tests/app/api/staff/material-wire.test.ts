@@ -11,6 +11,10 @@ import {
   accountRequest,
   freshAccountWorld,
 } from "../../../support/account-world";
+import {
+  availabilityHead,
+  disabledNow,
+} from "../../../support/availability-route-world";
 import { currentDraftRevision } from "../../../support/price-dashboard-requests";
 import { freshPriceDashboardWorld } from "../../../support/price-dashboard-world";
 import { freshStaffWorld, signedInAs } from "../../../support/staff-world";
@@ -36,9 +40,8 @@ vi.mock("@/lib/server/price-stores", () =>
 // a request into a change. Here the fetching client (the one a browser has) is run over a `fetch` that is the real
 // `PUT` and `DELETE` of `/api/staff/prices/draft`, over the persistence package's price-book fake, with the bodies the
 // materials screens send. A surcharge is an applied kind, so its write and its take-back run today and are held as they
-// are. What the screens also send has no route until R4a (no `/api/staff/prices/availability` exists, and
-// `draft-address.ts` reads only the applied kinds): a test below marked `it.fails` is a promise of the screens' port
-// that no route keeps yet. It runs and goes red the moment R4a keeps it; R4a flips each to `it`.
+// are. A material's switch off or on is not a draft change: it goes to the availability route, a `POST` that the same
+// `fetch` hands to the route handler of the tree.
 
 let cookie: string;
 
@@ -91,17 +94,17 @@ const BROKEN = () => new Response(null, { status: 500 });
 const AVAILABILITY_ADDRESS = "/api/staff/prices/availability";
 const AVAILABILITY_ROUTE = "@/app/api/staff/prices/availability/route";
 
-/** The availability route's `PUT` once the tree has one, and `undefined` until then. The module is named through a
- *  variable so that the file's not existing is an answer and not a failure to load this test. A route that exists and
- *  cannot load, or whose handler throws, is answered `500`, so a broken route is never read as an absent one. */
+/** The availability route's `POST`, and `undefined` when the module has none. The module is named through a variable
+ *  so that the file's not existing is an answer and not a failure to load this test. A route that exists and cannot
+ *  load, or whose handler throws, is answered `500`, so a broken route is never read as an absent one. */
 async function availabilityHandlerOf(): Promise<
   ((request: Request) => Promise<Response>) | undefined
 > {
   try {
     const route = (await import(/* @vite-ignore */ AVAILABILITY_ROUTE)) as {
-      readonly PUT?: (request: Request) => Promise<Response>;
+      readonly POST?: (request: Request) => Promise<Response>;
     };
-    const handler = route.PUT;
+    const handler = route.POST;
     return handler === undefined
       ? undefined
       : async (request) => {
@@ -198,21 +201,18 @@ describe("the write that deletes a held material (the materials screens' `delete
   });
 });
 
-describe("the write that switches a material off or on (the lifecycle client's `setActive`), no route until R4a", () => {
-  // R4a adds the availability route and a fetching lifecycle client, and owes the flip to `it`.
-  it.fails(
-    "has a route that takes it, so a confirmed switch can be written outside a sample",
-    async () => {
-      const answer = await fetch(AVAILABILITY_ADDRESS, {
-        method: "PUT",
-        body: JSON.stringify({
-          expectedRevision: "0",
-          item: MDF,
-          active: false,
-        }),
-      });
+describe("the write that switches a material off or on (the lifecycle client's `setActive`)", () => {
+  it("has a route that takes a POST, so a confirmed switch can be written outside a sample", async () => {
+    const answer = await fetch(AVAILABILITY_ADDRESS, {
+      method: "POST",
+      body: JSON.stringify({
+        expectedRevision: await availabilityHead(),
+        item: MDF,
+        active: false,
+      }),
+    });
 
-      expect(answer.status).not.toBe(404);
-    },
-  );
+    expect(answer.status).toBe(200);
+    expect(await disabledNow()).toEqual([MDF]);
+  });
 });

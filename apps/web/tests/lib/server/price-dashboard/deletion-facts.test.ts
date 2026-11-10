@@ -307,21 +307,30 @@ describe("the count of the deleted items", () => {
     expect(signals.every(({ aborted }) => aborted)).toBe(true);
   });
 
-  it("never starts the walk: a probe that would read every design is thrown", async () => {
-    const builtIn: ItemRef = {
-      kind: "accessory",
-      accessoryId: ALWAYS_PRESENT_ACCESSORY_ID,
+  describe("never starts the walk: a probe that would read every design is thrown", () => {
+    const BUILT_IN: DeletedItem = {
+      item: { kind: "accessory", accessoryId: ALWAYS_PRESENT_ACCESSORY_ID },
+      buildIds: [LINKED_ROW],
     };
-    const { countEach, stores } = aReader();
+    const ORDINARY: DeletedItem = {
+      item: { kind: "material", tierId: "material.painted-mdf" },
+    };
 
-    await expect(
-      readDeletionFacts({
-        stores,
-        book: SAMPLE_PRICE_BOOK,
-        deleted: [{ item: builtIn, buildIds: [LINKED_ROW] }],
-      }),
-    ).rejects.toBeInstanceOf(WalkedDeletionProbeError);
-    expect(countEach).not.toHaveBeenCalled();
+    it.each([
+      ["alone", [BUILT_IN]],
+      ["after an ordinary item", [ORDINARY, BUILT_IN]],
+      ["before an ordinary item", [BUILT_IN, ORDINARY]],
+    ])(
+      "with the built-in accessory deleted %s",
+      async (_placement, deleted) => {
+        const { countEach, stores } = aReader();
+
+        await expect(
+          readDeletionFacts({ stores, book: SAMPLE_PRICE_BOOK, deleted }),
+        ).rejects.toBeInstanceOf(WalkedDeletionProbeError);
+        expect(countEach).not.toHaveBeenCalled();
+      },
+    );
   });
 });
 

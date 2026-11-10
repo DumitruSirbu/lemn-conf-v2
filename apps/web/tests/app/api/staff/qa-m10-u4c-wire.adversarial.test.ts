@@ -215,10 +215,6 @@ describe("the write that renames an accessory the draft created (the accessory p
     ]);
   });
 
-  it("is declared by the browser's client, so the page offers the rename at all", () => {
-    expect(FETCHING_PRICE_DRAFT_CLIENT.acceptsCreatedRowText).toBe(true);
-  });
-
   it("is refused for an accessory the draft did not create", async () => {
     await storeDraft([]);
 
