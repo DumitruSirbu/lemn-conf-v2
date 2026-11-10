@@ -2,7 +2,9 @@
 
 > **STATUS: PLANNED, 2026-10-25. Nothing built, nothing dispatched.** This plan was written by the architect.
 > W0 (records) must land before any code wave is dispatched. Branch `m10-price-dashboard`, local only and
-> **not pushed**: the owner declined a push on 2026-10-25. It was cut from `main` `0910dc06` and carries two commits:
+> **not pushed** [as of 2026-10-25; **superseded 2026-11-10**: the branch is pushed to origin up to `a6b23c18`
+> (2026-11-05), the later commits are local only, and PR 16 on DumitruSirbu/lemn-conf-v2 exists; see the
+> 2026-11-10 push-state correction below]: the owner declined a push on 2026-10-25. It was cut from `main` `0910dc06` and carries two commits:
 > `8bddd951` (rulings, ADRs, backlog) and `3d4d892a` (the final mockup) [coordinator's brief; `git log` read by
 > the architect]. Every migration this plan adds is **unapplied anywhere**, and no agent applies one to a
 > provisioned database.
@@ -2927,7 +2929,7 @@ R4b1's reviews (2026-11-05) hand on the following.
 
 R4a4 hands to Q3: an end-to-end arm showing that publishing a created class blanks the deltas, written when Q3 flips `qa-p4a-tier-offer-switched-off…:56`.
 
-**Q3 sub-waves T4, Q3a, Q3c, Q4, Q3b merged locally, 2026-11-09 [relayed from the coordinator; facts source-verified by the coordinator with merged-tree gates: `tsc` and `eslint` exit 0, `apps/web` vitest all passed at each merge; the scribe ran nothing]. All unpushed.**
+**Q3 sub-waves T4, Q3a, Q3c, Q4, Q3b merged locally, 2026-11-09 [relayed from the coordinator; facts source-verified by the coordinator with merged-tree gates: `tsc` and `eslint` exit 0, `apps/web` vitest all passed at each merge; the scribe ran nothing]. Local only, after the pushed tip `a6b23c18` (corrected 2026-11-10; this line first said "All unpushed").**
 - **Correction:** S2c was already merged on 2026-11-05 (`64d98623`; see *S2c and K3 merged* above). Any text here that lists it as unbuilt is stale. R4c now waits only on Q3d, Q5 and the Z gate sequence below.
 - **T4** (`b1905701`): two Romanian leaves, `globalSettings.pricesUnavailable` and `replacementSheet.unnamedOptionUnavailable`, **drafted, not approved** (OQ-11g). The Russian leaves are agent drafts.
 - **Q3a** (`49e4787f`; commits `cfa1b4d1`, `76c2b751`, `9ed918f5`; QA `1499d84d`):
@@ -2946,7 +2948,7 @@ R4a4 hands to Q3: an end-to-end arm showing that publishing a created class blan
   - Visual check passed. Web 1167 files / 29182 passed.
 - **Q3b** (`90324563`; `m10/q3b` plus `m10/q3b-qa` `9bdf60a9`): `NO_TIER_OFFER` with no book; switched-off tiers are out of `tierIds` and out of the delta measurement. Review fixes: **B1** (the handle row shows with no book, through an empty availability), **M1** (a held-but-off carried tier stays as stored), **M2** (the pill floor draws a named label). Web 1176 files / 29355 passed.
 
-**Q3d, e2e rewrite, T5, Q5a, Q5c merged locally; Q5b built and in QA, 2026-11-09, later [relayed from the coordinator; gates verified by the coordinator on the merged trees; the scribe ran nothing]. All unpushed.**
+**Q3d, e2e rewrite, T5, Q5a, Q5c merged locally; Q5b built and in QA, 2026-11-09, later [relayed from the coordinator; gates verified by the coordinator on the merged trees; the scribe ran nothing]. Local only, after the pushed tip `a6b23c18` (corrected 2026-11-10; this line first said "All unpushed").**
 - **Q3d** (replacement sheet C4A-D; merge `a8e1a193`): the e2e replacement-sheet specs and the rewritten global-settings-apply spec ran green under `CI=1`: 5 passed. Visual check done at 390x844 and 1440x900; findings fixed in Q5b or listed below.
 - **E2e rewrite** (`m10/e2e-withdrawn`): merged.
 - **T5** (`replacementSheet.changedColour`): **drafted, not approved.** Q5b says the price sentence once by cutting the approved leaf at runtime; a standalone leaf from the T lane would be cleaner. Follow-up for the owner / T lane.
@@ -2970,7 +2972,7 @@ R4a4 hands to Q3: an end-to-end arm showing that publishing a created class blan
     5. The no-book arm is DOM-tested only (dev, test and e2e always seed a book).
 - *(Superseded by the block below: Q5b, Q5d and R4c1 are merged, R4c2 is started.)*
 - **Q3d** is built (`c6211abd` on `m10/q3d`) and in QA. **Not merged.**
-**Q5b, Q5d, R4c1 merged locally; R4c2 started, 2026-11-09, latest [relayed from the coordinator; facts verified by the coordinator on merged trees: `tsc` and `eslint` exit 0; `apps/web` vitest 1212 files / 30005 tests passed at the R4c1 merge; the scribe ran nothing]. All unpushed.**
+**Q5b, Q5d, R4c1 merged locally; R4c2 started, 2026-11-09, latest [relayed from the coordinator; facts verified by the coordinator on merged trees: `tsc` and `eslint` exit 0; `apps/web` vitest 1212 files / 30005 tests passed at the R4c1 merge; the scribe ran nothing]. Local only, after the pushed tip `a6b23c18` (corrected 2026-11-10; this line first said "All unpushed").**
 - **Q5b** (colour and handle rows choosable in the replacement sheet; `fe992f4d`, `56c18187`, `cbc9f7e3`, `9c36d068` plus QA).
   - **Ruling 4's text was falsified** and is corrected in place: an undeclared OLD material also leaves a colour row owed, appearing only after the material is replaced.
   - **Departure from the Q5-a acceptance** ("the price shows once the save lands"): built and pinned, the price shows straight after Apply; the second `GET`, the marker `POST` and the C4C line wait for the save. An unsaved kitchen cannot be sent (review gates on `hasUnsavedEdit`; contact refuses `REPLACEMENT_REQUIRED` server-side). Acceptance wording fixed.
@@ -2996,7 +2998,7 @@ R4a4 hands to Q3: an end-to-end arm showing that publishing a created class blan
   **Q3d and Q5 merge together before any push.**
 - **Test hygiene:** about 11 stray designs were left in the e2e test database by visual checks (ids unknown for some). Clean them before the Z gate.
 
-**R4c2 merged (deletion accepted at the draft route), 2026-11-09 [relayed from the coordinator; gates run by the coordinator on the merged tree under `rtk proxy`; reviewers' reports; the scribe ran nothing]. Unpushed.**
+**R4c2 merged (deletion accepted at the draft route), 2026-11-09 [relayed from the coordinator; gates run by the coordinator on the merged tree under `rtk proxy`; reviewers' reports; the scribe ran nothing]. Local only, after the pushed tip `a6b23c18` (corrected 2026-11-10; this line first said "Unpushed").**
 - **Merge:** `a9a35ce1` on `m10-price-dashboard`; QA branch `m10/r4c2-qa`; implementer commits `a1a72a48`, `38bda547`; QA fix `86028421` (the deletion-facts memo serves nothing after the clock is set back); comment commit `ebee1f97`. This supersedes the "R4c2 started, not merged" line above.
 - **Gates (coordinator, merged tree):** `tsc` exit 0; `eslint` exit 0; `apps/web` vitest 1219 files / 30189 tests passed. R-j ancestry check (`dafc263b` Q5b, `a8e1a193` Q3d) exit 0.
 - **Reviews:** logic, no defects; clean-code, no blockers; security, no exploitable issue.
@@ -3013,7 +3015,7 @@ R4a4 hands to Q3: an end-to-end arm showing that publishing a created class blan
   9. A defaults save moves the availability head, which is what keeps the defaults out of the memo key.
 - **Next:** R4c3 (Delete on in the dashboard; Full + visual), then the Z gate, which needs the owner's go-ahead before touching the shared test DB.
 
-**R4c3 merged and CLOSED (client Delete on), and the Z gate state, 2026-11-10 [relayed from the coordinator, who ran the commands; evidence tiers per line; the scribe ran nothing]. Unpushed. M10 itself and the Z gate stay open.**
+**R4c3 merged and CLOSED (client Delete on), and the Z gate state, 2026-11-10 [relayed from the coordinator, who ran the commands; evidence tiers per line; the scribe ran nothing]. Local only, after the pushed tip `a6b23c18` (corrected 2026-11-10; this line first said "Unpushed"). M10 itself and the Z gate stay open.**
 - **Closed by owner instruction (2026-11-10).** Per `docs/WORKFLOW.md` the archive rule of step 7 covers a whole phase, so only the wave is closed here; this file is not archived.
 - **Merge (run-and-quoted by the coordinator):** `c9dd3536` (`--no-ff`) on `m10-price-dashboard`; fixes `b7e86955` (a deletion recount judges one snapshot of the draft and stays closed when the draft was not read again) and `ce139f1c` (a recount after a deletion conflict yields to a newer request; e2e specs follow Delete being on); QA commit `328d6074`. R4c2's memo clock fix is `86028421` (listed above). Gates were green at merge; e2e and a visual pass were done (coordinator, relayed; no figures restated).
 - **Residuals:**
@@ -3042,6 +3044,25 @@ R4a4 hands to Q3: an end-to-end arm showing that publishing a created class blan
 9. **OQ-41, OQ-42, OQ-43, OQ-44, OQ-11g, OQ-11h:** none blocks anything; the defaults stand until the owner answers.
 
 **`pnpm ci:local` state (coordinator, relayed):** run 2 left only (a) the shard-budget drift test, fixed in `7f5f8580` ("test(ci): the shard-budget drift test names the eight desktop shards"), and (b) one desktop e2e (`pixel-counter-witness:287`) that failed once and passed 18/18 when repeated. Desktop e2e now runs in **8 shards** (`4f39d97f`); the read-count helper fix (a price-notice GET no longer counted as a design read) is `03116df5`. **A third full run is in progress; its result is not known to this record.**
+
+**Push-state correction, 2026-11-10 [coordinator, relayed; run-and-quoted by the coordinator unless stated].** Branch `m10-price-dashboard` **is pushed** on origin up to `a6b23c18` (2026-11-05). 145 commits after it (more by now) are local only. Every "unpushed" in the 2026-11-09 and 2026-11-10 blocks above means "after `a6b23c18`". A pull request, PR 16 on DumitruSirbu/lemn-conf-v2, exists; the coordinator could not read it (`gh` returned 401), so its state and contents are **unverified**.
+
+**C4 wave (sheet message) merged locally and CLOSED, 2026-11-10 [relayed from the coordinator; tier per line; the scribe ran nothing and had no shell].** Owner ruling: the replacement sheet only says the material and its colours are not available (ruling 1 above; [ADR 0081](../decisions/0081-a-material-change-confirms-only-when-a-chosen-colour-would-be-lost.md); plan [`m10-c4-sheet-message-plan.md`](m10-c4-sheet-message-plan.md)). Merged locally, after the pushed tip.
+- **C4a `ac81cdad`:** new ro and ru leaf `replacementSheet.materialAndColoursUnavailable`, copy lock **Drafted** under OQ-11i; Russian pill `headerMaterialToChoose` = "Материал" (closes ruling 3).
+- **C4b `21eb9c7a`:** the reset line and the `colourReverted` leaf removed; the note sits after the lead paragraph; the D2 colour row shows no value.
+- **Review round `097c9989`:** the note is part of the dialog's `aria-describedby`; e2e assertions in `replacement-sheet-journey.ts`; one shared leaked-id pattern in `tests/support/leaked-id.ts`; the D2 tests narrowed. The clean-code reviewer's stale settings-test header was fixed.
+- **Gates (run-and-quoted by the coordinator, before the commits):** `tsc` exit 0; vitest on `tests/price`, `tests/i18n`, `tests/settings` plus `tests/support/leaked-id.test.ts` exit 0, 340 files, 6532 tests. The hook (lint, prettier) passed on each commit. Desktop and mobile replacement-sheet e2e: 1 passed each [QA-reported, not run by the coordinator].
+- **Reviews [reviewers' reports]:** logic = minor concerns, no logic bug, all seven checks met (the reviewer ran 9 files / 194 tests, no sabotage); clean-code = no blockers, four should-fix items, all fixed.
+- **Visual [verifier's report; the coordinator viewed no screenshot]:** at 390x844 and 1440x900 in ro and ru the note sits after the lead, with no clipping or overflow; the confirmation has no reset line and no hex; the Russian pill "Материал" is 111 px wide at 390 (cap 150), not clipped; the settings sheet still asks before a material change (verified at 390, ro and ru).
+- **Residuals:**
+  1. The visual case of a colour row cleared by the reset could not be reproduced with the fake price book (needs a colour switched off in the book).
+  2. The settings sheet desktop (1440) check failed on a flake and is **unverified**.
+  3. The e2e assertions were not sabotage-tested.
+  4. QA's "no reset line after the settings confirm" DOM check is nearly vacuous (`GlobalSettings` mounted alone has no announcement region).
+  5. The verifier saw Next's 404 "This page could not be found" right after a mint in about 8 of 14 runs with a hand-started server; QA's two e2e runs had none; **undiagnosed**.
+  6. The 900x500 pill check and the state after picking a tier were not run.
+  7. The Russian leaf and the new Romanian text **await owner approval** (OQ-11i, drafted).
+- **Open-item effect:** Q5b rework (item 1) and the Russian pill (item 2) are done by this wave; whether `replacementSheet.changedColour` (T5, OQ-11h) is dead copy was not reported to the scribe, so it stays for the architect.
 
 *R4a5: record amendment (2026-11-05).* The R4a5 row said "R4a5 changes no server file, route or auth path". That
 premise broke. R4a5 changed the usage route's answer (`staff-item-usage.ts`, `item-usage-read.ts`). It touches 11
