@@ -1934,6 +1934,7 @@ declare const messages: {
     "changedHandle": "Mânere schimbate în {name}. Prețul a fost actualizat.",
     "changedColour": "Culoare schimbată în {name}. Prețul a fost actualizat.",
     "colourReverted": "Culoarea a revenit la {colour}.",
+    "materialAndColoursUnavailable": "Materialul și culorile lui nu mai sunt disponibile. Alege alt material.",
     "unnamedOptionUnavailable": "O opțiune aleasă nu mai este disponibilă"
   },
   "sentKitchenNote": {

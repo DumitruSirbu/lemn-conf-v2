@@ -2574,6 +2574,10 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     // OQ-11h). The Russian is an agent draft.
     changedColour: "Culoare schimbată în {name}. Prețul a fost actualizat.",
     colourReverted: "Culoarea a revenit la {colour}.",
+    // Drafted, not approved: the agent's draft of the one sentence the sheet says while a material row is owed, built
+    // from the owner's words of 2026-11-10 (plan m10-c4-sheet-message-plan; OQ-11i). The Russian is an agent draft.
+    materialAndColoursUnavailable:
+      "Materialul și culorile lui nu mai sunt disponibile. Alege alt material.",
     // Drafted, not approved: the agent's draft of the row for a vanished choice no code can name (a created class), so
     // no `{name}` and never a raw id (plan M10, wave T4; Q3 split, ruling 2; OQ-11g). The Russian is an agent draft.
     unnamedOptionUnavailable: "O opțiune aleasă nu mai este disponibilă",

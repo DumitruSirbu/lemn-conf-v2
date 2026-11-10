@@ -1920,7 +1920,7 @@
     "priceAfterChoosing": "Цена появится после выбора",
     "priceAfterApplying": "Цена появится после применения",
     "exitHint": "Выйти из кухни можно кнопкой ‹ вверху. Вернёшься, когда захочешь.",
-    "headerMaterialToChoose": "Выбери материал",
+    "headerMaterialToChoose": "Материал",
     "chooserAppliesTo": "Применяется {bodyCount, plural, one {к # шкафу} few {ко всем {bodyCount, number, ::group-off} шкафам} many {ко всем {bodyCount, number, ::group-off} шкафам} other {ко всем {bodyCount, number, ::group-off} шкафам}}.",
     "chooseFromRemaining": "Выбери из оставшихся вариантов.",
     "strikethroughNote": "Больше не предлагается.",
@@ -1931,6 +1931,7 @@
     "changedHandle": "Ручки заменены на {name}. Цена обновлена.",
     "changedColour": "Цвет заменён на {name}. Цена обновлена.",
     "colourReverted": "Цвет вернулся к варианту {colour}.",
+    "materialAndColoursUnavailable": "Материал и его цвета больше недоступны. Выбери другой материал.",
     "unnamedOptionUnavailable": "Один из выбранных вариантов больше недоступен"
   },
   "sentKitchenNote": {
