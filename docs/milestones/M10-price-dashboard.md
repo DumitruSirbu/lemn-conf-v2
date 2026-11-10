@@ -4,7 +4,8 @@
 > W0 (records) must land before any code wave is dispatched. Branch `m10-price-dashboard`, local only and
 > **not pushed** [as of 2026-10-25; **superseded 2026-11-10**: the branch is pushed to origin up to `a6b23c18`
 > (2026-11-05), the later commits are local only, and PR 16 on DumitruSirbu/lemn-conf-v2 exists; see the
-> 2026-11-10 push-state correction below]: the owner declined a push on 2026-10-25. It was cut from `main` `0910dc06` and carries two commits:
+> 2026-11-10 push-state correction below; **superseded again 2026-11-10: the owner pushed, local HEAD and
+> origin both `99857d26`**, see the *Z gate close-out* block at the end of the 2026-11-10 blocks]: the owner declined a push on 2026-10-25. It was cut from `main` `0910dc06` and carries two commits:
 > `8bddd951` (rulings, ADRs, backlog) and `3d4d892a` (the final mockup) [coordinator's brief; `git log` read by
 > the architect]. Every migration this plan adds is **unapplied anywhere**, and no agent applies one to a
 > provisioned database.
@@ -3026,11 +3027,11 @@ R4a4 hands to Q3: an end-to-end arm showing that publishing a created class blan
 - **Visual deviations:** copy; desktop menu and focus after a delete; the 60 px shift of the counting notice; the publish page's layout.
 - **Unchecked:** the real usage-count path; D5G; deleting a draft-created accessory; Russian.
 - **Z gate so far:**
-  - Persistence live suite on staging (`lemn-conf-v2-staging`) green after `d0b122dd` (a jsonpath `?` in the publish statement was counted as a placeholder by the test helper) [run-and-quoted by the coordinator].
+  - Persistence live suite on staging (`lemn-conf-v2-staging`) green after `d0b122dd` (a jsonpath `?` in the publish statement was counted as a placeholder by the test helper) [run-and-quoted by the coordinator]. **Corrected 2026-11-10: this does not hold for the application-role-privileges test, which ran against an unconfirmed database, possibly preview; see the *Z gate close-out* block.**
   - Migrations 1-29 already applied in production (`lemn-conf-v2`) and staging, by read-only `migrate:status`; nothing was run [run-and-quoted].
   - Production `price_book_versions` has 0 rows and `price_book_draft` 1 row (read-only count, owner-approved). The stored-version parse check and ruling 14's rate-uniformity check are therefore moot until a book is active. Staging's 2292 versions are all live-test fixtures [run-and-quoted].
   - `pnpm ci:local` exited 1. PASS: format, lint, typecheck, test, build, boundary, lockfile, sca. **FAIL, open (being fixed in a separate wave, not fixed here):** `e2e-shard-budget` (desktop shard 5 has 81 tests against a budget of 67; needs 8 shards); `e2e` (8 mobile failures of 1415: 7 in `design-return-requests` and `qa-8k2-design-return` count an extra `/price-notice` GET as a design read; 1 `global-settings.e2e.spec.ts:262` times out waiting for `global-settings-confirm`) [run-and-quoted].
-- **Z gate still open:** live S7/S2/S4 runs; the C-grants check; S7 sabotages; un-skipping the demotion-write test; cleanup of about 25 stray e2e designs (see the owner rulings below: ~183 on staging, cleared to delete); grants SQL for the production application role (the owner's; see below).
+- **Z gate still open (superseded 2026-11-10 by the *Z gate close-out* block below: live S2/S4/S7 ran, sabotages ran, the demotion-write test was never skipped, stray designs deleted, production grants run by the owner; open there: the live privilege test on staging, the C-grants check not restated, and Z2):** live S7/S2/S4 runs; the C-grants check; S7 sabotages; un-skipping the demotion-write test; cleanup of about 25 stray e2e designs (see the owner rulings below: ~183 on staging, cleared to delete); grants SQL for the production application role (the owner's; see below).
 
 **Owner rulings of 2026-11-10 and the `ci:local` state [owner rulings given in chat, relayed by the coordinator; tier: owner ruling, relayed; the scribe ran nothing].**
 1. **ADR 0081 amendment rewritten by the owner.** The C4 replacement sheet only says the material and its colours are not available and the customer must choose another: no "Culoarea a revenit la ..." line (C4C), no confirmation before. The 2026-11-09 proposal is marked superseded in [ADR 0081](../decisions/0081-a-material-change-confirms-only-when-a-chosen-colour-would-be-lost.md); the settings sheet keeps ADR 0081 whole. Consequences: **Q5b is built to the old proposal (it shows C4C) and needs a rework** (not dispatched); ADR 0178 A-16 gets an amendment pointer (done); the raw-hex question is moot; **`replacementSheet.changedColour` (T5, OQ-11h) may be dead copy: flagged for the architect, not decided**. The block on any push from this amendment is lifted; a push still needs a green `pnpm ci:local`.
@@ -3045,7 +3046,7 @@ R4a4 hands to Q3: an end-to-end arm showing that publishing a created class blan
 
 **`pnpm ci:local` state (coordinator, relayed):** run 2 left only (a) the shard-budget drift test, fixed in `7f5f8580` ("test(ci): the shard-budget drift test names the eight desktop shards"), and (b) one desktop e2e (`pixel-counter-witness:287`) that failed once and passed 18/18 when repeated. Desktop e2e now runs in **8 shards** (`4f39d97f`); the read-count helper fix (a price-notice GET no longer counted as a design read) is `03116df5`. **A third full run is in progress; its result is not known to this record.**
 
-**Push-state correction, 2026-11-10 [coordinator, relayed; run-and-quoted by the coordinator unless stated].** Branch `m10-price-dashboard` **is pushed** on origin up to `a6b23c18` (2026-11-05). 145 commits after it (more by now) are local only. Every "unpushed" in the 2026-11-09 and 2026-11-10 blocks above means "after `a6b23c18`". A pull request, PR 16 on DumitruSirbu/lemn-conf-v2, exists; the coordinator could not read it (`gh` returned 401), so its state and contents are **unverified**.
+**Push-state correction, 2026-11-10 [coordinator, relayed; run-and-quoted by the coordinator unless stated].** Branch `m10-price-dashboard` **is pushed** on origin up to `a6b23c18` (2026-11-05). 145 commits after it (more by now) are local only. **Superseded later on 2026-11-10: the owner pushed; see the *Z gate close-out* block.** Every "unpushed" in the 2026-11-09 and 2026-11-10 blocks above means "after `a6b23c18`". A pull request, PR 16 on DumitruSirbu/lemn-conf-v2, exists; the coordinator could not read it (`gh` returned 401), so its state and contents are **unverified**.
 
 **C4 wave (sheet message) merged locally and CLOSED, 2026-11-10 [relayed from the coordinator; tier per line; the scribe ran nothing and had no shell].** Owner ruling: the replacement sheet only says the material and its colours are not available (ruling 1 above; [ADR 0081](../decisions/0081-a-material-change-confirms-only-when-a-chosen-colour-would-be-lost.md); plan [`m10-c4-sheet-message-plan.md`](m10-c4-sheet-message-plan.md)). Merged locally, after the pushed tip.
 - **C4a `ac81cdad`:** new ro and ru leaf `replacementSheet.materialAndColoursUnavailable`, copy lock **Drafted** under OQ-11i; Russian pill `headerMaterialToChoose` = "Материал" (closes ruling 3).
@@ -3063,6 +3064,19 @@ R4a4 hands to Q3: an end-to-end arm showing that publishing a created class blan
   6. The 900x500 pill check and the state after picking a tier were not run.
   7. The Russian leaf and the new Romanian text **await owner approval** (OQ-11i, drafted).
 - **Open-item effect:** Q5b rework (item 1) and the Russian pill (item 2) are done by this wave; whether `replacementSheet.changedColour` (T5, OQ-11h) is dead copy was not reported to the scribe, so it stays for the architect.
+
+**Z gate close-out, 2026-11-10 [relayed from the coordinator; tier per line; the scribe ran nothing and had no shell]. This supersedes the push-state, stray-design, Z-gate-open and "persistence live suite green" lines above.**
+1. **Push state [run-and-quoted by the coordinator].** The owner pushed. After `git fetch`, local HEAD and `origin/m10-price-dashboard` are both `99857d26`, 0 commits on either side. PR 16 on DumitruSirbu/lemn-conf-v2 is the PR; the coordinator could not read it (`gh` 401), so its state is unverified. The owner pushed **before the final `pnpm ci:local` on this tree finished**; that run was in progress when this was written: **result unknown, none recorded here.**
+2. **Earlier `ci:local` [run-and-quoted].** The third full run, before the C4 commits, passed all 10 gates (1423 e2e, 30311 unit tests, exit 0).
+3. **Stray designs [run-and-quoted].** All 183 designs in `lemn-conf-v2-staging` were deleted by the coordinator on 2026-11-10 (owner-approved); 0 left. This supersedes every "about 25 stray e2e designs" line.
+4. **Z1 live results [QA report; not re-run by the coordinator].** Live S2 221, S4 145 and S7 131 tests passed on staging, 0 failed, 0 skipped (files chosen from `live-suite-census.test.ts`; this milestone lists no files per gate).
+   - The S7-a sabotage this plan defines (dropping the hidden half from one arm) turned the parity table red for both arms. QA added four more sabotages (deleted half on each arm, a visitor term on the token arm, `is_sent` forced false); all red. The tracked file was never edited (sha256 identical before and after).
+   - The demotion-write test is not skipped: un-skipped in `9eb081bb` (2026-11-04) and passing (251 passed in `qa-m10-r2-dashboard-api.adversarial.test.ts`; its live arms passed in the S2 run).
+5. **Grants [owner statement, plus one coordinator check].** The owner ran the `0023`-`0029` application-role grants on production (`lemn-conf-v2`), preview and staging. Production: the coordinator compared the owner's catalogue query output with the runbook's 22 grant lines, all present, nothing extra. Preview and staging: **the owner's word, not checked.**
+   - **Correction to "persistence live suite green on staging":** the live application-role-privileges test has **not** been run against staging. It reads `DATABASE_URL`, whose only value in the repo env files is the preview database's `app_designs`; no staging `app_designs` URL exists. It ran against an unconfirmed database, possibly preview. The S2/S4/S7 live suites did run on staging (`TEST_DATABASE_URL`).
+   - Production `price_book_versions` has 0 rows (1 draft row), so the stored-version parse check and ruling 14's rate-uniformity check have nothing to check until a book is active: **moot, not done.**
+6. **R4c3 residuals closed in `99857d26` [run-and-quoted].** `canDeleteStatedItems` removed and `readDraftNow` made required; the tests followed (340 files, 6526 tests, exit 0). No review tier, by the mechanical-change rule. This closes residuals 1 and 2 of the R4c3 block. **Still open:** `candidate-refused` does not re-read the draft; the R4c2/R4c3 `deskDeleting` test helpers are duplicated (a merge would touch dozens of call sites).
+7. **Open and unstated in the docs: state not stated.** S6; T2; K4; Q1c (its last entry, 2026-10-28, says QA, not merged; probably stale); Z2 (release notes and test audit; waits on Z1).
 
 *R4a5: record amendment (2026-11-05).* The R4a5 row said "R4a5 changes no server file, route or auth path". That
 premise broke. R4a5 changed the usage route's answer (`staff-item-usage.ts`, `item-usage-read.ts`). It touches 11
@@ -4616,7 +4630,7 @@ review.
   grants issued. At the merge to `main`, migrations `0023`–`0027` (and any later M10 migration) and **all their grants are
   applied before the code deploys**. The grant text is in the owner runbook.
 - **Z gate checklist (R2 review, 2026-10-27): un-skip QA's demotion-write test** (`qa-m10-r2-dashboard-api.adversarial.test.ts`,
-  "The store's admin-only actor arrives with S2") once S2 merges.
+  "The store's admin-only actor arrives with S2") once S2 merges. **Stale, corrected 2026-11-10:** it was un-skipped in `9eb081bb` (2026-11-04) and passes; see the *Z gate close-out* block.
 - **Z1/Z2 checklist item (ruling 2026-10-27): the live run of S2's files is a Z-wave gate, and S2 stays on branch `m10/s2` until then** (S2 row). It happens when M10 is about
   to merge to `main`, because the first apply puts the shared ledger ahead of every other checkout (see the S2 row). Report
   the skipped count with it.
