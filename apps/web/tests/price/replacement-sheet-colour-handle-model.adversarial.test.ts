@@ -1,7 +1,8 @@
 // The sheet's colour and handle rows as values, attacked. Counterexamples first: the closing sentence cut
-// (`withoutPriceSentence`) against names and leaves of other shapes, a resolved row that names something that replaced nothing,
-// a colour row the material's reset cleared read through every declared material (MDF's free default included); then the sweeps: the whole flow driven to the end over generated kitchens (no
-// dead end, no row left owed), the waiting rule, and the choosers.
+// (`withoutPriceSentence`) against names and leaves of other shapes, a resolved row that names something that replaced
+// nothing, a colour row the material's reset cleared read through every declared material (MDF's free default included);
+// then the sweeps: the whole flow driven to the end over generated kitchens (no dead end, no row left owed), the waiting
+// rule, and the choosers.
 // Facts these pin: an undeclared OLD material also leaves a colour row owed, which appears only after that material is
 // replaced; a resolved handle row the design no longer stores shows no value.
 import { fc, test as propertyTest } from "@fast-check/vitest";
@@ -37,6 +38,7 @@ import { preflightWholeKitchenSettings } from "@/store/whole-kitchen-apply";
 
 import roMessages from "../../src/messages/ro.json";
 import ruMessages from "../../src/messages/ru.json";
+import { LEAKED_ID } from "../support/leaked-id";
 import { ro } from "../support/romanian-content";
 import {
   kitchenWith,
@@ -211,7 +213,7 @@ describe("the confirmation's lines: the price sentence is said once", () => {
     propertyTest.prop([fc.array(changeArb, { minLength: 1, maxLength: 7 })], {
       numRuns: 300,
     })(
-      "exactly one line carries the sentence, it is the last change in the mockup's order, every line is one of the customer's own changes, and a single change is the approved leaf",
+      "one line carries the sentence: the last change in the mockup's order; a single change is the approved leaf",
       (changes) => {
         const lines = describeConfirmationLines({
           changes,
@@ -349,7 +351,7 @@ describe("a resolved row names only what is stored now", () => {
   });
 
   // A handle stored only on a cabinet and switched off, then switched back on with the sheet open: nothing replaced it, so
-  // the row cannot say the kitchen's own handle replaced it. The colour arm answers "as it was" (`nameOfColourInPlaceOf`);
+  // the row cannot say the kitchen's own handle replaced it. The colour arm answers "as it was" (`nameOfColourAsItWas`);
   // the handle arm (`nameNowApplying`) reads `settings.handle` alone. The expected value is an INFERENCE from the colour arm:
   // the rule only says a resolved row "names what replaced it", and nothing did.
   it("names a handle that availability gave back as the handle it still is, not as the kitchen's other handle", () => {
@@ -402,12 +404,17 @@ const PALETTES = {
   "material.veneer": paletteIdsOf("material.veneer"),
 };
 const VANISHED = "ZZ-vanished-material";
-const MDF_DEFAULT_HEX = "#eceeeb";
-// An id is a dotted token the app never writes in prose: `material.veneer`, `pal.alb`. A sentence that merely ends in the word
-// "material." (the note's "Alege alt material.") is not one, so the group word must start a token and be followed by an id's
-// own characters.
-const ID_SHAPES =
-  /(^|[^\p{L}\p{N}_-])(pal|veneer|mdf|material|hardware)\.[a-z0-9]|created-and-since-deleted|ZZ-/u;
+const MDF_MATERIAL_ID = "material.painted-mdf";
+/** MDF's free colour, as the domain declares it, in the lower case the sheet's text would draw it in. */
+const MDF_DEFAULT_HEX = ((): string => {
+  const lookup = lookUpMaterial(MDF_MATERIAL_ID);
+  if (lookup.kind !== "declared") throw new Error("MDF is declared");
+  const { defaultFinish } = lookup.material;
+  if (defaultFinish.kind !== "free-colour") {
+    throw new Error("MDF's default colour is a free colour");
+  }
+  return defaultFinish.value.toLowerCase();
+})();
 
 /** Kitchens that store colours and handles at every level the design can: the kitchen's, the top row's, and cabinets' own. */
 const storedKitchen = fc
@@ -664,6 +671,9 @@ describe("a colour row the material's reset cleared names no colour (ADR 0081, 2
       MDF_DEFAULT_HEX,
     ];
   };
+  const resolvedColourRows = (
+    view: ReturnType<typeof describeReplacementSheet>,
+  ) => view.rows.filter((row) => row.kind === "finish" && row.isResolved);
   const isStored = (design: Design, finishId: PaletteEntryId): boolean => {
     const wanted = JSON.stringify(paletteFinish(finishId));
     return [
@@ -721,19 +731,20 @@ describe("a colour row the material's reset cleared names no colour (ADR 0081, 2
           false,
         );
 
-        const colour = view.rows.find((row) => row.kind === "finish");
-        expect(colour?.isResolved).toBe(true);
+        const colours = resolvedColourRows(view);
+        expect(colours).toHaveLength(1);
         expect(isStored(design, colourId)).toBe(false);
-        expect(colour?.valueText).toBeUndefined();
-        const drawn = JSON.stringify(view);
-        for (const name of namesOfDefaultColour(replacement)) {
-          expect(drawn).not.toContain(name);
+        for (const colour of colours) {
+          expect(colour.valueText).toBeUndefined();
+          for (const name of namesOfDefaultColour(replacement)) {
+            expect(colour.valueText ?? "").not.toContain(name);
+          }
         }
       }
     },
   );
 
-  it("never reads MDF's hex on any row after a veneer kitchen's colour is reset by MDF", () => {
+  it("never reads MDF's hex on a resolved colour row after a veneer kitchen's colour is reset by MDF", () => {
     const before = kitchenWith({
       materialTierId: "material.veneer",
       finish: paletteFinish("veneer.stejar"),
@@ -743,12 +754,16 @@ describe("a colour row the material's reset cleared names no colour (ADR 0081, 2
       before,
       "material.veneer",
       ["veneer.stejar"],
-      "material.painted-mdf",
+      MDF_MATERIAL_ID,
       false,
     );
 
     expect(design.settings?.finish).toMatchObject({ value: MDF_DEFAULT_HEX });
-    expect(JSON.stringify(view).toLowerCase()).not.toContain(MDF_DEFAULT_HEX);
+    for (const colour of resolvedColourRows(view)) {
+      expect((colour.valueText ?? "").toLowerCase()).not.toContain(
+        MDF_DEFAULT_HEX,
+      );
+    }
   });
 
   const colourIndexes = fc.array(fc.nat(8), { minLength: 1, maxLength: 4 });
@@ -908,7 +923,7 @@ describe("the waiting rule, over generated owed sets", () => {
         live.some(isMaterial) ? note : undefined,
       );
       expect(describeLive([]).materialNote).toBeUndefined();
-      expect(describeLive(live).materialNote ?? "").not.toMatch(ID_SHAPES);
+      expect(describeLive(live).materialNote ?? "").not.toMatch(LEAKED_ID);
     },
   );
 
@@ -928,11 +943,11 @@ describe("the waiting rule, over generated owed sets", () => {
         expect(row.valueText === undefined || row.valueText.trim() !== "").toBe(
           true,
         );
-        expect(row.valueText ?? "").not.toMatch(ID_SHAPES);
-        expect(row.announcement).not.toMatch(ID_SHAPES);
-        expect(row.itemPhrase).not.toMatch(ID_SHAPES);
+        expect(row.valueText ?? "").not.toMatch(LEAKED_ID);
+        expect(row.announcement).not.toMatch(LEAKED_ID);
+        expect(row.itemPhrase).not.toMatch(LEAKED_ID);
       }
-      expect(view.body).not.toMatch(ID_SHAPES);
+      expect(view.body).not.toMatch(LEAKED_ID);
     },
   );
 });

@@ -455,6 +455,9 @@ function OpenReplacementSheet({
   const firstChooseRef = useRef<HTMLButtonElement>(null);
   const titleId = useId();
   const bodyId = useId();
+  const noteId = useId();
+  const isNoteShown =
+    sheet.chooser === undefined && sheet.view.materialNote !== undefined;
 
   useModalFocus({
     hostRef,
@@ -472,7 +475,7 @@ function OpenReplacementSheet({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        aria-describedby={bodyId}
+        aria-describedby={isNoteShown ? `${bodyId} ${noteId}` : bodyId}
         tabIndex={-1}
         className={styles.surface}
         data-testid="replacement-sheet"
@@ -497,6 +500,7 @@ function OpenReplacementSheet({
           <ListStep
             sheet={sheet}
             bodyId={bodyId}
+            noteId={noteId}
             firstChooseRef={firstChooseRef}
           />
         ) : (
@@ -510,10 +514,12 @@ function OpenReplacementSheet({
 function ListStep({
   sheet,
   bodyId,
+  noteId,
   firstChooseRef,
 }: {
   readonly sheet: ReplacementSheetState;
   readonly bodyId: string;
+  readonly noteId: string;
   readonly firstChooseRef: RefObject<HTMLButtonElement | null>;
 }) {
   const { view } = sheet;
@@ -529,7 +535,11 @@ function ListStep({
         {view.body}
       </p>
       {view.materialNote === undefined ? null : (
-        <p className={styles.lead} data-testid="replacement-material-note">
+        <p
+          id={noteId}
+          className={styles.lead}
+          data-testid="replacement-material-note"
+        >
           {view.materialNote}
         </p>
       )}

@@ -1,12 +1,7 @@
 // @vitest-environment happy-dom
 //
-// ADR 0081 stays whole in the settings sheet: a voluntary material change that would discard a chosen colour still asks first
-// and can be declined without losing the colour. The forced-replacement sheet is the one place that announces after the fact:
-// the same material change there asks nothing before it, which is pinned by "asks no confirmation before the material apply"
-// in `tests/price/replacement-sheet-colour-handle.dom.test.ts` and "asks no question before the apply" in
-// `tests/price/replacement-sheet-colour-handle.adversarial.dom.test.ts`. The reset line itself cannot be asserted absent here:
-// its region is mounted by the editor, not by this sheet, so this file pins what the settings sheet does (the question, the
-// decline, the confirm) and not the absence of a line it has no place to draw.
+// A voluntary material change in the settings sheet, with a colour chosen, asks first (ADR 0081): the design is untouched
+// while the question is up, declining keeps the colour, and confirming resets it and closes the sheet.
 import { KITCHEN_L_DESIGN, paletteFinish } from "@lemnaria/configurator-domain";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";

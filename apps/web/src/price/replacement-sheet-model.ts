@@ -455,9 +455,8 @@ function nameOfCurrentTier(
 }
 
 /**
- * A colour row resolved without a choice of the sheet's: availability came back, so the design still names the colour and
- * it is named as it was. A colour the design no longer stores has nothing to say: the material's reset replaced it, and
- * the colour the kitchen returned to is never named in its place (ADR 0081).
+ * Names the colour only while the design still stores it; a colour the reset cleared has no value (ADR 0081,
+ * 2026-11-10 amendment).
  */
 function nameOfColourAsItWas(
   finishId: string,

@@ -16,7 +16,9 @@ import {
 // The forced-replacement sheet in a real browser, with no price book published: a kitchen is stored that names a tier id the
 // seeded book does not hold (the save route accepts any identifier of the right shape), which is what a version that deleted
 // a tier leaves behind. The sheet offers the active tiers and no figure shows; choosing one shows the price and writes the
-// marker; reopening shows neither the sheet nor the notice; the share view shows nothing and never asks for the notice.
+// marker; reopening shows neither the sheet nor the notice; the share view shows nothing and never asks for the notice. While
+// the vanished material is owed the sheet says the material and its colours are unavailable; after the choice the confirmation
+// has the material's line and says nothing of a colour (ADR 0081, amendment 2026-11-10).
 //
 // What the seeded world cannot do is switch a tier off, or publish a version that deletes one: a global availability write or a
 // publish changes every spec's server state. Those paths are proved by the DOM and route tests.
@@ -30,6 +32,9 @@ const ro = JSON.parse(
   readonly replacementSheet: {
     readonly unnamedOptionUnavailable: string;
     readonly priceAfterChoosing: string;
+    readonly materialAndColoursUnavailable: string;
+    readonly changedMaterial: string;
+    readonly changedColour: string;
   };
 };
 
@@ -90,6 +95,32 @@ function isAcknowledgement(designId: string) {
     response.request().method() === "POST" &&
     new URL(response.url()).pathname ===
       `/api/designs/${designId}/price-notice/acknowledge`;
+}
+
+/** What a "changed to {name}" leaf says before the name, which is all a test can know of a line without the option chosen. */
+function stemBeforeName(leaf: string): string {
+  const [stem] = leaf.split("{name}");
+  if (stem === undefined || stem === "") {
+    throw new Error(`no words before the name in ${leaf}`);
+  }
+  return stem;
+}
+
+/** The confirmation's lines read once: it goes by itself after a while, so a polling assertion could miss it. */
+async function expectConfirmationOfTheMaterialAlone(page: Page): Promise<void> {
+  const confirmation = page.getByTestId("replacement-confirmation");
+  await expect(confirmation).toBeVisible();
+  const lines = await confirmation.locator("span").allTextContents();
+
+  const materialStem = stemBeforeName(ro.replacementSheet.changedMaterial);
+  expect(lines.filter((line) => line.startsWith(materialStem))).toHaveLength(1);
+  const colourStem = stemBeforeName(ro.replacementSheet.changedColour);
+  for (const line of lines) {
+    expect(line).not.toContain(colourStem);
+    expect(line).not.toContain("revenit");
+    expect(line).not.toContain("Culoarea");
+    expect(line).not.toMatch(/#[0-9a-f]{3,8}/i);
+  }
 }
 
 async function expectNoSheetAndAPrice(page: Page): Promise<void> {
@@ -153,6 +184,10 @@ export async function runReplacementSheetJourney({
     ro.replacementSheet.unnamedOptionUnavailable,
   );
   await expect(sheet).not.toContainText(VANISHED_MATERIAL_TIER_ID);
+  await expect(sheet.getByTestId("replacement-material-note")).toBeVisible();
+  await expect(sheet.getByTestId("replacement-material-note")).toHaveText(
+    ro.replacementSheet.materialAndColoursUnavailable,
+  );
   await expect(page.getByTestId("price-bar-total")).toHaveCount(0);
   await expect(page.getByTestId("price-bar-replacement-pending")).toHaveText(
     ro.replacementSheet.priceAfterChoosing,
@@ -183,7 +218,7 @@ export async function runReplacementSheetJourney({
   expect((await saved).status()).toBe(200);
   expect((await acknowledged).status()).toBe(200);
   await expectNoSheetAndAPrice(page);
-  await expect(page.getByTestId("replacement-confirmation")).toBeVisible();
+  await expectConfirmationOfTheMaterialAlone(page);
 
   // Reopened, the kitchen shows neither the sheet nor the notice, and its price.
   const secondRead = page.waitForResponse(isNoticeRead(design.id));
