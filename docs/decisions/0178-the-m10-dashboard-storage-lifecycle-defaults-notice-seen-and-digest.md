@@ -612,3 +612,11 @@ production notice store existed, nothing read `sent_at` for one design, and X0's
 **Consequences.** R5 is split into R5a (the store wiring and this wire), S7 (lane S: the editable read) and R5b (the two
 routes). Q3 and Q4 may start against R5a's wire and merge after R5b. An editor open spends one more `read-by-block`
 token; that figure stays the owner's to retune.
+
+## Amendment — 2026-11-10: A-16's "announced (C4C)" is superseded by the owner's ruling (pointer; relayed by the coordinator, the scribe ran nothing)
+
+A-16 says a colour reset caused by a material replacement "is announced ("Culoarea a revenit la …", C4C)". The owner ruled
+on 2026-11-10 that the C4 sheet only says the material and its colours are not available and the customer must choose
+another: **there is no C4C line and no confirmation before.** Read A-16's announcement clause through
+[ADR 0081, Amendment 2026-11-10](0081-a-material-change-confirms-only-when-a-chosen-colour-would-be-lost.md#amendment-2026-11-10--owner-ruling-the-replacement-sheet-only-says-the-material-and-its-colours-are-unavailable).
+The rest of A-16 (one row, replaced at every level, no ADR 0086 confirmation) stands. Nothing above is edited.

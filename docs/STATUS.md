@@ -156,14 +156,19 @@ coordinator's reading that creating an accessory linked to a cabinet type is in 
 
 **2026-11-10 (M10 R4c3 closed; Z gate in progress) [relayed from the coordinator, who ran the commands; the scribe ran nothing].** R4c3 (client Delete on) is merged locally and **closed** by owner instruction (`c9dd3536`; fixes `b7e86955`, `ce139f1c`), unpushed; M10 stays open. Z gate: persistence live suite on staging green after `d0b122dd`; migrations 1-29 applied in production and staging. **`pnpm ci:local` exit 1, open:** `e2e-shard-budget` and `e2e` (8 mobile failures) fail, being fixed in a separate wave. Still open in Z: live S7/S2/S4 runs, C-grants check, S7 sabotages, demotion-write test, stray e2e designs, production grants SQL (owner's). Residuals, deviations and figures: the *R4c3 merged and CLOSED* block in [`M10-price-dashboard.md`](milestones/M10-price-dashboard.md).
 
-**Owner decisions pending (M10):**
-1. **ADR 0081 amendment (2026-11-09), proposed. Blocks any push.**
-2. The Russian pill "Выбери материал" clipped at 390: shorten the ru string (agent draft), soften frame 2A's 150px cap (needs an ADR 0104 amendment), or accept.
-3. The raw hex in the colour-reset line ("Culoarea a revenit la #eceeeb." when a material change resets to MDF's free default): a copy decision, the same question as OQ-11 item (a).
-4. Frame deviations: chooser as a centred dialog vs the C4BD right rail; head divider and subtitle; fixed sheet height; primary button colour; chooser heading copy.
-5. OQ-41, OQ-42, OQ-43, OQ-44, OQ-11g, OQ-11h: defaults stand until answered. OQ-44's answer also triggers the ADR 0178 A-15 amendment pointer.
-6. Preview steps (grants SQL, seed step, Vercel env check): never confirmed.
-7. R4c2: does the owner want a limiter on the deletion pre-check (default: accepted residual), and what memo TTL (60 s provisional)?
+**2026-11-10, owner rulings (M10) [owner, in chat, relayed by the coordinator; the scribe ran nothing].** Full list in the
+*Owner rulings of 2026-11-10* block of [`M10-price-dashboard.md`](milestones/M10-price-dashboard.md). In short: the ADR 0081
+amendment is rewritten and **its push block is lifted** (the C4 sheet only says the material and colours are unavailable; no C4C
+line; [ADR 0081](decisions/0081-a-material-change-confirms-only-when-a-chosen-colour-would-be-lost.md), pointer in ADR 0178 A-16);
+a push still needs a green `pnpm ci:local`. Frame deviations, memo TTL 60 s and no limiter are accepted. Staging may be cleared of
+its stray designs. Production grants for `0023`-`0029`: owner-run, unverified. Preview steps deferred.
+`ci:local`: a third full run was in progress; desktop e2e is now 8 shards.
+
+**Open M10 items:**
+1. **Q5b rework** to the owner's ruling (it shows C4C); `replacementSheet.changedColour` (T5, OQ-11h) may be dead copy, for the architect.
+2. Russian pill "Выбери материал" to be shortened to "Материал" (copy change, not yet made).
+3. Delete the stray designs on staging (coordinator, after `ci:local` finishes).
+4. OQ-41, OQ-42, OQ-43, OQ-44, OQ-11g, OQ-11h: defaults stand until answered. OQ-44's answer also triggers the ADR 0178 A-15 amendment pointer.
 
 ## 2. Phase table
 
@@ -192,7 +197,7 @@ for the owner to rule, not guessed; none is open now.
 | M8B Customer profiles (original plan) | Planned | After M8C by owner ruling, before launch; superseded in part by the two rows above | [`M8B-customer-profiles.md`](milestones/M8B-customer-profiles.md) | doc-quoted H:615, 6-15 |
 | M8C Generation fill and preset authoring | Waves F0-P9 committed, not closed | See the 2026-10-18 update in section 1; owner obligations open | Yes, [`M8C-...md`](milestones/M8C-generation-fill-and-preset-authoring.md) | git log (coordinator) + doc-quoted H:6-29 |
 | M8D Preset screens to the v2 mockup | W0 done; W1 in progress (2026-10-18, relayed) | Runs on this branch before its PR and before M8B (owner O-5) | Yes, [`M8D-...md`](milestones/M8D-preset-screens-to-mockup.md) | coordinator's brief (relayed) + doc-quoted plan banner |
-| M10 Manufacturer price dashboard | **In progress** (2026-11-09, rewritten; the 2026-11-04 text was stale). Merged on `m10-price-dashboard`, local and **unpushed** (per the 2026-11-09 entries in section 1; the R4a/R4b merge state is not restated here): R5b, T4, T5, Q3a-Q3d, Q4, Q5a, Q5b, Q5c, Q5d, the e2e rewrite, R4c1. **Update 2026-11-10: R4c2 merged (`a9a35ce1`) and R4c3 merged and closed (`c9dd3536`); nothing in flight.** **Remaining:** the Z gate (section 1, 2026-11-10; `ci:local` red on two e2e gates) (S2/S4 migrations, ruling 14's rate-field check, about 25 stray e2e designs to clean; owner go-ahead needed before touching the shared test DB). K2a parked until K2b. **Blocked before any push:** the ADR 0081 amendment awaits owner confirmation. Owner decisions pending: section 1, 2026-11-09 close | Branch `m10-price-dashboard`; runs in parallel with the open M8 work by owner instruction of 2026-10-26 (ADR 0176). Push state of the 2026-11-04 tip is not re-checked by the scribe | Yes, [`M10-price-dashboard.md`](milestones/M10-price-dashboard.md) | coordinator's brief (relayed), merged-tree gates quoted in section 1; the older waves list is in the milestone file |
+| M10 Manufacturer price dashboard | **In progress** (2026-11-09, rewritten; the 2026-11-04 text was stale). Merged on `m10-price-dashboard`, local and **unpushed** (per the 2026-11-09 entries in section 1; the R4a/R4b merge state is not restated here): R5b, T4, T5, Q3a-Q3d, Q4, Q5a, Q5b, Q5c, Q5d, the e2e rewrite, R4c1. **Update 2026-11-10: R4c2 merged (`a9a35ce1`) and R4c3 merged and closed (`c9dd3536`); nothing in flight.** **Remaining:** the Z gate (section 1, 2026-11-10; `ci:local` red on two e2e gates) (S2/S4 migrations, ruling 14's rate-field check, about 25 stray e2e designs to clean; owner go-ahead needed before touching the shared test DB). K2a parked until K2b. **Push:** the ADR 0081 block is lifted by the owner's ruling of 2026-11-10; a green `pnpm ci:local` is still required. Open items: section 1, 2026-11-10 owner rulings | Branch `m10-price-dashboard`; runs in parallel with the open M8 work by owner instruction of 2026-10-26 (ADR 0176). Push state of the 2026-11-04 tip is not re-checked by the scribe | Yes, [`M10-price-dashboard.md`](milestones/M10-price-dashboard.md) | coordinator's brief (relayed), merged-tree gates quoted in section 1; the older waves list is in the milestone file |
 | M9 Delivery preparation | Proposed stub | No plan, no waves; inherits 8R/8S and the launch gate | When started, [`M9-delivery-preparation.md`](milestones/M9-delivery-preparation.md) | doc-quoted H:616 |
 | Adversarial review remediation | Done (S1-S12 shipped, commits db9c4024..); only SEC-001 stays open, as a launch gate tracked in `docs/backlog/open.md` and M9 | Plan archived at `milestones/done/adversarial-review-remediation.md` | No | doc-quoted H:617, 625-642; shipped state verified in git/source by a read-only analyst (coordinator-relayed) |
 | dom-003 set-width split | Done (shipped in 30283571) | Nine-module `set-width.ts` split; plan archived at `milestones/done/dom-003-set-width-split.md` | No | doc-quoted H:617, 630; commit verified in git by a read-only analyst (coordinator-relayed) |
