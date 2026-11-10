@@ -43,6 +43,11 @@ import {
 } from "./support/headless-canvas.js";
 import { required } from "./support/required.js";
 
+// Each depth mounts a solo body per catalogue row, floor, handle setting and own handle: 0.7 s under the parallel
+// package run. The unit gate runs every package at once on a slower runner, so this is sized at 10x that and not left
+// at the 5 s default.
+const HANDLE_CENSUS_TIMEOUT_MS = 30_000;
+
 const OCCURRED_AT = "2026-10-26T12:00:00.000Z";
 const BLACK_HANDLE_HEX = "1c1e20";
 /** §6.5's module line, written out: the oracle must not read the constant under test. */
@@ -457,6 +462,7 @@ describe("a body standing within 1 mm of the module line, on every catalogue row
 
       expect(disagreements).toEqual([]);
     },
+    HANDLE_CENSUS_TIMEOUT_MS,
   );
 
   it("is not vacuous: most rows draw cabinet bars, and the kitchen's choice moves them across the line", () => {

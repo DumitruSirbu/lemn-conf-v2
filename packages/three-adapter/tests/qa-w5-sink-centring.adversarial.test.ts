@@ -20,6 +20,10 @@ import {
   installHeadlessDocument,
 } from "./support/headless-canvas.js";
 
+// A run builds a sink body at one depth: up to 0.55 s a property under the parallel package run (0.3 s alone). The unit
+// gate runs every package at once on a slower runner, so this is sized at 10x that and not left at the 5 s default.
+const SINK_DEPTH_PROPERTY_TIMEOUT_MS = 30_000;
+
 /** ADR 0098 decision 2's declared fact, `(620 − 400) / 2`. Data here, never imported. */
 const FRONT_CLEARANCE_MM = 110;
 
@@ -136,6 +140,7 @@ describe("the sink's 110 mm is a relation and not a constant tuned to two depths
         clearanceMm: gapMm(axis.worktopFront, axis.apertureFront),
       }).toEqual({ cabinetDepthMm, clearanceMm: FRONT_CLEARANCE_MM });
     },
+    SINK_DEPTH_PROPERTY_TIMEOUT_MS,
   );
 
   // Every millimetre of added depth lands behind, stated as the gap's own arithmetic rather than "it grows":
@@ -153,6 +158,7 @@ describe("the sink's 110 mm is a relation and not a constant tuned to two depths
         gapMm: cabinetDepthMm - FAUCET_MEETS_THE_WALL_AT_MM,
       });
     },
+    SINK_DEPTH_PROPERTY_TIMEOUT_MS,
   );
 
   // ADR 0098 decision 6 at its transition: the sign change on both sides of 578 is the only evidence that
@@ -322,6 +328,7 @@ describe("the stone tiles its own worktop, at every depth and down to the narrow
         APERTURE_DEPTH_MM,
       );
     },
+    SINK_DEPTH_PROPERTY_TIMEOUT_MS,
   );
 
   // At `SINK_MIN_WIDTH_MM` the 560 mm bowl fills the carcass, so the flanking slabs are exactly zero wide.

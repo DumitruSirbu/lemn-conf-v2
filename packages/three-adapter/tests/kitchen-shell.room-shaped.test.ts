@@ -82,6 +82,10 @@ const roomArbitrary = fc.record({
 
 /** A kit is a whole room's geometry and baked canvases, so a property that builds one per run is charged for it. */
 const PROPERTY_RUNS = { numRuns: 40 };
+// Each run draws a whole shell, and some also mount every body: up to 1.8 s a property under the parallel package run
+// (0.6 s alone), and the unit gate runs every package at once on a slower runner, so this is sized at 10x that and not
+// left at the 5 s default.
+const ROOM_PROPERTY_TIMEOUT_MS = 30_000;
 
 describe("the drawn room is the entered room", () => {
   it.each(SAMPLED_ROOMS)(
@@ -141,6 +145,7 @@ describe("the drawn room is the entered room", () => {
       expectMetres(drawn.wallA.max.y, room.heightMm / 1000);
       expectMetres(drawn.wallB.max.y, room.heightMm / 1000);
     },
+    ROOM_PROPERTY_TIMEOUT_MS,
   );
 });
 
@@ -164,6 +169,7 @@ describe("the wall-A backsplash follows the room", () => {
     (room) => {
       expectMetres(drawnShellBoxes(room).backsplash.min.x, 0);
     },
+    ROOM_PROPERTY_TIMEOUT_MS,
   );
 });
 
@@ -216,6 +222,7 @@ describe("the run-end panel follows the records, not the shell", () => {
       expect(atSwept.x).toBe(atSeeded.x);
       expect(atSwept.visible).toBe(atSeeded.visible);
     },
+    ROOM_PROPERTY_TIMEOUT_MS,
   );
 
   /** Non-vacuity for the sweep above: the panel's seat and visibility really are the records' to decide. */
@@ -241,6 +248,7 @@ describe("no body moves, and none is re-dressed", () => {
     (room) => {
       expect(bodyFactsWithShellAt(room)).toEqual(bodyFactsWithoutAnyShell());
     },
+    ROOM_PROPERTY_TIMEOUT_MS,
   );
 
   it.each(SAMPLED_ROOMS)(
@@ -296,6 +304,7 @@ describe("a plank and a tile keep their world size in every room", () => {
     (room) => {
       expectConstantWorldDensity(room);
     },
+    ROOM_PROPERTY_TIMEOUT_MS,
   );
 
   it.each(SAMPLED_ROOMS)(

@@ -8,6 +8,11 @@ import { createHeadlessCanvas } from "./support/headless-canvas.js";
 import { required } from "./support/required.js";
 import { findMesh, findMeshes, worldBox } from "./support/structure.js";
 
+// A run builds a kit and a corner at one width: up to 0.5 s a property under the parallel package run (0.2 s alone).
+// The unit gate runs every package at once on a slower runner, so this is sized at 10x that and not left at the 5 s
+// default.
+const CORNER_WIDTH_PROPERTY_TIMEOUT_MS = 30_000;
+
 const ONE_DOOR_FLOOR_MM = (() => {
   const base = INSERTABLE_BODY_DEFINITIONS.find(
     ([id]) => id === "base-cabinet",
@@ -122,6 +127,7 @@ describe("7D7 S1 adversarial corner geometry", () => {
       expect(returnTop.min.z - xTop.max.z).toBeCloseTo(0, 6);
       expect(width(returnTop, "z")).toBeCloseTo((returnWidthMm - 50) / 1000, 6);
     },
+    CORNER_WIDTH_PROPERTY_TIMEOUT_MS,
   );
 
   it.each(DEPTHS_MM)(
@@ -180,5 +186,6 @@ describe("7D7 S1 adversarial corner geometry", () => {
       expect(door.max.x).toBeLessThan(carcass.max.x);
       expect(findMeshes(body, "handle_bar")).toHaveLength(1);
     },
+    CORNER_WIDTH_PROPERTY_TIMEOUT_MS,
   );
 });

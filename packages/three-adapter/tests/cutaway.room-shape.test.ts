@@ -29,6 +29,9 @@ import {
 import { OCCURRED_AT } from "./support/u-scene.js";
 
 const EVERY_WALL: readonly DesignWall[] = ["A", "B", "C"];
+// A property run syncs a stage up to eight times: 2.0 s under the parallel package run (0.9 s alone), and the unit gate
+// runs every package at once on a slower runner, so this is sized at 10x that and not left at the 5 s default.
+const SHAPE_SEQUENCE_TIMEOUT_MS = 30_000;
 
 const DESIGNS = {
   U: buildUShellDesign({
@@ -182,5 +185,6 @@ describe("a recorded cut set applies only to a U", () => {
         }
       }
     },
+    SHAPE_SEQUENCE_TIMEOUT_MS,
   );
 });

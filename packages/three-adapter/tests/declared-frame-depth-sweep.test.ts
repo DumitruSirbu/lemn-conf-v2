@@ -30,6 +30,10 @@ import {
   installHeadlessDocument,
 } from "./support/headless-canvas.js";
 
+// Each depth builds every row that ignores the cabinet depth: 0.6 s under the parallel package run. The unit gate runs
+// every package at once on a slower runner, so this is sized at 10x that and not left at the 5 s default.
+const FRAME_DEPTH_SWEEP_TIMEOUT_MS = 30_000;
+
 beforeAll(() => {
   installHeadlessDocument();
 });
@@ -156,5 +160,6 @@ describe("a wall-plane entry declares the frame depth its builder produces", () 
 
       expect(disagreeing).toEqual([]);
     },
+    FRAME_DEPTH_SWEEP_TIMEOUT_MS,
   );
 });

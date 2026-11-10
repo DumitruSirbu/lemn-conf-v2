@@ -37,6 +37,11 @@ import {
   UNIT_WIDTH_M,
 } from "./support/wall-unit.js";
 
+// The first test pays for the cold build of the generated rooms: 1.4 s under the parallel package run (0.5 s alone).
+// The unit gate runs every package at once on a slower runner, so this is sized at 10x that and not left at the 5 s
+// default.
+const FIRST_CORNER_BUILD_TIMEOUT_MS = 30_000;
+
 const OCCURRED_AT = "2026-10-01T10:00:00.000Z";
 const SHALLOW_MM = 600;
 const DEEP_MM = 700;
@@ -296,10 +301,14 @@ function mm(metres: number): number {
 }
 
 describe("the unit's parts, from the wall depth alone (criterion a)", () => {
-  it("is mounted at both corners of a U, in both rows, at all three depth states, and not in a large U", () => {
-    expect(everyPlacedUnit()).toHaveLength(3 * (4 * 2 + 1 + 2 * 4));
-    expect(sceneOf(generated(LARGE_U), "large U").units).toEqual([]);
-  });
+  it(
+    "is mounted at both corners of a U, in both rows, at all three depth states, and not in a large U",
+    () => {
+      expect(everyPlacedUnit()).toHaveLength(3 * (4 * 2 + 1 + 2 * 4));
+      expect(sceneOf(generated(LARGE_U), "large U").units).toEqual([]);
+    },
+    FIRST_CORNER_BUILD_TIMEOUT_MS,
+  );
 
   it("stands every part where the arithmetic puts it, in every room", () => {
     const wrong = everyPlacedUnit().flatMap(([scene, unit]) => {

@@ -37,6 +37,10 @@ import {
   SEEDED_ROOM,
 } from "./support/approved-rooms.js";
 
+// A run draws a shell up to eleven times: 0.6 s a property under the parallel package run. The unit gate runs every
+// package at once on a slower runner, so this is sized at 10x that and not left at the 5 s default.
+const SHELL_SEQUENCE_TIMEOUT_MS = 30_000;
+
 /** The four children the wave redraws, and the fifth it must never touch. */
 const RESIZED_CHILD_NAMES = [
   "floor",
@@ -149,6 +153,7 @@ describe("a room corrected over and over frees exactly what it replaced", () => 
         drawingOf(shellFor(destination).shell),
       );
     },
+    SHELL_SEQUENCE_TIMEOUT_MS,
   );
 
   /** The path-independence claim at its sharpest: leave a room and come back to it. Compounding a

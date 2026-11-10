@@ -30,6 +30,11 @@ import {
   installHeadlessDocument,
 } from "./support/headless-canvas.js";
 
+// The sweep saves, reloads and rebuilds every resize the kitchen accepts: 1.0 s under the parallel package run (0.3 s
+// alone). The unit gate runs every package at once on a slower runner, so this is sized at 10x that and not left at the
+// 5 s default.
+const RESIZE_SWEEP_TIMEOUT_MS = 30_000;
+
 const OCCURRED_AT = "2026-08-27T12:00:00.000Z";
 
 /** Every column of the shipped kitchen whose members are all deletable. */
@@ -106,67 +111,73 @@ function frameOf(design: Design, placementId: string) {
 }
 
 describe("every resize the shipped kitchen accepts survives a save and a reload", () => {
-  it("reparses without UnknownBodyError and reproduces the post-resize frame exactly", () => {
-    const swept: string[] = [];
-    for (const cleared of CLEARABLE) {
-      const world = clear(KITCHEN_L_DESIGN, cleared.ids);
-      for (const placement of world.design.placements) {
-        for (const widthMm of WIDTHS_MM) {
-          const result = resize(world, placement.id, widthMm);
-          if (!result.ok) continue;
-          swept.push(`${cleared.key}:${placement.id}@${String(widthMm)}`);
+  it(
+    "reparses without UnknownBodyError and reproduces the post-resize frame exactly",
+    () => {
+      const swept: string[] = [];
+      for (const cleared of CLEARABLE) {
+        const world = clear(KITCHEN_L_DESIGN, cleared.ids);
+        for (const placement of world.design.placements) {
+          for (const widthMm of WIDTHS_MM) {
+            const result = resize(world, placement.id, widthMm);
+            if (!result.ok) continue;
+            swept.push(`${cleared.key}:${placement.id}@${String(widthMm)}`);
 
-          const reloaded: Design = DesignSchema.parse(
-            JSON.parse(canonicalSerializeDesign(result.design)),
-          );
-          expect(() => recordsOf(reloaded)).not.toThrow();
-
-          for (const id of result.effect.columnPlacementIds) {
-            // The depth anti-invariant, measured against the real builder both times.
-            expect(toMillimetres(frameOf(result.design, id).d)).toBe(
-              toMillimetres(frameOf(world.design, id).d),
+            const reloaded: Design = DesignSchema.parse(
+              JSON.parse(canonicalSerializeDesign(result.design)),
             );
-            // And the whole frame survives the round trip, not merely the depth.
-            expect(frameOf(reloaded, id)).toEqual(frameOf(result.design, id));
-          }
+            expect(() => recordsOf(reloaded)).not.toThrow();
 
-          // No member is left carrying a seeded id at a width that id cannot build.
-          for (const id of result.effect.columnPlacementIds) {
-            const body = reloaded.placements.find(
-              (entry) => entry.id === id,
-            )?.body;
-            const definition = KITCHEN_L_BODY_CATALOG.get(body?.buildId ?? "");
-            expect(definition?.insertable).toBe(true);
-            // **Except a hood**, which is a member of the column and exempt from its width (ADR
-            // 0035 decision 6): it re-centres on the resized run and keeps the width it had. Not
-            // reachable in the shipped kitchen — `A|2.60`'s hob base freezes the only hood there —
-            // but written as the rule rather than as an assumption about this fixture, because the
-            // sweep would otherwise assert the opposite of the decision the moment one is.
-            if (definition?.kind === EXTRACTOR_HOOD_KIND) continue;
-            expect(body?.widthMm).toBe(widthMm);
+            for (const id of result.effect.columnPlacementIds) {
+              // The depth anti-invariant, measured against the real builder both times.
+              expect(toMillimetres(frameOf(result.design, id).d)).toBe(
+                toMillimetres(frameOf(world.design, id).d),
+              );
+              // And the whole frame survives the round trip, not merely the depth.
+              expect(frameOf(reloaded, id)).toEqual(frameOf(result.design, id));
+            }
+
+            // No member is left carrying a seeded id at a width that id cannot build.
+            for (const id of result.effect.columnPlacementIds) {
+              const body = reloaded.placements.find(
+                (entry) => entry.id === id,
+              )?.body;
+              const definition = KITCHEN_L_BODY_CATALOG.get(
+                body?.buildId ?? "",
+              );
+              expect(definition?.insertable).toBe(true);
+              // **Except a hood**, which is a member of the column and exempt from its width (ADR
+              // 0035 decision 6): it re-centres on the resized run and keeps the width it had. Not
+              // reachable in the shipped kitchen — `A|2.60`'s hob base freezes the only hood there —
+              // but written as the rule rather than as an assumption about this fixture, because the
+              // sweep would otherwise assert the opposite of the decision the moment one is.
+              if (definition?.kind === EXTRACTOR_HOOD_KIND) continue;
+              expect(body?.widthMm).toBe(widthMm);
+            }
           }
         }
       }
-    }
 
-    // The sweep cannot pass by accepting nothing. Fifteen until ADR 0033 merged the door-count
-    // entries and a wall column stopped being bounded by which of the two its members happened to
-    // be; forty-four once ADR 0035 replaced each entry's width list with a bound stepped at 50 mm,
-    // which made 700 modular for cabinetry; fifty-nine once the owner retired ADR 0030's one-door
-    // cap and 450 joined every hinged row; **230 once ADR 0035 decision 7 made every shrink fund
-    // itself**, so the population stopped being "what a delete unlocks" and became "every legal
-    // move, plus what a delete unlocks"; **238 once ADR 0043 let a growth leave a gap behind**
-    // instead of having to consume the freed column exactly; **278 once ADR 0048 unfroze the seeded
-    // pantry's column**, which brought `p6` and `p23` into the population at all. The itemised list
-    // is in `resize-depth.test.ts`.
-    //
-    // **The title is narrower than it reads, for eight of these** (QA finding Q4 on wave 5B1, not
-    // fixed here). ADR 0043 lets a growth stop short of consuming the freed column, so eight taps
-    // now leave an empty column beside the resized one — and an empty column is not carried by a
-    // save and reload. What survives for those eight is every **placement**, which is what this file
-    // measures; the gap the resize also produced does not. Wave 5B2 owns that, and ADR 0043's
-    // *Still open* section records it. Nothing here is weakened to accommodate it: if a placement
-    // ever stopped surviving, this sweep would still fail.
-    expect(swept).toHaveLength(278);
-  });
+      // The sweep cannot pass by accepting nothing. Fifteen until ADR 0033 merged the door-count
+      // entries and a wall column stopped being bounded by which of the two its members happened to
+      // be; forty-four once ADR 0035 replaced each entry's width list with a bound stepped at 50 mm,
+      // which made 700 modular for cabinetry; fifty-nine once the owner retired ADR 0030's one-door
+      // cap and 450 joined every hinged row; **230 once ADR 0035 decision 7 made every shrink fund
+      // itself**, so the population stopped being "what a delete unlocks" and became "every legal
+      // move, plus what a delete unlocks"; **238 once ADR 0043 let a growth leave a gap behind**
+      // instead of having to consume the freed column exactly; **278 once ADR 0048 unfroze the seeded
+      // pantry's column**, which brought `p6` and `p23` into the population at all. The itemised list
+      // is in `resize-depth.test.ts`.
+      //
+      // **The title is narrower than it reads, for eight of these** (QA finding Q4 on wave 5B1, not
+      // fixed here). ADR 0043 lets a growth stop short of consuming the freed column, so eight taps
+      // now leave an empty column beside the resized one — and an empty column is not carried by a
+      // save and reload. What survives for those eight is every **placement**, which is what this file
+      // measures; the gap the resize also produced does not. Wave 5B2 owns that, and ADR 0043's
+      // *Still open* section records it. Nothing here is weakened to accommodate it: if a placement
+      // ever stopped surviving, this sweep would still fail.
+      expect(swept).toHaveLength(278);
+    },
+    RESIZE_SWEEP_TIMEOUT_MS,
+  );
 });

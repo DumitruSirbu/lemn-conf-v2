@@ -20,6 +20,10 @@ const hingedFloorMm = required(
   "one-door cabinet floor",
 );
 const declaredDepthsMm = [600, 700] as const;
+// The property builds two headless kitchens per run: its slower depth took 3.1 s under the parallel package run (about
+// 1 s alone). The unit gate runs every package at once on a slower runner, so this is sized well over 10x that and not
+// left at the 5 s default.
+const SEAT_PROPERTY_TIMEOUT_MS = 60_000;
 
 describe("buildKitchen corner width dependencies", () => {
   it.each(declaredDepthsMm)(
@@ -127,6 +131,7 @@ describe("buildKitchen corner width dependencies", () => {
           6,
         );
       },
+      SEAT_PROPERTY_TIMEOUT_MS,
     );
   }
 });

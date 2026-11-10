@@ -17,6 +17,10 @@ import { anyEngineU, SWEPT_US, uShell, worldBox } from "./support/u-scene.js";
 
 const WALL_C_PLANE_NAME = "wall_right";
 const CORNER_OVERHANG_M = 0.3;
+// A property run builds and resizes a shell up to six times: 2.0 s under the parallel package run (0.9 s alone), and
+// the unit gate runs every package at once on a slower runner, so this is sized at 10x that and not left at the 5 s
+// default.
+const SHELL_SEQUENCE_TIMEOUT_MS = 30_000;
 
 beforeAll(() => {
   installHeadlessDocument();
@@ -84,6 +88,7 @@ describe("the shell after any sequence of rooms is the shell built fresh for the
         shell.children.filter((c) => c.name === WALL_C_PLANE_NAME).length,
       ).toBeLessThanOrEqual(1);
     },
+    SHELL_SEQUENCE_TIMEOUT_MS,
   );
 
   it("spans wall C's plane from one overhang behind the A∩C corner to C at the minimum and maximum U", () => {

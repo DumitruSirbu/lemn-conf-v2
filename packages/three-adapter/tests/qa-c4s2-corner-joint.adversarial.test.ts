@@ -38,6 +38,11 @@ import {
 import { required } from "./support/required.js";
 import { describeStructure } from "./support/structure.js";
 
+// The first test pays for the cold build of the generated rooms: 1.7 s under the parallel package run (0.6 s alone).
+// The unit gate runs every package at once on a slower runner, so this is sized at 10x that and not left at the 5 s
+// default.
+const FIRST_CORNER_BUILD_TIMEOUT_MS = 30_000;
+
 const OCCURRED_AT = "2026-10-01T10:00:00.000Z";
 const SHALLOW_MM = 600;
 const DEEP_MM = 700;
@@ -311,13 +316,17 @@ function xLegSeams(): Seam[] {
 }
 
 describe("every X-leg seam in a generated room stands on the run's four lines (criterion 1)", () => {
-  it("measures each kind of run body the rooms were chosen for", () => {
-    const kinds = new Set(xLegSeams().map((seam) => seam.neighbourBuildId));
+  it(
+    "measures each kind of run body the rooms were chosen for",
+    () => {
+      const kinds = new Set(xLegSeams().map((seam) => seam.neighbourBuildId));
 
-    expect([...kinds].sort()).toEqual(
-      X_LEG_NEIGHBOUR_KINDS_THE_ROOMS_MUST_COVER,
-    );
-  });
+      expect([...kinds].sort()).toEqual(
+        X_LEG_NEIGHBOUR_KINDS_THE_ROOMS_MUST_COVER,
+      );
+    },
+    FIRST_CORNER_BUILD_TIMEOUT_MS,
+  );
 
   it.each(LINES.map(({ line }) => line))(
     "leaves no %s seam off the line, at 600, at 700 and back at 600",

@@ -31,6 +31,11 @@ import {
   type UDimensions,
 } from "./support/u-scene.js";
 
+// A run mounts and syncs a scene at every step of up to five rooms: 0.8 s a property under the parallel package run.
+// The unit gate runs every package at once on a slower runner, so this is sized at 10x that and not left at the 5 s
+// default.
+const SCENE_SEQUENCE_TIMEOUT_MS = 30_000;
+
 const WALL_C_PLANE_NAME = "wall_right";
 
 beforeAll(() => {
@@ -224,12 +229,16 @@ describe("the scene draws the design after every lifecycle step", () => {
     {
       numRuns: 25,
     },
-  )("holds after every step of any sequence of Us and Ls", (designs) => {
-    const stage = stageFor(required(designs[0], "first").room);
+  )(
+    "holds after every step of any sequence of Us and Ls",
+    (designs) => {
+      const stage = stageFor(required(designs[0], "first").room);
 
-    for (const design of designs) {
-      showDesign(stage, design);
-      expectSceneDrawsTheDesign(stage, design);
-    }
-  });
+      for (const design of designs) {
+        showDesign(stage, design);
+        expectSceneDrawsTheDesign(stage, design);
+      }
+    },
+    SCENE_SEQUENCE_TIMEOUT_MS,
+  );
 });
