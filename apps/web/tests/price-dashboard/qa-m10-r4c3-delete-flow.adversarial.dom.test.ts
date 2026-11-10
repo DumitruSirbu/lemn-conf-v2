@@ -21,6 +21,7 @@ import { DRAFT_CHANGE_REFUSAL_CODES } from "@/price-dashboard/price-dashboard-wi
 import { useItemAvailability } from "@/price-dashboard/use-item-availability";
 import type { FieldWriteResult } from "@/price-dashboard/use-price-draft";
 
+import { draftMovingOnEveryRead } from "../support/draft-facts-now";
 import { flushPromises, renderHook } from "../support/render-hook";
 import { recordingLifecycleClient } from "./recording-item-lifecycle-client";
 
@@ -81,6 +82,7 @@ function deskDeleting({
       client,
       deleteFromDraft: write,
       isDraftOnly,
+      readDraftNow: draftMovingOnEveryRead({ isDraftOnly }),
     }),
   );
   return { lifecycle, write, rendered };

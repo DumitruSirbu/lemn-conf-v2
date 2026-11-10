@@ -3,9 +3,13 @@
 // book. A field of a deleted row still carries no ↺ of its own.
 import { describe, expect, it } from "vitest";
 
-import type { DraftChange } from "@lemnaria/configurator-domain";
+import {
+  SAMPLE_PRICE_BOOK,
+  type DraftChange,
+} from "@lemnaria/configurator-domain";
 
 import { FETCHING_ITEM_LIFECYCLE_CLIENT } from "@/price-dashboard/fetching-item-lifecycle-client";
+import { deleteStandOf } from "@/price-dashboard/item-lifecycle-model";
 import {
   readPendingDraft,
   type RowView,
@@ -54,9 +58,20 @@ function staleLines(changes: readonly DraftChange[]) {
 }
 
 describe("the client of a build with a server behind the screen", () => {
-  it("leaves the deletion of a row the active book states to the draft route", () => {
+  it("writes, so the deletion of a row the active book states is left to the draft route", () => {
     expect(FETCHING_ITEM_LIFECYCLE_CLIENT.canWrite).toBe(true);
-    expect(FETCHING_ITEM_LIFECYCLE_CLIENT.canDeleteStatedItems).toBe(true);
+    expect(
+      deleteStandOf(
+        { kind: "hardware", tierId: PUBLISHED_TIER },
+        {
+          book: SAMPLE_PRICE_BOOK,
+          availability: { revision: "1", disabled: [] },
+          defaults: {},
+          canWrite: FETCHING_ITEM_LIFECYCLE_CLIENT.canWrite,
+          isCreatedInDraft: () => false,
+        },
+      ),
+    ).toEqual({ kind: "count-first" });
   });
 });
 

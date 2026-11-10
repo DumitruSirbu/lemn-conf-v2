@@ -18,6 +18,7 @@ import {
   type DraftFactsNow,
 } from "@/price-dashboard/use-item-availability";
 
+import { draftMovingOnEveryRead } from "../support/draft-facts-now";
 import { flushPromises, renderHook } from "../support/render-hook";
 import { recordingLifecycleClient } from "./recording-item-lifecycle-client";
 
@@ -34,7 +35,7 @@ function deskDeleting(
   answers: readonly FieldWriteResult[],
   {
     isDraftOnly = false,
-    readDraftNow,
+    readDraftNow = draftMovingOnEveryRead({ isDraftOnly: () => isDraftOnly }),
   }: {
     readonly isDraftOnly?: boolean;
     readonly readDraftNow?: () => DraftFactsNow;
@@ -58,7 +59,7 @@ function deskDeleting(
       client: lifecycle.client,
       deleteFromDraft,
       isDraftOnly: () => isDraftOnly,
-      ...(readDraftNow === undefined ? {} : { readDraftNow }),
+      readDraftNow,
     }),
   );
   return { lifecycle, deleteFromDraft, rendered };

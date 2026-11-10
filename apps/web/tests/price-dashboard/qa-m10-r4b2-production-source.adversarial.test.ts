@@ -58,7 +58,6 @@ vi.mock("@/lib/server/price-stores", () =>
 
 const WHAT_THE_PRODUCTION_CLIENT_CAN_DO = {
   canWrite: FETCHING_ITEM_LIFECYCLE_CLIENT.canWrite,
-  canDeleteStatedItems: FETCHING_ITEM_LIFECYCLE_CLIENT.canDeleteStatedItems,
 } as const;
 const MATERIALS = [
   "material.melamine",
@@ -340,13 +339,13 @@ describe("the defaults screen's read fails by one rule whichever store fails", (
   });
 });
 
-describe("Delete of a stated row, with the defaults now readable and the client leaving it to the draft route", () => {
+describe("Delete of a stated row, with the defaults now readable and a client that can write", () => {
   it("is judged by the defaults and nothing else: a fixed default is refused for what it is, every other class is counted first", async () => {
     for (const saved of [undefined, { handle: "black" as const }]) {
       if (saved !== undefined) await saveDefaults(admin, saved);
       const context = await contextOfThePage();
       expect(context.defaults).toBeDefined();
-      expect(FETCHING_ITEM_LIFECYCLE_CLIENT.canDeleteStatedItems).toBe(true);
+      expect(FETCHING_ITEM_LIFECYCLE_CLIENT.canWrite).toBe(true);
 
       for (const item of itemsOfTheBook()) {
         if (item.kind === "handle" || item.kind === "finish") continue;
@@ -376,17 +375,17 @@ describe("Delete of a stated row, with the defaults now readable and the client 
     expect(afterMoving).toEqual({ kind: "count-first" });
   });
 
-  it("is offered a stated row only by a client that leaves it to the draft route, and a created row by any that can write", async () => {
+  it("is offered a stated row and a created row by a client that can write, and neither by one that cannot", async () => {
     const context = await contextOfThePage();
     const item = { kind: "hardware", tierId: "hardware.soft-close" } as const;
 
-    expect(
-      deleteStandOf(item, { ...context, canDeleteStatedItems: false }),
-    ).toEqual({ kind: "off", reason: "cannot-judge" });
+    expect(deleteStandOf(item, { ...context, canWrite: true })).toEqual({
+      kind: "count-first",
+    });
     expect(
       deleteStandOf(item, {
         ...context,
-        canDeleteStatedItems: false,
+        canWrite: true,
         isCreatedInDraft: () => true,
       }),
     ).toEqual({ kind: "count-first" });
@@ -394,6 +393,13 @@ describe("Delete of a stated row, with the defaults now readable and the client 
       kind: "off",
       reason: "cannot-judge",
     });
+    expect(
+      deleteStandOf(item, {
+        ...context,
+        canWrite: false,
+        isCreatedInDraft: () => true,
+      }),
+    ).toEqual({ kind: "off", reason: "cannot-judge" });
   });
 });
 

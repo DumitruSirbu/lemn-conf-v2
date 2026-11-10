@@ -19,10 +19,7 @@ import type { AvailabilityRequestWire } from "./price-dashboard-wire-contract";
 // counts only the items its seed counts.
 
 export interface ItemLifecycleSeed
-  extends Omit<
-    LifecycleContext,
-    "canWrite" | "canDeleteStatedItems" | "isCreatedInDraft"
-  > {
+  extends Omit<LifecycleContext, "canWrite" | "isCreatedInDraft"> {
   readonly usage: ItemUsageCounts;
 }
 
@@ -37,7 +34,6 @@ export function inMemoryItemLifecycleClient(
   let current = seed.availability;
   return {
     canWrite: true,
-    canDeleteStatedItems: true,
     setActive: (request) => {
       const outcome = judgedWrite(seed, current, request);
       if (outcome.kind === "set") {

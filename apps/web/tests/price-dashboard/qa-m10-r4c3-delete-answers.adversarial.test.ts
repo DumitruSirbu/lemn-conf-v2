@@ -40,7 +40,6 @@ function contextWith(disabled: readonly DeletableItemRef[]): LifecycleContext {
     availability: { revision: "1", disabled },
     defaults: {},
     canWrite: true,
-    canDeleteStatedItems: true,
     isCreatedInDraft: () => false,
   };
 }

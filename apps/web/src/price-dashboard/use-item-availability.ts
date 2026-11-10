@@ -86,10 +86,9 @@ export interface ItemAvailabilityInput {
   readonly isDraftOnly: (item: DeletableItemRef) => boolean;
   /**
    * The draft as it is this moment, read in one piece, not as the screen last rendered it. A deletion that meets a
-   * conflict is judged again on the draft the conflict read, which is not rendered yet when the answer is awaited. A
-   * host with no draft of its own leaves it out, and the rendered book and `isDraftOnly` are judged by.
+   * conflict is judged again on the draft the conflict read, which is not rendered yet when the answer is awaited.
    */
-  readonly readDraftNow?: () => DraftFactsNow;
+  readonly readDraftNow: () => DraftFactsNow;
 }
 
 /** What one reading of the draft says: which revision it is, the active book it sits on, and which rows only it holds. */
@@ -104,8 +103,8 @@ interface DeletionAttempt {
   readonly item: DeletableItemRef;
   /** Whether the person has asked for something else since the deletion was sent. */
   readonly hasMoved: () => boolean;
-  /** The draft revision the deletion was sent against; absent where the host reads no draft. */
-  readonly draftRevisionSent: string | undefined;
+  /** The draft revision the deletion was sent against. */
+  readonly draftRevisionSent: string;
 }
 
 const UNREADABLE_USAGE: UsageRead = { kind: "unavailable" };
@@ -138,17 +137,9 @@ export function useItemAvailability({
       availability,
       defaults,
       canWrite: client.canWrite,
-      canDeleteStatedItems: client.canDeleteStatedItems,
       isCreatedInDraft: isDraftOnly,
     }),
-    [
-      book,
-      availability,
-      defaults,
-      client.canWrite,
-      client.canDeleteStatedItems,
-      isDraftOnly,
-    ],
+    [book, availability, defaults, client.canWrite, isDraftOnly],
   );
   // A count is asked by a callback that closed over the book of its own render. The ref holds the latest book, so the
   // answer is judged against the book of the moment it arrives.
@@ -303,13 +294,6 @@ export function useItemAvailability({
     [adopt, readAvailabilityAgain],
   );
 
-  /** The draft as it is now, from the host's own reading where it has one. */
-  const draftNow = useCallback(
-    (): DraftFactsNow =>
-      readDraftNow?.() ?? { revision: "", book, isDraftOnly },
-    [readDraftNow, book, isDraftOnly],
-  );
-
   /** The facts a recount judges by. The book and the rows the draft holds come from one reading of the draft, and
    *  what is switched off from what was last adopted: none of them waits for a render. */
   const factsOf = useCallback(
@@ -320,7 +304,6 @@ export function useItemAvailability({
         availability: availabilityRef.current,
         defaults,
         canWrite: client.canWrite,
-        canDeleteStatedItems: client.canDeleteStatedItems,
         isCreatedInDraft: draftNowFacts.isDraftOnly,
       };
     },
@@ -335,10 +318,9 @@ export function useItemAvailability({
       setFlow(CLOSED);
       await readAvailabilityAgain();
       if (attempt.hasMoved()) return;
-      const reading = draftNow();
+      const reading = readDraftNow();
       const isUnread =
         answer.kind === "conflict" &&
-        attempt.draftRevisionSent !== undefined &&
         reading.revision === attempt.draftRevisionSent;
       if (isUnread) {
         setFailure(FAILED);
@@ -346,18 +328,18 @@ export function useItemAvailability({
       }
       await openDeletionDialog(attempt.item, factsOf(reading));
     },
-    [readAvailabilityAgain, draftNow, factsOf, openDeletionDialog],
+    [readAvailabilityAgain, readDraftNow, factsOf, openDeletionDialog],
   );
 
   const recountAfterUseRefusal = useCallback(
     async (item: DeletableItemRef) => {
       setFlow(CLOSED);
-      const facts = factsOf(draftNow());
+      const facts = factsOf(readDraftNow());
       await openAfterCounting(item, (read) =>
         blockedFlowAfterRefusalOf(item, facts, read),
       );
     },
-    [draftNow, factsOf, openAfterCounting],
+    [readDraftNow, factsOf, openAfterCounting],
   );
 
   /**
@@ -425,7 +407,7 @@ export function useItemAvailability({
         const attempt: DeletionAttempt = {
           item,
           hasMoved: begin(),
-          draftRevisionSent: readDraftNow?.().revision,
+          draftRevisionSent: readDraftNow().revision,
         };
         const result = await orFailed<FieldWriteResult>(
           () => deleteFromDraft(item),

@@ -58,8 +58,6 @@ export function createFetchingItemLifecycleClient(): ItemLifecycleClient {
   const readUsage = readsOneUsageAtATime();
   return {
     canWrite: true,
-    // The draft route takes a deletion of a published row. Whether it is allowed is still the server's judgement.
-    canDeleteStatedItems: true,
     setActive: async (request) => {
       const answer = await ask(AVAILABILITY_ADDRESS, {
         method: "POST",

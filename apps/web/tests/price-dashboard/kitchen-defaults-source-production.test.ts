@@ -55,7 +55,7 @@ vi.mock("@/lib/server/price-stores", () =>
 const VENEER = { kind: "material", tierId: "material.veneer" } as const;
 const PAINTED = { kind: "material", tierId: "material.painted-mdf" } as const;
 const MELAMINE = { kind: "material", tierId: "material.melamine" } as const;
-const NO_USAGE = { canDeleteStatedItems: false, canWrite: true } as const;
+const CAN_WRITE = { canWrite: true } as const;
 
 let prices: PriceDashboardWorld;
 let console_: ReturnType<typeof captureConsole>;
@@ -99,7 +99,7 @@ async function standOfSwitchingOff(item: ItemRef): Promise<SwitchStand> {
     availability: state.active.availability,
     defaults,
     isCreatedInDraft: () => false,
-    ...NO_USAGE,
+    ...CAN_WRITE,
   };
   return switchStandOf(item, context);
 }

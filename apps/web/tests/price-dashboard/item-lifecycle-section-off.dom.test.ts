@@ -18,6 +18,7 @@ import {
   mountInCatalogue,
   requireIn,
 } from "../support/render-with-intl";
+import { draftMovingOnEveryRead } from "../support/draft-facts-now";
 import { renderHook } from "../support/render-hook";
 import { recordingLifecycleClient } from "./recording-item-lifecycle-client";
 import { roCopy } from "./romanian-copy";
@@ -51,6 +52,7 @@ function sectionWith(switchReason: string | undefined) {
       client: lifecycle.client,
       deleteFromDraft: () => Promise.resolve({ kind: "failed" }),
       isDraftOnly: () => false,
+      readDraftNow: draftMovingOnEveryRead(),
     }),
   );
   const requestSwitch = vi.fn();

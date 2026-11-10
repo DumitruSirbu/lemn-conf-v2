@@ -47,7 +47,6 @@ const contextOf = ({ disabled, defaults }: State): LifecycleContext => ({
   availability: { revision: "1", disabled: disabled.map(materialItem) },
   defaults,
   canWrite: true,
-  canDeleteStatedItems: true,
   isCreatedInDraft: () => false,
 });
 

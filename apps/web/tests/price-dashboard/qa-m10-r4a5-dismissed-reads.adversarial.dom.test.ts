@@ -12,6 +12,7 @@ import { createFetchingItemLifecycleClient } from "@/price-dashboard/fetching-it
 import { useItemAvailability } from "@/price-dashboard/use-item-availability";
 import { useMaterialUsage } from "@/price-dashboard/use-material-usage";
 
+import { draftMovingOnEveryRead } from "../support/draft-facts-now";
 import { flushPromises, renderHook } from "../support/render-hook";
 import { materialItem, MDF, VENEER } from "./material-harness";
 
@@ -66,6 +67,7 @@ function deskOver(
       client,
       deleteFromDraft: () => Promise.resolve({ kind: "failed" }),
       isDraftOnly: () => false,
+      readDraftNow: draftMovingOnEveryRead(),
     }),
   );
 }

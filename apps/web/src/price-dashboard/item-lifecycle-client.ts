@@ -29,14 +29,11 @@ export type UsageRead =
   | { readonly kind: "unavailable" };
 
 export interface ItemLifecycleClient {
-  /** Whether a switch reaches anything. Where it does not, the screen offers no switch-on and sends nothing. */
-  readonly canWrite: boolean;
   /**
-   * Whether this client stands behind a draft route that takes a deletion of a row the active book states. Where it
-   * does not (a build with nothing behind the screen), only a row the draft alone holds can be deleted: taking that one
-   * out of the draft deletes nothing published. Whether a stated row may be deleted at all stays the server's judgement.
+   * Whether a write reaches anything. Where it does not, the screen offers no switch-on and no deletion, and sends
+   * nothing. Whether a deletion is allowed is still the server's judgement.
    */
-  readonly canDeleteStatedItems: boolean;
+  readonly canWrite: boolean;
   setActive(request: AvailabilityRequestWire): Promise<AvailabilityOutcome>;
   /**
    * `signal` says nobody wants the answer any more: a read that has not been sent yet is then dropped and answers
@@ -56,21 +53,19 @@ export interface ItemLifecycleClient {
  */
 export const UNAVAILABLE_ITEM_LIFECYCLE_CLIENT: ItemLifecycleClient = {
   canWrite: false,
-  canDeleteStatedItems: false,
   setActive: () => Promise.resolve({ kind: "failed" }),
   readUsage: () => Promise.resolve({ kind: "unavailable" }),
   readAvailability: () => Promise.resolve(undefined),
 };
 
 /** A client loaded by its first call, so the module behind `load` is fetched only if something is asked. It stands for
- *  a client that writes and deletes: one that does not is the unavailable client, which is never loaded lazily. */
+ *  a client that writes: one that does not is the unavailable client, which is never loaded lazily. */
 export function lazyItemLifecycleClient(
   load: () => Promise<ItemLifecycleClient>,
 ): ItemLifecycleClient {
   const client = memoizeAsync(load);
   return {
     canWrite: true,
-    canDeleteStatedItems: true,
     setActive: async (request) => (await client()).setActive(request),
     readUsage: async (items, signal) =>
       (await client()).readUsage(items, signal),

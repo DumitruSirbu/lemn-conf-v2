@@ -14,6 +14,7 @@ import {
 import type { UsageRead } from "@/price-dashboard/item-lifecycle-client";
 import { useItemAvailability } from "@/price-dashboard/use-item-availability";
 
+import { draftMovingOnEveryRead } from "../support/draft-facts-now";
 import { flushPromises, renderHook } from "../support/render-hook";
 import { recordingLifecycleClient } from "./recording-item-lifecycle-client";
 
@@ -47,6 +48,7 @@ function deskOver(book: () => PriceBook) {
       client: lifecycle.client,
       deleteFromDraft: () => Promise.resolve({ kind: "failed" }),
       isDraftOnly: () => false,
+      readDraftNow: draftMovingOnEveryRead({ book }),
     }),
   );
   return { lifecycle, rendered };
@@ -96,6 +98,7 @@ describe("the dialog of a switch-off", () => {
         client,
         deleteFromDraft: () => Promise.resolve({ kind: "failed" }),
         isDraftOnly: () => false,
+        readDraftNow: draftMovingOnEveryRead(),
       }),
     );
 

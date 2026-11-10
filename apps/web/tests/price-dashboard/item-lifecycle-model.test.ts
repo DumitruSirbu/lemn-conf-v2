@@ -32,7 +32,6 @@ function contextOf(
     availability: NOTHING_OFF,
     defaults: {},
     canWrite: true,
-    canDeleteStatedItems: true,
     isCreatedInDraft: () => false,
     ...overrides,
   };
@@ -243,21 +242,18 @@ describe("the deletion of an item where nothing can be written", () => {
   });
 });
 
-describe("the deletion of a row where the client cannot carry a published row's deletion to a draft route", () => {
-  const noStatedDeletion = (overrides: Partial<LifecycleContext> = {}) =>
-    contextOf({ canDeleteStatedItems: false, ...overrides });
-
+describe("the deletion of a row the client can write, whatever the book states", () => {
   it.each([
     ["a hardware class", BLUM],
     ["a material", { kind: "material", tierId: "material.veneer" } as const],
   ])(
-    "is off, as not judged, for %s the book states, though the saved defaults are read and a write can be made",
+    "is offered, with its count to come, for %s the book states, with nothing else asked of the client than a write",
     (_kind, item) => {
-      const context = noStatedDeletion({ defaults: {}, canWrite: true });
+      const deletable = item as Parameters<typeof deleteStandOf>[0];
 
-      expect(
-        deleteStandOf(item as Parameters<typeof deleteStandOf>[0], context),
-      ).toEqual({ kind: "off", reason: "cannot-judge" });
+      expect(deleteStandOf(deletable, contextOf({ defaults: {} }))).toEqual({
+        kind: "count-first",
+      });
     },
   );
 
@@ -265,36 +261,38 @@ describe("the deletion of a row where the client cannot carry a published row's 
     expect(
       deleteStandOf(
         STRANGER as Parameters<typeof deleteStandOf>[0],
-        noStatedDeletion({ isCreatedInDraft: () => true }),
+        contextOf({ isCreatedInDraft: () => true }),
       ),
     ).toEqual({ kind: "count-first" });
   });
 
-  it("is off for a class the book does not state and the draft did not create either: not being stated is no leave", () => {
+  it("is offered, with its count to come, for a class the book does not state and the draft did not create either: the server judges it", () => {
     expect(
       deleteStandOf(
         STRANGER as Parameters<typeof deleteStandOf>[0],
-        noStatedDeletion({ isCreatedInDraft: () => false }),
+        contextOf({ isCreatedInDraft: () => false }),
+      ),
+    ).toEqual({ kind: "count-first" });
+  });
+
+  it("is off, as not judged, for a class only the draft holds where nothing can be written", () => {
+    expect(
+      deleteStandOf(
+        STRANGER as Parameters<typeof deleteStandOf>[0],
+        contextOf({ canWrite: false, isCreatedInDraft: () => true }),
       ),
     ).toEqual({ kind: "off", reason: "cannot-judge" });
   });
 
-  it("is off for a class only the draft holds where nothing can be written", () => {
-    expect(
-      deleteStandOf(
-        STRANGER as Parameters<typeof deleteStandOf>[0],
-        noStatedDeletion({ canWrite: false, isCreatedInDraft: () => true }),
-      ),
-    ).toEqual({ kind: "off", reason: "cannot-judge" });
-  });
-
-  it("still names what the book alone refuses before it says nothing can be checked", () => {
-    expect(
-      deleteStandOf(
-        STANDARD as Parameters<typeof deleteStandOf>[0],
-        noStatedDeletion(),
-      ),
-    ).toEqual({ kind: "off", reason: "item-is-fixed-default" });
+  it("still names what the book alone refuses before anything else, with or without a write", () => {
+    for (const canWrite of [true, false]) {
+      expect(
+        deleteStandOf(
+          STANDARD as Parameters<typeof deleteStandOf>[0],
+          contextOf({ canWrite }),
+        ),
+      ).toEqual({ kind: "off", reason: "item-is-fixed-default" });
+    }
   });
 });
 

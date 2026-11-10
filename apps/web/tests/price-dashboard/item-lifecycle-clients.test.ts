@@ -7,6 +7,7 @@ import { SAMPLE_PRICE_BOOK, type ItemRef } from "@lemnaria/configurator-domain";
 import { defaultItemLifecycleClient } from "@/price-dashboard/default-item-lifecycle-client";
 import { FETCHING_ITEM_LIFECYCLE_CLIENT } from "@/price-dashboard/fetching-item-lifecycle-client";
 import { UNAVAILABLE_ITEM_LIFECYCLE_CLIENT } from "@/price-dashboard/item-lifecycle-client";
+import { deleteStandOf } from "@/price-dashboard/item-lifecycle-model";
 import { inMemoryItemLifecycleClient } from "@/price-dashboard/item-lifecycle-stand-in-client";
 
 const STANDARD: ItemRef = { kind: "hardware", tierId: "hardware.standard" };
@@ -122,7 +123,15 @@ describe("the unavailable client", () => {
     const client = UNAVAILABLE_ITEM_LIFECYCLE_CLIENT;
 
     expect(client.canWrite).toBe(false);
-    expect(client.canDeleteStatedItems).toBe(false);
+    expect(
+      deleteStandOf(BLUM as Parameters<typeof deleteStandOf>[0], {
+        book: SAMPLE_PRICE_BOOK,
+        availability: SEED.availability,
+        defaults: {},
+        canWrite: client.canWrite,
+        isCreatedInDraft: () => true,
+      }),
+    ).toEqual({ kind: "off", reason: "cannot-judge" });
     expect(
       await client.setActive({
         expectedRevision: "1",

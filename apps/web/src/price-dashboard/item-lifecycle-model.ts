@@ -32,11 +32,8 @@ export interface LifecycleContext {
   readonly book: PriceBook;
   readonly availability: CatalogueAvailability;
   readonly defaults: NewKitchenSettings | undefined;
-  /** Whether a switch can be written at all; where it cannot, no switch-on is offered. */
+  /** Whether a write can be made at all; where it cannot, no switch-on and no deletion is offered. */
   readonly canWrite: boolean;
-  /** Whether the client can carry a deletion of a row the book states to a draft route; a row only the draft created
-   *  needs no such leave. */
-  readonly canDeleteStatedItems: boolean;
   /** Whether the draft itself creates the item, so that deleting it only takes the creation back out of the draft. */
   readonly isCreatedInDraft: (item: DeletableItemRef) => boolean;
 }
@@ -127,9 +124,7 @@ export function isDefaultItem(
 
 /**
  * A default is refused before any use is counted, so a default needs no count; any other item does. Where nothing can
- * be written, no deletion is offered either, an item only the draft holds included: nothing could carry it out. Any
- * other row is offered only where `canDeleteStatedItems` says the client can carry a deletion of it out, whatever the
- * defaults make readable; a row the draft created is the one exception, since deleting it reverts its creation.
+ * be written, no deletion is offered either, an item only the draft holds included: nothing could carry it out.
  */
 export function deleteStandOf(
   item: DeletableItemRef,
@@ -137,16 +132,9 @@ export function deleteStandOf(
 ): DeleteStand {
   const reason = deletionRefusalWithoutCount(item, context);
   if (reason !== undefined) return { kind: "off", reason };
-  return canCarryOutDeletion(item, context)
+  return context.canWrite
     ? { kind: "count-first" }
     : { kind: "off", reason: "cannot-judge" };
-}
-
-function canCarryOutDeletion(
-  item: DeletableItemRef,
-  { canWrite, canDeleteStatedItems, isCreatedInDraft }: LifecycleContext,
-): boolean {
-  return canWrite && (canDeleteStatedItems || isCreatedInDraft(item));
 }
 
 /** The verdict of the domain on a deletion, with the counts the usage reader answered. */

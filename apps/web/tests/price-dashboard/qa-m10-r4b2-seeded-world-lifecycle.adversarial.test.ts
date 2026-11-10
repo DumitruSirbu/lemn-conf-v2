@@ -78,7 +78,6 @@ async function contextOfThePage(): Promise<LifecycleContext> {
     defaults,
     isCreatedInDraft: () => false,
     canWrite: FETCHING_ITEM_LIFECYCLE_CLIENT.canWrite,
-    canDeleteStatedItems: FETCHING_ITEM_LIFECYCLE_CLIENT.canDeleteStatedItems,
   };
 }
 

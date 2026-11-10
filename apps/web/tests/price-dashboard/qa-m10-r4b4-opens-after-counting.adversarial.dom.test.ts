@@ -12,6 +12,7 @@ import { SAMPLE_PRICE_BOOK, type ItemRef } from "@lemnaria/configurator-domain";
 import type { UsageRead } from "@/price-dashboard/item-lifecycle-client";
 import { useItemAvailability } from "@/price-dashboard/use-item-availability";
 
+import { draftMovingOnEveryRead } from "../support/draft-facts-now";
 import { flushPromises, renderHook } from "../support/render-hook";
 import { recordingLifecycleClient } from "./recording-item-lifecycle-client";
 
@@ -63,6 +64,7 @@ function deskWithCountsHeldOnTheirWay() {
       client,
       deleteFromDraft: () => Promise.resolve({ kind: "failed" }),
       isDraftOnly: () => false,
+      readDraftNow: draftMovingOnEveryRead(),
     }),
   );
   return { counts, rendered };

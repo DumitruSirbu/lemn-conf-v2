@@ -227,7 +227,6 @@ describe("the sink cover cannot be switched off by a request the screen did not 
       calls,
       client: {
         canWrite: inner.canWrite,
-        canDeleteStatedItems: inner.canDeleteStatedItems,
         setActive: (request: Parameters<typeof inner.setActive>[0]) => {
           calls.push("setActive");
           return inner.setActive(request);
