@@ -3,6 +3,7 @@ import { join } from "node:path";
 
 import { expect, type Locator, type Page } from "@playwright/test";
 
+import { CHANGED_COUNT_POLL_INTERVAL_SECONDS } from "../../../src/staff/changed-count-poll-interval";
 import { romanian } from "./staff-world";
 
 // What the staff specs do on the screens, in one place: open a page, search the list, read the count. The assertions
@@ -44,6 +45,62 @@ export function pageScrollsSideways(page: Page): Promise<boolean> {
       document.documentElement.scrollWidth >
       document.documentElement.clientWidth,
   );
+}
+
+/** What the kitchens link may say: the page's name alone or followed by the count of changed kitchens, never a zero. */
+const KITCHENS_LINK_TEXT = new RegExp(
+  `^${escapedForRegExp(romanian("staffShell.navKitchens"))}(?:[1-9][0-9]*)?$`,
+  "u",
+);
+
+function escapedForRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/gu, String.raw`\$&`);
+}
+
+/**
+ * Expects a staff navigation link to the kitchens, in the nav or the sheet, to read the page's name and nothing but a
+ * badge. The badge is the count of every run's changed kitchens on the shared database, so a spec cannot say whether
+ * it is drawn; it can say that a drawn one is a whole number above zero and is named for a screen reader with that
+ * same number, and that an undrawn one leaves the link named by its text.
+ */
+export async function expectKitchensLinkLabelled(link: Locator): Promise<void> {
+  await expect(link).toHaveText(KITCHENS_LINK_TEXT);
+  const { text, accessibleName } = await link.evaluate((element) => ({
+    text: element.textContent,
+    accessibleName: element.getAttribute("aria-label"),
+  }));
+  const pageName = romanian("staffShell.navKitchens");
+  const drawnCount = text.slice(pageName.length);
+  expect(accessibleName, "the link's spoken name").toBe(
+    drawnCount === "" ? null : kitchensLinkSpokenName(Number(drawnCount)),
+  );
+}
+
+/**
+ * The most a count can take to reach the link: the server answers from a cache that is a poll interval old at most, and the
+ * browser asks once on opening and then once an interval, so a kitchen changed just before the page opened can wait for
+ * the second answer. A spec that expects the count sets its test timeout to this.
+ */
+export const KITCHENS_LINK_COUNT_WAIT_MS =
+  (2 * CHANGED_COUNT_POLL_INTERVAL_SECONDS + 10) * 1000;
+
+/** Expects the kitchens link to wear a count, which a world holding a changed kitchen makes at least one. */
+export async function expectKitchensLinkWearsCount(
+  link: Locator,
+): Promise<void> {
+  const pageName = escapedForRegExp(romanian("staffShell.navKitchens"));
+  await expect(link).toHaveText(new RegExp(`^${pageName}[1-9][0-9]*$`, "u"), {
+    timeout: KITCHENS_LINK_COUNT_WAIT_MS,
+  });
+  await expectKitchensLinkLabelled(link);
+}
+
+/** What a screen reader says for the kitchens link while `count` changed kitchens are drawn beside it. */
+export function kitchensLinkSpokenName(count: number): string {
+  return romanian("priceDashboard.nav.itemWithBadge", {
+    name: romanian("staffShell.navKitchens"),
+    label: romanian("priceDashboard.nav.changedKitchens", { count }),
+  });
 }
 
 /** Writes a screenshot for a reviewer when `STAFF_E2E_SHOTS_DIR` names a directory; otherwise does nothing. */

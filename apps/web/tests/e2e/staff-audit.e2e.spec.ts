@@ -18,6 +18,7 @@ import {
   type StaffWorld,
 } from "./support/staff-world";
 import {
+  expectKitchensLinkLabelled,
   openAuditChoosingPerson,
   pageScrollsSideways,
   shootForReview,
@@ -74,7 +75,7 @@ test("the administrator's 'Meniu' sheet holds both pages", async ({
   const sheet = page.getByTestId("staff-menu-sheet");
   // The catalogue groups sit between the two (U1, U5), so the pages this spec is about are the menu's first and last.
   const links = sheet.getByRole("navigation").getByRole("link");
-  await expect(links.first()).toHaveText(romanian("staffShell.navKitchens"));
+  await expectKitchensLinkLabelled(links.first());
   await expect(links.last()).toHaveText(romanian("staffShell.navAudit"));
   await expect(sheet).toContainText(romanian("staffShell.roleAdministrator"));
   await shootForReview(page, "mobile-audit-menu");

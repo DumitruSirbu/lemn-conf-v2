@@ -21,6 +21,7 @@ import {
   type StaffWorld,
 } from "./support/staff-world";
 import {
+  expectKitchensLinkLabelled,
   openAuditChoosingPerson,
   pageScrollsSideways,
   shootForReview,
@@ -62,7 +63,7 @@ test.describe("as the administrator", () => {
     );
     // The catalogue groups sit between the two (U1, U5), so the pages this spec is about are the nav's first and last.
     const links = page.getByTestId("staff-nav").getByRole("link");
-    await expect(links.first()).toHaveText(romanian("staffShell.navKitchens"));
+    await expectKitchensLinkLabelled(links.first());
     await expect(links.last()).toHaveText(romanian("staffShell.navAudit"));
     await expect(
       page.getByText(romanian("staffAudit.readOnlyNote")),
@@ -178,9 +179,9 @@ test("an operator is shown the forbidden screen inside the staff frame, with the
     page.getByText(romanian("accountForbidden.title")),
   ).toBeVisible();
   await expect(page.getByTestId("staff-role-chip")).toBeVisible();
-  await expect(page.getByTestId("staff-nav").getByRole("link")).toHaveText([
-    romanian("staffShell.navKitchens"),
-  ]);
+  const links = page.getByTestId("staff-nav").getByRole("link");
+  await expect(links).toHaveCount(1);
+  await expectKitchensLinkLabelled(links.first());
   await expect(page.getByTestId("staff-audit-page")).toHaveCount(0);
   await shootForReview(page, "desktop-audit-operator-forbidden");
 });

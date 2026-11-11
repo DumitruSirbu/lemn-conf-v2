@@ -24,6 +24,8 @@ import {
   signIn,
 } from "./support/staff-world";
 import {
+  expectKitchensLinkWearsCount,
+  KITCHENS_LINK_COUNT_WAIT_MS,
   kitchenRows,
   openStaffList,
   pageScrollsSideways,
@@ -108,6 +110,17 @@ test("the changed kitchen wears the badge and comes first in the table, and the 
     false,
   );
   await shootForReview(page, "desktop-changed-list");
+});
+
+test("the nav's kitchens link wears a count while this world's kitchen is changed, and says so to a screen reader", async ({
+  page,
+}) => {
+  test.setTimeout(KITCHENS_LINK_COUNT_WAIT_MS + 30_000);
+  await openStaffList(page);
+
+  await expectKitchensLinkWearsCount(
+    page.getByTestId("staff-nav").getByRole("link").first(),
+  );
 });
 
 test("'Doar modificate' keeps the changed kitchens of the search, asks the server for them, and lets go when turned off", async ({
