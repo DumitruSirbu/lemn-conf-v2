@@ -3409,6 +3409,8 @@ Applies to a material, a hardware class and an accessory. **Ruled:** deleting st
 
 **Observed (coordinator, relayed; the scribe ran nothing).** The digest's customer-name expression `nullif(btrim(a.name), '')` strips only U+0020, so a name consisting of tabs, NBSP or zero-width characters survives as non-empty and shows blank instead of falling back to the request reference. **Cost of deciding:** a stricter blank test in the statement (or a name rule at write time), with one fixture row. **Owner:** unassigned (lane S, `kitchen-change-statements.ts`).
 
+**RESOLVED 2026-11-11 by the K4 wave (commit `79036b28`) [coordinator's report, verified by the coordinator against code and tests; the scribe ran nothing].** K4's QA found the bidi-only-name case and the fix gives the digest a name fallback for blank-looking names; the same wave made a malformed row skip instead of aborting the digest.
+
 ## 291. The C4 replacement sheet offers a colour that `replaceColour` refuses — RECORDED 2026-11-11 AT M10's Z2 (TEST AUDIT, APPENDIX A)
 
 **Observed (the Z2 audit, `docs/test-audits/m10-close-audit.md`; read there, not re-run by the scribe).** `packages/configurator-domain/tests/queries/qa-q5a-replacements-required.adversarial.test.ts:186` is an `it.fails` whose inner assertion fails today (`expected false to be true`): `replaceColour` refuses an option the sheet offers. The audit's reading: for a design with no `materialTierId`, under a book whose default material is not melamine, the colour row offers woods the command refuses. The audit found no earlier record (`DEFAULT_MATERIAL_ID` is mentioned in the M10 plan, not as this defect). A shipped defect pinned by a test that is green because it fails. **Cost of deciding:** the architect rules whether the sheet or the command moves, then the `it.fails` flips. **Owner:** unassigned; the architect.
@@ -3444,3 +3446,29 @@ Applies to a material, a hardware class and an accessory. **Ruled:** deleting st
 ## 299. The visual case of a cleared colour row was never reproduced — RECORDED 2026-11-11 AT M10's Z1
 
 **Observed (the Z1 report, owed items; the C4 wave's residual 1).** A colour row cleared by the reset needs a colour switched off in the book, and no dashboard screen does that (colours are managed separately), so the case is not reachable from the dashboard against the fake price book. Z1 tried a kitchen on a vanished material with a palette colour replaced by MDF: the sheet shows only the material row and the confirmation has no colour row. Also not reproduced in Z1: D1B (the verification widget cannot load in that environment, so the wrong-data state is unreachable) and the D10D e-mail. **Cost of deciding:** a book fixture that switches a colour off, or a real-store pass. **Owner:** unassigned.
+
+*Entries 300-305 were recorded 2026-11-11 from the M10 K4, K4b and S6b reports [coordinator's reports, verified by the coordinator against code and tests; the scribe ran nothing].*
+
+## 300. The restore procedure for the price-dashboard export is owed — RECORDED 2026-11-11 (M10 S6b)
+
+**Observed.** `docs/runbooks/design-db-restore.md` does not cover the new `backups/price-dashboard/` export, and migration `0023`'s header still says versions are not in the nightly export (migrations are code; only noted here). The restore order is known: the head and the defaults come from this export. The scribe could not state a drilled recipe from what it read, so the runbook carries a stub, not steps. **Cost of deciding:** write the section from `backup-price-dashboard.ts` and `price-dashboard-row-source.ts`, then drill it against a throwaway target. **Owner:** unassigned; before launch.
+
+## 301. Consolidate the three backup exports into one engine — RECORDED 2026-11-11 (M10 S6b)
+
+**Observed.** `backup-presets.ts` says to consolidate the exports into one engine when a third arrives; `backup-price-dashboard.ts` is the third. Doing it edits `backup-designs.ts`. **Cost of deciding:** a refactor with the three suites as the net. **Owner:** unassigned.
+
+## 302. DEVIATION: the staff-change digest goes to the shop inbox, not to staff accounts holding `contact.read` — RECORDED 2026-11-11 (M10 K4); OWNER ITEM, DEFAULT STANDS
+
+**Observed.** Plan A-13, the K4 row and ADR 0178 say the recipients are accounts holding `contact.read` with a confirmed address. K4 sends to the configured shop inbox through `createMailSender`, because no port lists those accounts. **Cost of deciding:** a new persistence reader, per-staff sends, and entries written only if every send succeeds. **Owner:** the owner decides whether the shop inbox is acceptable.
+
+## 303. Backup rotation does not exclude the run's own pathname, and a `..` pathname passes `startsWith` — RECORDED 2026-11-11 (M10 S6b); UNREALISTIC
+
+**Observed.** `backup-price-dashboard.ts` rotation does not exclude its own just-written pathname (the same in `backup-designs.ts`); judged unrealistic. A blob named `backups/price-dashboard/../designs/x` passes the prefix test; also judged unrealistic. **Owner:** unassigned; fold into 301.
+
+## 304. A kitchen name of up to 120 characters in the digest may hold a URL that a mail client linkifies — RECORDED 2026-11-11 (M10 K4); LOW
+
+**Observed (security review).** The plan does not require defanging; no exploitable issue was found. **Owner:** unassigned.
+
+## 305. The nav badge poll needs `contact.read`, the menu link needs `design.read.any` — RECORDED 2026-11-11 (M10 K4b); LATENT
+
+**Observed.** Both roles hold both today, so nothing fails. The badge can also lag a seen mark by up to 60 s, and an idle staffer now gets the session sheet on a `401`. **Owner:** unassigned; revisit if a role gets one capability without the other.

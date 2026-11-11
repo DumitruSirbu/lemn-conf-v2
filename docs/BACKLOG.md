@@ -320,7 +320,7 @@ status corrections, in one of these two files:
 | 287 | Staff path guard may compare undecoded path segments (encoded staff URL could miss `X-Robots-Tag` / `Cache-Control: private`) | open.md — recorded 2026-10-26; Low, unconfirmed, predates M10 |
 | 288 | `enumerableFieldsOf` does not see an accessor defined on a prototype | open.md — recorded 2026-10-26; gap not yet characterised |
 | 289 | A fail-closed account-bucket refusal logs the same `[account]` line as a store failure | open.md — recorded 2026-10-27; Low, diagnostics, predates M10 |
-| 290 | A digest name of only tabs, NBSP or zero-width characters shows blank instead of falling back to the reference (`btrim` strips only U+0020) | open.md — recorded 2026-10-27; Info |
+| 290 | A digest name of only tabs, NBSP or zero-width characters shows blank instead of falling back to the reference (`btrim` strips only U+0020) | open.md — recorded 2026-10-27; Info; **resolved 2026-11-11 by K4 (`79036b28`)** |
 | 291 | The C4 replacement sheet offers a colour that `replaceColour` refuses (pinned by an `it.fails`) | open.md — recorded 2026-11-11 from M10's Z2 audit; architect to rule |
 | 292 | `creation-after-deletions.property.test.ts:155` pins a refusal that has no record | open.md — recorded 2026-11-11 from M10's Z2 audit; architect to rule |
 | 293 | One desktop e2e fails once per full run and passes when repeated | open.md — recorded 2026-11-11 at M10's Z gate; no cause; related 117, 211 |
@@ -330,6 +330,12 @@ status corrections, in one of these two files:
 | 297 | Phone editor top bar: settings pill 136x30 and language button 47x25, under 44 px | open.md — recorded 2026-11-11 from M10's Z1; extends 192 |
 | 298 | Console warning: Permissions-Policy `ambient-light-sensor` unrecognised, on every page | open.md — recorded 2026-11-11 from M10's Z1; Info |
 | 299 | The visual case of a cleared colour row (and D1B, D10D) was not reproduced in Z1 | open.md — recorded 2026-11-11 from M10's Z1 |
+| 300 | Restore procedure for the price-dashboard export is owed (runbook stub added) | open.md — recorded 2026-11-11 (M10 S6b) |
+| 301 | Consolidate the three backup exports into one engine | open.md — recorded 2026-11-11 (M10 S6b) |
+| 302 | Digest goes to the shop inbox, not to `contact.read` accounts (deviation; owner item) | open.md — recorded 2026-11-11 (M10 K4) |
+| 303 | Backup rotation does not exclude its own pathname; `..` pathname passes `startsWith` | open.md — recorded 2026-11-11 (M10 S6b); unrealistic |
+| 304 | A URL in a digest kitchen name may be linkified by a mail client | open.md — recorded 2026-11-11 (M10 K4); low |
+| 305 | Nav badge poll needs `contact.read`, menu link needs `design.read.any` | open.md — recorded 2026-11-11 (M10 K4b); latent |
 
 *Notes at the 8J2, 8U and 8V close (2026-10-17) on existing entries:* 145 (facing-labels flaky again), 160 (closed), 232 (the non-live recipe does not hold) carry dated notes in `open.md`.
 
