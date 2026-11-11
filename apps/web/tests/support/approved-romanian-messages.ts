@@ -2533,8 +2533,8 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       rowSent: "trimisă {date}",
       rowModified: "modificată {when}",
       open: "Deschide",
-      // Drafted, not approved: the agent's draft of the digest's line about kitchens left for the next e-mail when the
-      // message is full (plan M10, wave K4; OQ-11j). The Russian is an agent draft.
+      // Drafted, approved as drafted by the owner (2026-11-11): the agent's draft of the digest's line about kitchens
+      // left for the next e-mail when the message is full (plan M10, wave K4; OQ-11j). The Russian is an agent draft.
       moreWaiting:
         "{count, plural, one {Mai așteaptă o bucătărie modificată; apare în următorul e-mail.} few {Mai așteaptă {count, number, ::group-off} bucătării modificate; apar în următorul e-mail.} other {Mai așteaptă {count, number, ::group-off} de bucătării modificate; apar în următorul e-mail.}}",
       footer:
