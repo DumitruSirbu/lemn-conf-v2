@@ -417,7 +417,10 @@ coordinator's report; it read no restore code]. What is known: route `/api/cron/
 `{table, row}` object; file order is price-book versions, availability log, availability head (read after the log walk),
 kitchen defaults. **The head and the defaults come from this file on restore.** Migration `0023`'s header still says
 versions are not in the nightly export; that is stale. Write the steps and drill them against a throwaway target before
-relying on it.
+relying on it. **The restore must run as the owner role, not `app_designs`** [security review of S6/S6b, source-verified]:
+`published_at` and `changed_at` are not in the application role's INSERT grants (`0023`, `0025`), the head and the defaults
+are UPDATE-only, and nothing has DELETE (`0029`). `price_book_draft` is deliberately not in the export. The export holds
+staff account ids (`published_by`, `changed_by`, `saved_by`), no names or e-mails.
 
 ## Restoring the `presets` table
 
