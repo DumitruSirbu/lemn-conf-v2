@@ -46,6 +46,7 @@ const EXPECTED_POUND_DIVERGENCES: Readonly<
     russianOnly: ["root/plural:bodyCount/one:pound"],
   },
   // Russian `one` also covers 21, 31, 101, so its arm carries the number; Romanian's `one` is only 1 and says "o ..." / "un ...".
+  "priceDashboard.nav.changedKitchens": russianPoundIn("count"),
   "priceDashboard.cabinet.summaryDoor": russianPoundIn("doorCount"),
   "priceDashboard.cabinet.doorsFromHere": russianPoundIn("doorCount"),
   "priceDashboard.lifecycle.usedBy": russianGroupOffNumberIn("count"),
@@ -61,6 +62,7 @@ const EXPECTED_POUND_DIVERGENCES: Readonly<
   "priceDashboard.history.restoreDialogBody": russianPoundIn("count"),
   "staffChanges.toolbarCount": russianPoundIn("count"),
   "staffChanges.digest.title": russianPoundIn("count"),
+  "staffChanges.digest.moreWaiting": russianPoundIn("count"),
   "staffChanges.digest.footer": russianPoundIn("days"),
   "replacementSheet.chooserAppliesTo": russianPoundIn("bodyCount"),
 };

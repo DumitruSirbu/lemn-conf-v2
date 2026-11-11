@@ -122,9 +122,14 @@ export interface HeldRequest extends RecordedRequest {
 
 type Script = (request: RecordedRequest) => ServerAnswer | "hold" | "offline";
 
+const CHANGED_COUNT_PATH = "/api/staff/kitchens/changed-count";
+
 export interface StaffKitchensServer {
   /** Every request made, in order. */
   readonly requests: RecordedRequest[];
+  /** The shell's own count polls, in order. They are answered `{count: 0}`, never scripted and never in `requests`, so a
+   *  test of a screen sees only the screen's requests. */
+  readonly countPolls: RecordedRequest[];
   /** The requests the script held, in order. */
   readonly held: HeldRequest[];
   /** `false` makes a held request answer even after it was aborted, as a response already in flight does when the
@@ -140,9 +145,11 @@ export interface StaffKitchensServer {
 export function installStaffKitchensServer(): StaffKitchensServer {
   const requests: RecordedRequest[] = [];
   const held: HeldRequest[] = [];
+  const countPolls: RecordedRequest[] = [];
   let script: Script = () => ({ body: wireList([]) });
   const server: StaffKitchensServer = {
     requests,
+    countPolls,
     held,
     honoursAbort: true,
     script: (next) => {
@@ -159,6 +166,10 @@ export function installStaffKitchensServer(): StaffKitchensServer {
         init,
         signal,
       };
+      if (request.url.pathname === CHANGED_COUNT_PATH) {
+        countPolls.push(request);
+        return Promise.resolve(responseOf({ body: { count: 0 } }));
+      }
       requests.push(request);
       return answerTo(request, script(request), { held, server });
     }),

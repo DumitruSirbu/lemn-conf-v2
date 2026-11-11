@@ -1330,6 +1330,7 @@ declare const messages: {
       "note": "Meniul arată doar secțiunile permise rolului tău.",
       "pendingChip": "{count, plural, one {{count, number, ::group-off} preț de publicat} few {{count, number, ::group-off} prețuri de publicat} other {{count, number, ::group-off} de prețuri de publicat}}",
       "allPublished": "Toate prețurile sunt publicate",
+      "changedKitchens": "{count, plural, one {O bucătărie modificată după ce ai văzut-o} few {{count, number, ::group-off} bucătării modificate după ce le-ai văzut} other {{count, number, ::group-off} de bucătării modificate după ce le-ai văzut}}",
       "itemWithBadge": "{name}, {label}"
     },
     "common": {
@@ -1904,6 +1905,7 @@ declare const messages: {
       "rowSent": "trimisă {date}",
       "rowModified": "modificată {when}",
       "open": "Deschide",
+      "moreWaiting": "{count, plural, one {Mai așteaptă o bucătărie modificată; apare în următorul e-mail.} few {Mai așteaptă {count, number, ::group-off} bucătării modificate; apar în următorul e-mail.} other {Mai așteaptă {count, number, ::group-off} de bucătării modificate; apar în următorul e-mail.}}",
       "footer": "Primești acest e-mail cel mult o dată pe zi, doar când există modificări noi. O bucătărie nu mai apare aici după {days, plural, one {o zi} few {{days, number, ::group-off} zile} other {{days, number, ::group-off} de zile}} de la trimitere sau după ce o treci la „{offerSentStatus}” sau „{closedStatus}”."
     }
   },

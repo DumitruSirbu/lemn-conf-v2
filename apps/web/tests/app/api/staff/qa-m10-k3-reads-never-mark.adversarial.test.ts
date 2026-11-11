@@ -123,6 +123,13 @@ describe("the sources of the staff area", () => {
     join("lib", "server", "staff", "staff-kitchen-seen.ts"),
     join("lib", "server", "staff", "kitchen-change-store-instance.ts"),
   ];
+  // The digest cron lists and claims through the same store but must never mark a kitchen seen.
+  const STORE_READERS = [
+    join("app", "api", "cron", "staff-change-digest", "route.ts"),
+  ];
+  const STORE_IMPORT =
+    /from\s+["'][^"']*(kitchen-change-store-instance|staff-kitchen-seen)["']/u;
+  const MARK_CALL = ".markSeen(";
 
   function sourcesUnder(directory: string): string[] {
     return readdirSync(directory).flatMap((name) => {
@@ -136,11 +143,12 @@ describe("the sources of the staff area", () => {
     const reachers = sourcesUnder(SOURCE_ROOT)
       .map((path) => relative(SOURCE_ROOT, path))
       .filter((path) => !MARK_OWNERS.includes(path))
-      .filter((path) =>
-        /from\s+["'][^"']*(kitchen-change-store-instance|staff-kitchen-seen)["']|\.markSeen\(/u.test(
-          readFileSync(join(SOURCE_ROOT, path), "utf8"),
-        ),
-      );
+      .filter((path) => {
+        const source = readFileSync(join(SOURCE_ROOT, path), "utf8");
+        const importsStore =
+          STORE_IMPORT.test(source) && !STORE_READERS.includes(path);
+        return importsStore || source.includes(MARK_CALL);
+      });
 
     expect(reachers).toEqual([]);
   });

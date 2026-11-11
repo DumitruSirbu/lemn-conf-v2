@@ -334,12 +334,13 @@ describe("the schedule in vercel.json", () => {
     ),
   ) as { crons: { path: string; schedule: string }[] };
 
-  // Updated in M8C P2 (ADR 0012, 0112 Amendment A): the presets export is a third entry, between the two.
-  it("keeps the designs backup's entry first and as it was, then the presets backup's at quarter past three, then the prune's at half past three", () => {
+  it("keeps the designs backup's entry first and as it was, then the presets backup's at quarter past three, the prune's at half past three, the price dashboard backup's at a quarter to four, then the staff digest's at five UTC", () => {
     expect(configuration.crons).toEqual([
       { path: "/api/cron/backup-designs", schedule: "0 3 * * *" },
       { path: "/api/cron/backup-presets", schedule: "15 3 * * *" },
       { path: "/api/cron/prune-rate-limits", schedule: "30 3 * * *" },
+      { path: "/api/cron/backup-price-dashboard", schedule: "45 3 * * *" },
+      { path: "/api/cron/staff-change-digest", schedule: "0 5 * * *" },
     ]);
   });
 

@@ -30,6 +30,7 @@ import {
 import { staffPathOf, type StaffAreaPage, type StaffPage } from "./staff-paths";
 import { useStaffSessionExpiry } from "./staff-session-expiry";
 import { StaffSessionSheet } from "./staff-session-sheet";
+import { useChangedKitchenCount } from "./use-changed-kitchen-count";
 
 // The frame of every staff page: the bar with the role the person acts
 // under, the account control and the language links, the navigation on a desktop and the "Meniu" sheet on a phone, and, when
@@ -99,11 +100,13 @@ export function StaffShell({
   const askSignOutEverywhere = useCallback(() => {
     setOpen("logout-everywhere");
   }, []);
+  const changedKitchenCount = useChangedKitchenCount(context.navigation);
   const { groups, pendingPricesLink, allPublishedLine } = useStaffNavigation({
     locale,
     page,
     navigation: context.navigation,
     pendingPriceCount: context.pendingPriceCount,
+    changedKitchenCount,
   });
   const sessionExpiry = useStaffSessionExpiry();
 

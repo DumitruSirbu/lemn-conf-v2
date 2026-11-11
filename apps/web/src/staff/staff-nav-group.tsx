@@ -8,7 +8,7 @@ import styles from "./staff.module.css";
 
 // A run of staff pages under one heading, drawn as the desktop's navigation lists it and as the phone's sheet does.
 
-/** How many prices await publication, drawn beside a page's name. */
+/** A count drawn beside a page's name: the prices awaiting publication, or the kitchens changed after being seen. */
 export interface StaffNavBadge {
   readonly count: number;
 }

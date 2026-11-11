@@ -168,5 +168,7 @@ export function isExactValueSwitch(branches: readonly string[]): boolean {
  *  added twenty-seven: twenty-three in `priceDashboard`, three in `staffChanges` and one in `replacementSheet`. The
  *  audit log's dashboard details (wave U5) added one: `staffAuditDetail.detailChanges`. The block on deleting a used accessory
  *  added one: `priceDashboard.lifecycle.deleteBlockedAccessoryBody`. The dialogs' words for a switched-off accessory added
- *  one: `priceDashboard.lifecycle.usedByAccessory`. */
-export const PLURAL_NODES_PER_CATALOGUE = 47;
+ *  one: `priceDashboard.lifecycle.usedByAccessory`. The staff menu's counter of changed kitchens (wave K4b)
+ *  added one: `priceDashboard.nav.changedKitchens`. The digest's line about kitchens left for the next e-mail (wave K4)
+ *  added one: `staffChanges.digest.moreWaiting`. */
+export const PLURAL_NODES_PER_CATALOGUE = 49;

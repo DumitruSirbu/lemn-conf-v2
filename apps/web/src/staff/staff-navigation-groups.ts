@@ -33,13 +33,16 @@ const GROUP_ORDER: readonly GroupKey[] = [
   "administration",
 ];
 
-/** The waiting prices, in the words that mean them. */
-export interface PendingPrices {
+/** A count drawn beside a page's name, with the words a screen reader says for the page's menu link. */
+export interface NavCount {
   readonly count: number;
+  readonly menuLinkName: (pageName: string) => string;
+}
+
+/** The waiting prices, in the words that mean them. */
+export interface PendingPrices extends NavCount {
   /** "7 prețuri de publicat". */
   readonly label: string;
-  /** What a screen reader says for the publish page's menu link. */
-  readonly menuLinkName: (pageName: string) => string;
 }
 
 export interface NavigationGroupsInput {
@@ -50,6 +53,8 @@ export interface NavigationGroupsInput {
   /** A group's heading; the administration group has none (no copy for it exists). */
   readonly headingOf: Readonly<Record<GroupKey, string | undefined>>;
   readonly pendingPrices: PendingPrices | undefined;
+  /** Sent kitchens changed after staff saw them, beside "Bucătării clienți". */
+  readonly changedKitchens?: NavCount | undefined;
 }
 
 export function navigationGroupsOf(
@@ -69,15 +74,24 @@ function navItemOf(
   input: NavigationGroupsInput,
 ): StaffNavItem {
   const label = input.labelOf[page];
-  const pending = page === "publish" ? input.pendingPrices : undefined;
+  const counted = countBesideOf(page, input);
   return {
     key: page,
     href: staffPathOf(input.locale, page),
     label,
-    accessibleName: pending?.menuLinkName(label),
+    accessibleName: counted?.menuLinkName(label),
     isCurrent: page === input.page,
-    badge: pending === undefined ? undefined : { count: pending.count },
+    badge: counted === undefined ? undefined : { count: counted.count },
   };
+}
+
+function countBesideOf(
+  page: StaffAreaPage,
+  input: NavigationGroupsInput,
+): NavCount | undefined {
+  if (page === "publish") return input.pendingPrices;
+  if (page === "kitchens") return input.changedKitchens;
+  return undefined;
 }
 
 export interface StaffNavigation {
@@ -94,11 +108,13 @@ export function useStaffNavigation({
   page,
   navigation,
   pendingPriceCount,
+  changedKitchenCount,
 }: {
   readonly locale: string;
   readonly page: StaffAreaPage;
   readonly navigation: readonly StaffAreaPage[];
   readonly pendingPriceCount: number | undefined;
+  readonly changedKitchenCount?: number | undefined;
 }): StaffNavigation {
   const translate = useTranslations();
   const labelOf = useStaffPageLabels();
@@ -115,6 +131,20 @@ export function useStaffNavigation({
           }),
       };
     };
+    const changedKitchensOf = (count: number): NavCount => {
+      const label = translate("priceDashboard.nav.changedKitchens", { count });
+      return {
+        count,
+        menuLinkName: (pageName) =>
+          translate("priceDashboard.nav.itemWithBadge", {
+            name: pageName,
+            label,
+          }),
+      };
+    };
+    const changedKitchens = isWaitingCount(changedKitchenCount)
+      ? changedKitchensOf(changedKitchenCount)
+      : undefined;
     const pendingPrices = isWaitingCount(pendingPriceCount)
       ? waitingPrices(pendingPriceCount)
       : undefined;
@@ -130,6 +160,7 @@ export function useStaffNavigation({
         administration: undefined,
       },
       pendingPrices,
+      changedKitchens,
     });
     const isPublishListed = navigation.includes("publish");
     const isKnownToBeEmpty = isPublishListed && pendingPriceCount === 0;
@@ -146,7 +177,15 @@ export function useStaffNavigation({
               text: pendingPrices.label,
             },
     };
-  }, [locale, page, navigation, labelOf, pendingPriceCount, translate]);
+  }, [
+    locale,
+    page,
+    navigation,
+    labelOf,
+    pendingPriceCount,
+    changedKitchenCount,
+    translate,
+  ]);
 }
 
 /** What each staff page is called in the navigation, in the page's language. */

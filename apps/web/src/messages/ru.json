@@ -1327,6 +1327,7 @@
       "note": "В меню только разделы, разрешённые твоей роли.",
       "pendingChip": "{count, plural, one {{count, number, ::group-off} цена к публикации} few {{count, number, ::group-off} цены к публикации} many {{count, number, ::group-off} цен к публикации} other {{count, number, ::group-off} цены к публикации}}",
       "allPublished": "Все цены опубликованы",
+      "changedKitchens": "{count, plural, one {# кухня изменена после твоего просмотра} few {{count, number, ::group-off} кухни изменены после твоего просмотра} many {{count, number, ::group-off} кухонь изменены после твоего просмотра} other {{count, number, ::group-off} кухни изменены после твоего просмотра}}",
       "itemWithBadge": "{name}, {label}"
     },
     "common": {
@@ -1901,6 +1902,7 @@
       "rowSent": "отправлена {date}",
       "rowModified": "изменена {when}",
       "open": "Открыть",
+      "moreWaiting": "{count, plural, one {Ещё # изменённая кухня ждёт; она будет в следующем письме.} few {Ещё {count, number, ::group-off} изменённые кухни ждут; они будут в следующем письме.} many {Ещё {count, number, ::group-off} изменённых кухонь ждут; они будут в следующем письме.} other {Ещё {count, number, ::group-off} изменённой кухни ждут; они будут в следующем письме.}}",
       "footer": "Ты получаешь это письмо не чаще раза в день и только при новых изменениях. Кухня перестаёт появляться здесь через {days, plural, one {# день} few {{days, number, ::group-off} дня} many {{days, number, ::group-off} дней} other {{days, number, ::group-off} дня}} после отправки или после перевода в статус «{offerSentStatus}» или «{closedStatus}»."
     }
   },

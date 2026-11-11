@@ -1736,6 +1736,37 @@ export function resolveStaffChangesCopy(translate: ContentTranslator) {
 
 export type StaffChangesCopy = ReturnType<typeof resolveStaffChangesCopy>;
 
+/** The words of the daily e-mail to the shop about kitchens the client changed after staff saw them (frame D10D). */
+export function resolveStaffChangeDigestCopy(translate: ContentTranslator) {
+  const stoppingStatusWords = {
+    "offer-sent": translate("staffKitchens.statusOfferSent"),
+    closed: translate("staffKitchens.statusClosed"),
+  };
+  return {
+    title: (count: number) => translate("staffChanges.digest.title", { count }),
+    intro: translate("staffChanges.digest.intro"),
+    tableLabel: translate("staffChanges.digest.tableLabel"),
+    unnamedKitchen: translate("staffKitchens.unnamedKitchen"),
+    rowSent: (date: string) =>
+      translate("staffChanges.digest.rowSent", { date }),
+    rowModified: (when: string) =>
+      translate("staffChanges.digest.rowModified", { when }),
+    open: translate("staffChanges.digest.open"),
+    moreWaiting: (count: number) =>
+      translate("staffChanges.digest.moreWaiting", { count }),
+    footer: (days: number) =>
+      translate("staffChanges.digest.footer", {
+        days,
+        offerSentStatus: stoppingStatusWords["offer-sent"],
+        closedStatus: stoppingStatusWords.closed,
+      }),
+  };
+}
+
+export type StaffChangeDigestCopy = ReturnType<
+  typeof resolveStaffChangeDigestCopy
+>;
+
 /** The notes of one client's kitchen: the list, the field that adds one and the words of its answers. The sentences of a
  *  refused text are the shared field errors', found by the code. */
 export function resolveStaffNotesCopy(translate: ContentTranslator) {

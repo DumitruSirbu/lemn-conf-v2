@@ -12,6 +12,14 @@
     {
       "path": "/api/cron/prune-rate-limits",
       "schedule": "30 3 * * *"
+    },
+    {
+      "path": "/api/cron/backup-price-dashboard",
+      "schedule": "45 3 * * *"
+    },
+    {
+      "path": "/api/cron/staff-change-digest",
+      "schedule": "0 5 * * *"
     }
   ]
 }

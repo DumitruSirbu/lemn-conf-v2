@@ -1744,6 +1744,10 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       pendingChip:
         "{count, plural, one {{count, number, ::group-off} preț de publicat} few {{count, number, ::group-off} prețuri de publicat} other {{count, number, ::group-off} de prețuri de publicat}}",
       allPublished: "Toate prețurile sunt publicate",
+      // Drafted, not approved: the agent's draft of the spoken name of the kitchens link's count in the menu, said with
+      // `itemWithBadge` (plan M10, wave K4b; OQ-11j). The Russian is an agent draft.
+      changedKitchens:
+        "{count, plural, one {O bucătărie modificată după ce ai văzut-o} few {{count, number, ::group-off} bucătării modificate după ce le-ai văzut} other {{count, number, ::group-off} de bucătării modificate după ce le-ai văzut}}",
       // Drafted, not approved: the spoken name of the menu's link to the publish page, a separator.
       itemWithBadge: "{name}, {label}",
     },
@@ -2529,6 +2533,10 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       rowSent: "trimisă {date}",
       rowModified: "modificată {when}",
       open: "Deschide",
+      // Drafted, not approved: the agent's draft of the digest's line about kitchens left for the next e-mail when the
+      // message is full (plan M10, wave K4; OQ-11j). The Russian is an agent draft.
+      moreWaiting:
+        "{count, plural, one {Mai așteaptă o bucătărie modificată; apare în următorul e-mail.} few {Mai așteaptă {count, number, ::group-off} bucătării modificate; apar în următorul e-mail.} other {Mai așteaptă {count, number, ::group-off} de bucătării modificate; apar în următorul e-mail.}}",
       footer:
         "Primești acest e-mail cel mult o dată pe zi, doar când există modificări noi. O bucătărie nu mai apare aici după {days, plural, one {o zi} few {{days, number, ::group-off} zile} other {{days, number, ::group-off} de zile}} de la trimitere sau după ce o treci la „{offerSentStatus}” sau „{closedStatus}”.",
     },
