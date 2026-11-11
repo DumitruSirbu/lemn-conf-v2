@@ -119,6 +119,12 @@ const EXPECTED_CLASSIFICATION: Readonly<
     lock: "shared",
     reason: "mints rows and needs the schema intact",
   },
+  "price-dashboard-row-source.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "only reads the price dashboard's tables and the deployed columns, and needs the schema intact (M10 wave S6)",
+  },
   "backup-restore-round-trip.adversarial.test.ts": {
     gate: "live test database",
     lock: "shared",
