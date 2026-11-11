@@ -3309,7 +3309,7 @@ four file names were not relayed to the scribe.
 
 ## 277. Manufacturer dashboard: prices and whole-kitchen defaults — RECORDED 2026-10-25; AFTER M8 PER ADR 0062, NO MILESTONE YET
 
-**Note 2026-10-26: now M10, in progress (W0).** The "after M8" trigger is superseded by [ADR 0176](../decisions/0176-the-manufacturer-price-dashboard-is-milestone-m10-and-starts-now.md); plan [`M10-price-dashboard.md`](../milestones/M10-price-dashboard.md). Nothing is built. The whole entry is carried by the milestone's lanes U, M, S, R, H and K; 54 and 176 (named below) are carried by waves P3 and R1.
+**Note 2026-10-26: now M10, in progress (W0).** The "after M8" trigger is superseded by [ADR 0176](../decisions/0176-the-manufacturer-price-dashboard-is-milestone-m10-and-starts-now.md); plan [`M10-price-dashboard.md`](../milestones/done/M10-price-dashboard.md). Nothing is built. The whole entry is carried by the milestone's lanes U, M, S, R, H and K; 54 and 176 (named below) are carried by waves P3 and R1.
 
 Scope as ruled: [ADR 0062](../decisions/0062-a-manufacturer-price-dashboard-comes-after-m8-and-shapes-seams-now.md) Amendment of 2026-10-25 (prices editable; sizes shown read-only; a default-settings screen; desktop-first; adding cabinets out of scope) and the [ADR 0072](../decisions/0072-price-book-versioning-is-deferred-to-the-manufacturer-dashboard.md) Amendment of 2026-10-25 (a saved kitchen always prices at the current book; version history is the owner's only). The design brief is `docs/design/claude-design-brief-cabinet-price-dashboard.md`. **Nothing is built and nothing is scheduled.** Trigger: M8's close. Inherits 176 (two price-book roots must become one first), 54 (depth multiplier) and the open question of where books live. **Owner:** unassigned.
 

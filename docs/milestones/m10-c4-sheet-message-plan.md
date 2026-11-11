@@ -1,7 +1,7 @@
 # M10 — C4 sheet message rework (waves C4a and C4b)
 
 **Status:** planned 2026-11-10 by the architect; **built and closed 2026-11-10** (C4a `ac81cdad`, C4b `21eb9c7a`, review round `097c9989`, merged locally; evidence and residuals in the parent milestone's *C4 wave merged and CLOSED* block). The text below is the plan as written. Parent milestone:
-[`M10-price-dashboard.md`](M10-price-dashboard.md), branch `m10-price-dashboard`.
+[`M10-price-dashboard.md`](done/M10-price-dashboard.md), branch `m10-price-dashboard`.
 
 **Evidence tiers.** This plan uses three labels:
 

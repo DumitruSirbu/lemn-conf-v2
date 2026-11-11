@@ -3,7 +3,7 @@
 Status: Accepted (owner instruction, 2026-10-26, relayed by the coordinator). **Nothing is built.** Branch `m10-price-dashboard`, local, not pushed.
 Date: 2026-10-26
 Type: Decision record (timing)
-Milestone: M10 — [`M10-price-dashboard.md`](../milestones/M10-price-dashboard.md); W0 (records)
+Milestone: M10 — [`M10-price-dashboard.md`](../milestones/done/M10-price-dashboard.md); W0 (records)
 
 ## Context
 

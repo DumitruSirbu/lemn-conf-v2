@@ -3,7 +3,7 @@
 Status: **Accepted** (security-reviewed 2026-10-26; findings F1–F10 applied in this body, accepted by the coordinator). The architect's rulings recorded by W0; A-17, A-21 and the OQ rows implement the owner's 2026-10-26 answers. **Nothing is built; every migration named here is unapplied anywhere.**
 Date: 2026-10-26
 Type: Decision record (storage and lifecycle)
-Milestone: M10 — [`M10-price-dashboard.md`](../milestones/M10-price-dashboard.md) §5, §8.4, §9.2; W0
+Milestone: M10 — [`M10-price-dashboard.md`](../milestones/done/M10-price-dashboard.md) §5, §8.4, §9.2; W0
 
 ## Context
 

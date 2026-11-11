@@ -3,7 +3,7 @@
 Status: Accepted as the architect's rulings recorded by W0; **each is owner-visible and the owner may overrule it** (an overrule changes the named wave). A-19 and A-20 implement the owner's 2026-10-26 answers (OQ-4, OQ-5) on the coordinator's reading; the two flags **OQ-5a** and **OQ-4a** are open. **Nothing is built.**
 Date: 2026-10-26
 Type: Decision record (pricing seams)
-Milestone: M10 — [`M10-price-dashboard.md`](../milestones/M10-price-dashboard.md) §5 and §4; W0
+Milestone: M10 — [`M10-price-dashboard.md`](../milestones/done/M10-price-dashboard.md) §5 and §4; W0
 
 ## Context
 

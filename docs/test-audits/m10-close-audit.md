@@ -17,7 +17,7 @@ wrote its caches into the main checkout's gitignored `node_modules/.vite*`, beca
   breaks that rule outside the one case the fixture builds. For both:
   - nothing in the domain suite (13,701 tests) or the web suite (30,357 tests) goes red;
   - a throwaway probe proved the mutant reachable through the same public function;
-  - each rests on a recorded acceptance line in `docs/milestones/M10-price-dashboard.md` (cited in the row).
+  - each rests on a recorded acceptance line in `docs/milestones/done/M10-price-dashboard.md` (cited in the row).
 
 Under the same mutant, C2's draft is still refused, by the candidate judgement and not by the code the title names. The coordinator
 may weigh that.

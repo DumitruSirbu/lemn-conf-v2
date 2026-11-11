@@ -1,7 +1,7 @@
 # M10 release notes: price dashboard (for the owner)
 
 Written 2026-11-10 by the scribe. Nothing here was run by the scribe; every claim is copied from the document
-named beside it. Abbreviations: **M10** is `docs/milestones/M10-price-dashboard.md`, **STATUS** is `docs/STATUS.md`,
+named beside it. Abbreviations: **M10** is `docs/milestones/done/M10-price-dashboard.md` (archived 2026-11-11), **STATUS** is `docs/STATUS.md`,
 **runbook** is `docs/runbooks/applying-a-table-migration-and-its-application-role-grant.md`.
 
 This directory is new: no earlier release-notes file exists outside the archives, so there was no better home.
@@ -93,4 +93,21 @@ Customer side [M10 §1, §2]:
   [STATUS, push state].
 - Still open: `candidate-refused` does not re-read the draft; duplicated `deskDeleting` test helpers; S6, T2, K4,
   Q1c and the Z2 test audit have no stated state [STATUS, push state].
-- M10 stays open until the Z2 test audit has no "cannot fail" finding [M10 Z2].
+- M10 stays open until the Z2 test audit has no "cannot fail" finding [M10 Z2]. **Superseded 2026-11-11: the Z2
+  audit findings were fixed in `77fadd67` and M10 is closed and archived** [`milestones/done/M10-price-dashboard.md`,
+  close block]. The "no stated state" line above for S6, T2, K4, Q1c and the Z2 audit is also superseded: all are
+  built or merged (section 6).
+
+## 6. Production notes added 2026-11-11 (S6, K4, K4b, S6b) [M10 close block, S6/K4/K4b/S6b block; coordinator's reports; nothing run by the scribe]
+
+- **Two new crons in `vercel.json`:** the staff-change digest at `0 5 * * *` (05:00 UTC) and the nightly
+  price-dashboard backup at `45 3 * * *` (03:45 UTC). `vercel.json` now holds 5 crons. **The owner must confirm the
+  Vercel plan allows that many.**
+- **No new environment variable** (the K4 digest route authenticates by `CRON_SECRET` only, per its report), **no new migration and
+  no new grant, and no new Blob store.**
+- **Blob prefix for the export: `backups/price-dashboard/`** (rotation 14 days, at most 30 files).
+- The digest goes to the configured shop inbox, not to accounts holding `contact.read` (backlog 302); the new nav
+  badge and digest copy (OQ-11j) are drafted, not approved.
+- The restore runbook does not yet cover the price-dashboard export (backlog 300; a stub is in
+  `runbooks/design-db-restore.md`).
+- Gate evidence for the final tip: STATUS, 2026-11-11 close entry.

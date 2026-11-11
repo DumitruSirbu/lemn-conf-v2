@@ -51,7 +51,7 @@ Decision 4's "rounding up" (see ADR 0095 point 4, ADR 0177) is therefore two rou
   tier-delta badges stay at the thousand, because they compare totals.
 
 This answers the owner question recorded in the 2026-10-28 MP-3 block of
-[`M10-price-dashboard.md`](../milestones/M10-price-dashboard.md) (ADR 0175 decision 5 called 10 lei the display unit).
+[`M10-price-dashboard.md`](../milestones/done/M10-price-dashboard.md) (ADR 0175 decision 5 called 10 lei the display unit).
 Implemented by wave Q1c (branch `m10/q1c`, in QA, not merged). Decision 4's other half (sample prices are estimates,
 never a quote) is unchanged.
 

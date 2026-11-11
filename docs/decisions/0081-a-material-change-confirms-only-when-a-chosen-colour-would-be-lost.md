@@ -289,7 +289,7 @@ after the apply) and 8, **for the C4 sheet only**. Decision 1's predicate is unt
 both directions.
 
 **Links.** ADR 0178 A-16; the *Q5 split and R4c plan* block in
-[`M10-price-dashboard.md`](../milestones/M10-price-dashboard.md) (Lane Q).
+[`M10-price-dashboard.md`](../milestones/done/M10-price-dashboard.md) (Lane Q).
 
 **If the owner declines**, C4 would need a confirmation step before the change and the C4C line would lose its trigger;
 Q5b is built to the proposal.
