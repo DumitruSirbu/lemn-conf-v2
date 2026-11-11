@@ -3459,7 +3459,7 @@ Applies to a material, a hardware class and an accessory. **Ruled:** deleting st
 
 ## 302. DEVIATION: the staff-change digest goes to the shop inbox, not to staff accounts holding `contact.read` — RECORDED 2026-11-11 (M10 K4); OWNER ITEM, DEFAULT STANDS
 
-**Observed.** Plan A-13, the K4 row and ADR 0178 say the recipients are accounts holding `contact.read` with a confirmed address. K4 sends to the configured shop inbox through `createMailSender`, because no port lists those accounts. **Cost of deciding:** a new persistence reader, per-staff sends, and entries written only if every send succeeds. **Owner:** the owner decides whether the shop inbox is acceptable.
+**Observed.** Plan A-13, the K4 row and ADR 0178 say the recipients are accounts holding `contact.read` with a confirmed address. K4 sends to the configured shop inbox through `createMailSender`, because no port lists those accounts. **Cost of deciding:** a new persistence reader, per-staff sends, and entries written only if every send succeeds. **Owner:** unassigned. **Update 2026-11-11 (owner-ruled, relayed):** the owner said "put in backlog": this stays open, with no decision, and is no longer an item for the owner to confirm. The shop inbox remains the behaviour.
 
 ## 303. Backup rotation does not exclude the run's own pathname, and a `..` pathname passes `startsWith` — RECORDED 2026-11-11 (M10 S6b); UNREALISTIC
 
@@ -3472,3 +3472,7 @@ Applies to a material, a hardware class and an accessory. **Ruled:** deleting st
 ## 305. The nav badge poll needs `contact.read`, the menu link needs `design.read.any` — RECORDED 2026-11-11 (M10 K4b); LATENT
 
 **Observed.** Both roles hold both today, so nothing fails. The badge can also lag a seen mark by up to 60 s, and an idle staffer now gets the session sheet on a `401`. **Owner:** unassigned; revisit if a role gets one capability without the other.
+
+## 306. A hosting migration off Vercel must re-home the five crons — RECORDED 2026-11-11 (owner ruling)
+
+**Observed.** The owner approved `vercel.json`'s 5 crons on 2026-11-11 ("in the end I will migrate from Vercel, but now I approve"; owner-ruled, relayed). A move to another host would have to re-home all five: `backup-designs`, `backup-presets`, `prune-rate-limits`, `backup-price-dashboard` and `staff-change-digest`, each with an authentication equivalent to the `CRON_SECRET` check the routes use now. **Cost of deciding:** a scheduler on the new host and a check that each route still refuses a call without the secret. **Owner:** the owner, when a migration is planned; not scheduled.

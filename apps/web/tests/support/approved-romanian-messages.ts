@@ -401,7 +401,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     },
     included: "inclus",
     notIncluded: "nu este inclus",
-    // Drafted, not approved: the Romanian is the agent's draft of the M10 copy (plan M10, wave T1), pending the owner's
+    // Drafted, approved as drafted by the owner (2026-11-11): the Romanian was the agent's draft of the M10 copy (plan M10, wave T1), pending the owner's
     // approval of the M10 Romanian copy as drafted (OQ-11). The Russian is an agent draft, unapproved under ADR 0095
     // decision 2, and is never pinned here.
     // the depth line of the price breakdown (frame C3); the percentage is the published rule's value.
@@ -462,14 +462,14 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     depthOption: "{cabinetDepthMm, number, ::group-off} mm",
     depthWarning:
       "Schimbarea adâncimii blatului reconstruiește toate dulapurile și schimbă prețul acestora.",
-    // Drafted, not approved: the Romanian is the agent's draft of the M10 copy (plan M10, wave T1), pending the owner's
+    // Drafted, approved as drafted by the owner (2026-11-11): the Romanian was the agent's draft of the M10 copy (plan M10, wave T1), pending the owner's
     // approval of the M10 Romanian copy as drafted (OQ-11). The Russian is an agent draft, unapproved under ADR 0095
     // decision 2, and is never pinned here.
     // `depthNotePriced` is the sentence the depth control shows (frame C3S); it replaced `depthNote`, retired by wave T2.
     // `kitchenHandle*` is the whole-kitchen handle row (frame C2); its options are `panel.handleLabels`.
     depthNotePriced:
       "{percent, plural, =0 {Adâncimea de {cabinetDepthMm, number, ::group-off} mm nu schimbă prețul.} other {Adâncimea de {cabinetDepthMm, number, ::group-off} mm scumpește dulapurile care se adâncesc cu # %.}}",
-    // Drafted, not approved: the agent's draft of the one line a whole-kitchen group shows when the editor has no price
+    // Drafted, approved as drafted by the owner (2026-11-11): the agent's draft of the one line a whole-kitchen group shows when the editor has no price
     // book (plan M10, wave T4; Q3 split, R-b; OQ-11g). It carries no figure and no option. The Russian is an agent draft.
     pricesUnavailable: "Prețurile nu pot fi afișate acum",
     kitchenHandleHeading: "Mânere",
@@ -1721,7 +1721,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     detailProvisionalOff: "fără sume provizorii",
     detailWidth: "{widthMm, number, ::group-off} mm",
   },
-  // Drafted, not approved: the Romanian is the agent's draft of the M10 copy (plan M10, wave T1), pending the owner's
+  // Drafted, approved as drafted by the owner (2026-11-11): the Romanian was the agent's draft of the M10 copy (plan M10, wave T1), pending the owner's
   // approval of the M10 Romanian copy as drafted (OQ-11). The Russian is an agent draft, unapproved under ADR 0095
   // decision 2, and is never pinned here.
   // The words of the manufacturer price dashboard (mockup frames D1 to D9). Deactivating or activating an item applies at once (A-17), so
@@ -1744,7 +1744,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       pendingChip:
         "{count, plural, one {{count, number, ::group-off} preț de publicat} few {{count, number, ::group-off} prețuri de publicat} other {{count, number, ::group-off} de prețuri de publicat}}",
       allPublished: "Toate prețurile sunt publicate",
-      // Drafted, not approved: the agent's draft of the spoken name of the kitchens link's count in the menu, said with
+      // Drafted, approved as drafted by the owner (2026-11-11): the agent's draft of the spoken name of the kitchens link's count in the menu, said with
       // `itemWithBadge` (plan M10, wave K4b; OQ-11j). The Russian is an agent draft.
       changedKitchens:
         "{count, plural, one {O bucătărie modificată după ce ai văzut-o} few {{count, number, ::group-off} bucătării modificate după ce le-ai văzut} other {{count, number, ::group-off} de bucătării modificate după ce le-ai văzut}}",
@@ -2577,15 +2577,15 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     changedMaterial: "Material schimbat în {name}. Prețul a fost actualizat.",
     changedHardware: "Feronerie schimbată în {name}. Prețul a fost actualizat.",
     changedHandle: "Mânere schimbate în {name}. Prețul a fost actualizat.",
-    // Drafted, not approved: the agent's draft of the confirmation a lone colour replacement shows, built on the
+    // Drafted, approved as drafted by the owner (2026-11-11): the agent's draft of the confirmation a lone colour replacement shows, built on the
     // `changedMaterial` pattern, so it carries the new colour's `{name}` and no figure (plan M10, wave T5; Q5 split;
     // OQ-11h). The Russian is an agent draft.
     changedColour: "Culoare schimbată în {name}. Prețul a fost actualizat.",
-    // Drafted, not approved: the agent's draft of the one sentence the sheet says while a material row is owed, built
+    // Drafted, approved as drafted by the owner (2026-11-11): the agent's draft of the one sentence the sheet says while a material row is owed, built
     // from the owner's words of 2026-11-10 (plan m10-c4-sheet-message-plan; OQ-11i). The Russian is an agent draft.
     materialAndColoursUnavailable:
       "Materialul și culorile lui nu mai sunt disponibile. Alege alt material.",
-    // Drafted, not approved: the agent's draft of the row for a vanished choice no code can name (a created class), so
+    // Drafted, approved as drafted by the owner (2026-11-11): the agent's draft of the row for a vanished choice no code can name (a created class), so
     // no `{name}` and never a raw id (plan M10, wave T4; Q3 split, ruling 2; OQ-11g). The Russian is an agent draft.
     unnamedOptionUnavailable: "O opțiune aleasă nu mai este disponibilă",
   },

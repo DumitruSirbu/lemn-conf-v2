@@ -620,3 +620,11 @@ on 2026-11-10 that the C4 sheet only says the material and its colours are not a
 another: **there is no C4C line and no confirmation before.** Read A-16's announcement clause through
 [ADR 0081, Amendment 2026-11-10](0081-a-material-change-confirms-only-when-a-chosen-colour-would-be-lost.md#amendment-2026-11-10--owner-ruling-the-replacement-sheet-only-says-the-material-and-its-colours-are-unavailable).
 The rest of A-16 (one row, replaced at every level, no ADR 0086 confirmation) stands. Nothing above is edited.
+
+## Amendment — 2026-11-11: A-15's deletion-on-restore is confirmed by the owner (OQ-44; pointer; relayed by the coordinator, the scribe ran nothing)
+
+A-15 describes the draft as an ordered change-set. The owner confirmed on 2026-11-11 (owner-ruled, in chat) the default of
+OQ-44: **the draft's deletion stays on restore**, as M10 ruling 12 records it (a restore beside a draft that deletes a row
+leaves that row alone; the release notes, section 4, say the same). The same answer confirmed OQ-41, OQ-42 and OQ-43
+(defaults). Read A-15 through ruling 12 and OQ-44 in `docs/milestones/done/M10-price-dashboard.md` (archived; the ruling
+text lives there). Nothing above is edited.

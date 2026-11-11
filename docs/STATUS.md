@@ -186,12 +186,21 @@ its stray designs. Production grants for `0023`-`0029`: owner-run, unverified. P
 - **Owner items, defaults stand, none block:** OQ-41, OQ-42, OQ-43, OQ-44, OQ-11g, OQ-11h, OQ-11i, OQ-11j, the digest recipient deviation (backlog 302), the Vercel plan cron limit (5 crons).
 - **Known limits:** the privileges test was not run against staging or preview with a proven `DATABASE_URL` role; production has 0 `price_book_versions` rows, so the parse checks had nothing to check; the e2e one-flake-per-run pattern (backlog 293); backlog 295-305 open.
 
-**Open M10 items (M10 is closed; these are owner or backlog items only):**
-0. ~~Run `pnpm check` and `pnpm ci:local` on the final tip~~ done, quoted above. Owner: OQ-11j, the digest recipient, the Vercel cron limit.
-1. ~~Q5b rework~~ and ~~Russian pill~~ done by the C4 wave (above). Whether `replacementSheet.changedColour` (T5, OQ-11h) is dead copy stays for the architect.
-2. Owner approval of the new ro text and the ru leaf (OQ-11i, drafted).
+**2026-11-11, owner rulings after the M10 close [owner-ruled, in chat, relayed by the coordinator; the scribe ran nothing and had no shell]. This resolves the "Owner items, defaults stand" bullet above.**
+- **Vercel cron limit: approved.** `vercel.json`'s 5 crons stand (owner: "in the end I will migrate from Vercel, but now I approve"). The eventual hosting migration is backlog 306.
+- **Digest recipient (backlog 302): moved to the backlog.** No decision; it stays an open backlog item and is no longer an owner item to confirm. K4 still sends to the shop inbox.
+- **Translations accepted:** OQ-11g, OQ-11h, OQ-11i and OQ-11j are **approved as drafted** (RO and RU). The Russian stays an agent draft under ADR 0095 decision 2 (no repo record says otherwise). The copy lock still carries these leaves as "Drafted, not approved"; flipping those comments is an **owed code change** (see the coordinator's report; not done, markdown only).
+- **OQ-41, OQ-42, OQ-43, OQ-44: defaults confirmed** (generic line for a vanished class; calm C1 banner when only accessories were removed; pill leaves the hardware entry out while a hardware row is owed; the draft's deletion stays on restore, ruling 12). OQ-44 triggered the owed pointer, now written as the 2026-11-11 amendment at the end of [ADR 0178](decisions/0178-the-m10-dashboard-storage-lifecycle-defaults-notice-seen-and-digest.md).
+- Evidence tier: owner-ruled (relayed); the copy-lock state is doc-quoted from `apps/web/tests/support/approved-romanian-messages.ts` (comments at lines 404, 465, 472, 2585).
+
+**Open M10 items (M10 is closed; none is an owner item now):**
+0. ~~Run `pnpm check` and `pnpm ci:local` on the final tip~~ done, quoted above. ~~Owner: OQ-11j, the digest recipient, the Vercel cron limit~~ ruled 2026-11-11 (above).
+1. ~~Q5b rework~~ and ~~Russian pill~~ done by the C4 wave (above). Whether `replacementSheet.changedColour` (T5, OQ-11h) is dead copy stays for the architect; its text is owner-approved.
+2. ~~Owner approval of the new ro text and the ru leaf (OQ-11i)~~ approved as drafted 2026-11-11.
 3. ~~Delete the stray designs on staging~~ done 2026-11-10 (183 deleted, 0 left).
-4. OQ-41, OQ-42, OQ-43, OQ-44, OQ-11g, OQ-11h: defaults stand until answered. OQ-44's answer also triggers the ADR 0178 A-15 amendment pointer.
+4. ~~OQ-41, OQ-42, OQ-43, OQ-44, OQ-11g, OQ-11h~~ defaults confirmed 2026-11-11; the ADR 0178 A-15 pointer is written.
+5. Owed code change: flip the copy-lock "Drafted, not approved" comments for the OQ-11g/h/i/j leaves (coordinator to hand to a developer).
+6. Backlog 302 (digest recipient) and 306 (hosting migration, crons re-homed) stay open in the backlog.
 
 ## 2. Phase table
 

@@ -81,11 +81,12 @@ Customer side [M10 §1, §2]:
 
 ## 5. Known limits and open owner items
 
-- Defaults stand until answered: OQ-41 (generic line for a vanished class), OQ-42 (banner, not sheet, when only
-  accessories were removed), OQ-43 (pill leaves out the hardware entry while a hardware row is owed), OQ-44 (the
-  deletion stays on restore), OQ-11g, OQ-11h [M10 lines 4149-4154, 4493-4498; STATUS open items].
-- OQ-11i: the new Romanian text and the Russian leaf `replacementSheet.materialAndColoursUnavailable` are Drafted,
-  not approved [STATUS, C4 wave block and open items].
+- **Ruled 2026-11-11 (owner-ruled, in chat; STATUS, owner rulings after the close):** OQ-41 (generic line for a
+  vanished class), OQ-42 (banner, not sheet, when only accessories were removed), OQ-43 (pill leaves out the
+  hardware entry while a hardware row is owed) and OQ-44 (the deletion stays on restore) are confirmed as the
+  defaults. OQ-11g, OQ-11h, OQ-11i (including the leaf `replacementSheet.materialAndColoursUnavailable`) and
+  OQ-11j are approved as drafted, RO and RU. The Russian stays an agent draft (ADR 0095 d2). The copy lock's
+  "Drafted" comments are still to be flipped in code (owed, not done).
 - The Russian copy is an agent draft, kept marked and never pinned (ADR 0095 d2) [M10 RK-3].
 - The memo TTL is 60 s, accepted by the owner on 2026-11-10; there is no pre-check limiter, also accepted
   [STATUS, 2026-11-10 rulings].
@@ -101,13 +102,14 @@ Customer side [M10 §1, §2]:
 ## 6. Production notes added 2026-11-11 (S6, K4, K4b, S6b) [M10 close block, S6/K4/K4b/S6b block; coordinator's reports; nothing run by the scribe]
 
 - **Two new crons in `vercel.json`:** the staff-change digest at `0 5 * * *` (05:00 UTC) and the nightly
-  price-dashboard backup at `45 3 * * *` (03:45 UTC). `vercel.json` now holds 5 crons. **The owner must confirm the
-  Vercel plan allows that many.**
+  price-dashboard backup at `45 3 * * *` (03:45 UTC). `vercel.json` now holds 5 crons. **Approved by the owner on
+  2026-11-11 (owner-ruled); the owner intends to leave Vercel eventually (backlog 306).**
 - **No new environment variable** (the K4 digest route authenticates by `CRON_SECRET` only, per its report), **no new migration and
   no new grant, and no new Blob store.**
 - **Blob prefix for the export: `backups/price-dashboard/`** (rotation 14 days, at most 30 files).
-- The digest goes to the configured shop inbox, not to accounts holding `contact.read` (backlog 302); the new nav
-  badge and digest copy (OQ-11j) are drafted, not approved.
+- The digest goes to the configured shop inbox, not to accounts holding `contact.read` (backlog 302; moved to the
+  backlog by the owner 2026-11-11, no decision); the new nav badge and digest copy (OQ-11j) are approved as drafted
+  (2026-11-11).
 - The restore runbook does not yet cover the price-dashboard export (backlog 300; a stub is in
   `runbooks/design-db-restore.md`).
 - Gate evidence for the final tip: STATUS, 2026-11-11 close entry.
