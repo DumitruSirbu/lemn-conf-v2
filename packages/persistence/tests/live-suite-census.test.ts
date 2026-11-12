@@ -106,8 +106,15 @@ const EXPECTED_CLASSIFICATION: Readonly<
   },
   "neon-configuration-repository.test.ts": {
     gate: "live test database",
+    lock: "shared",
+    reason:
+      "mints, saves and deletes designs under ids it generates and needs the schema intact; its column-dropping migration test moved to the revision-migration file so this one can share (owner, 2026-11-12)",
+  },
+  "neon-configuration-repository.revision-migration.test.ts": {
+    gate: "live test database",
     lock: "exclusive",
-    reason: "drops the revision column",
+    reason:
+      "drops the revision column and forgets ledger rows to re-apply 0004 and later",
   },
   "neon-configuration-repository.adversarial.test.ts": {
     gate: "live test database",
