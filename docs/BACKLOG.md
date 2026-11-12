@@ -337,6 +337,7 @@ status corrections, in one of these two files:
 | 304 | A URL in a digest kitchen name may be linkified by a mail client | open.md — recorded 2026-11-11 (M10 K4); low |
 | 305 | Nav badge poll needs `contact.read`, menu link needs `design.read.any` | open.md — recorded 2026-11-11 (M10 K4b); latent |
 | 306 | Hosting migration off Vercel must re-home the 5 crons with `CRON_SECRET`-equivalent auth | open.md — recorded 2026-11-11 (owner ruling) |
+| 307 | Persistence live files ~40% slower in three weeks; exclusive files are a serial floor | open.md — recorded 2026-11-12 |
 
 *Notes at the 8J2, 8U and 8V close (2026-10-17) on existing entries:* 145 (facing-labels flaky again), 160 (closed), 232 (the non-live recipe does not hold) carry dated notes in `open.md`.
 

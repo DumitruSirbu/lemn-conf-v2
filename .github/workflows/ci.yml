@@ -145,6 +145,9 @@ jobs:
   #
   # Each leg runs its package's own `test` script, which builds the workspace packages it consumes
   # first, so a leg depends on nothing another leg left behind.
+  #
+  # Persistence is not a leg of this matrix: it runs as `persistence-exclusive-lock` and
+  # `persistence-shard` below.
   test-package:
     name: test package (${{ matrix.package }})
     if: github.event.action != 'labeled'
@@ -157,7 +160,42 @@ jobs:
       # One package's failure should not hide whether the other three are green.
       fail-fast: false
       matrix:
-        package: [configurator-domain, persistence, three-adapter, web]
+        package: [configurator-domain, three-adapter, web]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+      - name: Setup Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - name: Install (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+      - name: Test (${{ matrix.package }})
+        run: pnpm --filter "@lemnaria/${{ matrix.package }}" run test
+
+  # The persistence suite, split by the test-schema lock each file declares (owner, 2026-11-12).
+  # As one serial leg it outgrew its 45 minutes: cancelled at the ceiling on every run from
+  # 2026-11-07, with 99 of 207 files done in run 43196066536.
+  #
+  # **Why by lock mode and not plain `--shard`.** Live files share one Neon database and hold an
+  # advisory lock for their whole run; an exclusive holder blocks every other live file, and a
+  # waiter fails after `TEST_SCHEMA_LOCK_WAIT_BOUND_MS` (180 s). Exclusive holds reach 235 s, so a
+  # hash-based shard that ran one beside other live files would fail them on the lock. Here the
+  # exclusive files run alone and first; the rest share the lock and run five ways at once, so no
+  # job ever waits on another.
+  #
+  # **Which file is which is not listed here.** `tests/support/run-lock-partition.ts` reads each
+  # file's registration with the census scanner, the reading `live-suite-census.test.ts` checks
+  # against its table. The exclusive files are a serial floor that sharding cannot shorten.
+  persistence-exclusive-lock:
+    name: test package (persistence, exclusive lock)
+    if: github.event.action != 'labeled'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs: install
     env:
       # Points at the dedicated Neon test database and nothing else, and it
       # is what the live persistence suites gate on — they ran on
@@ -185,10 +223,10 @@ jobs:
       # @neondatabase/serverless, which speaks to Neon over HTTP/WebSocket
       # and does not connect to a stock postgres image without a proxy.
       #
-      # Only the persistence leg receives it: no other package's unit suite
-      # reads a connection variable, and a leg that cannot reach the database
-      # cannot run concurrently against it.
-      TEST_DATABASE_URL: ${{ matrix.package == 'persistence' && secrets.TEST_DATABASE_URL || '' }}
+      # Only the persistence jobs receive it: no other package's unit suite
+      # reads a connection variable. `persistence-shard` below carries the same
+      # value and relies on this comment.
+      TEST_DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -204,7 +242,6 @@ jobs:
       # Fail before vitest with a clear message if the secret is missing,
       # rather than surfacing it as a driver error mid-suite.
       - name: Assert the test database secret is present
-        if: matrix.package == 'persistence'
         run: |
           if [ -z "$TEST_DATABASE_URL" ]; then
               echo "TEST_DATABASE_URL is not set. The live persistence suite needs the"
@@ -215,12 +252,59 @@ jobs:
           # Says only that it is set. Parsing it here to print the database name put part of a
           # mistyped value, or all of it, in the job log before any guard had run (M8 8B).
           echo "TEST_DATABASE_URL present."
-      - name: Test (${{ matrix.package }})
-        run: pnpm --filter "@lemnaria/${{ matrix.package }}" run test
+      - name: Test (persistence, exclusive lock)
+        run: pnpm --filter "@lemnaria/persistence" run test:exclusive-lock
+
+  # Waits for the exclusive job so that no shard's shared lock ever queues behind an exclusive
+  # holder. `!cancelled()` runs the shards even when that job failed, so one red file there does not
+  # hide the state of the other 195. Vitest's `--shard` splits by file count over a stable hash, so a
+  # file stays on the same shard from run to run.
+  persistence-shard:
+    name: test package (persistence, shard ${{ matrix.shard }}/${{ matrix.total }})
+    if: ${{ !cancelled() && github.event.action != 'labeled' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs: persistence-exclusive-lock
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5]
+        total: [5]
+    env:
+      # See `persistence-exclusive-lock` for why this secret and only this one.
+      TEST_DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+      - name: Setup Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - name: Install (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+      # Fail before vitest with a clear message if the secret is missing,
+      # rather than surfacing it as a driver error mid-suite.
+      - name: Assert the test database secret is present
+        run: |
+          if [ -z "$TEST_DATABASE_URL" ]; then
+              echo "TEST_DATABASE_URL is not set. The live persistence suite needs the"
+              echo "dedicated Neon test database. Add it under Settings > Secrets and"
+              echo "variables > Actions as a repository secret named TEST_DATABASE_URL."
+              exit 1
+          fi
+          # Says only that it is set. Parsing it here to print the database name put part of a
+          # mistyped value, or all of it, in the job log before any guard had run (M8 8B).
+          echo "TEST_DATABASE_URL present."
+      - name: Test (persistence, shard ${{ matrix.shard }}/${{ matrix.total }})
+        run: pnpm --filter "@lemnaria/persistence" run test:non-exclusive-lock --shard=${{ matrix.shard }}/${{ matrix.total }}
 
   # The required check, and the job the e2e shards and `prior unit tests` read. `needs` names the
-  # matrix job, whose result is the aggregate of all its legs, and this **fails unless they all
-  # succeeded** — a leg that was skipped or cancelled is not a pass.
+  # three unit-test jobs (two of them matrices, whose result is the aggregate of all their legs),
+  # and this **fails unless every one succeeded** — a leg that was skipped or cancelled is not a
+  # pass.
   #
   # `always()` is what lets it run and *fail* when a leg failed; without it a failed `needs` would
   # leave this job skipped, and a skipped required check counts as passing. The `labeled` condition
@@ -230,18 +314,24 @@ jobs:
     name: test
     runs-on: ubuntu-latest
     timeout-minutes: 2
-    needs: test-package
+    needs: [test-package, persistence-exclusive-lock, persistence-shard]
     if: ${{ always() && github.event.action != 'labeled' }}
     steps:
       - name: Require every package's unit tests to have passed
         env:
           LEGS_RESULT: ${{ needs.test-package.result }}
+          PERSISTENCE_EXCLUSIVE_RESULT: ${{ needs.persistence-exclusive-lock.result }}
+          PERSISTENCE_SHARDS_RESULT: ${{ needs.persistence-shard.result }}
         run: |
           echo "test package legs: $LEGS_RESULT"
-          if [ "$LEGS_RESULT" != "success" ]; then
-              echo "Not every package's unit tests succeeded; see the test package jobs."
-              exit 1
-          fi
+          echo "persistence, exclusive lock: $PERSISTENCE_EXCLUSIVE_RESULT"
+          echo "persistence shards: $PERSISTENCE_SHARDS_RESULT"
+          for result in "$LEGS_RESULT" "$PERSISTENCE_EXCLUSIVE_RESULT" "$PERSISTENCE_SHARDS_RESULT"; do
+              if [ "$result" != "success" ]; then
+                  echo "Not every package's unit tests succeeded; see the test package jobs."
+                  exit 1
+              fi
+          done
 
   # Added 2026-09-02. Until then nothing anywhere ran Playwright: `ci:local` did
   # not, and neither did this workflow, so §10's signature flow sat red for six

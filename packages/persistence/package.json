@@ -22,6 +22,8 @@
     "migrate:unattended-check": "tsx src/migration-safety.ts",
     "seed-price-book": "tsx src/seed-price-book.ts",
     "test": "pnpm run build:deps && vitest run --config vitest.config.ts",
+    "test:exclusive-lock": "pnpm run build:deps && tsx tests/support/run-lock-partition.ts exclusive",
+    "test:non-exclusive-lock": "pnpm run build:deps && tsx tests/support/run-lock-partition.ts non-exclusive",
     "typecheck": "pnpm run build:deps && tsc --project tsconfig.json --noEmit"
   },
   "dependencies": {

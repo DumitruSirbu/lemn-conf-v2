@@ -419,6 +419,21 @@ repository is now public, so the repeated install per leg spends nothing ratione
 `pnpm ci:local` are unchanged and still run the four suites serially. If the domain leg nears its
 45 minutes, the next step is Vitest's `--shard` on that leg, put to the owner first.
 
+**Persistence is not a leg of that matrix: it is split by lock mode (owner ruling, 2026-11-12).** As
+one serial leg it reached the 45-minute ceiling on every run from 2026-11-07 (99 of 207 files done
+in run 43196066536). `test package (persistence, exclusive lock)` runs every file that holds the
+exclusive test-schema lock, alone; then five `test package (persistence, shard i/5)` legs run the
+rest at once with Vitest's `--shard`. `test` needs all three jobs. Plain `--shard` over the whole
+suite was rejected: an exclusive hold (up to 235 s in that run) blocks every other live file, and a
+waiter fails at `TEST_SCHEMA_LOCK_WAIT_BOUND_MS` (180 s), so a hash-based shard would fail on the
+lock rather than on a bug. **Which file goes where is computed, not listed:**
+`packages/persistence/tests/support/run-lock-partition.ts` reads each file's registration with the
+census scanner, behind the package scripts `test:exclusive-lock` and `test:non-exclusive-lock`. The
+exclusive files are a serial floor that no shard count shortens; their growth is BACKLOG 307.
+`pnpm test` and `ci:local` still run the whole suite serially. The split removes waits between a
+run's own jobs, not between runs: a second CI run or a local gate against the same database can
+still queue behind five shared holders and meet the 180 s bound.
+
 The persistence leg needs the `TEST_DATABASE_URL` repository secret, pointing at the dedicated Neon test
 database, and is the only leg given it. `DATABASE_URL` is deliberately unset there: no application runs in CI, so there is no
 application database for the isolation guard to compare against. A Postgres service container is not
