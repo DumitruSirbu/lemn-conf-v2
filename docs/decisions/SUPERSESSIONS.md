@@ -541,3 +541,7 @@ Preserved here verbatim from that column so nothing is lost by the table's slimm
   *fifteen* insertable entries (a test says fourteen; unreconciled). **ADR 0171** notes that 7K G3 (*"no preset
   list, card, Folosește or save-as-preset control exists"*) described the product at `642ce47` and has since
   been overtaken by the revived preset story (ADR 0112 Amendment A, ADR 0003 decision 4b amendment).
+- **ADR 0042** decision 1's *"`CREATE_MIGRATION_LEDGER_SQL` runs on every run"* → **amended** to *"on every run that
+  takes the lock"* by that record's **Amendment A** (2026-11-12, owner ruling): an unlocked ledger read now settles an
+  up-to-date database without the lock. Decision 3's re-read inside the lock still governs every decision to apply or
+  refuse. Wording struck in place.

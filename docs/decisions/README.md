@@ -62,7 +62,7 @@ when a record you rely on is marked superseded below, or when planning (architec
 | [0039](0039-the-hood-is-a-standard-depth-hung-at-the-front.md) | The hood is a standard depth, hung at the front | Accepted |
 | [0040](0040-a-recorded-seat-is-converted-back-not-read-as-a-depth.md) | A recorded seat is converted back to a depth, never read as one | Accepted |
 | [0041](0041-the-browser-security-policy-is-versioned-and-the-csp-only-reports.md) | Browser security policy is versioned; the CSP only reports | Partly superseded → 0161 (decision 4 overturned; decision 3's preconditions discharged); decision 3 annotated 2026-10-07 |
-| [0042](0042-the-database-records-which-migrations-it-ran.md) | The database records which migrations it ran | Accepted |
+| [0042](0042-the-database-records-which-migrations-it-ran.md) | The database records which migrations it ran | Accepted (amended); Amendment A 2026-11-12 (an unlocked ledger read may conclude "nothing to do" and only that; the ledger is created on every run that takes the lock) |
 | [0043](0043-an-empty-space-of-any-width-is-a-legal-state.md) | An empty space of any width is a legal state | Accepted |
 | [0044](0044-an-empty-space-is-recorded-in-the-design-document.md) | An empty space is recorded in the design document | Partly superseded → 0052, 0053 |
 | [0045](0045-the-run-end-panel-follows-the-run-it-closes.md) | The run-end panel follows the run it closes | Accepted (amended) |

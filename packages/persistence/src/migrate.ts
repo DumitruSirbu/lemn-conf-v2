@@ -125,6 +125,9 @@ async function applyPendingMigrations(
   client: Client,
   files: readonly MigrationFile[],
 ): Promise<MigrationRunSummary> {
+  if (await isEveryMigrationAlreadyApplied(client, files))
+    return { applied: [], alreadyApplied: files.map((file) => file.fileName) };
+
   const applied: string[] = [];
   const alreadyApplied: string[] = [];
 
@@ -134,6 +137,26 @@ async function applyPendingMigrations(
   }
 
   return { applied, alreadyApplied };
+}
+
+/**
+ * One unlocked ledger read that settles the common case, a database already at this checkout's schema, in a single
+ * round trip instead of a locked transaction per file: about 7 s for 29 files from a laptop (2026-11-12), paid by every
+ * live test file's `beforeAll`. Safe without the lock, because a ledger row commits only with its migration, so a ledger
+ * recording every file unchanged describes a schema no concurrent runner can take back. Anything else (no ledger yet,
+ * a file still pending, a refusal the plan raises, a failed read) answers false, and the locked path below decides it and
+ * reports it exactly as it always has: the refusals keep one source.
+ */
+async function isEveryMigrationAlreadyApplied(
+  client: Client,
+  files: readonly MigrationFile[],
+): Promise<boolean> {
+  try {
+    const applied = await readAppliedMigrations(client);
+    return planPendingMigrations(files, applied).length === 0;
+  } catch {
+    return false;
+  }
 }
 
 /** One transaction per migration, reporting whether this run is the one that applied it. */
