@@ -27,6 +27,7 @@ import {
 import { widerEnteredWall } from "../support/entered-walls.js";
 import { createFakeProbeFactory } from "../support/fake-probe.js";
 import { ruledSlotWidthMm } from "../support/fridge-end-leftover.js";
+import { yieldToTheEventLoop } from "../support/yield-to-the-event-loop.js";
 
 const OCCURRED_AT = "2026-09-11T12:00:00.000Z";
 const OVEN_TOWER = "tall-oven-tower";
@@ -273,13 +274,14 @@ describe("E3 clause 1 decides something, and it is asserted where it decides it"
   // Swept, not sampled: removing `coreSurvivedWhole` from `isABlockAffordable` changes only a fraction of a
   // percent of the approved policy, so a uniform property over 4 000 rooms draws the deciding room about once
   // and passes either way. The counter fails when the sweep stops reaching the invariant.
-  it("stands no block in a room that dropped a core role, wherever that is decidable", () => {
+  it("stands no block in a room that dropped a core role, wherever that is decidable", async () => {
     let droppedCoreRooms = 0;
     for (
       let depthMm = WALL_B_THAT_CANNOT_SEAT_THE_FRIDGE_MM.minMm;
       depthMm <= WALL_B_THAT_CANNOT_SEAT_THE_FRIDGE_MM.maxMm;
       depthMm += 100
     ) {
+      await yieldToTheEventLoop();
       for (
         let widthMm = APPROVED_L.wallA.minMm;
         widthMm <= APPROVED_L.wallA.maxMm;
@@ -410,11 +412,12 @@ describe("exactly one oven, read off the built kitchen", () => {
   it(
     "carries one oven-bearing body in every generated kitchen, in both arms",
     { timeout: 60_000 },
-    () => {
+    async () => {
       const arms = { withATower: 0, withoutOne: 0 };
       let generated = 0;
       // Generation is swept, not the policy: wall A to 6300, wall B from its first value to its maximum.
       for (let widthMm = 900; widthMm <= 6300; widthMm += 9) {
+        await yieldToTheEventLoop();
         for (const depthMm of [
           1000,
           1450,
@@ -458,7 +461,7 @@ describe("exactly one oven, read off the built kitchen", () => {
 
 describe("the block shrinks in exactly one shape, swept in two dimensions", () => {
   // Swept across wall B because a `2 -> 1` step reachable only at some other wall B would be invisible at 1700.
-  it("never steps down except from one column to none, over every sampled wall B", () => {
+  it("never steps down except from one column to none, over every sampled wall B", async () => {
     // Sanctioned steps down: `1 -> 0` only as E6.2's refusal (remainder inside the window, no traded dishwasher
     // either side) or (c)'s tower trade; 3 -> 2 only into the room where exactly one `threshold-drawer` first
     // stands (ADR 0110 Q-H5); (b)'s one pantry column only into the room where a traded dishwasher first stands
@@ -482,6 +485,7 @@ describe("the block shrinks in exactly one shape, swept in two dimensions", () =
       5600,
       APPROVED_L.wallB.maxMm,
     ]) {
+      await yieldToTheEventLoop();
       const firstRoom = roomOf(900, depthMm);
       const firstPlan = planFor(firstRoom);
       let previous = blockOf(firstPlan).length;
@@ -545,7 +549,7 @@ describe("the centring hazard across the whole absorb window", () => {
   // end) with the free end's remainder `0 < r <= 200`, so E6 / E6.2 decides: the outermost door column takes the
   // merged opening, or a lone fixed-width tower cannot and the block falls to none. The free end is read beside
   // every run module the composer stood, a traded dishwasher included; that module is a whole 600 mm.
-  it("pins the window at the approved L's 10 mm grid: 74 700 rooms, 64 300 absorbed, 10 400 lone towers refused", () => {
+  it("pins the window at the approved L's 10 mm grid: 74 700 rooms, 64 300 absorbed, 10 400 lone towers refused", async () => {
     const census = {
       placed: 0,
       inTheWindow: 0,
@@ -559,6 +563,7 @@ describe("the centring hazard across the whole absorb window", () => {
       widthMm <= APPROVED_L.wallA.maxMm;
       widthMm += 10
     ) {
+      await yieldToTheEventLoop();
       for (
         let depthMm = APPROVED_L.wallB.minMm;
         depthMm <= APPROVED_L.wallB.maxMm;
@@ -601,11 +606,12 @@ describe("the centring hazard across the whole absorb window", () => {
 
   // A merge that fired at one remainder and not another, or left the run short of the wall's reachable end, is
   // invisible to a single witness; the window is `0 < r <= 200`.
-  it("leaves the tower's opening at 600, the run flush, and no column resized, at every remainder in the window", () => {
+  it("leaves the tower's opening at 600, the run flush, and no column resized, at every remainder in the window", async () => {
     const remaindersSeen = new Set<number>();
     let roomsInTheWindow = 0;
     // Fixed depths and widths 900-6300, not the approved policy: the planner is what is swept.
     for (const depthMm of [1700, 2400, 3000, 4100, 5100]) {
+      await yieldToTheEventLoop();
       for (let widthMm = 900; widthMm <= 6300; widthMm += 1) {
         const room = roomOf(widthMm, depthMm);
         const plan = planFor(room);
