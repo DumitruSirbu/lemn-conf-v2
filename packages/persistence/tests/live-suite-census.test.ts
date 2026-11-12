@@ -228,9 +228,9 @@ const EXPECTED_CLASSIFICATION: Readonly<
   },
   "qa-l3-s4-statements-on-postgres.adversarial.test.ts": {
     gate: "live test database",
-    lock: "shared",
+    lock: "exclusive",
     reason:
-      "adversarial QA of L3-S4: runs the staff kitchen reader's statements inside a repeatable-read transaction it rolls back, writes nothing that survives, asserts only the difference between a total read before planting and one read after (one snapshot) and needs the schema intact (M8B Lot 3 L3-S4 QA)",
+      "adversarial QA of L3-S4: runs the staff kitchen reader's statements inside a repeatable-read transaction it rolls back, but pages the unfiltered list and requires its planted kitchens first, which another file's live changed kitchen outranks (M8B Lot 3 L3-S4 QA; exclusive since 2026-11-12)",
   },
   "qa-m10-s4-seen-and-digest-on-postgres.adversarial.test.ts": {
     gate: "live test database",
