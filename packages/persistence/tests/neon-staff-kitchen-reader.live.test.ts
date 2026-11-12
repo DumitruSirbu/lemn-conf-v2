@@ -26,10 +26,11 @@ import type {
   KitchenWorld,
   StaffAccount,
 } from "./support/staff-kitchen-reader-contract.js";
-import { holdSharedTestSchemaLock } from "./support/test-schema-lock.js";
+import { holdExclusiveTestSchemaLock } from "./support/test-schema-lock.js";
 
-// Shared: this file writes rows under ids only it makes and needs the schema intact while it does.
-holdSharedTestSchemaLock();
+// Exclusive, not shared: the changed-count tests compare the whole-database count with a baseline read
+// in an earlier statement, so a concurrent run's writes would move it in between.
+holdExclusiveTestSchemaLock();
 
 const SUITE_NAME = "NeonStaffKitchenReader (live test database)";
 

@@ -245,9 +245,9 @@ const EXPECTED_CLASSIFICATION: Readonly<
   },
   "neon-staff-kitchen-reader.live.test.ts": {
     gate: "live test database",
-    lock: "shared",
+    lock: "exclusive",
     reason:
-      "writes accounts, kitchens, requests, sent copies, statuses, notes, seen marks and their audit rows under random ids it mints, deletes them by those ids when it finishes, asserts no whole-table figure (the changed count is compared with the total of the same statement) and needs the schema intact (M8B Lot 3 L3-S4; M10 wave S4)",
+      "asserts how far the whole-database changed count moves from a baseline read in an earlier statement, so another run's saves, marks or deletes land in between; it failed so beside a parallel shard in run 43217351639 (owner, 2026-11-12). Writes accounts, kitchens, requests, sent copies, statuses, notes, seen marks and their audit rows under random ids it mints and deletes them by those ids (M8B Lot 3 L3-S4; M10 wave S4)",
   },
   "neon-account-kitchen-store.notes.live.test.ts": {
     gate: "live test database",
