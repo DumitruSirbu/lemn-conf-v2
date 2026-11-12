@@ -208,6 +208,12 @@ const EXPECTED_CLASSIFICATION: Readonly<
     reason:
       "adversarial QA of L3-S1: inserts into the three staff tables only inside a rolled-back transaction, creates temporary tables and functions of its own, asserts no whole-table figure and needs the schema intact (M8B Lot 3 L3-S1 QA)",
   },
+  "qa-l3-s1-staff-tables.reapply.adversarial.test.ts": {
+    gate: "live test database",
+    lock: "exclusive",
+    reason:
+      "adversarial QA of L3-S1: runs migrations 0020-0022 over the real staff tables and compares their whole contents before and after, so another file's committed row fails it (M8B Lot 3 L3-S1 QA; split out 2026-11-12)",
+  },
   "qa-l3-s3-statements-on-postgres.adversarial.test.ts": {
     gate: "live test database",
     lock: "shared",

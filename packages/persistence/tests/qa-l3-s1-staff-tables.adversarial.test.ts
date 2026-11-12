@@ -31,10 +31,21 @@ import {
   liveTestDatabaseUrl,
 } from "./support/live-test-database.js";
 import { readMigrationLedger } from "./support/migration-ledger-probe.js";
+import {
+  AUDIT,
+  ID,
+  NOTES,
+  REQUEST_STATES,
+  migrationNamed,
+  type RowValues,
+  type TableUnderProbe,
+} from "./support/staff-tables-under-probe.js";
 import { holdSharedTestSchemaLock } from "./support/test-schema-lock.js";
 
 // Shared: every statement here runs inside a transaction that is rolled back, and the file creates only temporary
-// objects of its own, so it needs the schema intact and changes none.
+// objects of its own, so it needs the schema intact and changes none. Re-running the migrations' own SQL over the real
+// tables, and comparing their whole contents, is in `qa-l3-s1-staff-tables.reapply.adversarial.test.ts`, which holds
+// the exclusive lock.
 holdSharedTestSchemaLock();
 
 /**
@@ -59,56 +70,10 @@ const SUITE_NAME =
   "staff tables 0020-0022 on a real Postgres (live test database)";
 if (!isLiveTestDatabaseConfigured) announceSkippedLiveSuite(SUITE_NAME);
 
-type RowValues = Record<string, string | null>;
-
-const ID = "Ab3_-".repeat(4) + "Z";
 const OTHER_ID = "Zz9_-".repeat(4) + "A";
-const STAMP = "2026-10-21T09:00:00Z";
 const CHECK_VIOLATION = "23514";
 const NOT_NULL_VIOLATION = "23502";
 const UNIQUE_VIOLATION = "23505";
-
-interface TableUnderProbe {
-  readonly table: string;
-  readonly migrationPrefix: string;
-  /** A row every check accepts, the stamped column included, so that a probe changes one field at a time. */
-  readonly validRow: RowValues;
-}
-
-const AUDIT: TableUnderProbe = {
-  table: "staff_audit_events",
-  migrationPrefix: "0020_",
-  validRow: {
-    id: ID,
-    occurred_at: STAMP,
-    actor_account_id: ID,
-    action: "kitchen-opened",
-    design_id: null,
-    subject_account_id: null,
-    detail: null,
-  },
-};
-const NOTES: TableUnderProbe = {
-  table: "design_notes",
-  migrationPrefix: "0021_",
-  validRow: {
-    id: ID,
-    design_id: ID,
-    author_account_id: ID,
-    body: "a note",
-    created_at: STAMP,
-  },
-};
-const REQUEST_STATES: TableUnderProbe = {
-  table: "design_request_states",
-  migrationPrefix: "0022_",
-  validRow: {
-    design_id: ID,
-    status: "new",
-    changed_by_account_id: ID,
-    changed_at: STAMP,
-  },
-};
 
 // ---------------------------------------------------------------------------------------------------------------------
 // The session and the probe
@@ -469,15 +434,6 @@ async function disagreementsOn(
 // ---------------------------------------------------------------------------------------------------------------------
 // Weakened twins, derived from the migration's own text
 // ---------------------------------------------------------------------------------------------------------------------
-
-function migrationNamed(prefix: string): MigrationFile {
-  const found = readMigrationFiles().find((migration) =>
-    migration.fileName.startsWith(prefix),
-  );
-  if (found === undefined)
-    throw new Error(`no migration starts with ${prefix}`);
-  return found;
-}
 
 /** The statements of a file, comments removed. Every statement in 0020-0022 ends in a semicolon and none has one inside. */
 function statementsOfFile(migration: MigrationFile): string[] {
@@ -1213,59 +1169,6 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
     const FILES = [AUDIT, NOTES, REQUEST_STATES].map((probed) =>
       migrationNamed(probed.migrationPrefix),
     );
-
-    async function catalogAndRows(): Promise<string> {
-      const catalog = await rowsOf(`
-        select 'constraint' as kind, conrelid::regclass::text as owner, conname as name, pg_get_constraintdef(oid) as definition
-          from pg_constraint
-         where conrelid in ('staff_audit_events'::regclass, 'design_notes'::regclass, 'design_request_states'::regclass)
-        union all
-        select 'index', tablename, indexname, indexdef from pg_indexes
-         where schemaname = 'public' and tablename in ('staff_audit_events', 'design_notes', 'design_request_states')
-        union all
-        select 'column', table_name, column_name, data_type || ' ' || is_nullable || ' ' || coalesce(column_default, '')
-          from information_schema.columns
-         where table_schema = 'public' and table_name in ('staff_audit_events', 'design_notes', 'design_request_states')
-        union all
-        select 'acl', relname, '', coalesce(relacl::text, '') from pg_class
-         where relname in ('staff_audit_events', 'design_notes', 'design_request_states') and relkind = 'r'
-        order by 1, 2, 3`);
-      const rows = await Promise.all(
-        [AUDIT, NOTES, REQUEST_STATES].map((probed) =>
-          rowsOf(`select * from ${probed.table} order by 1`),
-        ),
-      );
-      return JSON.stringify([catalog, rows]);
-    }
-
-    async function seedOneRowPerTable(): Promise<void> {
-      for (const probed of [AUDIT, NOTES, REQUEST_STATES]) {
-        expect(await insertOutcomeKept(probed)).toBe("accepted");
-      }
-    }
-
-    async function insertOutcomeKept(probed: TableUnderProbe): Promise<string> {
-      const columns = Object.keys(probed.validRow);
-      await client.query(
-        `insert into ${probed.table} (${columns.join(", ")}) values (${columns.map((_, i) => `$${String(i + 1)}`).join(", ")})`,
-        columns.map((column) => probed.validRow[column]),
-      );
-      return "accepted";
-    }
-
-    it("running the three files twice over tables that hold rows changes no row, constraint, index, column or privilege", async () => {
-      await seedOneRowPerTable();
-      const before = await catalogAndRows();
-
-      for (const pass of [1, 2]) {
-        for (const file of FILES) {
-          await client.query(file.sql);
-        }
-        expect(await catalogAndRows(), `after pass ${String(pass)}`).toBe(
-          before,
-        );
-      }
-    });
 
     it("the runner run again is a no-op and the ledger still records the bytes of the files on disk", async () => {
       const ledgerBefore = await readMigrationLedger(liveTestDatabaseUrl);
