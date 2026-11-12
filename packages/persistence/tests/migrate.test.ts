@@ -33,6 +33,7 @@ import {
   hasTable,
   readMigrationLedger,
 } from "./support/migration-ledger-probe.js";
+import { REAPPLY_MIGRATIONS_TEST_TIMEOUT_MS } from "./support/migration-reapply-timeout.js";
 import { holdExclusiveTestSchemaLock } from "./support/test-schema-lock.js";
 
 // Exclusive: this file drops the ledger, forgets its rows and synthesises versions, and no other
@@ -193,6 +194,7 @@ describe("runMigrations against the live test database", () => {
         await sql`delete from designs where id = ${survivingId}`;
       }
     },
+    REAPPLY_MIGRATIONS_TEST_TIMEOUT_MS,
   );
 
   it.skipIf(!hasLiveDatabase)(
@@ -248,6 +250,7 @@ describe("runMigrations against the live test database", () => {
       const summary = await runMigrations(testDatabaseUrl);
       expect(summary.applied).toEqual(ALL_MIGRATION_FILE_NAMES.slice(1));
     },
+    REAPPLY_MIGRATIONS_TEST_TIMEOUT_MS,
   );
 
   it.skipIf(!hasLiveDatabase)(
@@ -268,6 +271,7 @@ describe("runMigrations against the live test database", () => {
         ALL_MIGRATION_FILE_NAMES.length,
       );
     },
+    REAPPLY_MIGRATIONS_TEST_TIMEOUT_MS,
   );
 
   it.skipIf(!hasLiveDatabase)(

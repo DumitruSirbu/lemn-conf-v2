@@ -26,6 +26,7 @@ import {
   liveTestDatabaseUrl,
 } from "./support/live-test-database.js";
 import { forgetAppliedMigrations } from "./support/migration-ledger-probe.js";
+import { REAPPLY_MIGRATIONS_TEST_TIMEOUT_MS } from "./support/migration-reapply-timeout.js";
 import { holdExclusiveTestSchemaLock } from "./support/test-schema-lock.js";
 
 // Exclusive: this file drops the revision column, and no other run may use the test database
@@ -1018,12 +1019,6 @@ describe("loadOwned (Amendment H2)", () => {
     return id;
   }
 });
-
-/** The backfill test re-applies every migration from 0004 up, twice, so its run time grows with each
- *  migration added; the package's 30 s budget is per round trip, not per migration. At 29 migrations
- *  it took 16.8 s locally and over 30 s from a CI runner (timed out in runs 43196066536 and
- *  43217351639). Sized with head-room for future migrations; a genuine hang still fails. */
-const REAPPLY_MIGRATIONS_TEST_TIMEOUT_MS = 120_000;
 
 describe("the design-revision migration (WEB-003)", () => {
   beforeAll(async () => {
