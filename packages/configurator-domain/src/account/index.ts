@@ -50,6 +50,7 @@ export {
   type ProfileTextIssue,
   type ProfileTextValidation,
 } from "./profile-fields.js";
+export { profileFillOf, type ProfileFill } from "./profile-fill.js";
 export {
   validateEmailChange,
   validatePasswordChange,

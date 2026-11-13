@@ -189,6 +189,8 @@ export type {
   PasswordResetOutcome,
   PlainEmailTokenPurpose,
   PreviousAddress,
+  ProfileBlanksFill,
+  ProfileFillOutcome,
   ProfileLookup,
   ProfileUpdate,
   ProfileUpdateOutcome,
@@ -206,6 +208,7 @@ export { FakeAccountStore } from "./fake-account-store.js";
 export type {
   FakeAccountStoreOptions,
   HeldEmailToken,
+  HeldProfileColumns,
 } from "./fake-account-store.js";
 export {
   SESSION_TOUCH_INTERVAL_SECONDS,

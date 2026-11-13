@@ -15,6 +15,7 @@ import {
   requireValidPasswordChange,
   requireValidPasswordRehash,
   requireValidPasswordReset,
+  requireValidProfileBlanksFill,
   requireValidProfileUpdate,
   requireValidRegistrationReplacement,
   requireValidRevertAddressLookup,
@@ -41,6 +42,8 @@ import type {
   PasswordRehashOutcome,
   PasswordReset,
   PasswordResetOutcome,
+  ProfileBlanksFill,
+  ProfileFillOutcome,
   ProfileLookup,
   ProfileUpdate,
   ProfileUpdateOutcome,
@@ -82,6 +85,14 @@ export interface HeldEmailToken {
   readonly newEmail?: string;
   readonly newEmailNormalForm?: string;
   usedAt: Date | undefined;
+}
+
+/** The profile's columns, `null` for "not given"; the phone pair is both set or both null. */
+export interface HeldProfileColumns {
+  readonly name: string | null;
+  readonly address: string | null;
+  readonly phone: string | null;
+  readonly phoneNormalForm: string | null;
 }
 
 export interface FakeAccountStoreOptions {
@@ -159,6 +170,24 @@ export class FakeAccountStore implements AccountStore {
         phone: phone === undefined ? held.phone : heldPhoneOf(phone),
       });
       return { kind: "saved" };
+    });
+  }
+
+  fillProfileBlanks(blanks: ProfileBlanksFill): Promise<ProfileFillOutcome> {
+    return settle(() => {
+      requireValidProfileBlanksFill(blanks);
+      const held = this.accountsById.get(blanks.accountId);
+      if (held === undefined) return { kind: "nothing-to-fill" };
+      const { fill } = blanks;
+      const filled: HeldAccount = {
+        ...held,
+        name: held.name ?? fill.name,
+        address: held.address ?? fill.address,
+        phone: held.phone ?? { ...fill.phone },
+      };
+      if (isSameProfile(held, filled)) return { kind: "nothing-to-fill" };
+      this.accountsById.set(held.id, filled);
+      return { kind: "filled" };
     });
   }
 
@@ -468,6 +497,18 @@ export class FakeAccountStore implements AccountStore {
     return this.accountsById.get(accountId)?.passwordChangedAt;
   }
 
+  /** The four profile columns as the table holds them, which `findProfile` does not all return. */
+  heldProfileOf(accountId: string): HeldProfileColumns | undefined {
+    const held = this.accountsById.get(accountId);
+    if (held === undefined) return undefined;
+    return {
+      name: held.name ?? null,
+      address: held.address ?? null,
+      phone: held.phone?.entered ?? null,
+      phoneNormalForm: held.phone?.normalForm ?? null,
+    };
+  }
+
   /** Every account the table would hold. */
   heldAccounts(): readonly StoredAccount[] {
     return [...this.accountsById.values()].map((held) => storedAccountOf(held));
@@ -688,6 +729,14 @@ function heldAccountOf(id: string, account: NewAccount, at: Date): HeldAccount {
     emailVerifiedAt: undefined,
     passwordChangedAt: at,
   };
+}
+
+function isSameProfile(before: HeldAccount, after: HeldAccount): boolean {
+  return (
+    before.name === after.name &&
+    before.address === after.address &&
+    before.phone === after.phone
+  );
 }
 
 /** Both columns set or both cleared: the store has already refused a pair that is half of one. */

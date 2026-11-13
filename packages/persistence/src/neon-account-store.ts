@@ -11,6 +11,7 @@ import {
   requireValidPasswordChange,
   requireValidPasswordRehash,
   requireValidPasswordReset,
+  requireValidProfileBlanksFill,
   requireValidProfileUpdate,
   requireValidRegistrationReplacement,
   requireValidTokenToIssue,
@@ -36,6 +37,8 @@ import type {
   PasswordRehashOutcome,
   PasswordReset,
   PasswordResetOutcome,
+  ProfileBlanksFill,
+  ProfileFillOutcome,
   ProfileLookup,
   ProfileUpdate,
   ProfileUpdateOutcome,
@@ -160,6 +163,39 @@ export class NeonAccountStore implements AccountStore {
     return onlyIdOf(rows, "update a profile") === undefined
       ? { kind: "none" }
       : { kind: "saved" };
+  }
+
+  /**
+   * One statement. Every right-hand side reads the row as it was, so `phone` and `phone_normal_form` both follow the one
+   * condition on `phone`, and a value another request saved first is never overwritten. The `where` leaves a row with no
+   * blank to fill untouched, `updated_at` included. An absent address binds `null`, which `address` then keeps its own
+   * value for. Only the four profile columns and `updated_at` are written (`0017`, `0012` grants), and nothing is read
+   * from `contact_submissions`. Repeating it writes the same values.
+   */
+  async fillProfileBlanks(
+    blanks: ProfileBlanksFill,
+  ): Promise<ProfileFillOutcome> {
+    requireValidProfileBlanksFill(blanks);
+    const { accountId, fill } = blanks;
+    const address = fill.address ?? null;
+    const rows = await queryRows("fill a profile's blanks", () =>
+      retryOnTransientFailure(
+        () => this.sql`
+          update accounts
+          set name = case when name is null then ${fill.name}::text else name end,
+            address = case when address is null then ${address}::text else address end,
+            phone = case when phone is null then ${fill.phone.entered}::text else phone end,
+            phone_normal_form = case when phone is null then ${fill.phone.normalForm}::text else phone_normal_form end,
+            updated_at = now()
+          where id = ${accountId}
+            and (name is null or phone is null or (address is null and ${address}::text is not null))
+          returning id
+        `,
+      ),
+    );
+    return onlyIdOf(rows, "fill a profile's blanks") === undefined
+      ? { kind: "nothing-to-fill" }
+      : { kind: "filled" };
   }
 
   async findByLiveToken({

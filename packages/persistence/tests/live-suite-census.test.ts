@@ -256,6 +256,18 @@ const EXPECTED_CLASSIFICATION: Readonly<
     reason:
       "writes accounts, sessions, kitchens and audit rows under random ids it mints, deletes them by those ids when it finishes, asserts no whole-table figure and needs the schema intact (M8B Lot 3 L3-S3)",
   },
+  "neon-account-store.fill-profile.live.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "writes accounts under random ids it mints, reads them back by those ids and deletes them by those ids when it finishes, asserts no whole-table figure and needs the schema intact (M11 wave W2a)",
+  },
+  "qa-w2a-fill-profile-concurrency.adversarial.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "adversarial QA of W2a: writes accounts under random ids it mints, reads them back by those ids and deletes them by those ids when it finishes, asserts no whole-table figure and needs the schema intact (M11 wave W2a QA)",
+  },
   "neon-staff-kitchen-reader.live.test.ts": {
     gate: "live test database",
     lock: "exclusive",

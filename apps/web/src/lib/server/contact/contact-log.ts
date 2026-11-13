@@ -45,6 +45,16 @@ export const CONTACT_UNAVAILABLE_CAUSES = [
 export type ContactUnavailableCause =
   (typeof CONTACT_UNAVAILABLE_CAUSES)[number];
 
+/** Why a profile was not filled from a stored request: a closed list, so the line can never carry a thrown value. */
+export const PROFILE_FILL_FAILURE_CAUSES = [
+  "timeout",
+  "store-failed",
+  "unexpected",
+] as const;
+
+export type ProfileFillFailureCause =
+  (typeof PROFILE_FILL_FAILURE_CAUSES)[number];
+
 /** What a line says for a value outside its list: the list's own word for a cause, and `other` for a kind. */
 const OTHER_KIND = "other";
 const UNEXPECTED_CAUSE: ContactUnavailableCause = "unexpected";
@@ -160,6 +170,21 @@ export function reportContactMarkFailed(reference: string): void {
 export function reportContactSentMarkFailed(reference: string): void {
   write("error", {
     event: "contact-sent-mark-failed",
+    ...referenceField(reference),
+  });
+}
+
+/** The request is stored and filling the signed-in customer's profile failed: still a success, each time, with the
+ *  reference and a cause from the closed list. A value outside the list is `unexpected`, and nothing of it is kept. */
+export function reportContactProfileFillFailed(
+  reference: string,
+  cause: ProfileFillFailureCause,
+): void {
+  write("error", {
+    event: "contact-profile-fill-failed",
+    cause:
+      PROFILE_FILL_FAILURE_CAUSES.find((known) => known === cause) ??
+      UNEXPECTED_CAUSE,
     ...referenceField(reference),
   });
 }

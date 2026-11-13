@@ -456,6 +456,48 @@ describe("a design whose sent mark could not be made after the request was store
   });
 });
 
+describe("a profile that could not be filled after the request was stored: each time, the reference and a cause", () => {
+  it.each(["timeout", "store-failed", "unexpected"] as const)(
+    "writes the reference and the cause %s, each time",
+    async (cause) => {
+      const { reportContactProfileFillFailed, error } = await freshLog();
+
+      reportContactProfileFillFailed(A_REFERENCE, cause);
+      reportContactProfileFillFailed(A_REFERENCE, cause);
+
+      expect(error.mock.calls).toEqual([
+        [
+          "[contact]",
+          {
+            event: "contact-profile-fill-failed",
+            cause,
+            reference: A_REFERENCE,
+          },
+        ],
+        [
+          "[contact]",
+          {
+            event: "contact-profile-fill-failed",
+            cause,
+            reference: A_REFERENCE,
+          },
+        ],
+      ]);
+    },
+  );
+
+  it("writes a cause outside the list as unexpected and a reference of another shape not at all", async () => {
+    const { reportContactProfileFillFailed, error } = await freshLog();
+
+    reportContactProfileFillFailed(UNSHAPED, MARKER as never);
+
+    expect(error.mock.calls[0]?.[1]).toEqual({
+      event: "contact-profile-fill-failed",
+      cause: "unexpected",
+    });
+  });
+});
+
 describe("what no line holds, and a transport that fails", () => {
   it("lets nothing escape when the transport throws, for every kind of line", async () => {
     const {
@@ -465,6 +507,7 @@ describe("what no line holds, and a transport that fails", () => {
       reportContactNoticeNotSent,
       reportContactMarkFailed,
       reportContactSentMarkFailed,
+      reportContactProfileFillFailed,
       warn,
       error,
     } = await freshLog();
@@ -486,6 +529,7 @@ describe("what no line holds, and a transport that fails", () => {
       });
       reportContactMarkFailed(A_REFERENCE);
       reportContactSentMarkFailed(A_REFERENCE);
+      reportContactProfileFillFailed(A_REFERENCE, "timeout");
     }).not.toThrow();
   });
 
@@ -504,6 +548,7 @@ describe("what no line holds, and a transport that fails", () => {
       log.reportContactRefused(text as never);
       log.reportContactMarkFailed(text);
       log.reportContactSentMarkFailed(text);
+      log.reportContactProfileFillFailed(text, text as never);
       log.reportContactNoticeNotSent({
         code: "CONTACT_NOTICE_NOT_SENT",
         failure: {

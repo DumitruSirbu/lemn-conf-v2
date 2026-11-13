@@ -84,7 +84,7 @@ route and logs no `401` "refused" account event per view [src: the route logs th
 
 ### d2. The write-back happens on the server, when the request is stored, in one statement that fills only nulls
 
-The fill runs at **exactly the two places the submission marks a design sent**, and nowhere else [src:
+The fill runs at **exactly the two places the submission calls `markDesignSent`** (a callback request, whose mark is a no-op, fills too; dated note 2026-11-13, W2a QA), and nowhere else [src:
 `lib/server/contact/submit-contact.ts:224-228`, `:287-289`]:
 
 1. a new request, right after `store.record` answered stored (not `conflict`);

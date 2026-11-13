@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 
+import { readCurrentSession } from "@/lib/server/account/current-session";
 import { causeOf } from "@/lib/server/contact/contact-failure";
 import { reportContactUnavailable } from "@/lib/server/contact/contact-log";
 import { admitContactRequest } from "@/lib/server/contact/contact-production-ports";
@@ -34,9 +35,9 @@ type MadePorts =
 /**
  * A contact request: the guard, the content type and the body to its bound come first and count nothing. Then the
  * request is admitted (`admitContactRequest`: the every-request bucket first, the price store only after it) and its
- * ports are made inside the request, and the body's text goes to the orchestration. This route parses nothing and asks no
- * judgement itself, so the order of what is read and counted is held in the ports module. No answer sets, clears or
- * refreshes a cookie.
+ * ports are made inside the request. The body's text goes to the orchestration with a reader of the request's session,
+ * asked only once the request is stored. This route parses nothing and asks no judgement itself, so the order of what
+ * is read and counted is held in the ports module. No answer sets, clears or refreshes a cookie.
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const refusal = refusalBeforeTheBody(request);
@@ -49,7 +50,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const made = await madeProductionPorts(request, body.value);
   if (made.kind === "answer") return made.answer;
   return submitContact(
-    { text: body.value, visitorHash: readVisitorHash(request.cookies) },
+    {
+      text: body.value,
+      visitorHash: readVisitorHash(request.cookies),
+      readSession: () => readCurrentSession(request.cookies),
+    },
     made.ports,
   );
 }

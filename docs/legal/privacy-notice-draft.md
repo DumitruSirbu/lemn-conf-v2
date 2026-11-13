@@ -45,6 +45,14 @@ The notice may only state what is **true on the day it is published**. Several s
 | Erasure also reaches the shop's own copies               | **Not defined [inf]:** the shop's **receiving** inbox holds every notice (name, phone, locality); the shop's WhatsApp holds whatever a customer sent there (ADR 0163). An erasure procedure must cover both, or the notice must say these copies are kept and for how long. |
 | Designs made without an account are deleted at some point | **Nothing deletes them [src]:** ADR 0114's dated note quotes ADR 0019 (2026-09-15): "Nothing deletes a design automatically". The visitor cookie expires in 30 days, but the row stays. The owner must set a horizon (§7 row is a placeholder). |
 
+**Profile filled from a contact request [owner ruling, 2026-11-13, third round; ADR 0153 Amendment A; ADR 0179].** A
+signed-in confirmed client's empty profile fields (name, phone, locality) are filled from the contact request they send,
+and staff read the profile's name and phone beside the kitchen. This is a deliberate change to ADR 0153 decision 1 for
+signed-in submitters only; the two §2 paragraphs (§2, both languages) state it, and the published notice inherits them
+at the launch gate. §4 now names the profile's name and phone. **Launch-gate item (W2a security review M1):** the
+phone's consent basis (§3) can be undone by the fill (owner ruling Q2 refills a removed phone), and §3's basis for the
+fill itself is a placeholder; the owner or a lawyer settles both before launch.
+
 **Contact form — decide before launch.** The contact form already validates a **consent** field (ADR 0150 d1:
 "name, phone and its E.164 normal form, locality, channel, a conditional e-mail, consent" [src]). This draft uses
 Art. 6(1)(b) (steps at the person's request) as the basis, which is the usual choice for "call me back about an
@@ -131,11 +139,17 @@ juristul confirmă că nu este necesar] ⚑
 | Parola (o păstrăm doar ca amprentă (hash) ireversibilă)  | La crearea contului                     | Da                                                                 |
 | Numărul de telefon (nu îl verificăm)                     | La crearea contului sau mai târziu      | Nu — îl folosim doar ca să te sunăm dacă ne ceri                   |
 | Limba aleasă (română / rusă)                             | La crearea contului                     | Da                                                                 |
-| [Numele și adresa — când vor fi adăugate] ⚑              | [Mai târziu, opțional]                  | Nu                                                                 |
+| Numele și adresa / localitatea                           | În profil, oricând; sau completate dintr-o cerere de contact (vezi mai jos) | Nu                                       |
 | Proiectele de bucătărie (dimensiuni, module, materiale)  | Când lucrezi în configurator            | —                                                                  |
 | Cererea de contact: nume, telefon, localitate, modul de contact preferat, e-mail (dacă alegi e-mail), proiectul trimis | Când trimiți o cerere magazinului | Da — fără nume și telefon nu te putem contacta |
 | Date tehnice: adresa IP, tipul browserului, semnale tehnice pentru verificarea anti-robot | La înregistrare, autentificare, resetarea parolei; la limitarea cererilor abuzive | Da — fără ele nu putem proteja conturile |
 | Jurnale tehnice ale serverului (adresa IP, pagina cerută, ora) | La orice vizită, prin furnizorul de găzduire | Da — sunt generate automat |
+
+Dacă ești autentificat într-un cont cu adresa de e-mail confirmată și trimiți o cerere de contact, completăm din ea
+câmpurile goale ale profilului tău (nume, telefon, localitate), adică cele pe care nu le-ai completat. Această
+completare nu schimbă și nu șterge o valoare pe care ai completat-o deja. Aceste date rămân apoi în profilul contului
+tău, pe lângă cererea de contact, iar echipa noastră poate vedea numele și telefonul din profil alături de proiectul
+tău (vezi punctul 4). ⚑
 
 Nu colectăm date despre plăți, date despre sănătate sau alte categorii speciale de date.
 [Serviciul nu este destinat copiilor sub [16] ani.] ⚑
@@ -148,7 +162,8 @@ Nu colectăm date despre plăți, date despre sănătate sau alte categorii spec
 | Păstrarea proiectelor tale și deschiderea lor pe orice dispozitiv                      | Executarea contractului — lit. (b)                                                                                                                                                                             |
 | Păstrarea proiectelor create fără cont, în același browser                             | Executarea serviciului cerut de tine — lit. (b)                                                                                                                                                                |
 | E-mailuri despre cont (confirmare, resetarea parolei, anunț că parola a fost schimbată) | Executarea contractului — lit. (b)                                                                                                                                                                             |
-| Telefonul opțional din cont                                                            | ⚑ Consimțământul tău — lit. (a): îl poți retrage oricând ștergând numărul din cont                                                                                                                            |
+| Telefonul opțional din cont                                                            | ⚑ Consimțământul tău — lit. (a): îl poți retrage oricând ștergând numărul din cont; o cerere de contact trimisă ulterior cât ești autentificat îl completează din nou |
+| Completarea câmpurilor goale ale profilului dintr-o cerere de contact                  | ⚑ [TEMEI — de stabilit la lansare; ex.: executarea serviciului cerut de tine — lit. (b)]                                                                       |
 | Trimiterea cererii tale de contact magazinului și răspunsul la ea                      | ⚑ Demersuri făcute la cererea ta înainte de încheierea unui contract — lit. (b)                                                                                                                               |
 | Verificarea anti-robot (Cloudflare Turnstile) și limitarea numărului de cereri         | Interesul nostru legitim — lit. (f): să protejăm conturile și serviciul împotriva atacurilor automate (ghicirea parolelor, conturi false, abuz de e-mail)                                                     |
 | Vizualizarea proiectelor, inclusiv a ciornelor, de către personalul nostru             | ⚑ Interesul nostru legitim — lit. (f): [PURPOSE — ex.: să te putem ajuta când ne contactezi și să pregătim o ofertă corectă]                                                                                  |
@@ -159,7 +174,7 @@ Când folosim interesul legitim, poți să te opui (vezi §8).
 #### 4. Cine din echipa noastră vede datele
 
 Operatorii și administratorii Lemnaria pot vedea proiectele clienților, **inclusiv proiectele încă netrimise
-(ciorne)**, [PURPOSE]. Accesul are doar personalul cu cont de serviciu, iar sesiunile lor expiră mai repede decât
+(ciorne)**, [PURPOSE], precum și numele și telefonul din profilul clientului, alături de proiect. Accesul are doar personalul cu cont de serviciu, iar sesiunile lor expiră mai repede decât
 ale clienților. ⚑
 
 #### 5. Cui transmitem datele
@@ -281,22 +296,26 @@ correction or deletion at [CONTACT E-MAIL].
 [CONTACT E-MAIL]. DPO: [DPO or "none appointed"] ⚑. EU representative (GDPR Art. 27): [NAME/ADDRESS or remove] ⚑.
 
 **2. What we collect.** E-mail (verified by link; required for an account); password (stored only as a one-way
-hash; required); phone (optional, not verified, used only to call you); language; [name and address — later,
-optional] ⚑; kitchen designs; contact request (name, phone, locality, preferred channel, e-mail if you choose
+hash; required); phone (optional, not verified, used only to call you); language; name and address / locality (optional, entered
+in the profile or filled from a contact request); kitchen designs; contact request (name, phone, locality, preferred channel, e-mail if you choose
 e-mail, the design sent — name and phone required); technical data (IP address, browser type, bot-check signals)
 on register, login, password reset and for rate limiting; hosting server logs (IP, page, time) on every visit. No payment data, no special categories. [Not intended
-for children under [16].] ⚑
+for children under [16].] ⚑ When you are signed in to an account whose e-mail address is confirmed and send a contact request, the
+empty fields of your profile (name, phone, locality) are filled from that request: this fill never changes or clears a
+value you already entered. These details then stay in your account profile as well as in the request, and our staff can
+see the profile's name and phone beside your design (see point 4). ⚑
 
 **3. Purposes and legal bases.** Account and sign-in — contract, Art. 6(1)(b). Storing designs and opening them on
 any device — contract. Anonymous designs in the same browser — service you requested, 6(1)(b). Account e-mails
 (confirmation, reset, password-changed notice) — contract. Optional phone — ⚑ consent, 6(1)(a), withdrawn by
-deleting it. Sending your contact request to the shop — ⚑ steps at your request before a contract, 6(1)(b). Bot
+deleting it (a contact request you later send while signed in fills it again). Filling empty profile fields from your
+contact request — ⚑ [BASIS — to set at launch, e.g. 6(1)(b)]. Sending your contact request to the shop — ⚑ steps at your request before a contract, 6(1)(b). Bot
 check (Cloudflare Turnstile) and rate limits — legitimate interest, 6(1)(f): protecting accounts and the service
 from automated attacks (password guessing, fake accounts, mail abuse). Staff viewing designs incl. drafts — ⚑
 legitimate interest: [PURPOSE]. Backups — legitimate interest: restoring the service after a failure.
 
 **4. Staff access.** Lemnaria operators and administrators can see clients' designs, **including unsent drafts**,
-[PURPOSE]. Only staff accounts have this access; their sessions expire sooner. ⚑
+[PURPOSE], and the profile's name and phone beside the design. Only staff accounts have this access; their sessions expire sooner. ⚑
 
 **5. Recipients.** Vercel (hosting), Neon/Databricks (database), Google/Gmail (account e-mails and the shop's
 notice) ⚑, Cloudflare (Turnstile). Cloudflare also uses the same signals as an independent controller to improve

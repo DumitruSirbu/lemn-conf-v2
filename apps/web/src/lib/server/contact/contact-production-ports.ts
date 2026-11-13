@@ -16,8 +16,10 @@ import { resolveContent, type Content } from "@/i18n/content";
 import { routing } from "@/i18n/routing";
 import roMessages from "@/messages/ro.json";
 import { readActivePriceBook } from "@/lib/server/active-price-book";
+import { getAccountStore } from "@/lib/server/account/account-store-instance";
 import { ContactFailure } from "@/lib/server/contact/contact-failure";
 import { getContactSubmissionStore } from "@/lib/server/contact/contact-submission-store-instance";
+import type { ProfileFillStore } from "@/lib/server/contact/fill-profile-from-request";
 import {
   makeContactJudge,
   type ContactJudge,
@@ -68,6 +70,7 @@ function makeContactPortsWithoutBook(
   return {
     store: getContactSubmissionStore(),
     sentMarks: sentMarksOnFirstUse(),
+    profiles: profilesOnFirstUse(),
     createSender: () => createMailSender(process.env),
     book: undefined,
     bookVersionId: undefined,
@@ -148,6 +151,20 @@ function sentMarksOnFirstUse(): SentMarkStore {
       Promise.resolve()
         .then(getSentMarkStore)
         .then((marks) => marks.markSent(designId)),
+  };
+}
+
+/**
+ * The account store's instance, asked for only when a stored request's profile is to be filled and inside the promise: a
+ * connection that cannot be opened is then the fill's rejection, which the caller writes as a line, and never a request
+ * refused before it is stored.
+ */
+function profilesOnFirstUse(): ProfileFillStore {
+  return {
+    fillProfileBlanks: (blanks) =>
+      Promise.resolve()
+        .then(getAccountStore)
+        .then((accounts) => accounts.fillProfileBlanks(blanks)),
   };
 }
 
