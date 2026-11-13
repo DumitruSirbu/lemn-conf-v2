@@ -133,6 +133,8 @@ function detailPartsOf(
           : copy.details.page(entry.detail),
       ];
     }
+    case "kitchen-viewed-3d":
+      return [copy.details.version(entry.detail.version)];
     case "price-draft-changed":
     case "price-draft-reverted":
     case "price-bulk-changed":

@@ -212,9 +212,9 @@ describe("the domain barrels", () => {
     expect(barrel.PRICE_GROUP_CODES).toBe(auditModule.PRICE_GROUP_CODES);
   });
 
-  it("fold the dashboard list into the staff list: the six Lot 3 actions, then the nine", () => {
-    expect([...barrel.STAFF_AUDIT_ACTIONS]).toHaveLength(15);
-    expect(barrel.STAFF_AUDIT_ACTIONS.slice(6)).toEqual([
+  it("fold the dashboard list into the staff list: the seven kitchen actions, then the nine", () => {
+    expect([...barrel.STAFF_AUDIT_ACTIONS]).toHaveLength(16);
+    expect(barrel.STAFF_AUDIT_ACTIONS.slice(7)).toEqual([
       ...barrel.DASHBOARD_AUDIT_ACTIONS,
     ]);
   });

@@ -103,6 +103,12 @@ const SIX_GRANTED_COLUMNS =
   "id, actor_account_id, action, design_id, subject_account_id, detail";
 const WRITTEN_AND_SELECTED_STATEMENTS = 2;
 
+function detailOfEntryNamingADesign(action: string): object | null {
+  if (action === "kitchen-seen") return {};
+  if (action === "kitchen-viewed-3d") return { version: "sent" };
+  return null;
+}
+
 function normalised(statement: SentQuery): string {
   return statement.text.replace(/\s+/g, " ").trim().toLowerCase();
 }
@@ -378,7 +384,7 @@ describe("a record the code refuses before any statement", () => {
                 ? STATUS_CHANGED
                 : ({
                     action,
-                    detail: action === "kitchen-seen" ? {} : null,
+                    detail: detailOfEntryNamingADesign(action),
                   } as StaffAuditEntry),
             designId: null,
           },

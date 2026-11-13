@@ -127,6 +127,11 @@ const AUDIT_VIEWED: StaffAuditEntry = {
   },
 };
 
+const KITCHEN_VIEWED_3D: StaffAuditEntry = {
+  action: "kitchen-viewed-3d",
+  detail: { version: "current" },
+};
+
 const ACTIONS_NAMING_A_DESIGN = STAFF_AUDIT_ACTIONS.filter(
   auditActionNamesDesign,
 );
@@ -173,6 +178,7 @@ function entryOf(action: string): StaffAuditEntry {
   if (action === "status-changed") return STATUS_CHANGED;
   if (action === "kitchens-listed") return KITCHENS_LISTED;
   if (action === "audit-viewed") return AUDIT_VIEWED;
+  if (action === "kitchen-viewed-3d") return KITCHEN_VIEWED_3D;
   const dashboardEntry = DASHBOARD_ENTRIES.find(
     (entry) => entry.action === action,
   );
@@ -345,6 +351,39 @@ export function describeStaffAuditStoreContract(
       ]);
       expect(await world.storedEventsOf(actor.accountId)).toHaveLength(0);
     });
+
+    it.each([
+      ["no detail", null],
+      ["an empty detail", {}],
+      ["a version the table's reader does not name", { version: "as-sent" }],
+      ["a key beyond version", { version: "sent", name: "Ana" }],
+    ])(
+      "refuses a 3D view entry with %s, and stores nothing",
+      async (_label, detail) => {
+        const world = await newWorld();
+        const actor = await world.aStaffMember();
+        const kitchen = await world.aKitchen({ client: null, name: null });
+
+        const failure = await failureOf(
+          world.store.record({
+            sessionTokenHash: actor.sessionTokenHash,
+            idleLifetimeSeconds: actor.idleLifetimeSeconds,
+            entry: {
+              action: "kitchen-viewed-3d",
+              detail,
+            } as unknown as StaffAuditEntry,
+            designId: kitchen.designId,
+            subjectAccountId: null,
+          }),
+        );
+
+        expect([failure.failure, failure.refusal]).toEqual([
+          "invalid-record",
+          "ENTRY_NOT_RECOGNISED",
+        ]);
+        expect(await world.storedEventsOf(actor.accountId)).toHaveLength(0);
+      },
+    );
 
     it("throws not-recorded for a session that is not live and stores nothing", async () => {
       const world = await newWorld();

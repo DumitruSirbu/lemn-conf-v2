@@ -60,10 +60,10 @@ function stringKeysOf(detail: object): string[] {
     .map(([key]) => key);
 }
 
-describe("the fifteen actions against the table's action check", () => {
-  it("lists the Lot 3 six first, then the nine, each once", () => {
-    expect(STAFF_AUDIT_ACTIONS.slice(6)).toEqual([...DASHBOARD_AUDIT_ACTIONS]);
-    expect(new Set(STAFF_AUDIT_ACTIONS).size).toBe(15);
+describe("the sixteen actions against the table's action check", () => {
+  it("lists the seven kitchen actions first, then the nine, each once", () => {
+    expect(STAFF_AUDIT_ACTIONS.slice(7)).toEqual([...DASHBOARD_AUDIT_ACTIONS]);
+    expect(new Set(STAFF_AUDIT_ACTIONS).size).toBe(16);
   });
 
   it.each(STAFF_AUDIT_ACTIONS)(
@@ -89,7 +89,7 @@ describe("the fifteen actions against the table's action check", () => {
     expect(Object.isFrozen(STAFF_AUDIT_ACTION_NAMES_DESIGN)).toBe(true);
   });
 
-  it("names a design for kitchen-seen and for the Lot 3 kitchen actions, and for no other dashboard action", () => {
+  it("names a design for kitchen-seen and for the kitchen actions that open one, and for no other dashboard action", () => {
     const naming = STAFF_AUDIT_ACTIONS.filter(auditActionNamesDesign);
 
     expect(naming).toEqual([
@@ -97,6 +97,7 @@ describe("the fifteen actions against the table's action check", () => {
       "note-added",
       "status-changed",
       "kitchen-unhidden",
+      "kitchen-viewed-3d",
       "kitchen-seen",
     ]);
   });

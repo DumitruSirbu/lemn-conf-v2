@@ -632,6 +632,7 @@ describe.each(LOCALES)("in %s", (locale) => {
         words.actionKitchenUnhidden,
         words.actionKitchensListed,
         words.actionAuditViewed,
+        words.actionKitchenViewed3d,
         ...dashboardActionWords(words),
       ]);
     });
@@ -689,6 +690,10 @@ describe("what each action says (frame S8B)", () => {
           hasDateFilter: false,
         },
       },
+    ],
+    [
+      "kitchen-viewed-3d",
+      { action: "kitchen-viewed-3d", detail: { version: "sent" } },
     ],
     [
       "price-draft-changed",
@@ -777,6 +782,7 @@ describe("what each action says (frame S8B)", () => {
         words.actionKitchenUnhidden,
         words.actionKitchensListed,
         words.actionAuditViewed,
+        words.actionKitchenViewed3d,
         ...dashboardActionWords(words),
       ]);
       expect(new Set(labels).size).toBe(STAFF_AUDIT_ACTIONS.length);
@@ -804,6 +810,37 @@ describe("what each action says (frame S8B)", () => {
       expect(object.textContent).toContain(
         `${kitchensWords(locale).statusNew} → ${kitchensWords(locale).statusContacted}`,
       );
+    },
+  );
+
+  it.each(LOCALES)(
+    "tells which copy a 3D view served, sent or current, under the kitchen's name in %s",
+    async (locale) => {
+      auditAnswers(() =>
+        pageOf(
+          (["sent", "current"] as const).map((version, index) =>
+            wireAuditEvent(index + 1, {
+              entry: {
+                kind: "recognised",
+                action: "kitchen-viewed-3d",
+                detail: { version },
+              },
+            }),
+          ),
+        ),
+      );
+      await mount({ locale, width: "desktop" });
+      const say = translatorFor(locale, "staffAudit");
+
+      const [sent, current] = allIn(container(), `${ROWS} td:nth-child(4)`).map(
+        (cell) => cell.textContent,
+      );
+
+      expect(say("detailVersionSent")).not.toBe(say("detailVersionCurrent"));
+      expect(sent).toContain(say("detailVersionSent"));
+      expect(sent).not.toContain(say("detailVersionCurrent"));
+      expect(current).toContain(say("detailVersionCurrent"));
+      expect(current).not.toContain(say("detailVersionSent"));
     },
   );
 

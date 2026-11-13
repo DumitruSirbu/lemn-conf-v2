@@ -1654,6 +1654,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     actionKitchenUnhidden: "a făcut vizibilă bucătăria",
     actionKitchensListed: "a deschis lista",
     actionAuditViewed: "a deschis jurnalul",
+    actionKitchenViewed3d: "a deschis bucătăria în 3D",
     actionPriceDraftChanged: "a pregătit o modificare de preț",
     actionPriceDraftReverted: "a anulat o modificare de preț pregătită",
     actionPriceBulkChanged: "a schimbat prețurile în bloc",
@@ -1666,6 +1667,8 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     actionPriceCatalogueViewed: "a deschis panoul de prețuri",
     actionUnknown: "Acțiune necunoscută",
     detailStatusChanged: "{from} → {to}",
+    detailVersionSent: "versiunea trimisă",
+    detailVersionCurrent: "versiunea curentă",
     detailRows:
       "{count, plural, one {# rând} few {# rânduri} other {# de rânduri}}",
     detailPage: "pagina {page, number, ::group-off} · {rows}",

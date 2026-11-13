@@ -345,7 +345,7 @@ describe("a row whose action this build does not know", () => {
     },
   );
 
-  it("keeps the fifteen listed actions with the details the domain accepts for each, and no detail for the three Lot 3 actions that carry none", () => {
+  it("keeps the sixteen listed actions with the details the domain accepts for each, and no detail for the three Lot 3 actions that carry none", () => {
     const details: Record<string, unknown> = {
       "kitchen-opened": null,
       "note-added": null,
@@ -365,6 +365,7 @@ describe("a row whose action this build does not know", () => {
         hasActionFilter: true,
         hasDateFilter: false,
       },
+      "kitchen-viewed-3d": { version: "current" },
       "price-draft-changed": { changeKind: "depth-rule" },
       "price-draft-reverted": { changeKind: "provisional", revertedCount: 1 },
       "price-bulk-changed": {

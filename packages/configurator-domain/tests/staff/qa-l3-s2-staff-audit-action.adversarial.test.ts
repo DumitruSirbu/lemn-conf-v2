@@ -32,6 +32,7 @@ const HAS_DETAIL: readonly string[] = [
   "status-changed",
   "kitchens-listed",
   "audit-viewed",
+  "kitchen-viewed-3d",
   ...DASHBOARD_AUDIT_ACTIONS,
 ];
 

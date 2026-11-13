@@ -99,7 +99,7 @@ describe("the dashboard audit actions", () => {
     expect(Object.isFrozen(DASHBOARD_AUDIT_ACTIONS)).toBe(true);
   });
 
-  it("follow the six Lot 3 actions in the staff audit list, each once", () => {
+  it("follow the seven kitchen actions in the staff audit list, each once", () => {
     expect(STAFF_AUDIT_ACTIONS).toEqual([
       "kitchen-opened",
       "note-added",
@@ -107,6 +107,7 @@ describe("the dashboard audit actions", () => {
       "kitchen-unhidden",
       "kitchens-listed",
       "audit-viewed",
+      "kitchen-viewed-3d",
       ...DASHBOARD_AUDIT_ACTIONS,
     ]);
     expect(new Set(STAFF_AUDIT_ACTIONS).size).toBe(STAFF_AUDIT_ACTIONS.length);

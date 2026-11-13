@@ -4,7 +4,9 @@ import type { NextResponse } from "next/server";
 
 import {
   isDesignId,
+  isKitchenViewed3dVersion,
   readStaffKitchenQuery,
+  type KitchenViewed3dVersion,
   type StaffAuditEntry,
   type StaffKitchenQuery,
   type StaffKitchenQueryIssue,
@@ -37,9 +39,13 @@ import { estimatesOfKitchen } from "@/lib/server/staff/staff-kitchen-estimates";
 import { getStaffKitchenReader } from "@/lib/server/staff/staff-kitchen-reader-instance";
 import {
   staffInvalidQueryResponse,
+  staffInvalidVersionResponse,
+  staffKitchen3dResponse,
   staffKitchenListResponse,
   staffKitchenResponse,
+  staffKitchenUnreadableResponse,
 } from "@/lib/server/staff/staff-responses";
+import { shownDesignOf, type ShownDesign } from "@/staff/shown-design";
 
 // What a staff member reads of the clients' kitchens (ADR 0173). No `200` leaves without a committed audit row, and no
 // row is committed for any other answer: the body is shaped first, the row is written and awaited next, and only then
@@ -59,6 +65,18 @@ export interface StaffOpenRequest extends StaffReadRequest {
   /** The URL segment as it arrived: its shape is judged here. */
   readonly designId: string;
 }
+
+export interface StaffOpen3dRequest extends StaffOpenRequest {
+  readonly searchParams: URLSearchParams;
+}
+
+/** The copy the 3D view opens on when the request names none: the one the shop was sent, as the detail page opens. */
+const DEFAULT_VIEW_VERSION: KitchenViewed3dVersion = "sent";
+
+const VERSION_OF_SOURCE = {
+  "as-sent": "sent",
+  current: "current",
+} as const satisfies Record<ShownDesign["source"], KitchenViewed3dVersion>;
 
 const LIST_EVENT = "staff-kitchens" as const satisfies AccountEvent;
 const ONE_EVENT = "staff-kitchen" as const satisfies AccountEvent;
@@ -108,6 +126,33 @@ export async function openKitchenForStaff(
   return serveKitchen(request.cookies, reading.kitchen);
 }
 
+/**
+ * One kitchen's design for the 3D view, and nothing else of the kitchen. It has `openKitchenForStaff`'s admission and
+ * refusals and its opening bucket, and judges `version` after admission and before the id, so a caller who may not read
+ * kitchens learns nothing of the parameter. A kitchen with no copy this build reads is answered `422` after its bucket,
+ * with no row. The row, `kitchen-viewed-3d`, names the copy served and is committed before the design is sent.
+ */
+export async function openKitchenIn3dForStaff(
+  request: StaffOpen3dRequest,
+): Promise<NextResponse> {
+  const admission = await admitReader(request, ONE_EVENT);
+  if (admission.kind === "refused") return admission.response;
+  const requested = readRequestedVersion(request.searchParams);
+  if (!requested.ok) return refusedVersion();
+  if (!isDesignId(request.designId)) return notFound(request.designId);
+  const limited = await refusalOfBucket(
+    "staff-kitchen-open",
+    admission.session,
+    request.headers,
+  );
+  if (limited !== undefined) return limited;
+  const reading = await getStaffKitchenReader().readOne(request.designId);
+  if (reading.kind === "none") return notFound(request.designId);
+  const shown = shownDesignOf(reading.kitchen, requested.version);
+  if (shown === undefined) return unreadable();
+  return serveKitchenIn3d(request.cookies, reading.kitchen, shown);
+}
+
 async function servePage(
   cookies: SessionCookieReader,
   query: StaffKitchenQuery,
@@ -140,6 +185,24 @@ async function serveKitchen(
   return response;
 }
 
+async function serveKitchenIn3d(
+  cookies: SessionCookieReader,
+  kitchen: StaffKitchenDetail,
+  shown: ShownDesign,
+): Promise<NextResponse> {
+  const response = staffKitchen3dResponse(shown);
+  await commitAuditRow(cookies, {
+    entry: {
+      action: "kitchen-viewed-3d",
+      detail: { version: VERSION_OF_SOURCE[shown.source] },
+    },
+    designId: kitchen.id,
+    subjectAccountId: kitchen.client?.id ?? null,
+  });
+  reportAccountEvent({ event: ONE_EVENT, outcome: "succeeded" });
+  return response;
+}
+
 /** The network's read limit (fails open), then the shared staff admission for `design.read.any`. */
 async function admitReader(
   { cookies, headers }: StaffReadRequest,
@@ -148,6 +211,23 @@ async function admitReader(
   const limited = answerOfReadJudgement(await judgeReadRequest(headers));
   if (limited !== undefined) return { kind: "refused", response: limited };
   return admitStaff({ cookies, event, capability: "design.read.any" });
+}
+
+type RequestedVersion =
+  | { readonly ok: true; readonly version: KitchenViewed3dVersion }
+  | { readonly ok: false };
+
+/** Absent is the default; exactly one value that names a copy is that copy. An empty value, a repeated parameter and any
+ *  other word are refused: `get` would read the first of a repeated parameter, so every value is read. */
+function readRequestedVersion(searchParams: URLSearchParams): RequestedVersion {
+  const values = searchParams.getAll("version");
+  if (values.length === 0) {
+    return { ok: true, version: DEFAULT_VIEW_VERSION };
+  }
+  const [only] = values;
+  return values.length === 1 && isKitchenViewed3dVersion(only)
+    ? { ok: true, version: only }
+    : { ok: false };
 }
 
 function queryMembersOf(
@@ -198,6 +278,16 @@ function kitchensListedEntryOf(
 function refusedQuery(issues: readonly StaffKitchenQueryIssue[]): NextResponse {
   reportAccountEvent({ event: LIST_EVENT, outcome: "refused" });
   return staffInvalidQueryResponse(issues);
+}
+
+function refusedVersion(): NextResponse {
+  reportAccountEvent({ event: ONE_EVENT, outcome: "refused" });
+  return staffInvalidVersionResponse();
+}
+
+function unreadable(): NextResponse {
+  reportAccountEvent({ event: ONE_EVENT, outcome: "refused" });
+  return staffKitchenUnreadableResponse();
 }
 
 function notFound(designId: string): NextResponse {

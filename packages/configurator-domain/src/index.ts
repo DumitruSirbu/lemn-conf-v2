@@ -431,7 +431,9 @@ export {
 export {
   auditActionAcceptsDesignId,
   auditActionNamesDesign,
+  isKitchenViewed3dVersion,
   isStaffAuditAction,
+  KITCHEN_VIEWED_3D_VERSIONS,
   readStaffAuditEntry,
   STAFF_AUDIT_ACTION_NAMES_DESIGN,
   STAFF_AUDIT_ACTIONS,
@@ -442,6 +444,8 @@ export {
   type StaffAuditRefusalCode,
   type AuditViewedDetail,
   type KitchensListedDetail,
+  type KitchenViewed3dDetail,
+  type KitchenViewed3dVersion,
   type StatusChangedDetail,
 } from "./staff/staff-audit-action.js";
 // The price dashboard's audit actions, a list of their own beside `STAFF_AUDIT_ACTIONS` (M10 X0).

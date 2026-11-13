@@ -10,34 +10,12 @@ import type { AppLocale } from "@/i18n/routing";
 
 import { isolated } from "./bidi-isolate";
 import { dayOf, shopRelativeAgeOf } from "./staff-kitchen-dates";
-import type { KitchenVersion, KitchenVersions } from "./kitchen-version-rows";
+import type { KitchenVersions } from "./kitchen-version-rows";
+import type { ShownDesign } from "./shown-design";
 import type { StaffKitchenWire } from "./staff-kitchens-wire-contract";
 
 // What the kitchen page says about the kitchen in a line: which copy of it is on screen, what it is called, and the sentence
 // under its name. Pure: the page hands in the words it has resolved.
-
-/** The copy of the kitchen on screen: the one the shop was sent when there is one, else the document as it stands now. */
-export interface ShownDesign {
-  readonly design: Design;
-  readonly source: "as-sent" | "current";
-}
-
-/** `version` is the copy the person chose on the version switch: "Actuală" shows the document as it stands when it can be
- *  read, and anything else is the rule above. */
-export function shownDesignOf(
-  kitchen: StaffKitchenWire["kitchen"],
-  version: KitchenVersion = "sent",
-): ShownDesign | undefined {
-  if (version === "current" && kitchen.design !== null) {
-    return { design: kitchen.design, source: "current" };
-  }
-  if (kitchen.asSent !== null) {
-    return { design: kitchen.asSent, source: "as-sent" };
-  }
-  return kitchen.design === null
-    ? undefined
-    : { design: kitchen.design, source: "current" };
-}
 
 /** The two copies the version switch chooses between: the kitchen as the shop was sent it and as it stands now. Nothing
  *  when this build cannot read one of them, or when they are the same kitchen, where a switch would choose nothing. */

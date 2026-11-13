@@ -36,6 +36,7 @@ const KITCHEN_AUDIT_ACTIONS = Object.freeze([
   "kitchen-unhidden",
   "kitchens-listed",
   "audit-viewed",
+  "kitchen-viewed-3d",
 ] as const);
 type KitchenAuditAction = (typeof KITCHEN_AUDIT_ACTIONS)[number];
 
@@ -79,6 +80,19 @@ export interface AuditViewedDetail {
   readonly hasDateFilter: boolean;
 }
 
+/** The copy of a kitchen a staff member viewed in 3D: the one the shop was sent, or the document as it stands. */
+export const KITCHEN_VIEWED_3D_VERSIONS = Object.freeze([
+  "sent",
+  "current",
+] as const);
+export type KitchenViewed3dVersion =
+  (typeof KITCHEN_VIEWED_3D_VERSIONS)[number];
+
+/** The copy actually served, after the fallback to the other copy: never what was asked for. */
+export interface KitchenViewed3dDetail {
+  readonly version: KitchenViewed3dVersion;
+}
+
 interface KitchenAuditDetailByAction {
   readonly "kitchen-opened": null;
   readonly "note-added": null;
@@ -86,6 +100,7 @@ interface KitchenAuditDetailByAction {
   readonly "kitchen-unhidden": null;
   readonly "kitchens-listed": KitchensListedDetail;
   readonly "audit-viewed": AuditViewedDetail;
+  readonly "kitchen-viewed-3d": KitchenViewed3dDetail;
 }
 
 type KitchenAuditEntry = {
@@ -113,6 +128,8 @@ const KITCHENS_LISTED_KEYS = Object.freeze([
   "onlyChanged",
 ]);
 
+const KITCHEN_VIEWED_3D_KEYS = Object.freeze(["version"]);
+
 const AUDIT_VIEWED_KEYS = Object.freeze([
   "page",
   "rowCount",
@@ -131,6 +148,7 @@ export const STAFF_AUDIT_ACTION_NAMES_DESIGN: Readonly<
   "kitchen-unhidden": true,
   "kitchens-listed": false,
   "audit-viewed": false,
+  "kitchen-viewed-3d": true,
   ...DASHBOARD_AUDIT_ACTION_NAMES_DESIGN,
 });
 
@@ -170,6 +188,8 @@ export function readStaffAuditEntry(
       return readKitchensListedEntry(detail);
     case "audit-viewed":
       return readAuditViewedEntry(detail);
+    case "kitchen-viewed-3d":
+      return readKitchenViewed3dEntry(detail);
     default:
       return isAbsent(detail)
         ? { ok: true, entry: { action, detail: null } }
@@ -265,6 +285,31 @@ function readAuditViewedEntry(detail: unknown): StaffAuditEntryReading {
       }),
     },
   };
+}
+
+function readKitchenViewed3dEntry(detail: unknown): StaffAuditEntryReading {
+  if (
+    !isPlainObject(detail) ||
+    holdsUnknownKey(detail, KITCHEN_VIEWED_3D_KEYS)
+  ) {
+    return refused("INVALID_DETAIL");
+  }
+  const version = ownValueOf(detail, "version");
+  if (!isKitchenViewed3dVersion(version)) return refused("INVALID_DETAIL");
+  return {
+    ok: true,
+    entry: {
+      action: "kitchen-viewed-3d",
+      detail: Object.freeze({ version }),
+    },
+  };
+}
+
+/** Whether the value is one of the two copies a 3D view can serve. */
+export function isKitchenViewed3dVersion(
+  value: unknown,
+): value is KitchenViewed3dVersion {
+  return KITCHEN_VIEWED_3D_VERSIONS.some((version) => version === value);
 }
 
 function isRowCountUpTo(value: unknown, pageSize: number): value is number {

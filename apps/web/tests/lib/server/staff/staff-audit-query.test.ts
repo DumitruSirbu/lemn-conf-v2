@@ -98,6 +98,7 @@ describe("the action", () => {
     "status-changed",
     "kitchen-unhidden",
     "kitchens-listed",
+    "kitchen-viewed-3d",
   ])("accepts %s", (action) => {
     expect(requestOf(`action=${action}`).action).toBe(action);
   });

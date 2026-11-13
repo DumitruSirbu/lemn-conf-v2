@@ -28,7 +28,7 @@ function entryOf(action: unknown, detail: unknown): StaffAuditEntry {
 }
 
 describe("the staff audit actions", () => {
-  it("are the six that Lot 3 builds then the nine of the price dashboard, each a code and not a sentence", () => {
+  it("are the seven the kitchen pages build then the nine of the price dashboard, each a code and not a sentence", () => {
     expect(STAFF_AUDIT_ACTIONS).toEqual([
       "kitchen-opened",
       "note-added",
@@ -36,9 +36,10 @@ describe("the staff audit actions", () => {
       "kitchen-unhidden",
       "kitchens-listed",
       "audit-viewed",
+      "kitchen-viewed-3d",
       ...DASHBOARD_AUDIT_ACTIONS,
     ]);
-    expect(STAFF_AUDIT_ACTIONS).toHaveLength(15);
+    expect(STAFF_AUDIT_ACTIONS).toHaveLength(16);
   });
 
   it("cannot be edited by a caller that imports the list", () => {

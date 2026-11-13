@@ -17,6 +17,7 @@ import type {
   EmptySpaceSide,
   Finish,
   KitchenSummary,
+  KitchenViewed3dVersion,
   NoteTextRefusalCode,
   PaletteEntryId,
   PasswordRefusalCode,
@@ -1508,6 +1509,7 @@ export function resolveStaffAuditCopy(translate: ContentTranslator) {
     "kitchen-unhidden": translate("staffAudit.actionKitchenUnhidden"),
     "kitchens-listed": translate("staffAudit.actionKitchensListed"),
     "audit-viewed": translate("staffAudit.actionAuditViewed"),
+    "kitchen-viewed-3d": translate("staffAudit.actionKitchenViewed3d"),
     "price-draft-changed": translate("staffAudit.actionPriceDraftChanged"),
     "price-draft-reverted": translate("staffAudit.actionPriceDraftReverted"),
     "price-bulk-changed": translate("staffAudit.actionPriceBulkChanged"),
@@ -1555,6 +1557,10 @@ export function resolveStaffAuditCopy(translate: ContentTranslator) {
     details: {
       statusChanged: (change: { from: string; to: string }) =>
         translate("staffAudit.detailStatusChanged", change),
+      version: (version: KitchenViewed3dVersion) =>
+        version === "sent"
+          ? translate("staffAudit.detailVersionSent")
+          : translate("staffAudit.detailVersionCurrent"),
       page: (page: { page: number; rowCount: number }) =>
         translate("staffAudit.detailPage", {
           page: page.page,

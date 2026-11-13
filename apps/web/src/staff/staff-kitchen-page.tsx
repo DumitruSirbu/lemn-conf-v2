@@ -33,13 +33,13 @@ import { ClientProfile } from "./staff-kitchen-client";
 import { dayOf, shopRelativeAgeOf } from "./staff-kitchen-dates";
 import {
   modifiedSubLineOf,
-  shownDesignOf,
   sentAtOf,
   subLineOf,
   titleOf,
   versionsOf,
 } from "./staff-kitchen-facts";
 import { RequestLine, RequestStatusCard } from "./staff-kitchen-request";
+import { shownDesignOf } from "./shown-design";
 import {
   CannotShowNotice,
   KitchenHeader,
