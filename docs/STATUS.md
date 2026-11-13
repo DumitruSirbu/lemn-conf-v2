@@ -210,6 +210,21 @@ its stray designs. Production grants for `0023`-`0029`: owner-run, unverified. P
 - **Coordinator's gates on the final W1 tree:** `tsc` exit 0; eslint on `src/account` and `tests/account` exit 0; vitest `tests/account tests/share tests/staff` 119 files, 4446 tests passed, exit 0. The developer reports the full `apps/web` vitest at 1243 files, 30707 passed, exit 0 (developer's report, not re-run by the coordinator). **`pnpm ci:local` was NOT run; nothing is pushed.**
 - **Next:** a security read of ADRs 0179-0181, then W2 (contact) and W3 (staff open-in-3D), then W4 (thumbnails). W1c (card line alignment) is optional. W5 is the Claude Design round trip, owner-held.
 
+**2026-11-13, later (M11: W2a and W3a committed, plus the ADR acceptance) [relayed from the coordinator, who ran the commands; the scribe ran nothing].**
+- **`c3f504c9` (docs):** ADRs 0179-0181 are **Accepted** after the security read and the owner's third-round rulings ([`OWNER_FEEDBACK.md`](OWNER_FEEDBACK.md)). It also adds ADR 0153 Amendment A. This supersedes "Proposed, owe a security read" in the entry above and in the phase table.
+- **W2a `99f641e7`:** a confirmed client's stored contact request fills the empty fields of their profile.
+  - QA found one low defect: the catch could throw on an exotic thrown value. Fixed.
+  - Logic, clean-code and security reviews: no blockers; security found nothing exploitable. The coordinator fixed the privacy notice draft.
+  - **Launch-gate item (security M1):** the fill can undo the phone's consent basis, and the basis for the fill itself is a placeholder. The owner or a lawyer must settle both.
+  - **W2a must not reach users without W2b (security L3).**
+- **W3a `0a30f012`:** a staff endpoint, `GET /api/staff/kitchens/{id}/3d`, audited as `kitchen-viewed-3d`.
+  - QA green; 28 mutations were run and every one was caught.
+  - Logic, clean-code and security reviews: no blockers, two informational Lows.
+  - Review fixes applied: a `shown-design` module, one shared version vocabulary, and an audit-page copy line. The ro/ru drafts are pre-approved per ruling Q3.
+- **Coordinator's gates on the final tree before these commits:** `tsc` exit 0 in domain, persistence and web. `apps/web` vitest: 1251 files, 30937 tests passed, exit 0. Domain vitest: 470 files, 13762 tests passed, exit 0. The full live persistence suite ran earlier in the wave (212 files, 7974 passed) and started before W2a's last edits; the W2a persistence files were later re-run green by the developer. **`pnpm ci:local` was NOT run; nothing is pushed.**
+- **Not verified:** the grants `0012`/`0017` as the application role on preview and production (owner R3).
+- **Next:** W2b (prefill, plus the form line naming the account; reset the request id when the session changes) and W3b (staff 3D page, proxy fifth-segment rule, link) are being implemented now. Then W4a-c (thumbnails). W1c optional. W5 owner-held. Deferred to the milestone test audit: the developer/QA test overlap in W1 and W3a.
+
 ## 2. Phase table
 
 Read column: **No** = do not open. A row marked **UNCLEAR** would be a contradiction inside the history, left
@@ -238,7 +253,7 @@ for the owner to rule, not guessed; none is open now.
 | M8C Generation fill and preset authoring | Waves F0-P9 committed, not closed | See the 2026-10-18 update in section 1; owner obligations open | Yes, [`M8C-...md`](milestones/M8C-generation-fill-and-preset-authoring.md) | git log (coordinator) + doc-quoted H:6-29 |
 | M8D Preset screens to the v2 mockup | W0 done; W1 in progress (2026-10-18, relayed) | Runs on this branch before its PR and before M8B (owner O-5) | Yes, [`M8D-...md`](milestones/M8D-preset-screens-to-mockup.md) | coordinator's brief (relayed) + doc-quoted plan banner |
 | M10 Manufacturer price dashboard | **Done 2026-11-11, archived** (section 1, *M10 CLOSED* entry; gate figures there). Everything after this sentence in the cell is the earlier history and is superseded. *Earlier:* **In progress** (2026-11-09, rewritten; the 2026-11-04 text was stale). Merged on `m10-price-dashboard`, pushed only up to `a6b23c18`, later commits local (corrected 2026-11-10; per the 2026-11-09 entries in section 1; the R4a/R4b merge state is not restated here): R5b, T4, T5, Q3a-Q3d, Q4, Q5a, Q5b, Q5c, Q5d, the e2e rewrite, R4c1. **Update 2026-11-10: R4c2 merged (`a9a35ce1`) and R4c3 merged and closed (`c9dd3536`); nothing in flight.** **Update 2026-11-10, latest: pushed, local and origin both `99857d26`; the final `ci:local` on this tree was in progress, result unknown.** **Update 2026-11-11: Z1 visual pass and Z2 audit done, `77fadd67` local, origin at `d3cb086b`; the final-tip `ci:local` re-run is pending; NOT archived (section 1, 2026-11-11 entry).** **Remaining:** see section 1, *Push state and Z gate, latest* (live S2/S4/S7 passed on staging; stray designs deleted; privilege test not run on staging; Z2 waits). K2a parked until K2b. **Push:** the ADR 0081 block is lifted by the owner's ruling of 2026-11-10; a green `pnpm ci:local` is still required. Open items: section 1, 2026-11-10 owner rulings | Branch `m10-price-dashboard`; runs in parallel with the open M8 work by owner instruction of 2026-10-26 (ADR 0176). Push state of the 2026-11-04 tip is not re-checked by the scribe | No (`milestones/done/M10-price-dashboard.md`; release notes: [`release-notes/m10-price-dashboard.md`](release-notes/m10-price-dashboard.md)) | coordinator's RUN results quoted in section 1 (relayed; the scribe ran nothing) |
-| M11 Owner feedback of 2026-11-07 | **In progress** (2026-11-13): W0 `dfc9db48` and W1 `05d1dc74` committed, not pushed; W2-W5 not started | Branch `fix/owner-feedback-2026-11-07`; ADRs 0179-0181 Proposed, owe a security read; `ci:local` not run (section 1) | Yes, [`M11-owner-feedback-2026-11-07.md`](milestones/M11-owner-feedback-2026-11-07.md) | coordinator's report (relayed; the scribe ran nothing) |
+| M11 Owner feedback of 2026-11-07 | **In progress** (2026-11-13): W0 `dfc9db48`, W1 `05d1dc74`, ADR acceptance `c3f504c9`, W2a `99f641e7`, W3a `0a30f012` committed, not pushed; W2b and W3b being implemented; W4-W5 not started | Branch `fix/owner-feedback-2026-11-07`; ADRs 0179-0181 Accepted; `ci:local` not run (section 1, later 2026-11-13 entry) | Yes, [`M11-owner-feedback-2026-11-07.md`](milestones/M11-owner-feedback-2026-11-07.md) | coordinator's report (relayed; the scribe ran nothing) |
 | M9 Delivery preparation | Proposed stub | No plan, no waves; inherits 8R/8S and the launch gate | When started, [`M9-delivery-preparation.md`](milestones/M9-delivery-preparation.md) | doc-quoted H:616 |
 | Adversarial review remediation | Done (S1-S12 shipped, commits db9c4024..); only SEC-001 stays open, as a launch gate tracked in `docs/backlog/open.md` and M9 | Plan archived at `milestones/done/adversarial-review-remediation.md` | No | doc-quoted H:617, 625-642; shipped state verified in git/source by a read-only analyst (coordinator-relayed) |
 | dom-003 set-width split | Done (shipped in 30283571) | Nine-module `set-width.ts` split; plan archived at `milestones/done/dom-003-set-width-split.md` | No | doc-quoted H:617, 630; commit verified in git by a read-only analyst (coordinator-relayed) |
@@ -256,9 +271,9 @@ None left. M5, M6, M6B, M7B and M7C were open or UNCLEAR in the history; the own
 
 **M11** (section 1, 2026-11-13 entry; plan [`M11-...md`](milestones/M11-owner-feedback-2026-11-07.md)). What to do next, in order:
 
-1. A security read of ADRs 0179-0181 (all Proposed); each wave waits on its ADR.
-2. W2 (contact prefill) and W3 (staff open-in-3D).
-3. W4 (card thumbnails); W1c (card line alignment) is optional.
+1. ADRs 0179-0181 are Accepted (`c3f504c9`); the security read is done.
+2. W2b (contact prefill) and W3b (staff 3D page): being implemented. W2a must not ship without W2b.
+3. W4a-c (card thumbnails); W1c (card line alignment) is optional.
 4. W5, the Claude Design round trip for the staff cabinet list: owner-held.
 5. Before any push: `pnpm ci:local`, quoted. At the milestone's close: the test audit, including the W1 developer/QA test overlap.
 

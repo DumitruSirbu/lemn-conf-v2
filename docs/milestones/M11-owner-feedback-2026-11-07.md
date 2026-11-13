@@ -245,7 +245,7 @@ Playwright with two seeded kitchens whose prices differ in length; screenshots.
 preview and production is not known to this plan; the W2a dispatch must not assume it, and the close-out names it as
 an owner check.
 
-**Decision (ADR 0179 d2, d5).** The fill runs at exactly the two places the submission marks a design sent: after
+**Decision (ADR 0179 d2, d5).** The fill runs at exactly the two places the submission calls `markDesignSent` (a callback request fills too; its mark is a no-op): after
 `store.record` answered stored on a new request, and on a retry of a stored, un-notified request whose design was read
 again and not refused (`submit-contact.ts:224-228`, `:287-289` [src at `607af1db`]). There the submission reads the
 session (the variant that reads a failure as anonymous, `lib/server/account/current-session.ts:32-38`); for a live
@@ -278,7 +278,7 @@ never changes the answer. The privacy notice draft gains the statement that a pr
   nothing. (The Proposed text said staff lack `account.manage.own`; they hold it, `capabilities.ts:33-52`.)
 - **W2a-6. Property (fast-check).** For every request body `validateContactSubmission` accepts, the fill the domain
   derives from it passes `validateProfileText` with no issue.
-- **W2a-7. Only where the design is marked sent.** No refusal of any kind (cross-site `403`, `413`, `415`, a schema
+- **W2a-7. Only where `markDesignSent` is called (a callback request included).** No refusal of any kind (cross-site `403`, `413`, `415`, a schema
   refusal, the honeypot or the time, `409 CONTACT_DESIGN_NOT_CURRENT`, `429`, `503` before a reference is held) writes
   the profile, and **`409 CONTACT_REQUEST_CONFLICT` never does** (`submit-contact.ts:190`, `:223`). A retry of a
   stored, un-notified request whose design is read again and not refused may fill again, with a result equal to the
@@ -300,7 +300,7 @@ never changes the answer. The privacy notice draft gains the statement that a pr
   obligation `0017:18-19` names for name and address). The published notice inherits it at the launch gate.
 
 **Verification.** Domain unit tests and the W2a-6 property; persistence tests against the test database for W2a-1 to
-W2a-4 (live file under the repository's exclusive-lock rule for account tables); route tests for W2a-5, W2a-7, W2a-8,
+W2a-4 (live file registered `shared`: it mints rows under random ids and asserts no whole-table figure; no exclusive-lock rule for account tables exists (corrected 2026-11-13, W2a QA)); route tests for W2a-5, W2a-7, W2a-8,
 W2a-10, W2a-11 (sessions for each role, confirmed and unconfirmed); a grep-style test or reviewer check for W2a-9; the
 docs reviewer reads W2a-12.
 
@@ -771,3 +771,22 @@ the source at `607af1db` before it was written. Folded in:
   the notice; the picture deleted with the kitchen, kept when hidden.
 
 ADRs 0179, 0180 and 0181 are **Accepted** (2026-11-13), each with a dated *Acceptance* section.
+
+## 11. W2a review round, 2026-11-13 [relayed from the reviewers; coordinator]
+
+- **No blockers.** The logic, clean-code and security reviews all found no blocker. Security found nothing exploitable.
+- **Privacy notice fixed by the coordinator** (`docs/legal/privacy-notice-draft.md`):
+  - The §2 name/address row is no longer marked "later".
+  - The staff-visibility clause is narrowed to the profile's name and phone.
+  - The fill is scoped to accounts with a confirmed e-mail, and its promise is limited to the fill itself.
+  - §3 gains a fill row whose basis is a placeholder, and the phone row now says a later request refills it.
+  - §4 names the profile's name and phone.
+  - Security M1 is a **launch-gate item**: the phone's consent basis can be undone by the fill, and the basis of the
+    fill itself is unset. The owner or a lawyer settles both before launch.
+- **Security L3 — W2a must not reach real users without W2b.** W2b's form line names the account the details are
+  saved to (ADR 0179 d5). W2b should also reset the form's request id when the session changes, so a retry after a
+  sign-out and sign-in cannot write into the second account. Nothing ships mid-milestone, so this is recorded as a W2b
+  criterion, not a block.
+- **A retry by a different confirmed client fills that client's own blanks**, using values they sent. Logic and
+  security reviews judged this acceptable; it departs from ADR 0179 d2's premise that "the first try is the one that
+  filled".
