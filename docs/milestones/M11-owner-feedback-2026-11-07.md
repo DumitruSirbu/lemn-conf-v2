@@ -1,6 +1,6 @@
 # M11 — Owner feedback of 2026-11-07: account header, share sheet, card thumbnails, contact prefill, staff 3D view
 
-Status: **Planned** (2026-11-13). W1 is being implemented in parallel by a developer; every other wave is unstarted.
+Status: **In progress** (2026-11-13). W0 (`dfc9db48`) and W1a+W1b (`05d1dc74`) are committed; the security read of ADRs 0179–0181 gates W2–W4. Current state: `docs/STATUS.md`.
 W1's criteria were written against `12266a02`; the planner saw uncommitted W1 edits and `qa-w1-*` test files in the
 working tree but did not read or run them, so W1's QA judges that work against the criteria below, not the reverse.
 Branch: `fix/owner-feedback-2026-11-07`, cut from `main` at `12266a02` (M10 merged and archived).
