@@ -89,3 +89,16 @@ These answer the M11 plan's questions Q1 to Q3 (`docs/milestones/M11-owner-feedb
 - **Q3, copy:** new Romanian and Russian copy for M11 is pre-approved as drafted, as Lot 2's was (O28b).
 - **W1 residual, header live behind the profile menu:** record it in the backlog and fix it later, together with
   the account page's other dialogs, which already behave the same way. Not fixed in W1.
+
+## Owner rulings, 2026-11-13, third round [owner, answered through AskUserQuestion]
+
+These answer questions raised by the security read of ADRs 0179–0181.
+
+- **Who gets the prefill and fill (item 4):** confirmed customer accounts only, gated on `design.edit.own`.
+  Staff accounts and unconfirmed customer accounts see the empty form, as a visitor does, and nothing is written
+  to their profiles.
+- **Privacy (item 4):** accepted. Copying a request's name, phone and locality into the customer's profile is a
+  dated, owner-ruled change to ADR 0153 d1 for signed-in submitters, and the privacy notice says that a profile can
+  be filled from a request.
+- **Thumbnail erasure (item 3):** the picture is deleted together with the kitchen, in the same statement that
+  marks the kitchen deleted (a `DELETE` grant on the new table). A hidden kitchen keeps its picture.

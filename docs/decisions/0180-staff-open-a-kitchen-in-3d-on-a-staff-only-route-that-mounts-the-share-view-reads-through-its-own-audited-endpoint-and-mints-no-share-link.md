@@ -1,33 +1,40 @@
 # ADR 0180 — Staff open a kitchen in 3D on a staff-only route that mounts the share view, reads through its own audited endpoint, and mints no share link
 
-Status: **Proposed** (2026-11-13). A security read is owed before wave W3a is dispatched (a new staff read of client
-data, a new audit action, a proxy family change). Nothing is built.
+Status: **Accepted** (2026-11-13), after the owner's ruling and the security read; see *Acceptance, 2026-11-13* at the
+end. Proposed the same day. Nothing is built.
 Date: 2026-11-13
 Type: Decision record (route, access and audit)
 Milestone: M11 — [`M11-owner-feedback-2026-11-07.md`](../milestones/M11-owner-feedback-2026-11-07.md), waves W3a and W3b
 
-**Evidence tiers.** **[owner, relayed]**, **[doc]**, **[src]** (at `12266a02`), **[inf]**, as in ADR 0179.
+**Evidence tiers.** **[owner, relayed]**, **[sec, relayed]**, **[doc]**, **[src]** (at `607af1db`), **[inf]**, as in
+ADR 0179.
 
 ## Context
 
 Owner feedback item 5, part 1 (2026-11-07): the staff kitchen page `/{locale}/staff/kitchens/{id}` lacks "the most
 important thing", a way to open the kitchen in the 3D configurator; read-only is fine [doc: `docs/OWNER_FEEDBACK.md`,
 item 5]. The ruling of 2026-11-13 [owner, relayed]: **a staff-only read-only route, behind the staff gate, writing an
-audit row as the detail page does; no share link is minted.**
+audit row as the detail page does; no share link is minted.** New copy is pre-approved as drafted (second round, Q3).
 
 What exists:
 
 - The detail page runs the staff gate (`readStaffPage({ page: "kitchens" })`) and carries no kitchen; its client reads
   `GET /api/staff/kitchens/{id}`, "which writes the audit row" [src: `app/[locale]/staff/kitchens/[id]/page.tsx:32-75`].
-- That endpoint admits by the reads limiter, `design.read.any`, the id's shape and a fail-closed per-account bucket,
-  then commits `kitchen-opened` before returning the body; "no `200` leaves without a committed audit row" [src:
-  `lib/server/staff/staff-kitchens.ts:44-47`, `:94-141`, `:143-179`; doc: ADR 0173 P-L3-3].
+- That endpoint's **route file** refuses a cross-site request first, and declares `HEAD` so the framework does not run
+  `GET` (with its row and bucket) for it [src: `app/api/staff/kitchens/[id]/route.ts:22-41`, the guard at `:26`, `HEAD`
+  at `:39-40` → `staffHeadRefusedResponse`, `staff-responses.ts:94-100`]. Then `openKitchenForStaff` admits by the
+  reads limiter, `design.read.any`, the id's shape and a fail-closed per-account bucket, and commits `kitchen-opened`
+  before returning the body; "no `200` leaves without a committed audit row" [src: `lib/server/staff/staff-kitchens.ts:44-47`,
+  `:94-141`, `:143-179`; doc: ADR 0173 P-L3-3]. Its bodies leave through `jsonResponse` with the account answers'
+  headers, `private, no-store` [src: `staff-responses.ts:208-213`; `account-responses.ts:26`].
+- The list endpoint judges its query **after** admission and before its bucket [src: `staff-kitchens.ts:74-83`].
 - A page render must not write: the session reader "never writes: a page render may call it, and a render can neither
   set a cookie nor be allowed to move `last_seen_at`" [src: `lib/server/account/current-session.ts:33-34`].
 - The detail payload holds both copies, `design` (as it stands) and `asSent` (the newest unrevoked copy sent to the
   shop) [src: `packages/persistence/src/staff-kitchen-reader.ts:161-194`]. The page shows the as-sent copy unless the
   kitchen changed after it was last seen, in which case it opens on the current one; a switch chooses [src:
-  `staff/staff-kitchen-page.tsx:207-225`; `staff/staff-kitchen-facts.ts:27-40`].
+  `staff/staff-kitchen-page.tsx:207-225`]. `shownDesignOf` falls back to the other copy, and answers nothing when
+  neither is readable [src: `staff/staff-kitchen-facts.ts:27-40`, the empty case at `:37-38`].
 - The share view's client component, `SharedDesignView`, hydrates a design under a sentinel id with `canWrite: false`
   and renders `ConfigureScreen variant="shared"`, which drops navigation and relies on `canWrite: false` to disable
   every control [src: `app/s/[token]/shared-design-view.tsx:11-51`; `app/configurator/configure/configure-screen.tsx:65-70`].
@@ -39,8 +46,11 @@ What exists:
   segments [src: `proxy.ts:148-150`, `:333-346`]; the matcher's generic pattern already reaches a fifth segment that
   has no file extension [src: `:91-93`].
 - The audit action list is code; the table checks only the action's shape `^[a-z0-9-]{1,32}$` [doc:
-  `packages/persistence/src/migrations/0020_create_staff_audit_events.sql:16-17`, `:63`; src:
-  `packages/configurator-domain/src/staff/staff-audit-action.ts:28-39`, `:121-131`].
+  `packages/persistence/src/migrations/0020_create_staff_audit_events.sql:16-17`, `:63`]. The domain reads every entry
+  back through `readStaffAuditEntry`, whose `default` branch accepts **only a null detail** [src:
+  `packages/configurator-domain/src/staff/staff-audit-action.ts:157-178`, the branch at `:173-176`]; the store refuses
+  to write an entry that reading does not recognise [src: `packages/persistence/src/staff-audit-store.ts:378-384`].
+  Every action must be classified in `STAFF_AUDIT_ACTION_NAMES_DESIGN` [src: `staff-audit-action.ts:124-134`].
 
 ## Decision
 
@@ -51,22 +61,49 @@ id's shape is judged after the gate. It renders a client screen and no kitchen d
 
 ### d2. A new endpoint serves the design, and commits its own audit row first
 
-`GET /api/staff/kitchens/{id}/3d?version=sent|current` admits exactly as `openKitchenForStaff` does, counts the same
-`staff-kitchen-open` bucket (fail closed), reads the kitchen with the same `readOne`, chooses the copy by
-`shownDesignOf`'s rule for the requested version, commits the audit row, and only then answers. The body is the design
-and its source, nothing else: no client, request, notes or estimates. A `version` that is neither `sent` nor `current`
-is a `400` in the shape of `staffInvalidQueryResponse`, judged before the bucket, writing no row.
+`GET /api/staff/kitchens/{id}/3d?version=sent|current`, in this order [sec, relayed; F1, F3]:
+
+1. **in the route file:** `isCrossSiteRequest` first → `crossSiteResponse()`; and an exported `HEAD` answering
+   `staffHeadRefusedResponse()`, as the detail route does;
+2. inside `answerUnavailableOnFailure`: the same admission as `openKitchenForStaff` (reads limiter, then
+   `design.read.any`);
+3. the `version` parameter, judged **after admission** as the list judges its query: absent, `sent` or `current`; any
+   other value (empty, repeated, unknown) is a `400` in the shape of `staffInvalidQueryResponse`, with no bucket, no
+   read and no row;
+4. the id's shape (a malformed id costs no bucket), then the `staff-kitchen-open` bucket (fail closed);
+5. `readOne`; `none` is `designNotFoundResponse`, no row;
+6. the copy by `shownDesignOf`'s rule for the requested version. **When neither copy is readable, no row is written**
+   and the answer is a defined refusal with no design (a closed code, for example `422 STAFF_KITCHEN_UNREADABLE`; W3a
+   names it), which the page shows as the cannot-show notice;
+7. the audit row, committed; then the body.
+
+The body is the design and its source, nothing else: no client, request, notes or estimates. Every answer, `200` and
+refusal alike, leaves through the staff responses' `jsonResponse` (or the shared refusals), so it carries
+`Cache-Control: private, no-store`.
 
 ### d3. The audit row is a new action, `kitchen-viewed-3d`, with the copy served
 
 Detail `{ version: "sent" | "current" }`, naming the copy actually served (after `shownDesignOf`'s fallback). It names
 the design and, when there is one, the client's account, as `kitchen-opened` does. No migration: the table's check is a
-shape. The audit page labels and filters the new action.
+shape. In the domain [sec, relayed; F2]:
+
+- `readStaffAuditEntry` gets a `kitchen-viewed-3d` case with a **closed key list** (`version` only; an unknown key, a
+  missing `version`, or any value but `sent`/`current` is `INVALID_DETAIL`), since the `default` branch would refuse
+  any non-null detail and the store would then refuse the write;
+- `STAFF_AUDIT_ACTION_NAMES_DESIGN` classifies it `true`;
+- a round-trip test: every valid entry written by the store reads back equal, and every invalid detail is refused by
+  the reading and by the store.
+
+The audit page labels and filters the new action (copy pre-approved, second round Q3). Recording the revision served
+was considered and **not** taken: the as-sent copy has no `designs.revision` of its own, and the version is what a
+reader of the log needs [inf].
 
 ### d4. The view mounts `SharedDesignView`; nothing new mounts `ConfigureScreen`
 
 The client screen fetches d2's endpoint and mounts `SharedDesignView` with the design, under the active price book. The
 single-mount guard is unchanged. Nothing in the view can write: no save, share, preset or contact request.
+`ConfigureScreen` mounts the editor canvas, which registers the scene capture, in every variant [src:
+`configure-screen.tsx:225`; `scene/kitchen-canvas.tsx:43`]; ADR 0181 d1 keeps the 3D view from ever uploading one.
 
 ### d5. The detail page links to the version on screen, in a new tab
 
@@ -86,15 +123,23 @@ A literal may still be added for symmetry with `:94-97`; it is optional.
 [owner, relayed]. The share view's server page, which reads no cookie (ADR 0114 G5), is not reused; only its client
 component is.
 
+### d8. Accepted: a language switch on the 3D view writes a second row
+
+Choosing the other language remounts the view and fetches d2's endpoint again, which writes a second
+`kitchen-viewed-3d` row [sec, relayed; F3]. Accepted: each row is a real read of the kitchen, and the log over-counts
+rather than under-counts.
+
 ## Alternatives considered
 
 | Alternative | Why not |
 | --- | --- |
-| **The 3D page reads the existing `GET /api/staff/kitchens/{id}` (row `kitchen-opened`)** | Fewer files and no new endpoint, and it matches "as the detail page does" most literally. Not chosen because the audit log could not tell a 3D view from a page open, nor which copy was viewed, and because the 3D page would receive the client's contact details, the notes and the estimates it never shows. **Recorded as the fallback** if the security read prefers no new endpoint. |
+| **The 3D page reads the existing `GET /api/staff/kitchens/{id}` (row `kitchen-opened`)** | Fewer files and no new endpoint, and it matches "as the detail page does" most literally. Not chosen because the audit log could not tell a 3D view from a page open, nor which copy was viewed, and because the 3D page would receive the client's contact details, the notes and the estimates it never shows. The security read accepted the new endpoint [sec, relayed]. |
 | **The server page reads the kitchen and writes the row during render** | A render must not write (`current-session.ts:33-34`). |
 | **Mint a share link, or reuse the shop's frozen link** | Ruled out by the owner; and the frozen link's plaintext is not stored, only its hash. |
 | **A `?view=3d` mode of the detail page** | The detail page deliberately mounts no editor screen (`staff/staff-kitchen-view.tsx:38-43`); a full-screen configurator inside the staff frame needs its own document. |
 | **Mount `ConfigureScreen` directly in a staff file** | Widens the single-mount guard for no gain; `SharedDesignView` already is the read-only door. |
+| **Write a row when neither copy is readable** | Nothing is served; a row would record a view that did not happen. |
+| **Judge `version` before admission** | A caller who may not read kitchens would learn the parameter's rules; the list judges its query after admission. |
 
 ## Sweep (dates)
 
@@ -103,7 +148,8 @@ component is.
 - **ADR 0174 (2026-10-20) O-L3-1** — what the detail page displays. Unchanged; the 3D view displays the kitchen only.
 - **ADR 0114 G5 and decision 5** — the share view authorises nothing. Unchanged.
 - **ADR 0165 (2026-10-17)** — the shop opens the as-sent kitchen in the share view. Precedent for d4.
-- **ADR 0156** — read limiters fail open, account buckets for staff reads fail closed (as built). Unchanged.
+- **ADR 0156 (2026-10-10)** — read limiters fail open, account buckets for staff reads fail closed (as built).
+  Unchanged.
 
 No record says the opposite of the 2026-11-13 ruling.
 
@@ -119,6 +165,14 @@ No record says the opposite of the 2026-11-13 ruling.
 
 ## Consequences
 
-- A sixth kitchen action in the audit list; the audit page's labels in both locales.
+- A sixth kitchen action in the audit list, with its own detail reader; the audit page's labels in both locales.
 - One more staff route family member in `proxy.ts`.
-- One new endpoint whose body is a design document; the security read checks it carries nothing else.
+- One new endpoint whose body is a design document and nothing else.
+
+## Acceptance, 2026-11-13
+
+Accepted by the coordinator on 2026-11-13, once the changes the security read required were in this text [relayed]:
+F1 (the route file's cross-site guard and `HEAD`, the `private, no-store` body; d2), F2 (the detail reader's closed
+key list, the classification, the round-trip test; d3), F3 (no row and a defined refusal when no copy is readable; the
+`version` check after admission; the language switch's second row accepted; d2, d8). The security read found no
+exploitable design flaw [sec, relayed].
