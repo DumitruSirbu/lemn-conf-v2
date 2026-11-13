@@ -53,6 +53,7 @@ function definitionOf(
 
 function metaFor(world: KitchenWorld, placementId: string) {
   return describeSelection({
+    kitchenSettings: {},
     records: world.records,
     voids: world.voids,
     catalog: world.catalog,

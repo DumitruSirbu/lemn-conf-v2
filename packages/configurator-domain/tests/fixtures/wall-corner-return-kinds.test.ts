@@ -69,6 +69,7 @@ function kindOf(world: KitchenWorld, placementId: string): string {
 
 function metaFor(world: KitchenWorld, placementId: string) {
   return describeSelection({
+    kitchenSettings: {},
     records: world.records,
     voids: world.voids,
     catalog: world.catalog,

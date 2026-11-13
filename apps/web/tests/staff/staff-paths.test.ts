@@ -3,9 +3,31 @@
 // the caller was handed.
 import { describe, expect, it } from "vitest";
 
-import { staffPathOf } from "@/staff/staff-paths";
+import { CATALOG_PAGES, isCatalogPage, staffPathOf } from "@/staff/staff-paths";
 
 const ID = "k".repeat(21);
+
+describe("staffPathOf for the price dashboard's pages", () => {
+  it.each(CATALOG_PAGES)(
+    "writes %s under the catalog family, in either language",
+    (page) => {
+      expect(staffPathOf("ro", page)).toBe(`/ro/staff/catalog/${page}`);
+      expect(staffPathOf("ru", page)).toBe(`/ru/staff/catalog/${page}`);
+    },
+  );
+
+  it("writes no kitchen under a catalog page, whatever id it is handed", () => {
+    expect(staffPathOf("ro", "cabinets", ID)).toBe(
+      "/ro/staff/catalog/cabinets",
+    );
+  });
+
+  it("tells a catalog page from a staff page", () => {
+    expect(CATALOG_PAGES.every(isCatalogPage)).toBe(true);
+    expect(isCatalogPage("kitchens")).toBe(false);
+    expect(isCatalogPage("audit")).toBe(false);
+  });
+});
 
 describe("staffPathOf", () => {
   it("writes the first page of the area as the frame's navigation and the account control's entry do", () => {

@@ -40,7 +40,8 @@ database-level guarantee that a version is recorded at most once even if the loc
 somehow not held.
 
 **The ledger is created by the runner, not by a migration file.** A table cannot carry the record of
-its own creation, so `CREATE_MIGRATION_LEDGER_SQL` runs on every run, inside the same transaction
+its own creation, so `CREATE_MIGRATION_LEDGER_SQL` runs ~~on every run~~ on every run that takes the lock
+(Amendment A, 2026-11-12), inside the same transaction
 and *after* the lock, guarded by `if not exists`. It lives in TypeScript rather than as a loose
 `.sql` file because the build copies only `src/migrations` into `dist` — a file present in the
 source tree and missing from the published package is the exact shape of ADR 0013's failure.
@@ -74,6 +75,8 @@ runner can apply a later file between two of this one's transactions. That is sa
 decision 2's ordering — every transaction takes the lock and then **re-reads the ledger inside it**
 (`lockLedgerAndCheckPending`), so a runner never decides from a view taken before the lock, and both
 runners walk the files in the same order. Remove the re-read and this decision becomes a defect.
+*Amendment A (2026-11-12): one unlocked read now precedes the loop, and it may only ever conclude "nothing to
+do". Every decision to apply or to refuse is still taken inside the lock, from the re-read above.*
 
 ### 4. Existing databases adopt the ledger by re-running the migrations, not by backfilling it
 
@@ -223,3 +226,37 @@ no DDL privilege, so it can neither create the ledger nor write to it, and nothi
   with an explanatory message rather than migrating "as best it can", which is the point — but it
   means an operator can now be blocked by a file edit that used to pass unnoticed. Decision 5's
   reformatting case is the likeliest, and its fix is one `git checkout` of the file.
+
+## Amendment A — 2026-11-12: an unlocked read may conclude "nothing to do", and only that
+
+**Owner ruling, 2026-11-12** (*"Yes, do both"*, on the proposal to give the runner a fast path for an up-to-date
+database). **What changed:** `applyPendingMigrations` first reads the ledger once, outside any transaction and
+without the lock (`isEveryMigrationAlreadyApplied` in `packages/persistence/src/migrate.ts`). If
+`planPendingMigrations` finds nothing pending, the run returns every file as already applied, with no transaction, no
+lock and no `CREATE_MIGRATION_LEDGER_SQL`. Anything else, including no ledger, a pending file, any refusal the plan
+raises and a failed read, answers "not settled", and the locked per-file loop of decisions 2 and 3 runs unchanged, so
+every refusal still comes from one source with its old wording and redaction.
+
+**Why it is safe without the lock.** A ledger row commits only with its migration (decision 2), and nothing in this
+package deletes one. A read that sees every file recorded, under its own name and checksum, therefore describes a
+schema no concurrent runner can take back. A partial ledger, from a runner part-way through, leaves a file pending and
+falls through to the lock. Decision 3's sentence still holds for every decision that **changes** something: none is
+taken from a view read before the lock.
+
+**Why it was needed.** A no-op run cost one locked transaction per file: 7.3, 7.2 and 6.9 s for 29 files against the
+test database from a laptop, and 263, 253 and 248 ms with the fast path (2026-11-12). The persistence suite calls the
+runner from 35 test files' `beforeAll`. With the suite split across five parallel CI shards, those runs queued on the
+migration lock and exceeded the 30 s hook timeout (run 43245849361, attempt 2, shards 2 and 3), and the cost grew with
+every migration added (backlog 307).
+
+**Consequences.**
+- Decision 1's *"`CREATE_MIGRATION_LEDGER_SQL` runs on every run"* now reads *"on every run that takes the lock"*. A
+  run with no files and no ledger creates none. A run with files always either finds a ledger or takes the lock and
+  creates it.
+- The application role still has no privilege on the ledger, so its unlocked read fails and its run fails through the
+  locked path exactly as before (ADR 0008 and ADR 0096 are unaffected).
+- If the unlocked read fails and the locked path then fails differently, the reported cause is the second failure. It
+  is still a redacted `MigrationExecutionError`, as a failure on `begin` produced before.
+- Evidence: `packages/persistence/tests/migrate.already-applied.test.ts` (21 tests, with six mutations of the fast path
+  each failing some of them), and the live `tests/migrate.test.ts`, 27 of 27.
+

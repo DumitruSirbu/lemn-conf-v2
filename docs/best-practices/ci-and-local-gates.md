@@ -419,6 +419,21 @@ repository is now public, so the repeated install per leg spends nothing ratione
 `pnpm ci:local` are unchanged and still run the four suites serially. If the domain leg nears its
 45 minutes, the next step is Vitest's `--shard` on that leg, put to the owner first.
 
+**Persistence is not a leg of that matrix: it is split by lock mode (owner ruling, 2026-11-12).** As
+one serial leg it reached the 45-minute ceiling on every run from 2026-11-07 (99 of 207 files done
+in run 43196066536). `test package (persistence, exclusive lock)` runs every file that holds the
+exclusive test-schema lock, alone; then five `test package (persistence, shard i/5)` legs run the
+rest at once with Vitest's `--shard`. `test` needs all three jobs. Plain `--shard` over the whole
+suite was rejected: an exclusive hold (up to 235 s in that run) blocks every other live file, and a
+waiter fails at `TEST_SCHEMA_LOCK_WAIT_BOUND_MS` (180 s), so a hash-based shard would fail on the
+lock rather than on a bug. **Which file goes where is computed, not listed:**
+`packages/persistence/tests/support/run-lock-partition.ts` reads each file's registration with the
+census scanner, behind the package scripts `test:exclusive-lock` and `test:non-exclusive-lock`. The
+exclusive files are a serial floor that no shard count shortens; their growth is BACKLOG 307.
+`pnpm test` and `ci:local` still run the whole suite serially. The split removes waits between a
+run's own jobs, not between runs: a second CI run or a local gate against the same database can
+still queue behind five shared holders and meet the 180 s bound.
+
 The persistence leg needs the `TEST_DATABASE_URL` repository secret, pointing at the dedicated Neon test
 database, and is the only leg given it. `DATABASE_URL` is deliberately unset there: no application runs in CI, so there is no
 application database for the isolation guard to compare against. A Postgres service container is not
@@ -486,8 +501,8 @@ machine carries. Read the workflow's own comments for the history; this section 
 
 | Job id | Name in the checks list | Runs | On a pull request |
 | --- | --- | --- | --- |
-| `e2e-desktop-shard` | `e2e shard (desktop) (i, 5)` | `playwright test --project=desktop --shard=i/5` | skipped |
-| `e2e-mobile-shard` | `e2e shard (mobile) (i, 9)` | `playwright test --project=mobile --shard=i/9` | skipped |
+| `e2e-desktop-shard` | `e2e shard (desktop) (i, 7)` | `playwright test --project=desktop --shard=i/7` | skipped |
+| `e2e-mobile-shard` | `e2e shard (mobile) (i, 10)` | `playwright test --project=mobile --shard=i/10` | skipped |
 | `e2e-desktop` | **`e2e (desktop)`** | the summary over the desktop shards | skipped |
 | `e2e-mobile` | **`e2e (mobile)`** | the summary over the mobile shards | skipped |
 | `e2e-shard-budget` | `e2e-shard-budget` | the budget guard below; lists tests, no browser | runs |
@@ -515,10 +530,11 @@ says. The shard names are free to change and must **not** be required checks.
   skipped required check counts as passing.) On a pull request it carries the shards' own
   `github.event_name != 'pull_request'` condition and reports **skipped**, as the old job did; GitHub
   counts a skipped required check as passing, so nothing new can block a pull request.
-- There are **two shard jobs, not one ~~six-leg~~ ~~nine-leg~~ ~~eleven-leg~~ fourteen-leg matrix** (corrected 2026-10-21 for
-  the desktop raise from three to five shards: 5 desktop plus 9 mobile legs, read from `.github/workflows/ci.yml`
-  `shard: [1, 2, 3, 4, 5]` in `e2e-desktop-shard` and `shard: [1, 2, 3, 4, 5, 6, 7, 8, 9]` in `e2e-mobile-shard`, and
-  `SHARDS_PER_PROJECT = { desktop: 5, mobile: 9 }` in `scripts/gates/e2e-shard-budget.mjs`; it was eleven at 3 + 9 on
+- There are **two shard jobs, not one ~~six-leg~~ ~~nine-leg~~ ~~eleven-leg~~ ~~fourteen-leg~~ ~~fifteen-leg~~ ~~sixteen-leg~~ seventeen-leg matrix** (corrected 2026-11-04 for
+  the desktop raise from six to seven shards after M10 wave P6b's width specs, on top of the mobile raise from nine to ten after U4b's
+  materials specs: 7 desktop plus 10 mobile legs, read from `.github/workflows/ci.yml`
+  `shard: [1, 2, 3, 4, 5, 6, 7]` in `e2e-desktop-shard` and `shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]` in `e2e-mobile-shard`, and
+  `SHARDS_PER_PROJECT = { desktop: 7, mobile: 10 }` in `scripts/gates/e2e-shard-budget.mjs`; it was eleven at 3 + 9 on
   2026-10-13, nine at 3 + 6 on 2026-10-08, and six when mobile had three
   shards; the count moves with `SHARDS_PER_PROJECT`, so read it there), because a job's `needs` names whole jobs and a
   matrix job's result aggregates all its legs: one matrix could feed only one summary, and
@@ -551,7 +567,7 @@ place, `scripts/gates/e2e-shard-budget.mjs` (`MEASURED_RUNNER_RATES`, `TARGET_MI
 | Seconds per test | 37.8 x 60 / 84 = **27.0** | 26.1 x 60 / 109 = **14.4** |
 | Budget at 30 min | 1800 / 27.0 = 66.7, so **66** a shard | 1800 / 14.4 = 125.3, so **125** a shard |
 | Tests on the branch | 185 | 393 |
-| Shards the budget requires | 3 (the largest, 70, is the ratchet below) | **4**: three shards put 138 on the largest. *(A dated measurement. Mobile has run in six shards since `c62feb1`, 2026-10-08, in seven since `fb41df61` (M8 wave 8K2) and in eight since `5fd0c9bc` (M8 wave 8M's QA commit); `SHARDS_PER_PROJECT` is the current count.)* |
+| Shards the budget requires | 3 (the largest, 70, is the ratchet below) | **4**: three shards put 138 on the largest. *(A dated measurement. Mobile has run in six shards since `c62feb1`, 2026-10-08, in seven since `fb41df61` (M8 wave 8K2), in eight since `5fd0c9bc` (M8 wave 8M's QA commit), in nine since `fbeed28b` (M8 wave 8Q) and in ten since M10 wave U4b, whose materials specs put 133 on the fifth of nine; `SHARDS_PER_PROJECT` is the current count.)* |
 
 **What the rates are, stated so nobody over-trusts them.** They come from `main` at `995ad03`, the
 only runner evidence there is; this branch's suite had never run on a runner. The two rows are on

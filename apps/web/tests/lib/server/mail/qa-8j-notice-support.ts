@@ -22,6 +22,8 @@ import {
   variedKitchensOf,
 } from "../../../support/varied-kitchens";
 import { FIXTURE_PUBLIC_ORIGIN } from "./lead-notice-fixtures";
+import { MEASURED_DEEPENING_ROWS } from "../../../support/deepening-rows";
+import { NOTHING_DISABLED } from "../../../support/availability";
 
 // Invented, recognisable values: a test looks for them where the customer's text must not be.
 export const QA_REFERENCE = "LM-QAQA2345";
@@ -75,6 +77,8 @@ export function snapshotUnder(
     catalog: buildKitchenLBodyCatalog(cabinetDepthMmOf(design)),
     book,
     pricingVersion,
+    deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
   });
   return result.ok ? result.snapshot : undefined;
 }

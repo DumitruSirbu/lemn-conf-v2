@@ -2,14 +2,22 @@
 // Decides no price: tiers, deltas and the total arrive from `whole-kitchen-tiers.ts` and `usePricedDesign`.
 // The pill names what the design carries (`applied`); the options inside name `pending`, not yet applied.
 import {
+  DEEP_CABINET_DEPTH_MM,
   DEFAULT_CABINET_DEPTH_MM,
+  DEFAULT_HANDLE,
+  countDisplayedBodies,
   DEFAULT_MATERIAL_ID,
   declaredCabinetDepthsMm,
+  handleRef,
+  HandleSchema,
+  isItemDisabled,
   lookUpMaterial,
   materialOffersFinish,
   MIN_CABINET_DEPTH_MM,
+  type CatalogueAvailability,
   type DisplayGroup,
   type Finish,
+  type Handle,
   type MaterialLookup,
   type PricingResult,
 } from "@lemnaria/configurator-domain";
@@ -25,10 +33,11 @@ import {
   type PriceFigure,
 } from "@/price/starting-price";
 import {
+  isTierOffered,
   UnofferedDefaultTierError,
   type OfferedTier,
   type OfferedTierGroup,
-  type WholeKitchenTierOffer,
+  type TierOfferAnswer,
 } from "@/price/whole-kitchen-tiers";
 
 /** The two whole-kitchen tier groups the book offers. */
@@ -52,9 +61,13 @@ export interface TierGroupView {
   /** What this group's deltas are measured against, said in the product's own words. Present
    *  whenever any of its options states one. */
   readonly anchor?: string;
-  /** Every id the book offers — handed to the 6E command as `availableTierIds` when apply runs. */
+  /** Every id the book offers and has not switched off — handed to the 6E command as `availableTierIds` when apply
+   *  runs. Empty when no book can be read. */
   readonly tierIds: readonly string[];
   readonly options: readonly TierOption[];
+  /** The one line this group shows instead of options when no book can be read. Absent, never empty, when the
+   *  group is offered. It carries no figure: the group shows no option, no delta and no default. */
+  readonly unavailableText?: string;
 }
 
 /** One offered cabinet depth. No delta and no anchor: a depth change moves no price (see `DepthGroupView`). */
@@ -75,7 +88,8 @@ export interface DepthGroupView {
    *  three or more. */
   readonly shape: "toggle" | "list";
   readonly options: readonly DepthOption[];
-  /** Why this group shows no price. Stated so its absence does not read as a line that is missing. */
+  /** Why this group shows no price. Stated so its absence does not read as a line that is missing. With no book it is
+   *  the sheet's "prices unavailable" line: the percentage is the book's, and no figure stands in for it. */
   readonly note: string;
   readonly warning: string;
 }
@@ -96,6 +110,24 @@ export interface ColourGroupView {
   readonly note: string;
   /** The materials' offers are disjoint, so a material change always replaces this colour (ADR 0099 decision 6). */
   readonly warning: string;
+}
+
+/** One offered handle. No delta: a handle has no price of its own, and the total moves through the bar. */
+export interface HandleOption {
+  readonly handle: Handle;
+  readonly label: string;
+  /** Against the **pending** choice, like a tier's. */
+  readonly isSelected: boolean;
+}
+
+/**
+ * The whole-kitchen handle row (frame C2). Its options are the handles availability has not switched off; a kitchen
+ * whose own handle is switched off shows none selected, because choosing a replacement is not this row's to do.
+ */
+export interface HandleGroupView {
+  readonly heading: string;
+  readonly hint: string;
+  readonly options: readonly HandleOption[];
 }
 
 /**
@@ -154,9 +186,10 @@ export interface SettingsPillRung {
 }
 
 /**
- * This surface has no unavailable state, unlike `price-breakdown-model.ts`: it is the control that chooses
- * tiers, and a design carrying a withdrawn tier is the one that cannot be priced. Tiers always come from the
- * book; deltas and the figure are absent when there is no price.
+ * This surface has no unavailable state of its own, unlike `price-breakdown-model.ts`: it is the control that
+ * chooses tiers, and a design carrying a withdrawn tier is the one that cannot be priced. Tiers come from the book
+ * and deltas and the figure are absent when there is no price. With no book at all each tier group is one
+ * `unavailableText` line instead of options.
  */
 export interface GlobalSettingsView {
   /** The control that opens this surface: frame D2A's pill (ADR 0104 decision 2). */
@@ -170,6 +203,8 @@ export interface GlobalSettingsView {
   /** After the material group, before hardware (ADR 0099 decision 9). Absent, never empty, where the pending
    *  material is undeclared: it declares no `ColourControl`, and the rest of the sheet still renders. */
   readonly colourGroup?: ColourGroupView;
+  /** After the colour group, before hardware (frame C2). Absent, never empty, when no handle is on offer. */
+  readonly handleGroup?: HandleGroupView;
   readonly warning: string;
   /** The running total, restated because this surface covers the bar that shows it. Absent, never zero,
    *  when the design cannot be priced. It carries no refusal wording. */
@@ -192,13 +227,23 @@ export interface WholeKitchenChoice {
   /** ADR 0099's whole-kitchen colour. Absent means every cabinet follows the material's default and must stay
    *  reachable: an apply that stamped a colour in would turn following cabinets into overriding ones. */
   readonly finish?: Finish | undefined;
+  /** The kitchen's handle. Absent means every cabinet follows the slot's default, and must stay reachable: seeding
+   *  one would make *Aplică* on an untouched sheet stamp a handle into a document that chose none. */
+  readonly handle?: Handle | undefined;
 }
 
 export interface DescribeGlobalSettingsInput {
   /** The active locale's copy. Every leaf this sheet renders comes from here. */
   readonly content: Content;
   readonly pricing: PricingResult;
-  readonly offer: WholeKitchenTierOffer;
+  readonly offer: TierOfferAnswer;
+  /** What the page's book says is switched off. A handle is on offer unless it is listed here. Absent hides the row:
+   *  a sheet that was not told what is switched off cannot say which handles are active. */
+  readonly availability?: CatalogueAvailability | undefined;
+  /** The published depth rule's whole percentage (`book.depthRule.deepCabinetPercent`): the only source of the figure
+   *  in the depth note. Present or explicitly `undefined`, never defaulted: an absent one would read as 0 %, which says
+   *  the depth is free, so with no book the note says prices are unavailable. */
+  readonly deepCabinetPercent: number | undefined;
   /** `projectDesignForDisplay`'s answer, the only source of the body count: a void or an empty column is not a
    *  placement it carries. */
   readonly groups: readonly DisplayGroup[];
@@ -237,7 +282,6 @@ function chipCategories(
 export function describeGlobalSettings(
   input: DescribeGlobalSettingsInput,
 ): GlobalSettingsView {
-  const { material, hardware } = input.offer;
   const figure = describeFigure(input);
   const overflowWarning = describeOverflow(input);
   const materialResetConfirm = toMaterialResetConfirm(
@@ -252,6 +296,7 @@ export function describeGlobalSettings(
     input.content,
   );
   const colourGroup = toColourGroupView(input.pending, input.content);
+  const handleGroup = toHandleGroupView(input);
   return {
     pill: describeSettingsPill({
       offer: input.offer,
@@ -260,24 +305,16 @@ export function describeGlobalSettings(
     }),
     title: input.content.globalSettings.title,
     appliesTo: input.content.globalSettings.appliesTo(
-      countBodies(input.groups),
+      countDisplayedBodies(input.groups),
     ),
-    groups: [
-      toGroupView(
-        "material",
-        material,
-        input.pending.materialTierId,
-        input.content,
-      ),
-      toGroupView(
-        "hardware",
-        hardware,
-        input.pending.hardwareTierId,
-        input.content,
-      ),
-    ],
-    depthGroup: toDepthGroupView(input.pending.cabinetDepthMm, input.content),
+    groups: toTierGroupViews(input),
+    depthGroup: toDepthGroupView({
+      pendingDepthMm: input.pending.cabinetDepthMm,
+      content: input.content,
+      deepCabinetPercent: input.deepCabinetPercent,
+    }),
     ...(colourGroup === undefined ? {} : { colourGroup }),
+    ...(handleGroup === undefined ? {} : { handleGroup }),
     warning: input.content.globalSettings.materialWarning,
     ...(figure === undefined ? {} : { figure }),
     ...(overflowWarning === undefined ? {} : { overflowWarning }),
@@ -289,43 +326,63 @@ export function describeGlobalSettings(
 
 /**
  * What the sheet opens editing: what it displays, not what the document says. A stored tier the book has
- * withdrawn resolves to the group's default, so the checked radio and pending agree.
+ * withdrawn resolves to the group's default, so the checked radio and pending agree; with that default switched off
+ * it resolves to nothing, because a pending tier must be one the sheet offers or *Aplică* would send an id the
+ * command refuses. A stored tier the book still holds but availability has switched off stays as stored: no radio is
+ * checked for it, and an untouched *Aplică* writes nothing.
  *
  * An absent choice stays absent: seeding the default would make *Aplică* on an untouched sheet stamp
  * defaults into the document. The depth is not resolved here: committing one rebuilds the scene (ADR 0074).
+ * With no tier offer the tiers are left as stored: the sheet offers none, and a choice equal to the stored one is
+ * not a change.
  */
 export function resolveOpeningChoice(
   applied: WholeKitchenChoice,
-  offer: WholeKitchenTierOffer,
+  offer: TierOfferAnswer,
 ): WholeKitchenChoice {
-  const resolved: WholeKitchenChoice = {
-    ...applied,
-    ...offeredOrFallback(
-      "materialTierId",
-      applied.materialTierId,
-      offer.material,
-    ),
-    ...offeredOrFallback(
-      "hardwareTierId",
-      applied.hardwareTierId,
-      offer.hardware,
-    ),
-  };
+  if (!isTierOffered(offer)) return withoutAFinishTheMaterialRefuses(applied);
+  const resolved = withOfferedTier(
+    withOfferedTier(applied, "materialTierId", offer.material),
+    "hardwareTierId",
+    offer.hardware,
+  );
   // The stored global colour follows the material the sheet opens on: a withdrawn material resolves to the
   // default, whose offers are disjoint from the stored one's (ADR 0078 decision 1), so the colour is dropped.
   return withoutAFinishTheMaterialRefuses(resolved);
 }
 
-/** One group's opening id, keyed so the caller spreads it: absent stays absent, an offered id is
- *  kept, and anything else becomes the fallback the group already displays. */
-function offeredOrFallback(
+/** One group's opening id: absent stays absent, an id the book holds (offered or switched off) is kept, and an id it
+ *  no longer holds becomes the group's default when that is offered, and is dropped when it is not. */
+function withOfferedTier(
+  chosen: WholeKitchenChoice,
   key: "materialTierId" | "hardwareTierId",
-  appliedTierId: string | undefined,
   group: OfferedTierGroup,
-): Partial<WholeKitchenChoice> {
-  if (appliedTierId === undefined) return {};
-  if (group.tierIds.includes(appliedTierId)) return { [key]: appliedTierId };
-  return { [key]: selectedTierIn(group, appliedTierId).tierId };
+): WholeKitchenChoice {
+  const appliedTierId = chosen[key];
+  if (appliedTierId === undefined || isHeldByTheBook(group, appliedTierId))
+    return chosen;
+  if (group.tierIds.includes(group.defaultTierId))
+    return { ...chosen, [key]: group.defaultTierId };
+  return withoutTier(chosen, key);
+}
+
+/** Offered, or held by the book and switched off: either way the kitchen's own id stays as stored, so an untouched
+ *  *Aplică* rewrites nothing. Only an id the book no longer holds has no standing. */
+function isHeldByTheBook(group: OfferedTierGroup, tierId: string): boolean {
+  return (
+    group.tierIds.includes(tierId) ||
+    group.switchedOffTiers.some((tier) => tier.tierId === tierId)
+  );
+}
+
+function withoutTier(
+  chosen: WholeKitchenChoice,
+  key: "materialTierId" | "hardwareTierId",
+): WholeKitchenChoice {
+  const dropped = { ...chosen };
+  if (key === "materialTierId") delete dropped.materialTierId;
+  else delete dropped.hardwareTierId;
+  return dropped;
 }
 
 /** A radio press as a change of pending state, extracted so *cancel writes nothing* can be swept without a
@@ -340,6 +397,14 @@ export function chooseTierIn(
         materialTierId: choice.tierId,
       })
     : { ...chosen, hardwareTierId: choice.tierId };
+}
+
+/** A handle press as a change of pending state; nothing is written until *Aplică*. */
+export function chooseHandleIn(
+  chosen: WholeKitchenChoice,
+  handle: Handle,
+): WholeKitchenChoice {
+  return { ...chosen, handle };
 }
 
 export function chooseDepthIn(
@@ -394,6 +459,7 @@ function settingHeadings(
   return {
     material: content.globalSettings.groupHeadings.material,
     finish: content.globalSettings.colourHeading,
+    handle: content.globalSettings.kitchenHandleHeading,
     hardware: content.globalSettings.groupHeadings.hardware,
     cabinetDepth: content.globalSettings.depthHeading,
   };
@@ -415,7 +481,7 @@ export function describeApplyRefusal(
  * material other than the one the design is on, and a chosen colour would be lost. An absent applied
  * material resolves through `?? DEFAULT_MATERIAL_ID`, as in the query and the validator.
  *
- * It takes the loss as counts, not the input: `countBodies(input.groups)` is the wrong number here. It asks
+ * It takes the loss as counts, not the input: `countDisplayedBodies(input.groups)` is the wrong number here. It asks
  * `lookUpMaterial` and never `materialOffersFinish`: the domain alone decides what a chosen colour is.
  */
 function toMaterialResetConfirm(
@@ -479,6 +545,57 @@ function toColourGroupView(
   };
 }
 
+/** The handles the sheet offers: every one availability has not switched off. */
+function offeredHandles(
+  availability: CatalogueAvailability,
+): readonly Handle[] {
+  return HandleSchema.options.filter(
+    (handle) => !isItemDisabled(availability, handleRef(handle)),
+  );
+}
+
+/**
+ * Drops a pending handle the sheet no longer offers, as `withoutAFinishTheMaterialRefuses` drops a colour
+ * (ADR 0099 decision 4): availability can switch a handle off after it was pressed, and *Aplică* must not
+ * write what the row has stopped showing. Unknown availability switches nothing off, so nothing is dropped.
+ */
+export function withoutAHandleTheSheetNoLongerOffers(
+  chosen: WholeKitchenChoice,
+  availability: CatalogueAvailability | undefined,
+): WholeKitchenChoice {
+  const { handle } = chosen;
+  if (handle === undefined || availability === undefined) return chosen;
+  if (offeredHandles(availability).includes(handle)) return chosen;
+  const dropped = { ...chosen };
+  delete dropped.handle;
+  return dropped;
+}
+
+/** The handle row, or nothing where availability is unknown or has switched every handle off. The marked option is the
+ *  handle the kitchen will wear after *Aplică*: the pending choice if the sheet still offers it, else the applied one,
+ *  else the slot's default. A stored handle that is switched off marks nothing, because no row offers it. */
+function toHandleGroupView(
+  input: DescribeGlobalSettingsInput,
+): HandleGroupView | undefined {
+  const { availability, content } = input;
+  if (availability === undefined) return undefined;
+  const offered = offeredHandles(availability);
+  if (offered.length === 0) return undefined;
+  const selected =
+    withoutAHandleTheSheetNoLongerOffers(input.pending, availability).handle ??
+    input.applied.handle ??
+    DEFAULT_HANDLE;
+  return {
+    heading: content.globalSettings.kitchenHandleHeading,
+    hint: content.globalSettings.kitchenHandleHint,
+    options: offered.map((handle) => ({
+      handle,
+      label: content.panel.handleLabels[handle],
+      isSelected: handle === selected,
+    })),
+  };
+}
+
 /** The depths a customer may choose: the declared map held to the domain's floor `MIN_CABINET_DEPTH_MM`
  *  (ADR 0059), so the control never offers a depth the command would refuse. */
 function offeredCabinetDepthsMm(): readonly number[] {
@@ -487,10 +604,17 @@ function offeredCabinetDepthsMm(): readonly number[] {
   );
 }
 
-function toDepthGroupView(
-  pendingDepthMm: number | undefined,
-  content: Content,
-): DepthGroupView {
+interface DepthGroupInput {
+  readonly pendingDepthMm: number | undefined;
+  readonly content: Content;
+  readonly deepCabinetPercent: number | undefined;
+}
+
+function toDepthGroupView({
+  pendingDepthMm,
+  content,
+  deepCabinetPercent,
+}: DepthGroupInput): DepthGroupView {
   const offered = offeredCabinetDepthsMm();
   const selected = offered.includes(pendingDepthMm ?? Number.NaN)
     ? pendingDepthMm
@@ -503,7 +627,14 @@ function toDepthGroupView(
       label: content.globalSettings.depthOption(cabinetDepthMm),
       isSelected: cabinetDepthMm === selected,
     })),
-    note: content.globalSettings.depthNote,
+    // The deep depth, whichever is selected: the note says what choosing it costs.
+    note:
+      deepCabinetPercent === undefined
+        ? content.globalSettings.pricesUnavailable
+        : content.globalSettings.depthNotePriced(
+            DEEP_CABINET_DEPTH_MM,
+            deepCabinetPercent,
+          ),
     warning: content.globalSettings.depthWarning,
   };
 }
@@ -529,7 +660,7 @@ function describeOverflow(
 
 /** The book's offer and what the design carries. No pending choice: the pill is read with the sheet shut. */
 export interface DescribeSettingsPillInput {
-  readonly offer: WholeKitchenTierOffer;
+  readonly offer: TierOfferAnswer;
   readonly applied: WholeKitchenChoice;
   readonly content: Content;
 }
@@ -537,32 +668,17 @@ export interface DescribeSettingsPillInput {
 /**
  * Frame D2A's pill, as a value. Exported on its own because the row above needs its labels to decide which
  * rung it reaches (`app/configurator/configure/top-bar-fit.ts`). The colour is absent only where the applied
- * material is undeclared, and `N` then counts from three.
+ * material is undeclared, and `N` then counts from three. With no tier offer the pill names no tier: the book is what
+ * names one, and a stored id is not a name. While a material row is owed the material entry reads "to choose" and the
+ * hardware entry is left out when its own row is owed, so the pill never names a tier the kitchen does not carry.
  */
 export function describeSettingsPill(
   input: DescribeSettingsPillInput,
 ): SettingsPillView {
   const settings = [
-    {
-      key: "material" as const,
-      label: input.content.globalSettings.pillMaterial(
-        resolvedTierName(
-          selectedTierIn(input.offer.material, input.applied.materialTierId),
-          input.content,
-        ),
-      ),
-    },
+    ...materialEntryOf(input),
     ...colourEntryOf(input.applied, input.content),
-    {
-      key: "hardware" as const,
-      label: input.content.globalSettings.pillHardware(
-        chipCategories(input.content).hardware,
-        resolvedTierName(
-          selectedTierIn(input.offer.hardware, input.applied.hardwareTierId),
-          input.content,
-        ),
-      ),
-    },
+    ...hardwareEntryOf(input),
     {
       key: "depth" as const,
       label: input.content.globalSettings.pillDepth(
@@ -599,13 +715,13 @@ function countLabelOf(hiddenCount: number): string {
   return `${HIDDEN_SETTINGS_MARK}${String(hiddenCount)}`;
 }
 
-/** What the pill draws at the rung the fit model chose. The floor of one label is enforced here as well as decided
- *  there (ADR 0104 decision 3): a rung naming nothing would be a bare counter. */
+/** What the pill draws at the rung the fit model chose. The floor of one named label is enforced here as well as
+ *  decided there (ADR 0104 decision 3): a rung naming nothing would be a bare counter. */
 export function describePillRung(
   pill: SettingsPillView,
   visibleCount: number,
 ): SettingsPillRung {
-  const shown = Math.min(Math.max(visibleCount, 1), pill.settings.length);
+  const shown = shownSettingCount(pill, visibleCount);
   const hiddenCount = pill.settings.length - shown;
   return {
     // A shown setting with no name adds no label and no separator, and is not counted as hidden.
@@ -615,6 +731,80 @@ export function describePillRung(
       .filter((label) => label !== ""),
     ...(hiddenCount === 0 ? {} : { counter: countLabelOf(hiddenCount) }),
   };
+}
+
+/** How many settings the rung draws: the fit model's count, widened to reach the first named setting when the ones it
+ *  chose are all nameless (a free colour leading a pill that names no tier). */
+function shownSettingCount(
+  pill: SettingsPillView,
+  visibleCount: number,
+): number {
+  const decided = Math.min(Math.max(visibleCount, 1), pill.settings.length);
+  const firstNamed = pill.settings.findIndex((setting) => setting.label !== "");
+  return firstNamed < 0 ? decided : Math.max(decided, firstNamed + 1);
+}
+
+/** The pill's material, named by the tier the kitchen carries; while a material row is owed, by the leaf that says
+ *  one is still to choose, since the tier it carries is one the kitchen no longer has. Nothing with no tier offer. */
+function materialEntryOf(
+  input: DescribeSettingsPillInput,
+): readonly SettingsPillEntry[] {
+  const { offer, applied, content } = input;
+  if (!isTierOffered(offer)) return [];
+  if (isTierOwed(offer.material, applied.materialTierId)) {
+    return [
+      {
+        key: "material",
+        label: content.replacementSheet.headerMaterialToChoose,
+      },
+    ];
+  }
+  const tier = selectedTierIn(offer.material, applied.materialTierId);
+  return [
+    {
+      key: "material",
+      label: content.globalSettings.pillMaterial(
+        resolvedTierName(tier, content),
+      ),
+    },
+  ];
+}
+
+/** The pill's hardware, named by the tier the kitchen carries. Nothing with no tier offer, and nothing while a
+ *  hardware row is owed: a tier the kitchen does not carry is not named (OQ-43's default). */
+function hardwareEntryOf(
+  input: DescribeSettingsPillInput,
+): readonly SettingsPillEntry[] {
+  const { offer, applied, content } = input;
+  if (!isTierOffered(offer)) return [];
+  if (isTierOwed(offer.hardware, applied.hardwareTierId)) return [];
+  const tier = selectedTierIn(offer.hardware, applied.hardwareTierId);
+  return [
+    {
+      key: "hardware",
+      label: content.globalSettings.pillHardware(
+        chipCategories(content).hardware,
+        resolvedTierName(tier, content),
+      ),
+    },
+  ];
+}
+
+/**
+ * Whether the domain owes a replacement row for this group's tier, read off the offer and the applied choice alone
+ * (`disabledItemsNamedBy`'s rule for a tier): the chosen id is switched off or held by neither list, or nothing is
+ * chosen and the book's default is switched off. The same answer `replacementsRequired` lists as a tier row.
+ */
+function isTierOwed(
+  group: OfferedTierGroup,
+  chosenTierId: string | undefined,
+): boolean {
+  const effectiveTierId = chosenTierId ?? group.defaultTierId;
+  if (group.tiers.some((tier) => tier.tierId === effectiveTierId)) return false;
+  const isSwitchedOff = group.switchedOffTiers.some(
+    (tier) => tier.tierId === effectiveTierId,
+  );
+  return isSwitchedOff || chosenTierId !== undefined;
 }
 
 /**
@@ -663,6 +853,36 @@ function spokenColourOf(applied: WholeKitchenChoice, content: Content): string {
     : nameOfFinish(finish, content);
 }
 
+/** The two tier groups, or with no tier offer the two lines that stand in for them. */
+function toTierGroupViews(
+  input: DescribeGlobalSettingsInput,
+): readonly TierGroupView[] {
+  const { offer, pending, content } = input;
+  if (!isTierOffered(offer))
+    return [
+      toUnavailableGroupView("material", content),
+      toUnavailableGroupView("hardware", content),
+    ];
+  return [
+    toGroupView("material", offer.material, pending.materialTierId, content),
+    toGroupView("hardware", offer.hardware, pending.hardwareTierId, content),
+  ];
+}
+
+/** A group with nothing to choose from: the heading, one line, and no option, anchor or delta. */
+function toUnavailableGroupView(
+  key: WholeKitchenGroupKey,
+  content: Content,
+): TierGroupView {
+  return {
+    key,
+    heading: content.globalSettings.groupHeadings[key],
+    tierIds: [],
+    options: [],
+    unavailableText: content.globalSettings.pricesUnavailable,
+  };
+}
+
 function toGroupView(
   key: WholeKitchenGroupKey,
   group: OfferedTierGroup,
@@ -692,15 +912,19 @@ function toGroupView(
 
 /**
  * The tier a choice names, or the book's default where it names none. A tier the book has withdrawn lands on
- * the default, which is what such a design is priced at, so the customer can choose their way out.
+ * the default, which is what such a design is priced at, so the customer can choose their way out. A tier
+ * availability has switched off is still the tier the kitchen carries, so it is found among the switched-off ones:
+ * it names the pill, though it is no option of the sheet. The default is looked up the same way, because a switched-off
+ * default is a book the sheet must still open on.
  */
 function selectedTierIn(
   group: OfferedTierGroup,
   chosenTierId: string | undefined,
 ): OfferedTier {
-  const chosen = group.tiers.find((tier) => tier.tierId === chosenTierId);
+  const everyTier = [...group.tiers, ...group.switchedOffTiers];
+  const chosen = everyTier.find((tier) => tier.tierId === chosenTierId);
   if (chosen) return chosen;
-  const fallback = group.tiers.find(
+  const fallback = everyTier.find(
     (tier) => tier.tierId === group.defaultTierId,
   );
   if (!fallback) throw new UnofferedDefaultTierError(group.defaultTierId);
@@ -720,9 +944,4 @@ function resolvedTierName(tier: OfferedTier, content: Content): string {
 function describeDelta(deltaMinor: number, content: Content): string {
   if (deltaMinor === 0) return content.priceBreakdown.included;
   return content.globalSettings.tierDelta(describeAddedAmount(deltaMinor));
-}
-
-/** The bodies the customer can see, which is what a whole-kitchen setting applies to. */
-function countBodies(groups: readonly DisplayGroup[]): number {
-  return groups.reduce((count, group) => count + group.entries.length, 0);
 }

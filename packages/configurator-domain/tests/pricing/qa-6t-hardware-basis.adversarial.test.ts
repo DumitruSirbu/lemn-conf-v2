@@ -22,7 +22,8 @@ import {
   KITCHEN_L_DESIGN,
 } from "../../src/fixtures/kitchen-l-design.js";
 import { countHardwareMechanisms } from "../../src/hardware-mechanisms.js";
-import type { Design, DesignPlacement } from "../../src/design.js";
+import type { Design, DesignPlacement, Handle } from "../../src/design.js";
+import type { HardwareRateField } from "../../src/pricing/hardware-rate-fields.js";
 import type { HardwareTier, PriceBook } from "../../src/pricing/price-book.js";
 import {
   priceDesign,
@@ -33,6 +34,9 @@ import type {
   WholeKitchenPriceLine,
 } from "../../src/pricing/price-lines.js";
 import { SAMPLE_PRICE_BOOK } from "../../src/pricing/sample-price-book.js";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows.js";
+import { NOTHING_DISABLED } from "../support/availability.js";
+import { roundedToTenLei } from "../support/line-amounts.js";
 import { projectDesignForDisplay } from "../../src/queries/design-projection.js";
 import type { BodyCatalog } from "../../src/void-engine.js";
 
@@ -47,6 +51,8 @@ function request(
     catalog: CATALOG,
     book: BOOK,
     pricingVersion: BOOK.version,
+    deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
     ...overrides,
   };
 }
@@ -85,14 +91,12 @@ function tierOf(tierId: string): HardwareTier {
   return tier;
 }
 
-/** A book whose hardware tiers all charge these three rates, so an amount can be read as a count.
- *  Built from the shipped book rather than authored, so a fourth rate cannot appear without this
+/** A book whose hardware tiers all charge these rates, so an amount can be read as a count.
+ *  Built from the shipped book rather than authored, so a further rate cannot appear without this
  *  helper going stale in a way the type checker sees. */
-function bookAtRates(rates: {
-  readonly perHingeMinor: number;
-  readonly perDrawerMinor: number;
-  readonly perPushToOpenMinor: number;
-}): PriceBook {
+function bookAtRates(
+  rates: Readonly<Record<HardwareRateField, number>>,
+): PriceBook {
   return {
     ...BOOK,
     hardware: {
@@ -101,6 +105,18 @@ function bookAtRates(rates: {
     },
   };
 }
+
+/** A push runner is never free, so a book that charges for nothing else states this smallest rate; no design that uses
+ *  `NO_CHARGE` carries a push-to-open drawer, so it multiplies by nothing. */
+const NEVER_FREE_MINOR = 1;
+
+const NO_CHARGE: Readonly<Record<HardwareRateField, number>> = {
+  perHingeMinor: 0,
+  perDrawerMinor: 0,
+  perPushToOpenMinor: 0,
+  perLiftMinor: 0,
+  perPushRunnerMinor: NEVER_FREE_MINOR,
+};
 
 function designOf(placements: readonly DesignPlacement[]): Design {
   return { ...KITCHEN_L_DESIGN, placements: [...placements] };
@@ -181,7 +197,9 @@ describe("the 74, the 5 and the 16 are a census, not only a total", () => {
       expect(mechanismsIn(designOf([placement]))).toEqual({
         hinges,
         drawers,
+        pushRunners: 0,
         pushToOpen,
+        lifts: 0,
       });
     },
   );
@@ -195,12 +213,20 @@ describe("the 74, the 5 and the 16 are a census, not only a total", () => {
       (totals, [, hinges, drawers, pushToOpen]) => ({
         hinges: totals.hinges + hinges,
         drawers: totals.drawers + drawers,
+        pushRunners: 0,
         pushToOpen: totals.pushToOpen + pushToOpen,
+        lifts: 0,
       }),
-      { hinges: 0, drawers: 0, pushToOpen: 0 },
+      { hinges: 0, drawers: 0, pushRunners: 0, pushToOpen: 0, lifts: 0 },
     );
 
-    expect(summed).toEqual({ hinges: 74, drawers: 5, pushToOpen: 16 });
+    expect(summed).toEqual({
+      hinges: 74,
+      drawers: 5,
+      pushRunners: 0,
+      pushToOpen: 16,
+      lifts: 0,
+    });
     expect(mechanismsIn(KITCHEN_L_DESIGN)).toEqual(summed);
   });
 });
@@ -211,16 +237,21 @@ describe("the count still moves the money, though the quantity is pinned at 1", 
     .map((placements) => designOf(placements));
 
   /** Rates a design's counts can be read back out of: powers far enough apart that no combination
-   *  of the three counts can alias one mechanism for another. The seeded kitchen's largest count is
-   *  74, so a base of 1 000 separates them with room to spare. */
+   *  of the three counts the seeded kitchen carries can alias one mechanism for another. The lift rate is zero and
+   *  the push-runner rate one grain: no subset of the seeded kitchen carries either mechanism. The seeded kitchen's largest count is
+   *  74, so a base of 1 000 separates them with room to spare. The smallest rate is one ten-lei grain, because the
+   *  hardware line is rounded to ten lei (ADR 0177 A-1) and a smaller one would be rounded away. */
+  const GRAIN_MINOR = 1_000;
   const SEPARABLE_RATES = {
-    perHingeMinor: 1,
-    perDrawerMinor: 1_000,
-    perPushToOpenMinor: 1_000_000,
+    perHingeMinor: GRAIN_MINOR,
+    perDrawerMinor: 1_000 * GRAIN_MINOR,
+    perPushToOpenMinor: 1_000_000 * GRAIN_MINOR,
+    perLiftMinor: 0,
+    perPushRunnerMinor: GRAIN_MINOR,
   } as const;
 
   propertyTest.prop([anySubset])(
-    "bills every population the book's own three rates times its own three counts",
+    "bills every population the book's own rates times its own counts",
     (design) => {
       const counts = mechanismsIn(design);
       for (const tier of BOOK.hardware.tiers) {
@@ -233,10 +264,15 @@ describe("the count still moves the money, though the quantity is pinned at 1", 
 
         expect(line.quantity).toBe(1);
         expect(line.amountMinor).toBe(line.quantity * line.unitAmountMinor);
+        // Every rate over its own count, rounded once to ten lei.
         expect(line.amountMinor).toBe(
-          tier.perHingeMinor * counts.hinges +
-            tier.perDrawerMinor * counts.drawers +
-            tier.perPushToOpenMinor * counts.pushToOpen,
+          roundedToTenLei(
+            tier.perHingeMinor * counts.hinges +
+              tier.perDrawerMinor * counts.drawers +
+              tier.perPushRunnerMinor * counts.pushRunners +
+              tier.perPushToOpenMinor * counts.pushToOpen +
+              tier.perLiftMinor * counts.lifts,
+          ),
         );
       }
     },
@@ -253,9 +289,11 @@ describe("the count still moves the money, though the quantity is pinned at 1", 
         priceOrFail({ design, book: bookAtRates(SEPARABLE_RATES) }),
       ).amountMinor;
 
-      expect(amount % 1_000).toBe(counts.hinges);
-      expect(Math.floor(amount / 1_000) % 1_000).toBe(counts.drawers);
-      expect(Math.floor(amount / 1_000_000)).toBe(counts.pushToOpen);
+      const grains = amount / GRAIN_MINOR;
+
+      expect(grains % 1_000).toBe(counts.hinges);
+      expect(Math.floor(grains / 1_000) % 1_000).toBe(counts.drawers);
+      expect(Math.floor(grains / 1_000_000)).toBe(counts.pushToOpen);
     },
   );
 
@@ -286,8 +324,21 @@ describe("the count still moves the money, though the quantity is pinned at 1", 
             }),
           ).amountMinor;
 
-        expect(at(enlarged) - at(design)).toBe(3 * tier.perDrawerMinor);
+        // Each side is rounded to ten lei once, so the difference is the three drawers to within one grain.
+        expect(
+          Math.abs(at(enlarged) - at(design) - 3 * tier.perDrawerMinor),
+        ).toBeLessThan(2 * GRAIN_MINOR);
       }
+      // At a rate that is a whole number of grains the difference is exact.
+      const exactBook = bookAtRates({
+        ...NO_CHARGE,
+        perDrawerMinor: 2 * GRAIN_MINOR,
+      });
+      const exactlyAt = (one: Design): number =>
+        hardwareLineOf(priceOrFail({ design: one, book: exactBook }))
+          .amountMinor;
+
+      expect(exactlyAt(enlarged) - exactlyAt(design)).toBe(6 * GRAIN_MINOR);
     },
   );
 
@@ -306,7 +357,9 @@ describe("the count still moves the money, though the quantity is pinned at 1", 
     expect(mechanismsIn(solo)).toEqual({
       hinges: 4,
       drawers: 0,
+      pushRunners: 0,
       pushToOpen: 0,
+      lifts: 0,
     });
     expect(
       hardwareLineOf(
@@ -329,11 +382,7 @@ describe("the boundaries the wave plan names", () => {
   ] as const)("still publishes a hardware line for %s", (_described, over) => {
     const priced = priceOrFail({
       ...over,
-      book: bookAtRates({
-        perHingeMinor: 0,
-        perDrawerMinor: 0,
-        perPushToOpenMinor: 0,
-      }),
+      book: bookAtRates(NO_CHARGE),
     });
     // **Selected by membership, not by `!== "cabinet"`.** Wave 6T2 added `accessory` lines, which the
     // seeded kitchen earns two of; this block is about the two whole-kitchen lines still being
@@ -418,26 +467,33 @@ describe("the boundaries the wave plan names", () => {
       ]);
       const tier = tierOf("hardware.soft-close");
 
-      expect(mechanismsIn(design)).toEqual({ ...expected, pushToOpen: 0 });
+      expect(mechanismsIn(design)).toEqual({
+        ...expected,
+        pushRunners: 0,
+        pushToOpen: 0,
+        lifts: 0,
+      });
       expect(
         hardwareLineOf(
           priceOrFail({ design, selections: { hardwareTierId: tier.tierId } }),
         ).amountMinor,
       ).toBe(
-        expected.hinges * tier.perHingeMinor +
-          expected.drawers * tier.perDrawerMinor,
+        roundedToTenLei(
+          expected.hinges * tier.perHingeMinor +
+            expected.drawers * tier.perDrawerMinor,
+        ),
       );
     },
   );
 
   /** **The defect the wave exists to remove, at its smallest.** One push-to-open body carries
    *  mechanisms and no handle, so the superseded basis billed it at exactly zero. It is billed above
-   *  the same body with a handle, at every tier, and the difference is the latch rate times its
-   *  fronts. */
+   *  the same body with a handle, at every tier, and the difference is the latch rate times its door
+   *  leaves. */
   it.each(["hardware.standard", "hardware.soft-close", "hardware.premium"])(
-    "bills a single push-to-open body more than the same body with a handle, at %s",
+    "bills a single push-to-open door body more than the same body with a handle, at %s",
     (tierId) => {
-      const body = { buildId: "base-3drawer", widthMm: 600, heightMm: 820 };
+      const body = { buildId: "base-cabinet", widthMm: 600, heightMm: 820 };
       const handled = designOf([
         { id: "solo", wall: "A", alongMm: 1_300, y0Mm: 0, body },
       ]);
@@ -456,10 +512,47 @@ describe("the boundaries the wave plan names", () => {
           priceOrFail({ design, selections: { hardwareTierId: tierId } }),
         ).amountMinor;
 
-      expect(mechanismsIn(pushed).pushToOpen).toBe(3);
+      expect(mechanismsIn(pushed).pushToOpen).toBe(2);
       expect(at(handled)).toBeGreaterThan(0);
-      expect(at(pushed) - at(handled)).toBe(3 * tier.perPushToOpenMinor);
+      expect(at(pushed) - at(handled)).toBe(2 * tier.perPushToOpenMinor);
       expect(tier.perPushToOpenMinor).toBeGreaterThan(0);
+    },
+  );
+
+  /** A drawer on a push-to-open body is billed the push-runner rate instead of the drawer rate, and takes no latch:
+   *  each amount is its own rate over its own count, so billing both rates, or the latch, shows. */
+  it.each(["hardware.standard", "hardware.soft-close", "hardware.premium"])(
+    "bills a push-to-open drawer body at the push-runner rate in place of the drawer rate, at %s",
+    (tierId) => {
+      const body = { buildId: "base-3drawer", widthMm: 600, heightMm: 820 };
+      const designWith = (handle: Handle | undefined): Design =>
+        designOf([
+          {
+            id: "solo",
+            wall: "A",
+            alongMm: 1_300,
+            y0Mm: 0,
+            body: handle === undefined ? body : { ...body, handle },
+          },
+        ]);
+      const tier = tierOf(tierId);
+      const at = (design: Design): number =>
+        hardwareLineOf(
+          priceOrFail({ design, selections: { hardwareTierId: tierId } }),
+        ).amountMinor;
+
+      expect(mechanismsIn(designWith("push"))).toMatchObject({
+        drawers: 0,
+        pushRunners: 3,
+        pushToOpen: 0,
+      });
+      expect(at(designWith("push"))).toBe(
+        roundedToTenLei(3 * tier.perPushRunnerMinor),
+      );
+      expect(at(designWith(undefined))).toBe(
+        roundedToTenLei(3 * tier.perDrawerMinor),
+      );
+      expect(tier.perPushRunnerMinor).not.toBe(tier.perDrawerMinor);
     },
   );
 });
@@ -530,19 +623,13 @@ describe("a body whose fronts cannot be read fails the design whole", () => {
 });
 
 describe("a rate that would publish a negative line is refused", () => {
-  /** `usableCoefficientOf` deliberately does not ask about the sign — a negative rate is exact
-   *  arithmetic, and what is wrong with it is the amount it publishes. So the refusal has to arrive
-   *  at the line, and it does: a design with mechanisms and a negative rate is refused whole rather
-   *  than quoted a discount. */
+  /** `usableCoefficientOf` does not ask about the sign, so the book parser does: a negative tier rate is
+   *  refused as an invalid book, and the design is refused whole rather than quoted a discount. */
   it("refuses the seeded kitchen priced at a negative hinge rate", () => {
     const failure = refusalFrom({
-      book: bookAtRates({
-        perHingeMinor: -1,
-        perDrawerMinor: 0,
-        perPushToOpenMinor: 0,
-      }),
+      book: bookAtRates({ ...NO_CHARGE, perHingeMinor: -1 }),
     });
 
-    expect(failure.code).toBe("INVALID_AMOUNT");
+    expect(failure.code).toBe("INVALID_PRICE_BOOK");
   });
 });

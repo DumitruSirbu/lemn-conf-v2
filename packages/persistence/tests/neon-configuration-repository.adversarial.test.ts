@@ -25,6 +25,7 @@ import {
   liveTestDatabaseUrl,
 } from "./support/live-test-database.js";
 import { forgetAppliedMigrations } from "./support/migration-ledger-probe.js";
+import { REAPPLY_MIGRATIONS_TEST_TIMEOUT_MS } from "./support/migration-reapply-timeout.js";
 import { holdExclusiveTestSchemaLock } from "./support/test-schema-lock.js";
 
 // Exclusive: this file drops write_token_hash and asserts a whole-table count, neither safe while another run
@@ -537,7 +538,7 @@ describe("the write-token migration actually executes", () => {
       // Nullable, so rows predating the write token fail closed rather than being rejected at insert time.
       expect(columns[0]?.is_nullable).toBe("YES");
     },
-    30_000,
+    REAPPLY_MIGRATIONS_TEST_TIMEOUT_MS,
   );
 
   it.skipIf(!hasLiveDatabase)(
@@ -567,7 +568,7 @@ describe("the write-token migration actually executes", () => {
         await neon(testDatabaseUrl)`delete from designs where id = ${id}`;
       }
     },
-    30_000,
+    REAPPLY_MIGRATIONS_TEST_TIMEOUT_MS,
   );
 });
 

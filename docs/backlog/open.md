@@ -998,6 +998,10 @@ list.
 
 **So: do not re-ask the owner what shape depth pricing takes — they answered.** What is still owed is the manufacturer's actual rate, which is the owner's to obtain when they return. Do not plan a wave. [ADR 0100](../decisions/0100-depth-is-priced-by-a-dashboard-editable-multiplier-on-the-600-mm-base-and-it-is-deferred.md) carries the ruling, the two rejected alternatives, and two implementation constraints measured on 2026-09-07 — the runtime parser's derived `MAX_PRICE_COEFFICIENT_MINOR` bound, and the fact that a multiplier is not a fifth linear term and needs a declared rounding rule at a named seam.
 
+**Note 2026-10-25: the postponement is lifted.** The owner un-postponed depth pricing and it is now backlog 283 ([ADR 0100](../decisions/0100-depth-is-priced-by-a-dashboard-editable-multiplier-on-the-600-mm-base-and-it-is-deferred.md) Amendment). The paragraph above ("Do not plan a wave") is superseded; the shape and the unapproved ~15% stand.
+
+**Note 2026-10-26: M10, waves P2/P3 and Q1** (as backlog 283); superseded in part by 283. [ADR 0100](../decisions/0100-depth-is-priced-by-a-dashboard-editable-multiplier-on-the-600-mm-base-and-it-is-deferred.md) Amendment of 2026-10-26. Not built.
+
 **The original entry, unedited, follows.**
 
 **Observed by the owner, 2026-09-06**, reading the collected copy at Gate O1: *"changing kitchen
@@ -1030,7 +1034,7 @@ the book must not be extended before the answer arrives.
 
 **Where it lands.** The manufacturer price dashboard owns book authoring
 ([ADR 0062](../decisions/0062-a-manufacturer-price-dashboard-comes-after-m8-and-shapes-seams-now.md)
-seam 1, [ADR 0072](../decisions/0072-the-price-book-is-data-and-its-shapes-are-code.md)), so this is
+seam 1, [ADR 0072](../decisions/0072-price-book-versioning-is-deferred-to-the-manufacturer-dashboard.md)), so this is
 a coefficient the dashboard's book validation and its authoring surface must both know about.
 Recorded here rather than scheduled: **no change to M6**, on the owner's explicit instruction.
 
@@ -2860,6 +2864,8 @@ shop received; or the delivery milestone's hardening of the form, whichever is f
 
 ## 176. The application has two price-book roots; they must become one before either names another book — RECORDED 2026-10-12 AT M8 8K's CLOSE
 
+**Note 2026-10-26: the trigger fires in M10, wave R1** (the one price-book root; every other M10 route and price surface waits for it). [ADR 0176](../decisions/0176-the-manufacturer-price-dashboard-is-milestone-m10-and-starts-now.md). Not built.
+
 **Source [the plan's 8K, *S5: the route composed what two invariants reserve*; ADR 0062 seam 1 (note 2026-10-12); ADR 0157 decision 8].** The browser's root and the
 server's `lib/server/shipped-price-book.ts` each name the same book. Changed alone, a customer would review one price and the shop would be sent another, and
 nothing would catch it. The one shared module is not built: moving the browser's ingress moves QA's pins (`qa-m6-wave-b-book-ingress`, `qa-8c-model-purity`) and is
@@ -3290,3 +3296,187 @@ four file names were not relayed to the scribe.
 ## 275. Generic 413/503 status constants live in a preset-named module; the listing byte cap grew — RECORDED 2026-10-18 FROM THE M8C CLEAN-CODE REVIEW
 
 **Evidence [source-verified by the reviewer].** The generic 413 and 503 status constants now live in the preset-named `apps/web/src/preset/preset-wire-contract.ts`. Also `MAX_LISTING_BYTES` grew from 1,153,434 to 1,179,648 bytes (8 × (128 KiB + 16 KiB)). **Cost of deciding:** move or rename the constants to a neutral module; the cap change is recorded only. **Owner:** unassigned.
+
+## 276. Manual insert takes the widest width, not the default width — RECORDED 2026-10-25 (OWNER OBSERVATION, COORDINATOR-RELAYED)
+
+**Note 2026-10-26: M10, wave P1 (the field only).** P1 declares the default-width field in the catalogue; the anchor price is the price at it (ADR 0177 A-2). **The behaviour half (manual insert taking the default width) is out of M10's scope and stays open.** The proposed defaults (600 for `base-panbank`, `wall-lift`, `open-shelf`, `hood`; `tall-pantry` 600 or 800) remain an owner question (plan OQ-8, close-only).
+
+**Observed (owner, relayed).** The owner's notion of a cabinet's "default width" is the width it takes when there is a lot of free space: most 600, the bottle cargo 300, perhaps a tall unit 800. A cabinet inserted by hand into a large empty space does not follow it.
+
+**What is true in the code [source-verified by the coordinator; not re-read by the scribe].** In `packages/configurator-domain/src/commands/insert-fit.ts`, `resolveFitWidth` returns `widestBuildableWidthMm(body)` when the opening is wider than the widest buildable width and the column can be divided, and `resolveFixedSetWidth` takes the widest fitting size. So a range cabinet inserted by hand into a large empty space is built at 800 mm. The generator plans most bodies at 600: `generation/generation-priorities.ts` (sink, 3-drawer and hob 600; fridge-free 700), `generation/optional-run-items.ts` (bottle cargo 300), `generation/leftover-rule.ts` (`STORAGE_BODY_WIDTH_MM` 600), `generation/dishwasher-beside-the-sink.ts` (600) and `generation/u-tall-layout.ts` (pantry 600). **No catalogue field declares a default width today.**
+
+**Open.** Whether manual insert should use a per-cabinet default width, and declaring that default once (in the catalogue) so the generator and insert read one value. **Owner to confirm** the proposed defaults for rows the generator does not place (`base-panbank`, `wall-lift`, `open-shelf`, `hood`: 600 proposed) and whether `tall-pantry` is 600 or 800. The dashboard brief shows these as "propus". **Cost of deciding:** a catalogue field plus changes to the insert path and the generator's constants; an owner question first. **Owner:** the owner, for the values; unassigned otherwise. Related: 255 (the commands still cut empty space at 800).
+
+## 277. Manufacturer dashboard: prices and whole-kitchen defaults — RECORDED 2026-10-25; AFTER M8 PER ADR 0062, NO MILESTONE YET
+
+**Note 2026-10-26: now M10, in progress (W0).** The "after M8" trigger is superseded by [ADR 0176](../decisions/0176-the-manufacturer-price-dashboard-is-milestone-m10-and-starts-now.md); plan [`M10-price-dashboard.md`](../milestones/done/M10-price-dashboard.md). Nothing is built. The whole entry is carried by the milestone's lanes U, M, S, R, H and K; 54 and 176 (named below) are carried by waves P3 and R1.
+
+Scope as ruled: [ADR 0062](../decisions/0062-a-manufacturer-price-dashboard-comes-after-m8-and-shapes-seams-now.md) Amendment of 2026-10-25 (prices editable; sizes shown read-only; a default-settings screen; desktop-first; adding cabinets out of scope) and the [ADR 0072](../decisions/0072-price-book-versioning-is-deferred-to-the-manufacturer-dashboard.md) Amendment of 2026-10-25 (a saved kitchen always prices at the current book; version history is the owner's only). The design brief is `docs/design/claude-design-brief-cabinet-price-dashboard.md`. **Nothing is built and nothing is scheduled.** Trigger: M8's close. Inherits 176 (two price-book roots must become one first), 54 (depth multiplier) and the open question of where books live. **Owner:** unassigned.
+
+## 278. A whole-kitchen handle setting in the configurator — REQUESTED 2026-10-25 (OWNER RULING, COORDINATOR-RELAYED), NOT SCHEDULED
+
+**Note 2026-10-26: M10, waves H1 (command), Q2 (settings row, frame C2) and H2 (stamping the default).** The owner accepted the recommendation unchanged (OQ-7, relayed). Not built.
+
+The customer's global settings sheet should offer one handle choice that applies to every cabinet that takes a handle, as the kitchen colour already does. **What is true in the code [source-verified by the coordinator].** Handles are per cabinet only: `HandleSchema` is steel, black or push in `packages/configurator-domain/src/design.ts`, and the default is `steel` in `queries/describe-selection.ts`. The dashboard's default-settings screen (277) depends on this: its handle default has no whole-kitchen setting to feed until this exists. Open: how a whole-kitchen choice interacts with a per-cabinet override (not asked, not decided). **Owner:** unassigned; the brief draws one frame (C2).
+
+## 279. Cabinet enable / disable — FUTURE PLAN, DELIBERATELY POSTPONED BY THE OWNER 2026-10-25 (COORDINATOR-RELAYED)
+
+**Note 2026-10-26: not in M10.** The M10 plan keeps this out of scope (§2); the postponement stands. This is the one entry in 276-286 that does not move into M10.
+
+Disabling a cabinet type must hide it from the customer's list **and** make the generator never place it; the owner recognises this as a large change and postponed it on purpose. Default when built: everything enabled. Ruled at [ADR 0062](../decisions/0062-a-manufacturer-price-dashboard-comes-after-m8-and-shapes-seams-now.md) Amendment of 2026-10-25. Related: ADR 0062 seam 3 (a preset naming a disabled build id must fail in a stated way). The brief leaves room for it and draws nothing. **Not to be started before the owner lifts the postponement.** **Owner:** the owner.
+
+## 280. One-time "prices updated" notice for saved kitchens — RULED 2026-10-25 (OWNER, COORDINATOR-RELAYED), NOT BUILT; STORAGE OF THE MARKER OPEN
+
+**Note 2026-10-26: M10, waves S5 (marker table), R5 (route) and Q3 (frame C1, merged into C4C).** The marker is decided: a database row per design holding a (book version, availability revision) pair ([ADR 0178](../decisions/0178-the-m10-dashboard-storage-lifecycle-defaults-notice-seen-and-digest.md) A-11, an architect ruling the owner may overrule). Not built.
+
+Ruled at the [ADR 0072](../decisions/0072-price-book-versioning-is-deferred-to-the-manufacturer-dashboard.md) Amendment of 2026-10-25. When a customer opens a saved kitchen and a price it uses has changed since they last saw it, show a calm notice once: informational, no old price. **Open, not decided:** where the "already shown" marker lives. The owner named a cookie, the user's profile, and the database. Also not decided: how "a price this kitchen uses has changed since last seen" is determined. Depends on the dashboard (277), since only a dashboard can change the book without a developer. The brief draws the customer frame as C1. **Owner:** unassigned.
+
+## 281. Pricing engine: the anchor-and-steps formula shapes — RULED 2026-10-25 ([ADR 0175](../decisions/0175-a-cabinet-is-priced-by-an-anchor-at-its-default-width-plus-steps-widths-and-heights-round-up-to-50-mm-and-prices-round-to-10-lei.md)), NOT BUILT, NOT SCHEDULED
+
+**Note 2026-10-26: M10, waves P1 (shapes beside the old ones) and P3 (cut-over).** The door-count question is ruled by the owner: the **actual** width (OQ-6; [ADR 0177](../decisions/0177-the-m10-pricing-seams-rounding-round-up-percentages-deepening-fixed-size-rows-linked-accessories-and-the-lift-mechanism.md) A-3). Not built.
+
+Part of 277's trigger (after M8). **Needs code, not data:** asymmetric width steps (a plus and a minus amount), round-up of width and height to the next 50 mm, and a per-size lookup for fixed-size rows. A symmetric step already fits the linear shape. Today a body built at 575 is priced at 575 (`price-book.ts:13`), so round-up changes customer-visible prices. Also owed: a **default width declared once in the catalogue** (the anchor is the price at it) — that is 276's owner question. Open (ADR 0175): whether the door count follows the actual or the rounded width. **Owner:** unassigned.
+
+## 282. Pricing engine: material as a percentage on cabinet prices — RULED 2026-10-25 ([ADR 0092](../decisions/0092-hardware-prices-three-mechanisms-and-a-sink-carries-two-extras.md) Amendment), NOT BUILT, NOT SCHEDULED
+
+**Note 2026-10-26: M10, waves P2 (percentages and the rounding seam) and P3 (cut-over, `wholeKitchenMinor` retired).** The "keeps throwing" rule is settled: it stays, because PAL is fixed at 0 % and the D9 default is a separate concept (ADR 0092 Amendment of 2026-10-26; [ADR 0177](../decisions/0177-the-m10-pricing-seams-rounding-round-up-percentages-deepening-fixed-size-rows-linked-accessories-and-the-lift-mechanism.md) A-8). Not built.
+
+Replaces `MaterialTier.wholeKitchenMinor` (`price-book.ts:200-203`). PAL is the 0% reference; illustrative MDF +30-35%, veneer +70%; applies to cabinets only, not hardware or accessories; the customer still sees one "Material · <name>" line. Open: the rounding seam (283/284), and whether the material group's "keeps throwing" rule survives (ADR 0092 Amendment). Links 277, 281. **Owner:** unassigned.
+
+## 283. Pricing engine: depth 700 as a percentage, its customer line and the `depthNote` copy — RULED 2026-10-25 ([ADR 0100](../decisions/0100-depth-is-priced-by-a-dashboard-editable-multiplier-on-the-600-mm-base-and-it-is-deferred.md) Amendment), NOT BUILT, NOT SCHEDULED
+
+**Owner ruling 2026-10-26 (relayed): "Surcharge every deeper cabinet."** Wall rows and wall corners deepen (330 → 400) and **take the depth percentage**; the "not wall cabinets" in the entry text below is superseded (ADR 0100 Amendment, ADR 0177 A-6).
+
+**Note 2026-10-26: M10, waves P2/P3 (the term), Q1 (the depth line and `depthNotePriced`, merged with P3 at MP-3) and T2 (retire the old leaf).** `depthNote` is at line 325, not 324 (ADR 0100 Amendment of 2026-10-26). Which cabinets deepen is a measured fact, not a predicate (ADR 0177 A-6). Not built.
+
+Un-postpones 54. One percentage as book data; base and tall cabinets only (including hob and sink); not wall cabinets, customer-supplied rows, hardware or accessories; applied at the cabinet's real width; multiplies with the material percentage. The customer sees its own line "Adâncime 700 mm". Edited in the "Price rules for all cabinets" card at the top of Dulapuri. **`globalSettings.depthNote` (`apps/web/src/messages/ro.json:324`, `ru.json:324`) must change in the same change that ships the coefficient** (ADR 0100 decision 5). The ~15% working figure is **not approved**. Re-derive `MAX_PRICE_COEFFICIENT_MINOR`. Links 54, 277, 282. **Owner:** unassigned.
+
+## 284. Pricing engine: 10-lei rounding — RULED 2026-10-25 ([ADR 0175](../decisions/0175-a-cabinet-is-priced-by-an-anchor-at-its-default-width-plus-steps-widths-and-heights-round-up-to-50-mm-and-prices-round-to-10-lei.md) decision 5); WHICH AMOUNT IS ROUNDED IS OPEN FOR THE ARCHITECT
+
+**Note 2026-10-26: M10, wave P2; the seam is ruled** in [ADR 0177](../decisions/0177-the-m10-pricing-seams-rounding-round-up-percentages-deepening-fixed-size-rows-linked-accessories-and-the-lift-mechanism.md) A-1 (three per-cabinet stages round half-up to 10 lei; the lines are sums of the rounded stages). An architect's ruling the owner may overrule. Not built.
+
+The design rounds to the nearest 10 lei (`Math.round(x/1000)*1000` in bani); the owner accepted it. **Open seam:** round each cabinet price after depth and material, or each customer-visible line — the totals differ. Tension: the pricing code is exact bani and says only presentation rounds (`price-book.ts:15`); ADR 0100 says the query is the one place rounding is forbidden. Percentages (282, 283) make the arithmetic non-integer. Needs an architect's ruling before any implementation. **Owner:** architect.
+
+## 285. Deactivating or deleting an item saved kitchens use — RULED 2026-10-25 (OWNER, COORDINATOR-RELAYED); NOT BUILT; ONE OPEN POINT FOR THE ARCHITECT (LONE COLOUR); SENT-KITCHEN EDITING: REVERSED, THEN REVERSED BACK (EDITABLE), SEE 286
+
+**Note 2026-10-26: M10, waves S2b (availability log), P4a, R4a, M3, U4a-U4c, Q3 and Q5. Disabling and enabling are immediate, not at publish** (owner, OQ-2, relayed: "switching off, it's not the pricing changes, so it should take effect immediately"; [ADR 0062](../decisions/0062-a-manufacturer-price-dashboard-comes-after-m8-and-shapes-seams-now.md) Amendment of 2026-10-26; [ADR 0178](../decisions/0178-the-m10-dashboard-storage-lifecycle-defaults-notice-seen-and-digest.md) A-17). The mandatory replacement above is unchanged. The lone-colour point is ruled as an architect ruling, A-16 (one row in the sheet, replaced at every level). Not built.
+
+**Ruling, 2026-10-25 — supersedes the proposal below** ([ADR 0062 third Amendment](../decisions/0062-a-manufacturer-price-dashboard-comes-after-m8-and-shapes-seams-now.md)). Deleting an item any saved kitchen uses is forbidden ("Deleting no, disabling yes"). Disabling a used material, colour, hardware class, handle or accessory is allowed: the dashboard warns first, with the count of kitchens using it; a customer opening such a kitchen gets a notice that it "is not available anymore", must choose a replacement from the remaining options (the relevant global setting opens showing only those), and the price recalculates after the choice. Price changes apply to all kitchens, sent ones included; freezing is rejected for now (possible trigger: a "taken into production" status). **Further owner answers, 2026-10-25 (third Amendment):** ~~price before the choice (none, or default tier)~~ **ruled:** the price is hidden until a replacement is chosen for every disabled item. ~~an accessory with no alternative (removed with a notice?)~~ **ruled:** a disabled accessory is removed from the kitchen with a notice; nothing to choose. ~~whether a submitted kitchen is editable~~ ~~**ruled:** a sent kitchen stays editable, edits are not blocked, so the mandatory-replacement prompt also appears on sent kitchens. No lock found in M8's plan or ADRs 0150, 0158.~~ **Reversed later on 2026-10-25 (owner, [ADR 0062 fourth Amendment](../decisions/0062-a-manufacturer-price-dashboard-comes-after-m8-and-shapes-seams-now.md)): a sent kitchen is locked; to change it the customer creates a copy. The mandatory-replacement sheet on a locked kitchen is an open point, see 286.** **Reversed back the same day (fifth Amendment): no lock; a sent kitchen stays editable and gets the sheet like any kitchen.** ~~Open for the architect, inference: editing a sent kitchen does not change what the shop received (ADR 0154): should the customer be told their changes are not sent until they send again, and is re-sending supported?~~ **Dissolved:** a sent kitchen is not edited. **Still open for the architect:** a lone disabled colour vs ADRs 0057, 0081, 0086 (cross-reference only). **Owner:** architect.
+
+*Superseded text, kept:*
+
+Applies to a material, a hardware class and an accessory. **Ruled:** deleting stays blocked while the item is used. **Not ruled:** deactivation. The design blocks deleting a used hardware class but has no warning for deactivating one in use. **Proposal (brief), pending owner confirmation:** a deactivated item is hidden from new choices; saved kitchens that use it keep being priced with it, so they do not fail with `UNKNOWN_TIER` (ADR 0072 Amendment, *Consequence for the stored-tier observation*). Recorded at ADR 0062's second Amendment of 2026-10-25. Links 277, 280. **Owner:** the owner, to confirm; design after.
+
+## 286. A sent kitchen stays editable; changed-after-sending badge, side-by-side view, daily digest, review statuses — RULED 2026-10-25 (OWNER, COORDINATOR-RELAYED); NOT BUILT; FOUR ARCHITECT POINTS + REVIEWER ROLE OPEN
+
+**Note 2026-10-26: M10, waves K1-K4, S4 and Q4.** The status reconciliation is **accepted** (OQ-9, relayed): Nouă / Contactat / Ofertă trimisă / Închisă; the digest stops at the last two. The digest runs at 08:00 Europe/Chisinau and counts 30 days from the first send (OQ-10, relayed). The four architect points (a)-(d) are answered by [ADR 0178](../decisions/0178-the-m10-dashboard-storage-lifecycle-defaults-notice-seen-and-digest.md) A-12 and A-13; "who can review" is answered by the existing capabilities, to be confirmed by the owner at close. Not built.
+
+**Ruling** ([ADR 0062 fifth Amendment](../decisions/0062-a-manufacturer-price-dashboard-comes-after-m8-and-shapes-seams-now.md)); it reverses the fourth Amendment's lock, which is kept below, struck through. Owner: "the most important part of the tool, the creating of the lead, the connection with the manufacturer and the starting on the project, will be achieved… This is 100% the goal of the tool, not keeping it always up to date… At the moment when the client sends his details, it's already a win."
+
+1. **No lock, no "create a copy".** ADR 0165's done-page link that opens the design for editing stays as it is; ADR 0165 lines 41-52 and `docs/OWNER_FIXES.md` Q-F3-9 no longer conflict.
+2. A sent kitchen shows the current price (ADR 0072 Amendment) and gets the mandatory-replacement sheet (ADR 0062 third Amendment).
+3. Soft, non-blocking note: „Ai trimis deja această bucătărie. Modificările se văd și la noi, dar spune-ne la telefon dacă e ceva important.”
+4. **Changed after sending** = `designs.revision` > the submission's `design_revision` (coordinator, source-verified: `0004_add_design_revision.sql` increments per save; `0008_create_contact_submissions.sql` stores snapshots and `design_revision`; no history of earlier versions). New per-submission **seen revision**, recorded when an operator or administrator opens the kitchen in "Bucătării clienți". Revision > seen revision: badge „Modificată după ce ai văzut-o" and a counter in the dashboard menu (always on). The kitchen page shows "Trimisă" and "Actuală" side by side.
+5. **Digest email** to administrators and operators: at most one a day; only if a kitchen changed since the previous digest; each kitchen once per round of changes (again only after seen and changed again); a kitchen drops out 30 days after sending or when its status becomes „Măsurare programată" or „În producție", whichever is first, then only the badge.
+6. **Statuses, set by hand by operators:** Trimisă → Văzută → Măsurare programată → În producție. *(Reconciled 2026-10-25, pending owner confirmation: `main` already ships Nouă / Contactat / Ofertă trimisă / Închisă (ADR 0173 P-L3-8); keep those, add none, "seen" is a separate marker, the digest stops at Ofertă trimisă / Închisă — see ADR 0062's reconciliation note.)* Roles are outside the dashboard's scope, so "who can review" stays open.
+7. Freezing prices stays postponed; „În producție" is a status a freeze could hang on.
+
+**Open for the architect (inference, not ruled):** (a) where the seen revision and the status live: columns on `contact_submissions` or a new table; (b) the digest's sending time and provider (ADR 0154's mail port); (c) whether the 30-day window counts from the first sending or the last; (d) a kitchen sent twice has two submissions: which seen revision applies. **Open:** who can review (roles).
+
+**Resolved or dissolved from the fourth Amendment:** price a sent kitchen shows (current price); the sheet on a locked kitchen (appears as normal); locked from sending versus from review (no lock).
+
+*Superseded text, kept:*
+
+~~**Ruling** (ADR 0062 fourth Amendment); reverses 285's "sent kitchens stay editable". A kitchen the customer has sent is locked: no editing, through and after review by an operator or administrator. **To confirm with the owner:** "locked from sending" (the coordinator's reading) versus "locked once reviewed". To change it, the customer creates a new kitchen from it: an editable, unsent copy. A sent kitchen shows a notice: wait for the manufacturer's answer; to discuss sooner, call the shop or refer to this design when asking for a consultation. This replaces the re-send question.~~
+
+~~**Open (inference, not ruled):** (1) the price a locked kitchen shows; recommended: no estimate, just "Prețul final îl primești de la producător". (2) The mandatory-replacement sheet on a locked kitchen; recommended: no sheet, the item shows as unavailable with "Creează o copie" to choose a replacement there. (3) Who can review: an operator or an administrator; roles are outside the dashboard's scope. (4) The review status (sent, reviewed, maybe "in production") does not exist; new work for the "Bucătării clienți" area.~~ (3) carried over; (4) ruled above.
+
+~~**Conflicting text, not edited:** ADR 0165 lines 41-42, 48-52 (done-page link opens for editing in the same browser); `docs/OWNER_FIXES.md` lines 373-377 (Q-F3-9).~~ No longer conflicts. Links 285, 277. **Owner:** architect.
+
+## 287. The staff path guard may compare undecoded path segments, so an encoded staff URL could miss its headers — RECORDED 2026-10-26 (COORDINATOR-RELAYED FROM THE M10 U1 REVIEW); LOW; UNCONFIRMED; PREDATES M10
+
+**Observed (coordinator, relayed; not run by the scribe).** `apps/web/src/proxy.ts:336-354`, `isStaffPath` and `isAccountPageIn`, compare raw path segments. **Inference, falsifiable by the check below:** if Next decodes static segments when matching a route, `/ro/staff/%63atalog/cabinets` or `/ro/staff/%6Bitchens` would render without `X-Robots-Tag` and `Cache-Control: private`. Access is unaffected: the page's own gate still applies. **Check:** `curl` both URLs. A 307 to login **without** `X-Robots-Tag` confirms the gap; a 404 closes it. **Fix if confirmed:** decode each segment once before comparing, or answer encoded variants with a 404 as `hasMisspelledLocalePrefix` does. **Cost of deciding:** one curl, then one small change in `proxy.ts` (lane U owns that file in M10). **Owner:** unassigned.
+
+## 288. `enumerableFieldsOf` does not see an accessor defined on a prototype — RECORDED 2026-10-26 (COORDINATOR-RELAYED FROM THE M10 REVIEWS); GAP NOT YET CHARACTERISED
+
+**Observed (coordinator, relayed; the scribe did not run it).** `packages/configurator-domain/src/pricing/book-reading.ts:57-72` collects `Object.keys` of the declared object and of each prototype up to `Object.prototype`. **Inference from reading that function, falsifiable by a test:** `Object.keys` lists enumerable own properties only, and a class accessor is non-enumerable, so a getter a book brings on a prototype is reachable by a property read (as `readDeclared` does) but absent from the enumeration. ADR 0138 states the walk's intent (line 89 in that record). **Cost of deciding:** a test that builds a class-backed book with a prototype accessor, then either widening the walk to own property names or recording that the parser refuses such books. **Owner:** unassigned.
+
+## 289. A fail-closed account-bucket refusal logs the same line as a store failure — RECORDED 2026-10-27 (COORDINATOR-RELAYED); LOW; DIAGNOSTICS; PREDATES M10
+
+**Observed (coordinator, relayed; diagnosed 2026-10-27 against the test database, read-only; the scribe ran nothing).** The `[account]` log line for a fail-closed account bucket refusal is `{event, outcome: 'unavailable'}`, identical to a store failure. The limiter's cause (for example `digester-unusable`) is held in the decision but never logged, so the two cannot be told apart. **Case that exposed it:** a dev server without `DIGEST_SECRET` (64 lowercase hex) answers 503 on `/api/staff/kitchens`, `/api/staff/audit` and the other account-bucket routes while pages still render. Not caused by M10. **Where:** `answerUnavailableOnFailure`, `judgeStage` and `refusalOfBucket` in `apps/web/src/lib/server/staff/staff-kitchens.ts`, `staff-audit-log.ts` and `judge-account-request.ts`. **Cost of deciding:** add the cause to the log line (a code, never a secret) and one test that the two outcomes log differently. The environment note is in `docs/best-practices/browser-and-visual-qa.md`. **Owner:** unassigned.
+
+## 290. A name made only of tabs, no-break spaces or zero-width characters shows blank instead of falling back to the reference — RECORDED 2026-10-27 (COORDINATOR-RELAYED FROM THE M10 S4 REVIEW); INFO
+
+**Observed (coordinator, relayed; the scribe ran nothing).** The digest's customer-name expression `nullif(btrim(a.name), '')` strips only U+0020, so a name consisting of tabs, NBSP or zero-width characters survives as non-empty and shows blank instead of falling back to the request reference. **Cost of deciding:** a stricter blank test in the statement (or a name rule at write time), with one fixture row. **Owner:** unassigned (lane S, `kitchen-change-statements.ts`).
+
+**RESOLVED 2026-11-11 by the K4 wave (commit `79036b28`) [coordinator's report, verified by the coordinator against code and tests; the scribe ran nothing].** K4's QA found the bidi-only-name case and the fix gives the digest a name fallback for blank-looking names; the same wave made a malformed row skip instead of aborting the digest.
+
+## 291. The C4 replacement sheet offers a colour that `replaceColour` refuses — RECORDED 2026-11-11 AT M10's Z2 (TEST AUDIT, APPENDIX A)
+
+**Observed (the Z2 audit, `docs/test-audits/m10-close-audit.md`; read there, not re-run by the scribe).** `packages/configurator-domain/tests/queries/qa-q5a-replacements-required.adversarial.test.ts:186` is an `it.fails` whose inner assertion fails today (`expected false to be true`): `replaceColour` refuses an option the sheet offers. The audit's reading: for a design with no `materialTierId`, under a book whose default material is not melamine, the colour row offers woods the command refuses. The audit found no earlier record (`DEFAULT_MATERIAL_ID` is mentioned in the M10 plan, not as this defect). A shipped defect pinned by a test that is green because it fails. **Cost of deciding:** the architect rules whether the sheet or the command moves, then the `it.fails` flips. **Owner:** unassigned; the architect.
+
+## 292. `creation-after-deletions.property.test.ts:155` pins a refusal with no record — RECORDED 2026-11-11 AT M10's Z2
+
+**Observed (the Z2 audit, Appendix A).** `apps/web/tests/lib/server/price-dashboard/creation-after-deletions.property.test.ts:155` is an `it.fails`; its inner assertion fails today with `expected 'refused' to be 'write'`. The audit found no record of the behaviour it pins. The audit also notes the matching unguarded mutant `structural-changes.ts:92` (`some` to `every`, reachable only by classes that state different optional rates). **Cost of deciding:** the architect says whether the refusal is the intended behaviour (then the `it.fails` is rewritten as a plain test) or a defect. **Owner:** unassigned; the architect.
+
+## 293. One desktop e2e fails once in a full run and passes when repeated — RECORDED 2026-11-11 AT M10's Z GATE
+
+**Observed (coordinator, relayed; the scribe ran nothing).** In the second full `pnpm ci:local` run of the M10 Z gate, one desktop e2e (`pixel-counter-witness:287`) failed once and passed 18/18 when repeated (M10 plan, the Z gate block). The Z1 visual pass also met a settings-sheet 1440 check that failed on a flake (M10 plan, C4 residual 2). The pattern is one unexplained e2e failure per full run; no cause is recorded. Related: entry 211 (cold-start `503` flake) and 117. **Cost of deciding:** run the spec alone N times under load and classify it as a test fault, a harness fault or a defect. **Owner:** unassigned.
+
+## 294. `candidate-refused` does not re-read the draft — RECORDED 2026-11-11 AT M10's Z GATE
+
+**Observed (coordinator, relayed, from the Z gate close-out item 6; the scribe ran nothing).** After `99857d26` closed R4c3 residuals 1 and 2, this one stays open: when the server answers `candidate-refused`, the client does not re-read the draft. **Cost of deciding:** a client re-read on that answer and a test. **Owner:** unassigned; the next dashboard client wave.
+
+## 295. The `deskDeleting` test helpers of R4c2 and R4c3 are duplicated — RECORDED 2026-11-11 AT M10's Z GATE
+
+**Observed (coordinator, relayed, Z gate close-out item 6).** The R4c2 and R4c3 tests each carry their own `deskDeleting` helper; merging them would touch dozens of call sites, so it was left. **Cost of deciding:** one shared support module and a mechanical edit of the call sites (no review tier, by the mechanical-change rule). **Owner:** unassigned.
+
+## 296. After a failed publish, the red failure banner stays while the retry shows "Se publică…" — RECORDED 2026-11-11 AT M10's Z1 VISUAL PASS; MINOR
+
+**Observed (the Z1 visual verifier, `docs/milestones/m10-z1-visual-pass-report.md`, observation 2, `app/d7e.png`; not re-run by the scribe).** After a failed publish (D7G), retrying through the confirm dialog shows "Se publică..." in the dialog while the red "Versiunea nu a fost publicată" banner stays on the page behind it. The mockup does not draw this combination; the verifier judged it probably acceptable. **Owner:** unassigned; a product question first.
+
+## 297. The phone editor's top bar has targets under 44 px — RECORDED 2026-11-11 AT M10's Z1 VISUAL PASS; MINOR (EXTENDS 192)
+
+**Observed (the Z1 report, observation 3).** On the customer editor at 390 px: the settings pill measures 136x30 (150x30 in Russian) and the language button 47x25. Not a dashboard surface and pre-existing; every staff page at 390 measured 0 controls under 44 px. The locale switcher's 25 px height is already entry 192. **Owner:** unassigned; the human, at the hand check.
+
+## 298. Every page logs a Permissions-Policy warning about `ambient-light-sensor` — RECORDED 2026-11-11 AT M10's Z1 VISUAL PASS; INFO
+
+**Observed (the Z1 report, observation 5).** The console warning "Error with Permissions-Policy header: Unrecognized feature: 'ambient-light-sensor'" appeared 107 times in the run, on a production build. **Cost of deciding:** drop the feature from the header. **Owner:** unassigned.
+
+## 299. The visual case of a cleared colour row was never reproduced — RECORDED 2026-11-11 AT M10's Z1
+
+**Observed (the Z1 report, owed items; the C4 wave's residual 1).** A colour row cleared by the reset needs a colour switched off in the book, and no dashboard screen does that (colours are managed separately), so the case is not reachable from the dashboard against the fake price book. Z1 tried a kitchen on a vanished material with a palette colour replaced by MDF: the sheet shows only the material row and the confirmation has no colour row. Also not reproduced in Z1: D1B (the verification widget cannot load in that environment, so the wrong-data state is unreachable) and the D10D e-mail. **Cost of deciding:** a book fixture that switches a colour off, or a real-store pass. **Owner:** unassigned.
+
+*Entries 300-305 were recorded 2026-11-11 from the M10 K4, K4b and S6b reports [coordinator's reports, verified by the coordinator against code and tests; the scribe ran nothing].*
+
+## 300. The restore procedure for the price-dashboard export is owed — RECORDED 2026-11-11 (M10 S6b)
+
+**Observed.** `docs/runbooks/design-db-restore.md` does not cover the new `backups/price-dashboard/` export, and migration `0023`'s header still says versions are not in the nightly export (migrations are code; only noted here). The restore order is known: the head and the defaults come from this export. The scribe could not state a drilled recipe from what it read, so the runbook carries a stub, not steps. **Cost of deciding:** write the section from `backup-price-dashboard.ts` and `price-dashboard-row-source.ts`, then drill it against a throwaway target. **Owner:** unassigned; before launch.
+
+## 301. Consolidate the three backup exports into one engine — RECORDED 2026-11-11 (M10 S6b)
+
+**Observed.** `backup-presets.ts` says to consolidate the exports into one engine when a third arrives; `backup-price-dashboard.ts` is the third. Doing it edits `backup-designs.ts`. **Cost of deciding:** a refactor with the three suites as the net. **Owner:** unassigned.
+
+## 302. DEVIATION: the staff-change digest goes to the shop inbox, not to staff accounts holding `contact.read` — RECORDED 2026-11-11 (M10 K4); OWNER ITEM, DEFAULT STANDS
+
+**Observed.** Plan A-13, the K4 row and ADR 0178 say the recipients are accounts holding `contact.read` with a confirmed address. K4 sends to the configured shop inbox through `createMailSender`, because no port lists those accounts. **Cost of deciding:** a new persistence reader, per-staff sends, and entries written only if every send succeeds. **Owner:** unassigned. **Update 2026-11-11 (owner-ruled, relayed):** the owner said "put in backlog": this stays open, with no decision, and is no longer an item for the owner to confirm. The shop inbox remains the behaviour.
+
+## 303. Backup rotation does not exclude the run's own pathname, and a `..` pathname passes `startsWith` — RECORDED 2026-11-11 (M10 S6b); UNREALISTIC
+
+**Observed.** `backup-price-dashboard.ts` rotation does not exclude its own just-written pathname (the same in `backup-designs.ts`); judged unrealistic. A blob named `backups/price-dashboard/../designs/x` passes the prefix test; also judged unrealistic. **Owner:** unassigned; fold into 301.
+
+## 304. A kitchen name of up to 120 characters in the digest may hold a URL that a mail client linkifies — RECORDED 2026-11-11 (M10 K4); LOW
+
+**Observed (security review).** The plan does not require defanging; no exploitable issue was found. **Owner:** unassigned.
+
+## 305. The nav badge poll needs `contact.read`, the menu link needs `design.read.any` — RECORDED 2026-11-11 (M10 K4b); LATENT
+
+**Observed.** Both roles hold both today, so nothing fails. The badge can also lag a seen mark by up to 60 s, and an idle staffer now gets the session sheet on a `401`. **Owner:** unassigned; revisit if a role gets one capability without the other.
+
+## 306. A hosting migration off Vercel must re-home the five crons — RECORDED 2026-11-11 (owner ruling)
+
+**Observed.** The owner approved `vercel.json`'s 5 crons on 2026-11-11 ("in the end I will migrate from Vercel, but now I approve"; owner-ruled, relayed). A move to another host would have to re-home all five: `backup-designs`, `backup-presets`, `prune-rate-limits`, `backup-price-dashboard` and `staff-change-digest`, each with an authentication equivalent to the `CRON_SECRET` check the routes use now. **Cost of deciding:** a scheduler on the new host and a check that each route still refuses a call without the secret. **Owner:** the owner, when a migration is planned; not scheduled.
+
+## 307. The persistence suite's live files got about 40% slower in three weeks — RECORDED 2026-11-12
+
+**Observed (CI logs, source-verified).** The 70 files present in both run 39743172871 (2026-10-22, green in 25.5 min) and run 43196066536 (2026-11-12) took 1,250 s and 1,751 s in total. Largest moves: `migrate.test.ts` 123 → 202 s, `neon-configuration-repository.test.ts` 151 → 236 s, `neon-staff-kitchen-reader.live.test.ts` 37 → 93 s. In the same span the package grew from 145 to 207 test files. The single serial leg reached its 45-minute ceiling on every run from 2026-11-07; the 2026-11-12 split by lock mode (`persistence-exclusive-lock` then five `persistence-shard` legs) fixes the symptom but not the cause, and the exclusive files (12 files; the 8 that ran took 1,143 s) are a serial floor that no shard count shortens. One test also timed out at 30 s in that run: `neon-configuration-repository.test.ts` › "the design-revision migration (WEB-003) › backfills rows that already existed". It timed out again in run 43217351639 and was given its own 120 s budget the same day, because it re-applies every migration from 0004 up and so grows with each one. **Not yet known:** whether the per-file growth is schema size (each new migration lengthens every schema reset), Neon compute, or both. **Cost of deciding:** time one exclusive file's hooks against its tests locally. **Owner:** unassigned.

@@ -172,6 +172,7 @@ describe("the corner ruling — the premise: the catalogue declares it, not this
     (corner) => {
       const world = createWorld(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG);
       const meta = describeSelection({
+        kitchenSettings: {},
         ...world,
         target: { kind: "placement", id: corner.placementId },
       });

@@ -403,11 +403,8 @@
 }
 
 /* Frames 2A `:517` and D2A `:567`. Both frames draw it taller than `--touch-target`, so it needs no
- * hit area of its own. **Drawn exactly as the frames draw it and wired to nothing**
- * (ADR 0104 decision 6): it leads to M8's review step, which is not built and has no route. Not a
- * `button`, no `role`, no `tabindex` and no `cursor: pointer` — the frames use a non-interactive
- * element in both files, and this file already requires that of an inert control. It is meaningful
- * text and is announced as text. */
+ * hit area of its own. Drawn as the frames draw it. It is a link to the review step; while a
+ * replacement is owed it is a `role="link"` span with `aria-disabled`, drawn disabled below. */
 .reviewCta {
   display: flex;
   flex: 1;
@@ -419,6 +416,22 @@
   color: var(--paper);
   background: var(--accent);
   border-radius: 12px;
+}
+
+/* The control while a choice is owed (`aria-disabled`, set by the screen): the frame's own disabled button —
+ * `Lemnaria Dashboard.dc.html` `btnOff`, `background: #ece7dd; border: 1px solid #dcd8ce; color: #a89c8e`. The
+ * border is an inset shadow so the disabled box measures exactly what the enabled one does; a real border would
+ * widen it by 2 px on the desktop row, where this control sits in the pill's own track. The text's contrast is the
+ * frame's and is low on purpose: a disabled control is not asked to meet 4.5:1 (WCAG 1.4.3 exempts it).
+ * Nothing here is interactive, so there is no hover or active state to neutralise. */
+.reviewCta[aria-disabled="true"] {
+  --review-cta-off-background: #ece7dd;
+  --review-cta-off-text: #a89c8e;
+
+  color: var(--review-cta-off-text);
+  cursor: not-allowed;
+  background: var(--review-cta-off-background);
+  box-shadow: inset 0 0 0 1px var(--line);
 }
 
 .stage {

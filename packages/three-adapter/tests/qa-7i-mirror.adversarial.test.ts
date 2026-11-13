@@ -45,6 +45,11 @@ import {
   installHeadlessDocument,
 } from "./support/headless-canvas.js";
 
+// Each of the two mirrored mounts walks every triangle of a whole kitchen: 0.8 s under the parallel package run. The
+// unit gate runs every package at once on a slower runner, so this is sized at 10x that and not left at the 5 s
+// default.
+const MIRRORED_KITCHEN_TIMEOUT_MS = 30_000;
+
 beforeAll(() => {
   installHeadlessDocument();
 });
@@ -290,19 +295,23 @@ describe("7I-A8 — every triangle's renderer front normal is the reflection of 
     return triangles;
   }
 
-  it("under a mirrored root", () => {
-    const canonical = mountKitchen(kit, KITCHEN_L_DESIGN, SHELL_DESIGN);
-    const mirrored = mountKitchen(kit, KITCHEN_L_DESIGN, SHELL_DESIGN);
-    applyCornerDirection(mirrored.root, "right");
-    mirrored.root.updateWorldMatrix(true, true);
+  it(
+    "under a mirrored root",
+    () => {
+      const canonical = mountKitchen(kit, KITCHEN_L_DESIGN, SHELL_DESIGN);
+      const mirrored = mountKitchen(kit, KITCHEN_L_DESIGN, SHELL_DESIGN);
+      applyCornerDirection(mirrored.root, "right");
+      mirrored.root.updateWorldMatrix(true, true);
 
-    const triangles = expectReflected(
-      canonical.root,
-      mirrored.root,
-      new THREE.Vector3(1, 0, 0),
-    );
-    expect(triangles).toBeGreaterThan(1000);
-  });
+      const triangles = expectReflected(
+        canonical.root,
+        mirrored.root,
+        new THREE.Vector3(1, 0, 0),
+      );
+      expect(triangles).toBeGreaterThan(1000);
+    },
+    MIRRORED_KITCHEN_TIMEOUT_MS,
+  );
 
   it("under one mirrored structural corner group, the rest canonical", () => {
     const canonical = mountKitchen(kit, KITCHEN_L_DESIGN, KITCHEN_L_DESIGN);

@@ -409,6 +409,19 @@ procedure to promote the restored branch. Prefer the narrower, row-level repair;
 whole-branch promotion only when the corruption is broad enough that "designs the export didn't
 cover" is not a meaningful distinction anymore.
 
+## Restoring the price-dashboard export (NOT YET WRITTEN; backlog 300)
+
+**Wave M10 S6b, 2026-11-11. No restore recipe exists and nothing here was executed** [the scribe wrote this from the
+coordinator's report; it read no restore code]. What is known: route `/api/cron/backup-price-dashboard`, `vercel.json`
+`45 3 * * *`; Blob prefix `backups/price-dashboard/`; retention 14 days, at most 30 files; each line is one tagged
+`{table, row}` object; file order is price-book versions, availability log, availability head (read after the log walk),
+kitchen defaults. **The head and the defaults come from this file on restore.** Migration `0023`'s header still says
+versions are not in the nightly export; that is stale. Write the steps and drill them against a throwaway target before
+relying on it. **The restore must run as the owner role, not `app_designs`** [security review of S6/S6b, source-verified]:
+`published_at` and `changed_at` are not in the application role's INSERT grants (`0023`, `0025`), the head and the defaults
+are UPDATE-only, and nothing has DELETE (`0029`). `price_book_draft` is deliberately not in the export. The export holds
+staff account ids (`published_by`, `changed_by`, `saved_by`), no names or e-mails.
+
 ## Restoring the `presets` table
 
 **Wave M8C P2, written 2026-10-18. Nothing here has been executed**: the export has not been deployed or run, and the

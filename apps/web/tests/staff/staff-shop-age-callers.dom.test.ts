@@ -14,7 +14,7 @@ import { KitchenCards, KitchensTable } from "@/staff/staff-kitchens-rows";
 import type {
   StaffKitchenNoteWire,
   StaffKitchenWire,
-  StaffListedKitchenWire,
+  StaffListedKitchenMarkedWire,
 } from "@/staff/staff-kitchens-wire-contract";
 import { StaffNotes } from "@/staff/staff-notes";
 import type { StaffKitchensListing } from "@/staff/use-staff-kitchens";
@@ -108,11 +108,14 @@ function listingOf(updatedAt: string, now: string): StaffKitchensListing {
     search: null,
     segment: "all",
     status: null,
+    onlyChanged: false,
     total: 1,
     pageSize: 20,
     firstPage: 1,
     lastPage: 1,
-    rows: [wireDraft(1, { updatedAt })] as unknown as StaffListedKitchenWire[],
+    rows: [
+      wireDraft(1, { updatedAt }),
+    ] as unknown as StaffListedKitchenMarkedWire[],
     readAtMs: Date.parse(now),
     focusRequest: undefined,
   };

@@ -8,6 +8,7 @@ import {
   cabinetDepthMmOf,
   cornerDirectionOf,
   describeSelection,
+  kitchenHandleSettingsOf,
   materialOfDesign,
   offersFor,
   columnWidthChoices,
@@ -110,13 +111,22 @@ export function useSelectionMeta(): SelectionMeta | undefined {
   const voids = useConfiguratorStore((state) => state.voids);
   const catalog = useConfiguratorStore((state) => state.catalog);
   const selection = useConfiguratorStore((state) => state.selection);
+  // The settings object, never a fresh one from the selector (that would re-render on every store change). The panel
+  // marks the handle a cabinet follows from the kitchen's, so it reads the same settings the price and the scene do.
+  const settings = useConfiguratorStore((state) => state.design.settings);
 
   return useMemo(
     () =>
       selection
-        ? describeSelection({ records, voids, catalog, target: selection })
+        ? describeSelection({
+            records,
+            voids,
+            catalog,
+            target: selection,
+            kitchenSettings: kitchenHandleSettingsOf(settings),
+          })
         : undefined,
-    [records, voids, catalog, selection],
+    [records, voids, catalog, selection, settings],
   );
 }
 

@@ -11,6 +11,16 @@ export type {
   PresetRowPageQuery,
   PresetRowSource,
 } from "./preset-row-source.js";
+export { createNeonPriceDashboardRowSource } from "./price-dashboard-row-source.js";
+export type {
+  AvailabilityChangeBackupRow,
+  AvailabilityChangePageQuery,
+  AvailabilityHeadBackupRow,
+  KitchenDefaultsBackupRow,
+  PriceBookVersionBackupRow,
+  PriceBookVersionPageQuery,
+  PriceDashboardRowSource,
+} from "./price-dashboard-row-source.js";
 export { FakeConfigurationRepository } from "./fake-configuration-repository.js";
 export { FakeDesignClaimRepository } from "./fake-design-claim-repository.js";
 export type { HeldClaimableDesign } from "./fake-design-claim-repository.js";
@@ -27,6 +37,9 @@ export type {
   DesignAccessor,
   DesignClaimRepository,
   DesignVersion,
+  EditableDesignLookup,
+  EditableDesignRepository,
+  LoadEditableOutcome,
   LoadOwnedOutcome,
   MintDesign,
   MintVisitor,
@@ -40,6 +53,7 @@ export type {
   VisitorResumeLookup,
   VisitorResumeRepository,
 } from "./neon-configuration-repository.js";
+export { isMintedId } from "./dashboard-store-shapes.js";
 export { isDesignRevision } from "./design-revision.js";
 export type { DesignRevision } from "./design-revision.js";
 export { NeonShareLinkRepository } from "./share-link-repository.js";
@@ -313,18 +327,21 @@ export type {
   StaffKitchenReaderOperation,
   StaffKitchenReading,
   StaffKitchenRequest,
+  StaffKitchenSentTotal,
   StaffKitchenStatus,
   StaffListedKitchen,
 } from "./staff-kitchen-reader.js";
 export { NeonStaffKitchenReader } from "./neon-staff-kitchen-reader.js";
 export { FakeStaffKitchenReader } from "./fake-staff-kitchen-reader.js";
 export type {
+  FakeStaffKitchenReaderOptions,
   PlantedStaffAccount,
   PlantedStaffKitchen,
   PlantedStaffNote,
   PlantedStaffRequest,
   PlantedStaffSentCopy,
   PlantedStaffStatus,
+  SeenRevisionSource,
 } from "./fake-staff-kitchen-reader.js";
 export { StaffKitchenActionError } from "./staff-kitchen-actions-store.js";
 export type {
@@ -370,6 +387,7 @@ export { deleteCspReportsForTests } from "./delete-csp-reports-for-tests.js";
 export { deleteRateLimitCountersForTests } from "./delete-rate-limit-counters-for-tests.js";
 export type { RemovedRateLimitCounters } from "./delete-rate-limit-counters-for-tests.js";
 export {
+  changeStaffDesignForTests,
   countStaffFixturesForTests,
   newStaffFixtureMarker,
   plantStaffAccountForTests,
@@ -386,13 +404,131 @@ export type {
   StaffFixtureAccountSpec,
   StaffFixtureAuditEventSpec,
   StaffFixtureCounts,
+  StaffFixtureDesignChange,
   StaffFixtureDesignKind,
   StaffFixtureDesignSpec,
   StaffFixtureNoteSpec,
+  StaffFixtureRequestSpec,
   StaffFixtureRequestStateSpec,
   StaffFixtureRole,
   StaffFixtureScope,
 } from "./staff-fixtures-for-tests.js";
+// The M10 price dashboard's ports (plan §8.4 c): contracts only, implemented by lane S.
+export {
+  ALREADY_CLAIMED,
+  AVAILABILITY_CHANGED_MEANWHILE,
+  AVAILABILITY_REVISION_NOT_FOUND,
+  CHANGED_MEANWHILE,
+  DashboardStoreError,
+  DISPLAYED_REVISION_AHEAD,
+  INITIAL_REVISION,
+  NEVER_RECORDED,
+  NO_ACTIVE_VERSION,
+  NONE_SAVED,
+  PRICE_VERSION_PAGE_SIZE,
+  REVISION_AHEAD,
+  UNKNOWN_VERSION,
+  VERSION_NOT_FOUND,
+} from "./m10-ports.js";
+export type {
+  AcknowledgedPrices,
+  ActivationAuditRecord,
+  ActivePriceVersion,
+  AlreadyClaimed,
+  AvailabilityChangedMeanwhile,
+  AvailabilityRevisionNotFound,
+  CatalogueAvailabilityStore,
+  ChangedMeanwhile,
+  ClaimDigestDayResult,
+  DashboardAuditRecord,
+  DashboardStoreFailure,
+  DashboardStoreOperation,
+  DeletedItem,
+  DigestCustomer,
+  DigestDayKey,
+  DigestEligibleKitchen,
+  DigestedKitchen,
+  DisplayedRevisionAhead,
+  ItemInUse,
+  ItemUsageProbe,
+  KitchenChangeStore,
+  KitchenDefaultsStore,
+  KitchenUsageReader,
+  MarkKitchenSeenRequest,
+  MarkKitchenSeenResult,
+  NeverRecorded,
+  NoActiveVersion,
+  NoneSaved,
+  PriceBookStore,
+  PublishAuditRecord,
+  PricePublishedAuditInput,
+  PriceDraft,
+  PriceNoticeStore,
+  PriceVersionPage,
+  PriceVersionPageRequest,
+  PriceVersionSummary,
+  PublishPriceBookRequest,
+  PublishPriceBookResult,
+  ReadAcknowledgedPricesResult,
+  ReadActiveVersionResult,
+  ReadAvailabilityAtResult,
+  ReadKitchenDefaultsResult,
+  ReadVersionResult,
+  RecordAcknowledgedPricesResult,
+  RevisionAhead,
+  SavedKitchenDefaults,
+  SaveKitchenDefaultsRequest,
+  SaveKitchenDefaultsResult,
+  SetItemActiveRequest,
+  SetItemActiveResult,
+  StoredPriceVersion,
+  UnknownVersion,
+  VersionNotFound,
+  WriteDraftRequest,
+  WriteDraftResult,
+} from "./m10-ports.js";
+// The fakes of those ports. They share one audit log, one availability head and one price book where the real stores
+// share tables, so a test builds them together (`tests/support/fake-dashboard-world.ts`).
+export {
+  FakeDashboardAuditLedger,
+  FakeRevisionHead,
+} from "./fake-dashboard-support.js";
+export type {
+  FakeDashboardAuditLedgerOptions,
+  HeldDashboardAuditEvent,
+  StageDashboardAuditRequest,
+  StagedDashboardAudit,
+} from "./fake-dashboard-support.js";
+export { FakePriceBookStore } from "./fake-price-book-store.js";
+export type { FakePriceBookStoreOptions } from "./fake-price-book-store.js";
+export { FakeCatalogueAvailabilityStore } from "./fake-catalogue-availability-store.js";
+export type { FakeCatalogueAvailabilityStoreOptions } from "./fake-catalogue-availability-store.js";
+export { FakeKitchenDefaultsStore } from "./fake-kitchen-defaults-store.js";
+export type { FakeKitchenDefaultsStoreOptions } from "./fake-kitchen-defaults-store.js";
+export { FakeHeldDesigns } from "./fake-held-designs.js";
+export type { HeldDesignUsage } from "./fake-held-designs.js";
+export { FakeKitchenChangeStore } from "./fake-kitchen-change-store.js";
+export type {
+  FakeKitchenChangeStoreOptions,
+  HeldChangeKitchen,
+  HeldDigestRound,
+  HeldSeenMark,
+} from "./fake-kitchen-change-store.js";
+export { FakePriceNoticeStore } from "./fake-price-notice-store.js";
+export type { FakePriceNoticeStoreOptions } from "./fake-price-notice-store.js";
+// The Neon stores of the price book and the availability log (migrations 0023 to 0025), of the seen mark and the digest
+// (0026, 0027), the price-notice marker (0028), the new-kitchen defaults and the usage count (0029), and the test-only
+// appender.
+export { NeonPriceBookStore } from "./neon-price-book-store.js";
+export { NeonCatalogueAvailabilityStore } from "./neon-catalogue-availability-store.js";
+export { NeonKitchenChangeStore } from "./neon-kitchen-change-store.js";
+export { NeonPriceNoticeStore } from "./neon-price-notice-store.js";
+export { NeonKitchenDefaultsStore } from "./neon-kitchen-defaults-store.js";
+export { NeonKitchenUsageReader } from "./neon-kitchen-usage-reader.js";
+export { usageProbesFor } from "./item-usage-probes.js";
+export type { ItemUsageBasis } from "./item-usage-probes.js";
+export { appendPriceVersionForTests } from "./append-price-version-for-tests.js";
+export type { AppendedPriceVersion } from "./append-price-version-for-tests.js";
 export { loadEnvLocal } from "./load-env.js";
 export {
   assertSafeTestDatabaseUrl,

@@ -58,6 +58,14 @@ rule applies: do not read them except for a historical question.
 | [8N (wave id 8J2) — nodemailer Gmail notification](8N-nodemailer-gmail-notification.md) | built and reviewed, docs closed 2026-10-17 | The shop's notice leaves through Gmail SMTP by nodemailer. | ADR 0164 |
 | [8V — done-page link and shop e-mail](8V-done-page-link-and-shop-email.md) | built and reviewed, docs closed 2026-10-17 | The done page links to the customer's design; the shop's e-mail is branded HTML led by a frozen view-only link. | ADR 0165 |
 
+## M10 — closed 2026-11-11
+
+Same rule: do not read it except for a historical question.
+
+| Phase | Closed | What it delivered | Live knowledge now in |
+| --- | --- | --- | --- |
+| [M10 — Manufacturer price dashboard](M10-price-dashboard.md) | 2026-11-11; `pnpm check` exit 0 and `pnpm ci:local` PASSED on `1857809d` (figures in the plan's close block and `docs/STATUS.md`) | The pricing model (anchor plus steps, round-up rules, hardware and lift pricing, material percentages), the versioned price book with a draft and publish, availability, defaults, the desktop price dashboard, the customer-side price notice and forced replacement, the staff-change digest and kitchens nav badge, and the nightly price-dashboard export. | `docs/STATUS.md` (M10 row); ADRs 0062, 0068, 0070, 0072, 0081, 0092, 0099, 0100, 0106, 0173-0178; `docs/release-notes/m10-price-dashboard.md`; `docs/test-audits/m10-close-audit.md` |
+
 ## What still binds from these phases
 
 Closed does not mean inert. Two guarantees established here constrain every later phase:

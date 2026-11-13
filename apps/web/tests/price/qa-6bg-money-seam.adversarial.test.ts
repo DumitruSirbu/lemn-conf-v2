@@ -35,7 +35,7 @@ import { describePriceBar } from "@/price/price-bar-model";
 import { describePriceBreakdown } from "@/price/price-breakdown-model";
 import {
   describeAddedAmount,
-  describeRoundedAmount,
+  describeTotalAmount,
   describeStartingPrice,
 } from "@/price/starting-price";
 
@@ -45,6 +45,8 @@ import {
   contentFor,
   type Catalogue,
 } from "../support/catalogues";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
+import { NOTHING_DISABLED } from "../support/availability";
 
 /** The plan's own reachable ceiling: ten billion bani, a hundred million MDL. Swept rather than
  *  sampled, because the transitions that matter are the multiples of the step and a fixed table is
@@ -79,6 +81,8 @@ const SEEDED = (() => {
     catalog: KITCHEN_L_BODY_CATALOG,
     book: SAMPLE_PRICE_BOOK,
     pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
+    deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
   });
   if (!result.ok) throw new Error("the seeded kitchen did not price");
   return result.priced;
@@ -110,7 +114,7 @@ describe("the arithmetic beside the moved join, checked against a second spellin
   propertyTest.prop([fc.integer({ min: 0, max: REACHABLE_CEILING_MINOR })])(
     "rounds every amount in the reachable range to the same thousand an independent rule does",
     (totalMinor) => {
-      expect(describeRoundedAmount(totalMinor)).toBe(
+      expect(describeTotalAmount(totalMinor)).toBe(
         referenceGrouped(referenceRoundedMdl(totalMinor)),
       );
     },
@@ -121,7 +125,7 @@ describe("the arithmetic beside the moved join, checked against a second spellin
     (totalMinor) => {
       // By code point, and over the whole alphabet rather than by matching a shape: a period, a
       // comma, a U+00A0 or a U+202F — every separator CLDR would reach for — is refused by name.
-      for (const character of describeRoundedAmount(totalMinor)) {
+      for (const character of describeTotalAmount(totalMinor)) {
         const codePoint = character.codePointAt(0) ?? -1;
         const isDigit = codePoint >= 0x30 && codePoint <= 0x39;
         expect(
@@ -148,7 +152,7 @@ describe("the arithmetic beside the moved join, checked against a second spellin
     ] as const;
 
     for (const [totalMinor, expected] of boundaries) {
-      expect(describeRoundedAmount(totalMinor), String(totalMinor)).toBe(
+      expect(describeTotalAmount(totalMinor), String(totalMinor)).toBe(
         expected,
       );
     }
@@ -159,7 +163,7 @@ describe("the arithmetic beside the moved join, checked against a second spellin
     (amountMinor) => {
       const added = describeAddedAmount(amountMinor);
 
-      expect(added).toBe(`+${describeRoundedAmount(amountMinor)}`);
+      expect(added).toBe(`+${describeTotalAmount(amountMinor)}`);
       expect(added).not.toContain("MDL");
     },
   );
@@ -170,7 +174,7 @@ describe("the arithmetic beside the moved join, checked against a second spellin
 
     for (const refused of [-1, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) {
       const label = String(refused);
-      expect(() => describeRoundedAmount(refused), label).toThrow(RangeError);
+      expect(() => describeTotalAmount(refused), label).toThrow(RangeError);
       expect(() => describeAddedAmount(refused), label).toThrow(RangeError);
       expect(
         () => describeStartingPrice({ totalMinor: refused, copy }),
@@ -226,7 +230,7 @@ describe("every price surface, not only the bar, reads the same digits in both l
     const [romanian, russian] = CATALOGUES;
 
     for (const totalMinor of TOTALS) {
-      const expected = describeRoundedAmount(totalMinor);
+      const expected = describeTotalAmount(totalMinor);
       for (const [, messages] of [romanian, russian]) {
         const rendered = amountTextUnder(messages, pricingAt(totalMinor));
         expect(digitsOnly(rendered), String(totalMinor)).toBe(expected);
@@ -259,8 +263,6 @@ describe("every price surface, not only the bar, reads the same digits in both l
     const [romanian, russian] = amountsPerLocale;
     expect(romanian?.rowDigits.length).toBeGreaterThan(0);
     expect(russian).toEqual(romanian);
-    expect(romanian?.figureDigits).toBe(
-      describeRoundedAmount(SEEDED.totalMinor),
-    );
+    expect(romanian?.figureDigits).toBe(describeTotalAmount(SEEDED.totalMinor));
   });
 });

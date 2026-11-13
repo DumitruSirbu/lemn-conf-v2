@@ -1,5 +1,7 @@
 import "server-only";
 
+import { isWholeCount } from "@/lib/server/whole-count";
+
 // The account routes' lines, over closed lists. `reportAccountEvent` is handed an event kind, an outcome and the name
 // of a limiter policy, and nothing else, so no line can hold a password, a token, a session value, an e-mail address or
 // a phone number: there is no parameter to carry one (ADR 0172 decision 5; flow rules in M8B plan section 5).
@@ -20,6 +22,11 @@ export const ACCOUNT_EVENTS = [
   "staff-note",
   "staff-status",
   "staff-unhide",
+  "staff-seen",
+  "staff-changed-count",
+  "staff-prices",
+  "staff-price-draft",
+  "staff-price-usage",
   "kitchen-rename",
   "kitchen-duplicate",
   "kitchen-hide",
@@ -83,6 +90,22 @@ export function reportAccountEvent({
       LINE_LABEL,
       line,
     );
+  } catch {
+    // Nothing to fall back to, and nothing may escape.
+  }
+}
+
+/**
+ * One line for a usage read that left saved designs out of its counts, when there are any. The count is the only value
+ * it takes: a whole number above 0 is written, and anything else writes nothing.
+ */
+export function reportUnreadableDesigns(count: number): void {
+  if (!isWholeCount(count) || count === 0) return;
+  try {
+    console.warn(LINE_LABEL, {
+      event: "staff-price-usage",
+      unreadableDesigns: count,
+    });
   } catch {
     // Nothing to fall back to, and nothing may escape.
   }

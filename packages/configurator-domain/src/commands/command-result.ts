@@ -102,6 +102,13 @@ export interface HandleSetEffect {
   readonly handle: Handle;
 }
 
+/** This cabinet has stopped choosing a handle and follows the kitchen's. Like `FinishClearedEffect` it carries no
+ *  handle: a "cleared to X" effect would be a set under another name, leaving the key in the document. */
+export interface HandleClearedEffect {
+  readonly type: "handle_cleared";
+  readonly placementId: string;
+}
+
 /** The whole-kitchen pair, shaped on `FinishSetEffect` one scope up. Neither names a placement: a
  *  whole-kitchen setting points at no cabinet, which tells the store its selection was not moved. */
 export interface MaterialTierSetEffect {
@@ -142,6 +149,28 @@ export interface GlobalFinishSetEffect {
   readonly finish: Finish;
 }
 
+/** The kitchen's handle (ADR 0099). Like `GlobalFinishSetEffect` it names no placement: the command writes
+ *  `settings.handle` and no cabinet's own handle. */
+export interface KitchenHandleSetEffect {
+  readonly type: "kitchen_handle_set";
+  readonly handle: Handle;
+}
+
+/** A switched-off colour replaced at every level the design stores it (`replaceColour`). It names no placement: it
+ *  points at no one cabinet, which tells the store its selection was not moved. */
+export interface ColourReplacedEffect {
+  readonly type: "colour_replaced";
+  readonly from: Finish;
+  readonly to: Finish;
+}
+
+/** `ColourReplacedEffect` for a handle (`replaceHandle`): the kitchen's, the top row's and each cabinet's own. */
+export interface HandleReplacedEffect {
+  readonly type: "handle_replaced";
+  readonly from: Handle;
+  readonly to: Handle;
+}
+
 export type CommandEffect =
   | PlacementRemovedEffect
   | BodyInsertedEffect
@@ -149,9 +178,13 @@ export type CommandEffect =
   | FinishSetEffect
   | FinishClearedEffect
   | HandleSetEffect
+  | HandleClearedEffect
   | MaterialTierSetEffect
   | HardwareTierSetEffect
   | GlobalFinishSetEffect
+  | KitchenHandleSetEffect
+  | ColourReplacedEffect
+  | HandleReplacedEffect
   | CabinetDepthSetEffect;
 
 export interface CommandSuccess<TEffect extends CommandEffect = CommandEffect> {

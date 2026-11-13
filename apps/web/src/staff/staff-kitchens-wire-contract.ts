@@ -1,8 +1,12 @@
 import type {
   AuditViewedDetail,
+  DashboardAuditAction,
+  DashboardAuditEntry,
   Design,
   KitchensListedDetail,
   NoteTextRefusalCode,
+  PriceBookCurrency,
+  PricingFailureCode,
   RequestStatus,
   RequestStatusRefusalCode,
   StaffAuditAction,
@@ -203,10 +207,14 @@ export type StaffAuditEntryWire =
       readonly kind: "recognised";
       readonly action: Exclude<
         StaffAuditAction,
-        "status-changed" | "kitchens-listed" | "audit-viewed"
+        | "status-changed"
+        | "kitchens-listed"
+        | "audit-viewed"
+        | DashboardAuditAction
       >;
       readonly detail: null;
     }
+  | ({ readonly kind: "recognised" } & DashboardAuditEntry)
   /** A row this build's domain refuses: its action code and nothing of its stored detail. */
   | { readonly kind: "unrecognised"; readonly action: string };
 
@@ -263,4 +271,111 @@ export interface StaffAuditInvalidQueryWire {
     readonly field: StaffAuditQueryField;
     readonly code: StaffAuditQueryRefusalCode;
   }[];
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Kitchens changed after staff saw them (M10 D10; plan §8.4 d, A-12)
+//
+// Standalone types beside the shapes above, none of which gains a member: a reader of the list or the kitchen as they
+// stand is unaffected, and a screen that shows the mark reads the `Marked` form.
+
+/** Whether the kitchen's revision differs from the greater of the seen mark and the latest request's revision. The
+ *  comparison is made in SQL; the revision itself stays opaque. */
+export interface StaffChangedMarkWire {
+  readonly changedAfterSeen: boolean;
+}
+
+/** When staff last saw the kitchen, as the mark that counts records it: ISO 8601, UTC, milliseconds. `null` when no mark
+ *  counts (none was made, or the one held is above the kitchen's own revision, which nothing judges by). Only the
+ *  list's rows carry it, beside the mark, so the row can say when the kitchen was seen and when it changed again. */
+export interface StaffSeenAtWire {
+  readonly seenAt: string | null;
+}
+
+export type StaffListedKitchenMarkedWire = StaffListedKitchenWire &
+  StaffChangedMarkWire &
+  StaffSeenAtWire;
+
+/** The list with its marked rows, and the number of changed kitchens the menu counter shows. */
+export interface StaffKitchenMarkedListWire
+  extends Omit<StaffKitchenListWire, "kitchens"> {
+  readonly changedCount: number;
+  readonly kitchens: readonly StaffListedKitchenMarkedWire[];
+}
+
+/** The kitchen page, with the revision it displayed: what `StaffSeenRequestWire` sends back. */
+export type StaffKitchenMarkedWire = StaffKitchenWire &
+  StaffChangedMarkWire & { readonly displayedRevision: string };
+
+/** Marks a kitchen as seen at the revision the page displayed. A save landing between load and mark keeps the mark. */
+export interface StaffSeenRequestWire {
+  readonly displayedRevision: string;
+}
+
+/** `200` of a seen mark: the kitchen's mark afterwards, from the statement that wrote it. The request status is untouched. */
+export type StaffSeenMarkedWire = StaffChangedMarkWire;
+
+/** `MISSING_VALUE` is absent or not text; `NOT_A_REVISION` is text that is not a digit string of the revision's shape
+ *  (no leading zero, at most nineteen digits). Both are refused before the store (F9). */
+export type StaffSeenRefusalCode = "MISSING_VALUE" | "NOT_A_REVISION";
+
+/** `409` of a seen mark whose displayed revision is greater than the kitchen's current one, compared in SQL (F9). A
+ *  kitchen deleted by its client or not sent is the byte-identical kitchen refusal, as for every staff route. */
+export interface StaffSeenConflictWire {
+  readonly status: "displayed-revision-ahead";
+}
+
+/** `400` of a seen mark: the member and a code. Never the value. */
+export interface StaffSeenInvalidWire {
+  readonly status: "invalid-input";
+  readonly issues: readonly {
+    readonly field: "displayedRevision";
+    readonly code: StaffSeenRefusalCode;
+  }[];
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// The two estimates the kitchen page shows
+//
+// A standalone type beside the frozen shapes, for the same reason as the marks above. A page that shows both reads
+// `StaffKitchenOpenedWire`, the kitchen with its mark and its estimates.
+
+/** A total in minor units, a whole number, with the currency it is in. */
+export interface StaffEstimateWire {
+  readonly totalMinor: number;
+  readonly currency: PriceBookCurrency;
+}
+
+/** The kitchen could not be priced now, for the pricing's own reason. No total, and never a zero. */
+export interface StaffEstimateRefusedWire {
+  readonly refused: PricingFailureCode;
+}
+
+/** The kitchen as it stands holds no cabinet, so it has no estimate: the lines an empty design still carries would read as
+ *  a price over nothing. Not a pricing failure, so it names no code. */
+export interface StaffEstimateEmptyWire {
+  readonly empty: true;
+}
+
+export interface StaffKitchenEstimatesWire {
+  /**
+   * The total the shop's notice carried, read from what was stored with the request and never priced again, so a later
+   * publish does not move it. `null` for a kitchen with no request, and for a request that stored no total this build
+   * reads.
+   */
+  readonly sentEstimate: StaffEstimateWire | null;
+  /** The kitchen as it stands, priced now with the active book and the availability current at the read. */
+  readonly currentEstimate:
+    | StaffEstimateWire
+    | StaffEstimateRefusedWire
+    | StaffEstimateEmptyWire;
+}
+
+/** `200` of the kitchen read: the kitchen, its mark and revision, and both estimates. */
+export type StaffKitchenOpenedWire = StaffKitchenMarkedWire &
+  StaffKitchenEstimatesWire;
+
+/** `200` of the changed-kitchens count behind the menu badge. */
+export interface StaffChangedCountWire {
+  readonly count: number;
 }

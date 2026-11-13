@@ -516,6 +516,9 @@ describe("the notice is never priced again", () => {
       get book() {
         return isFirstAttemptDone ? book : SAMPLE_PRICE_BOOK;
       },
+      get bookVersionId() {
+        return (isFirstAttemptDone ? book : SAMPLE_PRICE_BOOK).version;
+      },
     };
     const submit = () =>
       submitContact({ text: bodyOf(), visitorHash: undefined }, ports);

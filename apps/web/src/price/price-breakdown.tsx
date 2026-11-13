@@ -176,15 +176,20 @@ export function PriceBreakdownSurface({
             ))}
           </section>
         ))}
-        {/* After every placement row; absent when the book produced no inclusions, not an empty box. */}
-        {view.wholeKitchenRows.length === 0 ? null : (
+        {/* After every placement row; absent when the book produced no inclusions, not an empty box. The depth line
+            is one of its rows, printed after the material row it multiplies with. */}
+        {view.wholeKitchenListing.length === 0 ? null : (
           <section
             className={styles.wholeKitchen}
             data-testid="price-breakdown-whole-kitchen"
           >
-            {view.wholeKitchenRows.map((row) => (
-              <BreakdownLine key={row.key} row={row} kind="whole-kitchen" />
-            ))}
+            {view.wholeKitchenListing.map((row) =>
+              row.scope === undefined ? (
+                <BreakdownLine key={row.key} row={row} kind="whole-kitchen" />
+              ) : (
+                <DepthLineRow key={row.key} row={row} scope={row.scope} />
+              ),
+            )}
           </section>
         )}
         <p className={styles.note} data-testid="price-breakdown-note">
@@ -239,6 +244,34 @@ function BreakdownLine({
         {row.label}
       </span>
       <span className={styles.rowAmount} data-testid="breakdown-row-amount">
+        {row.amountText}
+      </span>
+    </span>
+  );
+}
+
+/** The depth line: a whole-kitchen row with the cabinets it applies to under its label. Its own test ids, so a count
+ *  of `breakdown-row` stays a count of the rows the placements and the tiers print. */
+function DepthLineRow({
+  row,
+  scope,
+}: {
+  readonly row: BreakdownRow;
+  readonly scope: string;
+}) {
+  return (
+    <span
+      className={styles.row}
+      data-row="whole-kitchen"
+      data-testid="breakdown-depth-row"
+    >
+      <span className={styles.rowLabel}>
+        <span data-testid="breakdown-depth-label">{row.label}</span>
+        <span className={styles.rowScope} data-testid="breakdown-depth-scope">
+          {scope}
+        </span>
+      </span>
+      <span className={styles.rowAmount} data-testid="breakdown-depth-amount">
         {row.amountText}
       </span>
     </span>

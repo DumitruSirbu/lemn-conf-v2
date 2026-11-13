@@ -3,6 +3,7 @@ import "server-only";
 import type {
   AuthorizedConfigurationRepository,
   AuthorizedDesignRepository,
+  EditableDesignRepository,
   OwnedDesignRepository,
   PresetRepository,
   SentKitchenViewRepository,
@@ -32,7 +33,9 @@ type SharedRepository = Omit<AuthorizedConfigurationRepository, "load"> &
 
 // Lazily created, not module-load-eager: `neon(process.env.DATABASE_URL!)` at import time would
 // crash `next build` in any environment where the env var isn't set (e.g. CI without secrets).
-let repository: (SharedRepository & AuthorizedDesignRepository) | undefined;
+let repository:
+  | (SharedRepository & AuthorizedDesignRepository & EditableDesignRepository)
+  | undefined;
 let shareLinkRepository: ShareLinkRepository | undefined;
 let sentKitchenViewRepository: SentKitchenViewRepository | undefined;
 let presetRepository: PresetRepository | undefined;
@@ -52,7 +55,15 @@ export function getAuthorizedDesignRepository(): AuthorizedDesignRepository {
   return sharedInstance();
 }
 
-function sharedInstance(): SharedRepository & AuthorizedDesignRepository {
+/** The read under exactly a save's credential: the token alone, or the editing account, and never a visitor. The same
+ *  instance as `getRepository()`'s, behind a port of its own for the reason `getAuthorizedDesignRepository` is. */
+export function getEditableDesignRepository(): EditableDesignRepository {
+  return sharedInstance();
+}
+
+function sharedInstance(): SharedRepository &
+  AuthorizedDesignRepository &
+  EditableDesignRepository {
   repository ??= new NeonConfigurationRepository();
   return repository;
 }

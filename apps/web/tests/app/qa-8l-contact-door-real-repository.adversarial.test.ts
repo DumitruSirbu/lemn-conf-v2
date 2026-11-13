@@ -26,6 +26,7 @@ import DesignPage from "../../src/app/[locale]/d/[id]/page";
 import ContactPage from "../../src/app/[locale]/d/[id]/contact/page";
 import ReviewPage from "../../src/app/[locale]/d/[id]/review/page";
 import { DesignLoadError } from "../../src/app/d/[id]/design-load-error";
+import { withoutPriceBook } from "../support/price-book-wrapper";
 
 const VISITOR_COOKIE_NAME = "__Host-lemnaria_visitor";
 const OWNER_VALUE = "O".repeat(43);
@@ -189,10 +190,15 @@ function designNamingAnUnknownBody(): Design {
   };
 }
 
+/** The screen the door draws, looked at through the price-book provider every opened door puts it in (R1). */
 async function renderDoor(door: Door, id: string): Promise<unknown> {
   const params = Promise.resolve({ locale: "ro", id });
-  if (door === "editor") return DesignPage({ params });
-  return door === "review" ? ReviewPage({ params }) : ContactPage({ params });
+  if (door === "editor") return withoutPriceBook(await DesignPage({ params }));
+  return withoutPriceBook(
+    await (door === "review"
+      ? ReviewPage({ params })
+      : ContactPage({ params })),
+  );
 }
 
 /** What a door answered, with a thrown error kept as an answer so two doors can be compared on it. */

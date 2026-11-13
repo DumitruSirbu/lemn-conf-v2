@@ -2,7 +2,11 @@ import "server-only";
 
 import { NextResponse } from "next/server";
 
-import type { StaffKitchenQueryIssue } from "@lemnaria/configurator-domain";
+import {
+  DASHBOARD_DETAIL_KEYS,
+  type DashboardAuditEntry,
+  type StaffKitchenQueryIssue,
+} from "@lemnaria/configurator-domain";
 import type {
   SavedRequestStatus,
   StaffAuditAccountRef,
@@ -33,14 +37,21 @@ import type {
   StaffConflictWire,
   StaffInvalidInputWire,
   StaffInvalidQueryWire,
-  StaffKitchenListWire,
+  StaffChangedCountWire,
+  StaffKitchenEstimatesWire,
+  StaffKitchenMarkedListWire,
   StaffKitchenNoteWire,
+  StaffKitchenOpenedWire,
   StaffKitchenRequestWire,
   StaffKitchenStatusWire,
   StaffKitchenWire,
-  StaffListedKitchenWire,
+  StaffListedKitchenMarkedWire,
   StaffNoteAddedWire,
   StaffPersonWire,
+  StaffSeenConflictWire,
+  StaffSeenInvalidWire,
+  StaffSeenMarkedWire,
+  StaffSeenRefusalCode,
   StaffStatusSavedWire,
   StaffThumbnailDesign,
   StaffWriteConflict,
@@ -79,11 +90,11 @@ export function staffAuditInvalidQueryResponse(
 }
 
 /** `405`: the answer to `HEAD` on a staff read. The framework would otherwise run `GET` for it, with its audit row and
- *  its bucket, and send no body; this runs nothing. */
-export function staffHeadRefusedResponse(): NextResponse {
+ *  its bucket, and send no body; this runs nothing. `Allow` names every method the route supports (RFC 9110, 15.5.6). */
+export function staffHeadRefusedResponse(allowedMethods = "GET"): NextResponse {
   return new NextResponse(null, {
     status: 405,
-    headers: { ...ACCOUNT_RESPONSE_HEADERS, Allow: "GET" },
+    headers: { ...ACCOUNT_RESPONSE_HEADERS, Allow: allowedMethods },
   });
 }
 
@@ -128,17 +139,50 @@ export function staffUnhiddenResponse(): NextResponse {
   });
 }
 
+/** `400` of a seen mark: the code for the displayed revision. Never the value that was refused. */
+export function staffSeenInvalidResponse(
+  code: StaffSeenRefusalCode,
+): NextResponse {
+  const body: StaffSeenInvalidWire = {
+    status: "invalid-input",
+    issues: [{ field: "displayedRevision", code }],
+  };
+  return jsonResponse(body, 400);
+}
+
+/** `200`: the mark is stored, or an equal or later one already was. It carries the store's own answer to whether the
+ *  kitchen still shows as changed, so a save that landed between the page's load and its mark is not read as seen. */
+export function staffSeenMarkedResponse(
+  changedAfterSeen: boolean,
+): NextResponse {
+  const body: StaffSeenMarkedWire = { changedAfterSeen };
+  return jsonResponse(body, 200);
+}
+
+/** `409`: the page claims to have shown a revision ahead of the kitchen's own. Nothing was written. */
+export function staffSeenConflictResponse(): NextResponse {
+  const body: StaffSeenConflictWire = { status: "displayed-revision-ahead" };
+  return jsonResponse(body, 409);
+}
+
 /** `200`: one page of the staff kitchens list. Built before the audit row is written and sent only after it commits. */
 export function staffKitchenListResponse(page: StaffKitchenPage): NextResponse {
   return jsonResponse(staffKitchenListWireOf(page), 200);
 }
 
-/** `200`: one kitchen with its client, request, status and notes. Built before the audit row is written and sent only
- *  after it commits. */
+/** `200`: one kitchen with its client, request, status and notes, its mark and revision, and its two estimates. Built
+ *  before the audit row is written and sent only after it commits. */
 export function staffKitchenResponse(
   kitchen: StaffKitchenDetail,
+  estimates: StaffKitchenEstimatesWire,
 ): NextResponse {
-  return jsonResponse(staffKitchenWireOf(kitchen), 200);
+  return jsonResponse(staffKitchenOpenedWireOf(kitchen, estimates), 200);
+}
+
+/** `200`: how many sent kitchens changed after staff saw them, and nothing else. It writes no audit row. */
+export function staffChangedCountResponse(count: number): NextResponse {
+  const body: StaffChangedCountWire = { count };
+  return jsonResponse(body, 200);
 }
 
 /** `200`: one page of the audit log. Built before the audit row is written and sent only after it commits. */
@@ -154,8 +198,12 @@ type StaffWireBody =
   | StaffNoteAddedWire
   | StaffStatusSavedWire
   | StaffConflictWire
-  | StaffKitchenListWire
-  | StaffKitchenWire;
+  | StaffKitchenMarkedListWire
+  | StaffKitchenOpenedWire
+  | StaffSeenInvalidWire
+  | StaffSeenConflictWire
+  | StaffSeenMarkedWire
+  | StaffChangedCountWire;
 
 function jsonResponse(body: StaffWireBody, status: number): NextResponse {
   return NextResponse.json(body, {
@@ -177,9 +225,12 @@ function statusSavedWireOf(
   };
 }
 
-function staffKitchenListWireOf(page: StaffKitchenPage): StaffKitchenListWire {
+function staffKitchenListWireOf(
+  page: StaffKitchenPage,
+): StaffKitchenMarkedListWire {
   return {
     total: page.total,
+    changedCount: page.changedCount,
     page: page.page,
     pageSize: page.pageSize,
     kitchens: page.kitchens.map(listedKitchenWireOf),
@@ -188,8 +239,10 @@ function staffKitchenListWireOf(page: StaffKitchenPage): StaffKitchenListWire {
 
 function listedKitchenWireOf(
   kitchen: StaffListedKitchen,
-): StaffListedKitchenWire {
+): StaffListedKitchenMarkedWire {
   return {
+    changedAfterSeen: kitchen.isChangedSinceSeen,
+    seenAt: isoOrNull(kitchen.seenAt),
     id: kitchen.id,
     name: kitchen.name,
     design: kitchen.design === null ? null : thumbnailDesignOf(kitchen.design),
@@ -212,6 +265,19 @@ function thumbnailDesignOf(
     ...(emptyColumns === undefined ? {} : { emptyColumns }),
     ...(columnExtents === undefined ? {} : { columnExtents }),
     ...(settings === undefined ? {} : { settings }),
+  };
+}
+
+function staffKitchenOpenedWireOf(
+  kitchen: StaffKitchenDetail,
+  estimates: StaffKitchenEstimatesWire,
+): StaffKitchenOpenedWire {
+  return {
+    ...staffKitchenWireOf(kitchen),
+    changedAfterSeen: kitchen.isChangedSinceSeen,
+    displayedRevision: kitchen.revision,
+    sentEstimate: estimates.sentEstimate,
+    currentEstimate: estimates.currentEstimate,
   };
 }
 
@@ -280,6 +346,9 @@ function auditEntryWireOf(reading: StaffAuditReading): StaffAuditEntryWire {
           page: entry.detail.page,
           rowCount: entry.detail.rowCount,
           hasSearch: entry.detail.hasSearch,
+          ...(entry.detail.onlyChanged === undefined
+            ? {}
+            : { onlyChanged: entry.detail.onlyChanged }),
         },
       };
     case "audit-viewed":
@@ -298,9 +367,36 @@ function auditEntryWireOf(reading: StaffAuditReading): StaffAuditEntryWire {
     case "note-added":
     case "kitchen-unhidden":
       return { kind: "recognised", action: entry.action, detail: null };
+    case "price-draft-changed":
+    case "price-draft-reverted":
+    case "price-bulk-changed":
+    case "price-published":
+    case "price-restored-to-draft":
+    case "catalogue-item-active-changed":
+    case "kitchen-defaults-saved":
+    case "kitchen-seen":
+    case "price-catalogue-viewed":
+      return { kind: "recognised", ...dashboardEntryWireOf(entry) };
     default:
       return degradedEntryOf(entry);
   }
+}
+
+// A dashboard action's detail is copied key by key from the domain's closed list for that action, so a member beyond
+// the declared shape never leaves the server. An optional key is copied only when present, and a list is copied as a
+// new array.
+function dashboardEntryWireOf(entry: DashboardAuditEntry): DashboardAuditEntry {
+  const source: Readonly<Record<string, unknown>> = { ...entry.detail };
+  const detail = Object.fromEntries(
+    DASHBOARD_DETAIL_KEYS[entry.action]
+      .filter((key) => source[key] !== undefined)
+      .map((key) => [key, copiedValueOf(source[key])]),
+  );
+  return { action: entry.action, detail } as DashboardAuditEntry;
+}
+
+function copiedValueOf(value: unknown): unknown {
+  return Array.isArray(value) ? Array.from<unknown>(value) : value;
 }
 
 // `entry` is `never` here while the switch names every action the domain lists, so a new domain action is a compile

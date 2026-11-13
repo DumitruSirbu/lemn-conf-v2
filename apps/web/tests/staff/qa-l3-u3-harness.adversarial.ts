@@ -18,6 +18,7 @@ import roMessages from "../../src/messages/ro.json";
 import ruMessages from "../../src/messages/ru.json";
 import { flushPromises } from "../support/render-hook";
 import type { TestLocale } from "../support/render-with-intl";
+import { underSamplePriceBook } from "../support/sample-price-root";
 import { STAFF_KITCHEN_ID } from "../support/staff-kitchen-wire";
 import {
   installStaffKitchensServer,
@@ -169,12 +170,14 @@ function mountRoot({
       designId: id,
     });
   const draw = (id: string): void => {
-    const provided = createElement(NextIntlClientProvider, {
-      locale,
-      messages: CATALOGUE_OF[locale],
-      timeZone: "Europe/Chisinau",
-      children: screenFor(id),
-    });
+    const provided = underSamplePriceBook(
+      createElement(NextIntlClientProvider, {
+        locale,
+        messages: CATALOGUE_OF[locale],
+        timeZone: "Europe/Chisinau",
+        children: screenFor(id),
+      }),
+    );
     act(() => {
       root.render(
         isStrict ? createElement(StrictMode, null, provided) : provided,

@@ -106,8 +106,15 @@ const EXPECTED_CLASSIFICATION: Readonly<
   },
   "neon-configuration-repository.test.ts": {
     gate: "live test database",
+    lock: "shared",
+    reason:
+      "mints, saves and deletes designs under ids it generates and needs the schema intact; its column-dropping migration test moved to the revision-migration file so this one can share (owner, 2026-11-12)",
+  },
+  "neon-configuration-repository.revision-migration.test.ts": {
+    gate: "live test database",
     lock: "exclusive",
-    reason: "drops the revision column",
+    reason:
+      "drops the revision column and forgets ledger rows to re-apply 0004 and later",
   },
   "neon-configuration-repository.adversarial.test.ts": {
     gate: "live test database",
@@ -118,6 +125,12 @@ const EXPECTED_CLASSIFICATION: Readonly<
     gate: "live test database",
     lock: "shared",
     reason: "mints rows and needs the schema intact",
+  },
+  "price-dashboard-row-source.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "only reads the price dashboard's tables and the deployed columns, and needs the schema intact (M10 wave S6)",
   },
   "backup-restore-round-trip.adversarial.test.ts": {
     gate: "live test database",
@@ -195,6 +208,12 @@ const EXPECTED_CLASSIFICATION: Readonly<
     reason:
       "adversarial QA of L3-S1: inserts into the three staff tables only inside a rolled-back transaction, creates temporary tables and functions of its own, asserts no whole-table figure and needs the schema intact (M8B Lot 3 L3-S1 QA)",
   },
+  "qa-l3-s1-staff-tables.reapply.adversarial.test.ts": {
+    gate: "live test database",
+    lock: "exclusive",
+    reason:
+      "adversarial QA of L3-S1: runs migrations 0020-0022 over the real staff tables and compares their whole contents before and after, so another file's committed row fails it (M8B Lot 3 L3-S1 QA; split out 2026-11-12)",
+  },
   "qa-l3-s3-statements-on-postgres.adversarial.test.ts": {
     gate: "live test database",
     lock: "shared",
@@ -209,9 +228,27 @@ const EXPECTED_CLASSIFICATION: Readonly<
   },
   "qa-l3-s4-statements-on-postgres.adversarial.test.ts": {
     gate: "live test database",
+    lock: "exclusive",
+    reason:
+      "adversarial QA of L3-S4: runs the staff kitchen reader's statements inside a repeatable-read transaction it rolls back, but pages the unfiltered list and requires its planted kitchens first, which another file's live changed kitchen outranks (M8B Lot 3 L3-S4 QA; exclusive since 2026-11-12)",
+  },
+  "qa-m10-s4-seen-and-digest-on-postgres.adversarial.test.ts": {
+    gate: "live test database",
     lock: "shared",
     reason:
-      "adversarial QA of L3-S4: runs the staff kitchen reader's statements inside a repeatable-read transaction it rolls back, writes nothing that survives, asserts only the difference between a total read before planting and one read after (one snapshot) and needs the schema intact (M8B Lot 3 L3-S4 QA)",
+      "adversarial QA of M10 wave S4: runs the seen mark, the digest list and record and the staff kitchen reader's additions inside a repeatable-read transaction it rolls back, writes nothing that survives (the rounds and entries it claims included), asserts no whole-table figure (a membership test looks at the kitchens it planted, a count is compared with one read in the same snapshot before planting) and needs the schema intact (M10 wave S4 QA)",
+  },
+  "qa-m10-k3-seen-at.live.adversarial.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "adversarial QA of the staff list's seen instant: writes accounts, kitchens, seen marks and requests under random ids it mints, deletes them by those ids when it finishes, asserts no whole-table figure and needs the schema intact",
+  },
+  "neon-configuration-repository.editable.live.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "plants designs under random ids it mints, deletes them by those ids when it finishes, asserts no whole-table figure and needs the schema intact",
   },
   "neon-staff-audit-store.live.test.ts": {
     gate: "live test database",
@@ -221,9 +258,9 @@ const EXPECTED_CLASSIFICATION: Readonly<
   },
   "neon-staff-kitchen-reader.live.test.ts": {
     gate: "live test database",
-    lock: "shared",
+    lock: "exclusive",
     reason:
-      "writes accounts, kitchens, requests, sent copies, statuses and notes under random ids it mints, deletes them by those ids when it finishes, asserts no whole-table figure and needs the schema intact (M8B Lot 3 L3-S4)",
+      "asserts how far the whole-database changed count moves from a baseline read in an earlier statement, so another run's saves, marks or deletes land in between; it failed so beside a parallel shard in run 43217351639 (owner, 2026-11-12). Writes accounts, kitchens, requests, sent copies, statuses, notes, seen marks and their audit rows under random ids it mints and deletes them by those ids (M8B Lot 3 L3-S4; M10 wave S4)",
   },
   "neon-account-kitchen-store.notes.live.test.ts": {
     gate: "live test database",
@@ -248,6 +285,48 @@ const EXPECTED_CLASSIFICATION: Readonly<
     lock: "exclusive",
     reason:
       "adversarial QA of L3-S5: adds a NOT VALID check constraint, a deferred constraint trigger and a function named qa_l3_s5_* to the staff tables for the length of one test each and drops them in a finally, so no other run may write those tables meanwhile (M8B Lot 3 L3-S5 QA)",
+  },
+  "neon-price-book-store.live.test.ts": {
+    gate: "live test database",
+    lock: "exclusive",
+    reason:
+      "the price book contract asserts over global singletons (the draft, the newest version and the availability head, which every publish moves), and each publish leaves a version no test can remove: versions are append-only, so no other run may read the newest one meanwhile (M10 wave S2, plan S2 recorded choice a)",
+  },
+  "qa-m10-s2c-guard.live.test.ts": {
+    gate: "live test database",
+    lock: "exclusive",
+    reason:
+      "adversarial QA of the publish's guard on a deleted item: it publishes a version through the store and reads the newest version, the draft, the head and the log rows before and after a refusal, so no other run may append a version or move the head meanwhile; the designs it plants name random ids and are deleted by those ids when it finishes",
+  },
+  "neon-catalogue-availability-store.live.test.ts": {
+    gate: "live test database",
+    lock: "exclusive",
+    reason:
+      "the availability contract asserts over a global singleton (the availability head, which every write moves by exactly one) and its log is append-only, so no other run may write the head meanwhile (M10 wave S2, ex-S2b)",
+  },
+  "neon-kitchen-change-store.live.test.ts": {
+    gate: "live test database",
+    lock: "exclusive",
+    reason:
+      "the digest contract lists over the whole designs table and writes about eighty kitchens of its own, and the rounds it claims are append-only for the application role (it leaves them, at day keys in years 3000 to 8999), so no other run may read the digest tables or count designs meanwhile (M10 wave S4, plan S2 recorded choice a)",
+  },
+  "neon-price-notice-store.live.test.ts": {
+    gate: "live test database",
+    lock: "exclusive",
+    reason:
+      "the notice contract publishes versions and switches an item off to move the availability head, and a version and a log row are append-only, so no other run may read the newest version or the head meanwhile",
+  },
+  "neon-kitchen-defaults-store.live.test.ts": {
+    gate: "live test database",
+    lock: "exclusive",
+    reason:
+      "a save moves the one defaults row and the availability head, and the contract publishes a version and switches an item off, all append-only or global, so no other run may read the head, the newest version or the defaults meanwhile",
+  },
+  "neon-kitchen-usage-reader.live.test.ts": {
+    gate: "live test database",
+    lock: "exclusive",
+    reason:
+      "a count reads the whole designs table, and the walk's before and after readings must differ by the designs the file plants and by nothing else, so no other run may write designs meanwhile",
   },
   "table-privileges.test.ts": {
     gate: "live test database",
@@ -300,6 +379,12 @@ const EXPECTED_CLASSIFICATION: Readonly<
     lock: "none",
     reason:
       "unit test of the two readers: sets and deletes its own variables, connects nowhere",
+  },
+  "seed-price-book.test.ts": {
+    gate: "none",
+    lock: "none",
+    reason:
+      "unit test of the owner-run seed: the driver is replaced, and the spawned command is given an unresolvable probe URL and is refused before it connects (M10 wave S2)",
   },
   "delete-rate-limit-counters-for-tests.live.test.ts": {
     gate: "live test database",

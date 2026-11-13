@@ -84,7 +84,8 @@ const DECLARED_COLUMNS = declaredColumnSizes(
 );
 const CEILINGS_MM = [2200, 2600, 3900] as const;
 const GRID_STEP_MM = 10;
-const SWEEP_TIMEOUT_MS = 120_000;
+/** One ceiling's census takes 22-23 s locally; the CI runner is ~10x slower, and 120 s for all three failed it. */
+const SWEEP_TIMEOUT_MS = 300_000;
 
 const DOOR_BODY = "base-cabinet";
 const THREE_DRAWER_BODY = "base-3drawer";
@@ -213,11 +214,13 @@ type MetreBand =
 
 const CENSUS_BY_CEILING = new Map<number, Census>();
 
-beforeAll(async () => {
-  for (const ceilingMm of CEILINGS_MM) {
+// One hook per ceiling, not one for the three: a hook's timeout is for the whole of it, and the three sweeps together
+// were the longest thing in the package.
+for (const ceilingMm of CEILINGS_MM) {
+  beforeAll(async () => {
     CENSUS_BY_CEILING.set(ceilingMm, await censusAt(ceilingMm));
-  }
-}, SWEEP_TIMEOUT_MS);
+  }, SWEEP_TIMEOUT_MS);
+}
 
 function eachCeiling(): readonly (readonly [number, Census])[] {
   return CEILINGS_MM.map((ceilingMm) => {

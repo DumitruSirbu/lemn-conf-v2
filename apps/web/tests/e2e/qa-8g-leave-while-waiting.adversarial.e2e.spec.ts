@@ -156,6 +156,8 @@ async function chooseAnotherMaterial(page: Page): Promise<void> {
     material.locator('input[type="radio"]:not(:checked)').last(),
   );
   await press(page, page.getByTestId("global-settings-apply"));
+  // A stamped kitchen (R4b3) holds a whole-kitchen colour, so a material change asks to give it up first.
+  await press(page, page.getByTestId("global-settings-confirm"));
   await expect(page.getByTestId("global-settings-surface")).toHaveCount(0);
 }
 

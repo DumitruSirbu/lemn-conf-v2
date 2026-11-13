@@ -55,7 +55,7 @@ function worldFrom(design: Design) {
 type World = ReturnType<typeof worldFrom>;
 
 function panelAt(world: World, target: CommandTarget) {
-  const meta = describeSelection({ ...world, target });
+  const meta = describeSelection({ kitchenSettings: {}, ...world, target });
   return describePanel({
     content: ro,
     material: PAL_KITCHEN,

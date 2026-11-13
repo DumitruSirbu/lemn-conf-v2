@@ -50,6 +50,8 @@ import {
   DESIGN_ISSUE_SEVERITY_BY_CODE,
   validateDesignForCatalog,
 } from "../src/validate-design.js";
+import { MEASURED_DEEPENING_ROWS } from "./support/deepening-rows.js";
+import { NOTHING_DISABLED } from "./support/availability.js";
 
 /** A finishable seeded body — `dropFinishFromBodiesThatCannotWearOne` strips the other kind at the
  *  load seam, so a document that put a colour on a hood would be rewritten for a reason that has
@@ -370,6 +372,8 @@ describe("an undeclared material id at every seam a stored one reaches", () => {
       catalog: KITCHEN_L_BODY_CATALOG,
       book: SAMPLE_PRICE_BOOK,
       pricingVersion: SAMPLE_PRICE_BOOK.version,
+      deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
       selections: { materialTierId: UNDECLARED_TIER_ID },
     });
 

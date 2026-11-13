@@ -70,6 +70,7 @@ function StaffKitchensContent({
   const countRef = useRef<HTMLParagraphElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const statusRef = useRef<HTMLSelectElement>(null);
+  const changedRef = useRef<HTMLInputElement>(null);
   const { state } = kitchens;
   const withFocusKept: StaffKitchens = {
     ...kitchens,
@@ -81,6 +82,10 @@ function StaffKitchensContent({
       kitchens.chooseStatus(status);
       if (status === null) statusRef.current?.focus();
     },
+    chooseOnlyChanged: (onlyChanged) => {
+      kitchens.chooseOnlyChanged(onlyChanged);
+      if (!onlyChanged) changedRef.current?.focus();
+    },
   };
   return (
     <section className={styles.page} data-testid="staff-kitchens-page">
@@ -89,6 +94,7 @@ function StaffKitchensContent({
         {...withFocusKept}
         searchRef={searchRef}
         statusRef={statusRef}
+        changedRef={changedRef}
       />
       <div className={styles.results}>
         {state.phase === "loading" ? <LoadingKitchens /> : null}
@@ -136,12 +142,17 @@ function ListedKitchens({
     );
   }
   if (listing.total === 0) {
-    return listing.search !== null || listing.status !== null ? (
+    return listing.search !== null ||
+      listing.status !== null ||
+      listing.onlyChanged ? (
       <NoResults
         listing={listing}
         onClearSearch={kitchens.clearSearch}
         onClearStatus={() => {
           kitchens.chooseStatus(null);
+        }}
+        onClearOnlyChanged={() => {
+          kitchens.chooseOnlyChanged(false);
         }}
       />
     ) : (

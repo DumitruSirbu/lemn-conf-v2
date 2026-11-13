@@ -10,6 +10,7 @@
 // design reads are real, and the listing's one item is built from the design the server actually stored.
 import {
   isDesignId,
+  isDesignRevisionShape,
   presetNameFactsOf,
   presetRoomOf,
   type Design,
@@ -17,6 +18,7 @@ import {
 import { expect, type Page, type Route } from "@playwright/test";
 
 import { ro } from "../../support/romanian-content.e2e";
+import { SEEDED_MINT_DESIGN } from "../../support/seeded-mint-design";
 import { chooseAnotherMaterialAndSave } from "./design-return";
 import { expectEditorTopBarShown } from "./editor-top-bar";
 
@@ -40,7 +42,6 @@ const PRESET_IMAGE_PATH = `${PRESET_LIST_PATH}/${FAKE_PRESET_ID}/image`;
 const DESIGN_PATH = /^\/ro\/d\/([^/]+)$/;
 /** `waitForURL` matches the whole address, not its path. */
 const DESIGN_URL = /\/ro\/d\/[^/]+$/;
-const REVISION_SHAPE = /^[1-9][0-9]{0,18}$/;
 const SAVED_STATUS = 201;
 const OK_STATUS = 200;
 
@@ -99,7 +100,12 @@ export async function runPresetOwnerLoop(
   expect(copy.design.room.widthMm).toBe(OTHER_WALL_A_MM);
   expect(copy.design.room.heightMm).toBe(HEIGHT_MM);
   expect(copy.design.placements.length).toBeGreaterThan(0);
-  expect(copy.design.settings).toEqual(stored.design.settings);
+  // A copy is a new kitchen, so it is stamped with the new-kitchen settings (nothing saved: the fixed fallbacks), over the
+  // preset's own material and colour; the preset's depth is kept (R4b3, criterion (a)).
+  expect(copy.design.settings).toEqual(SEEDED_MINT_DESIGN.settings);
+  expect(copy.design.settings?.cabinetDepthMm).toBe(
+    stored.design.settings?.cabinetDepthMm,
+  );
 
   await editTheCopyAndKeepThePreset(page, copyId, copy);
 
@@ -261,7 +267,7 @@ async function answerSave(
   const designId = PRESET_POST_PATH.exec(new URL(request.url()).pathname)?.[1];
   const body = request.postDataJSON() as SavedBody;
   expect(designId).toBeDefined();
-  expect(body.revision).toMatch(REVISION_SHAPE);
+  expect(isDesignRevisionShape(body.revision)).toBe(true);
   expect(["image/webp", "image/png", "image/jpeg"]).toContain(body.imageType);
   expect(body.image.length).toBeGreaterThan(0);
   expect(body.image).not.toContain("data:");

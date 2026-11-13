@@ -282,6 +282,7 @@ describe("the click an e2e spec performs still lights the swatch it clicked", ()
         content: ro,
         material: materialOfDesign(state.design),
         meta: describeSelection({
+          kitchenSettings: {},
           records: state.records,
           voids: state.voids,
           catalog: state.catalog,

@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 
 import {
+  changeStaffDesignForTests,
   countStaffFixturesForTests,
   newStaffFixtureMarker,
   plantStaffAccountForTests,
@@ -13,6 +14,7 @@ import {
   type StaffFixtureCounts,
 } from "@lemnaria/persistence";
 import type {
+  Design,
   RequestStatus,
   StaffAuditAction,
 } from "@lemnaria/configurator-domain";
@@ -25,6 +27,7 @@ import {
   STAFF_KITCHEN_OPEN_BY_ACCOUNT_POLICY,
   STAFF_KITCHENS_LIST_BY_ACCOUNT_POLICY,
   STAFF_NOTE_BY_ACCOUNT_POLICY,
+  STAFF_SEEN_BY_ACCOUNT_POLICY,
   STAFF_STATUS_BY_ACCOUNT_POLICY,
   STAFF_UNHIDE_BY_ACCOUNT_POLICY,
 } from "../../../src/lib/server/rate-limit/limit-policy";
@@ -72,11 +75,24 @@ export interface WorldMember {
   readonly cookie: StaffCookie;
 }
 
+/** What the shop was sent: the kitchen as it was then, and the total it was priced at. */
+export interface SentCopySpec {
+  readonly document: Design;
+  readonly pricedTotalMinor?: number;
+  /** The revision the request was sent at; the design's own when left out, which is the first. */
+  readonly designRevision?: string;
+}
+
 export interface SentKitchenSpec {
   readonly name: string;
   readonly status?: RequestStatus;
   readonly notes?: readonly string[];
   readonly hasRequest?: boolean;
+  /** Left out, the request holds no copy as sent and no total. */
+  readonly sentCopy?: SentCopySpec;
+  /** The kitchen is saved with this document before the request is made, so the request is sent at revision 2: the
+   *  kitchen then reads as changed only once it is saved again. */
+  readonly savedBeforeSending?: Design;
 }
 
 export interface StaffWorld {
@@ -118,6 +134,7 @@ const STAFF_POLICIES = [
   STAFF_NOTE_BY_ACCOUNT_POLICY,
   STAFF_STATUS_BY_ACCOUNT_POLICY,
   STAFF_UNHIDE_BY_ACCOUNT_POLICY,
+  STAFF_SEEN_BY_ACCOUNT_POLICY,
 ] as const;
 
 async function plantMember(
@@ -192,6 +209,7 @@ export const NOTHING_LEFT: StaffFixtureCounts = Object.freeze({
   staffAuditEvents: 0,
   contactSubmissions: 0,
   designShareLinks: 0,
+  designStaffSeen: 0,
   designs: 0,
   accountSessions: 0,
   accountEmailTokens: 0,
@@ -209,8 +227,24 @@ export async function plantSentKitchen(
     ownerAccountId: world.client.accountId,
     name: spec.name,
   });
+  if (spec.savedBeforeSending !== undefined) {
+    await saveKitchenAgain(world, designId, spec.savedBeforeSending);
+  }
   if (spec.hasRequest ?? true) {
-    await plantStaffRequestForTests(world.marker, { designId });
+    await plantStaffRequestForTests(world.marker, {
+      designId,
+      ...(spec.sentCopy === undefined
+        ? {}
+        : {
+            sentDocument: spec.sentCopy.document,
+            ...(spec.sentCopy.pricedTotalMinor === undefined
+              ? {}
+              : { pricedTotalMinor: spec.sentCopy.pricedTotalMinor }),
+            ...(spec.sentCopy.designRevision === undefined
+              ? {}
+              : { designRevision: spec.sentCopy.designRevision }),
+          }),
+    });
   }
   if (spec.status !== undefined) {
     await plantStaffRequestStateForTests(world.marker, {
@@ -227,6 +261,18 @@ export async function plantSentKitchen(
     });
   }
   return designId;
+}
+
+/** The client saves the kitchen again: its revision moves past the request's, so staff read it as changed. */
+export function saveKitchenAgain(
+  world: StaffWorld,
+  designId: string,
+  document?: Design,
+): Promise<void> {
+  return changeStaffDesignForTests(world.marker, {
+    designId,
+    ...(document === undefined ? {} : { document }),
+  });
 }
 
 /** A kitchen the client hid or deleted, or a draft no account holds. */

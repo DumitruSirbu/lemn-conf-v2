@@ -33,6 +33,7 @@ const [STATEMENT = ""] = executableStatementsOf(SQL);
 const LATER_MIGRATIONS_READ_AGAINST_THE_RULE: readonly string[] = [
   "0010_create_contact_submission_views.sql",
   "0015_add_design_account_id.sql",
+  "0026_create_design_staff_seen.sql",
 ];
 
 const ALLOWED_NAMES_BEFORE_A_PARENTHESIS = [
@@ -193,6 +194,33 @@ describe("migration 0008's text", () => {
     expect(account?.sql).toMatch(/contact_submissions/i);
     expect(statements.length).toBeGreaterThan(0);
     expect(statements.join(" ")).not.toMatch(/contact_submissions/);
+  });
+
+  it("is named by 0026 only in its header comment, where the one grant on the table is SELECT on `priced`, a column the header of 0008 classes as not personal", () => {
+    const seen = readMigrationFiles().find(
+      (migration) =>
+        migration.fileName === LATER_MIGRATIONS_READ_AGAINST_THE_RULE[2],
+    );
+    const statements = executableStatementsOf(seen?.sql ?? "");
+    const headerText = (seen?.sql ?? "")
+      .split("\n")
+      .filter((line) => line.startsWith("--"))
+      .map((line) => line.replace(/^--\s?/, ""))
+      .join(" ")
+      .replace(/\s+/g, " ");
+
+    expect(statements.length).toBeGreaterThan(0);
+    expect(statements.join(" ")).not.toMatch(/contact_submissions/);
+    expect(
+      headerText.match(
+        /GRANT (?:SELECT|INSERT|UPDATE|ALL|DELETE|TRUNCATE|REFERENCES)\b[^;]*? ON TABLE public\.contact_submissions[^;]*;/g,
+      ),
+    ).toEqual([
+      "GRANT SELECT (priced) ON TABLE public.contact_submissions TO app_designs;",
+    ]);
+    expect(PERSONAL_COLUMNS).not.toContain("priced");
+    expect(UPDATABLE_COLUMNS).not.toContain("priced");
+    expect(ALL_COLUMNS).toContain("priced");
   });
 
   it("is the last migration to name the table, or its author has read the rule that no constraint reads a column the role may update", () => {

@@ -182,6 +182,8 @@ function staysOpenWith(outcome: SignedInOutcome): UnhideFailure {
   return failure.kind === "kitchen-unavailable" ? { kind: "failed" } : failure;
 }
 
-function withKitchenVisible(kitchen: StaffKitchenWire): StaffKitchenWire {
+function withKitchenVisible<Kitchen extends StaffKitchenWire>(
+  kitchen: Kitchen,
+): Kitchen {
   return { ...kitchen, kitchen: { ...kitchen.kitchen, isHidden: false } };
 }

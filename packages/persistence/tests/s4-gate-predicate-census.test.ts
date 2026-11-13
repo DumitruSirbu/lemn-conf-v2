@@ -79,6 +79,8 @@ const GATED_CONFIGURATION_METHODS = {
   updateByAccount: [3],
   loadOwned: [1],
   loadAuthorized: [1],
+  selectEditableByWriteToken: [1],
+  selectEditableByAccount: [1],
   resume: [2],
 };
 
@@ -115,16 +117,16 @@ describe("S4: the source census of every statement that reaches `designs`", () =
       });
     });
 
-    it("carries ten gate pairs, and no half of one on its own", () => {
+    it("carries twelve gate pairs, and no half of one on its own", () => {
       const code = templates.map(({ text }) => text).join("\n");
 
-      expect(templates.reduce((sum, { pairs }) => sum + pairs, 0)).toBe(10);
-      expect(code.match(HIDDEN_HALF)).toHaveLength(10);
-      expect(code.match(DELETED_HALF)).toHaveLength(10);
+      expect(templates.reduce((sum, { pairs }) => sum + pairs, 0)).toBe(12);
+      expect(code.match(HIDDEN_HALF)).toHaveLength(12);
+      expect(code.match(DELETED_HALF)).toHaveLength(12);
     });
 
-    it("reaches `designs` in every template, so none of the twelve is exempt for not being a designs statement", () => {
-      expect(templates).toHaveLength(12);
+    it("reaches `designs` in every template, so none of the fourteen is exempt for not being a designs statement", () => {
+      expect(templates).toHaveLength(14);
       for (const { text } of templates) expect(text).toMatch(REACHES_DESIGNS);
     });
 
@@ -172,13 +174,13 @@ describe("S4: the source census of every statement that reaches `designs`", () =
     });
   });
 
-  it("pins the total: twenty-five gate pairs across the two repositories", () => {
+  it("pins the total: twenty-seven gate pairs across the two repositories", () => {
     const total = [
       ...templatesOf("neon-configuration-repository.ts"),
       ...templatesOf("share-link-repository.ts"),
     ].reduce((sum, { pairs }) => sum + pairs, 0);
 
-    expect(total).toBe(25);
+    expect(total).toBe(27);
   });
 });
 
@@ -280,6 +282,32 @@ describe("S4: what each method sends carries the gate in every statement that re
               id: DESIGN_ID,
               writeTokenHash: WRITE_TOKEN_HASH,
               visitorHash: VISITOR_HASH,
+            }),
+          [],
+        ),
+      1,
+    ],
+    [
+      "loadEditable by write token",
+      () =>
+        sentBy(
+          () =>
+            configuration().loadEditable({
+              id: DESIGN_ID,
+              credential: { kind: "write-token", hash: WRITE_TOKEN_HASH },
+            }),
+          [],
+        ),
+      1,
+    ],
+    [
+      "loadEditable by account",
+      () =>
+        sentBy(
+          () =>
+            configuration().loadEditable({
+              id: DESIGN_ID,
+              credential: { kind: "account", accountId: ACCOUNT_ID },
             }),
           [],
         ),
@@ -436,7 +464,16 @@ describe("S4: what each method sends carries the gate in every statement that re
         [{ token_hash: TOKEN_HASH }],
       );
 
-      for (const statement of [...save, ...issue]) {
+      const editable = await sentBy(
+        () =>
+          configuration().loadEditable({
+            id: DESIGN_ID,
+            credential: { kind: "write-token", hash: WRITE_TOKEN_HASH },
+          }),
+        [],
+      );
+
+      for (const statement of [...save, ...issue, ...editable]) {
         expect(statement.text).toContain("write_token_hash");
         expect(statement.text).not.toContain("account_id");
       }
@@ -461,7 +498,16 @@ describe("S4: what each method sends carries the gate in every statement that re
         [{ token_hash: TOKEN_HASH }],
       );
 
-      for (const statement of [...save, ...issue]) {
+      const editable = await sentBy(
+        () =>
+          configuration().loadEditable({
+            id: DESIGN_ID,
+            credential: { kind: "account", accountId: ACCOUNT_ID },
+          }),
+        [],
+      );
+
+      for (const statement of [...save, ...issue, ...editable]) {
         expect(statement.text).toContain("account_id");
         expect(statement.text).not.toContain("write_token_hash");
       }
@@ -490,7 +536,7 @@ describe("S4: what each method sends carries the gate in every statement that re
 });
 
 describe("S4: a hidden or deleted design is `none` at the mapping as well as in the text", () => {
-  it("loadOwned, loadAuthorized and loadShared answer none for a statement that matched no row", async () => {
+  it("loadOwned, loadAuthorized, loadEditable and loadShared answer none for a statement that matched no row", async () => {
     resetQueryDriver();
     answerQueryWith([]);
     expect(
@@ -506,6 +552,14 @@ describe("S4: a hidden or deleted design is `none` at the mapping as well as in 
         id: DESIGN_ID,
         writeTokenHash: WRITE_TOKEN_HASH,
         visitorHash: VISITOR_HASH,
+      }),
+    ).toEqual({ kind: "none" });
+
+    answerQueryWith([]);
+    expect(
+      await configuration().loadEditable({
+        id: DESIGN_ID,
+        credential: { kind: "account", accountId: ACCOUNT_ID },
       }),
     ).toEqual({ kind: "none" });
 

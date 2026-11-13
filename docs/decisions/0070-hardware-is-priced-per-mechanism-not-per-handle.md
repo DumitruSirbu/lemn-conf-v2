@@ -180,3 +180,22 @@ rediscover it, in the same spirit `docs/BACKLOG.md`'s entries are recorded befor
   ([ADR 0062](0062-a-manufacturer-price-dashboard-comes-after-m8-and-shapes-seams-now.md)).
 - The bi-fold vertical-opening mechanism stays out of the catalogue and out of scope; recorded so a
   later session does not open it looking for a decision that was never asked for.
+
+## Amendment — 2026-10-26: a fourth mechanism (lift), and linked accessories beside the two built-ins
+
+**Evidence tier: owner answers of 2026-10-26, coordinator-relayed (words as relayed, not a verbatim transcript);
+doc-quoted from `docs/milestones/M10-price-dashboard.md` §4 (S-14, S-29, S-30) and §5 (A-19, A-20). Nothing is built.**
+
+- **Decision 1 ("three kinds of mechanism") and decision 6 (vertical-opening mechanisms out of scope): superseded for the
+  lift-up door.** Owner (OQ-5): "you need to add pricing for lift up mechanisms, and every lift up have at least two
+  hinges. But if the door is wide, I think more than 500, let's say, there should be already three hinges." A lift
+  mechanism is a **fourth** per-tier rate; a lift-up door counts one lift and 2 hinges, or 3 when wider than 500 mm (the
+  hinge rule above, "taller than 900", does not apply to it). The boundary is built strict; OQ-5a is an open owner flag.
+  The **bi-fold pair** that opens vertically stays out of scope: this amendment prices the lift-up door the catalogue
+  declares, not that product. Record: [ADR 0177](0177-the-m10-pricing-seams-rounding-round-up-percentages-deepening-fixed-size-rows-linked-accessories-and-the-lift-mechanism.md) A-20.
+- **Decision 4 (two sink-specific extras): extended.** The two extras keep their code-defined rules, unchanged and still
+  not selectable. Beside them the book gains **linked accessories**: a manufacturer-created accessory linked to a
+  cabinet type, one unit per placement of that type (owner OQ-4: "keep this link between accessory and a type of
+  cabinet … on creating a new accessory"). That creating one is in scope is the coordinator's reading, **flagged OQ-4a**.
+  ADR 0177 A-19.
+- The amounts in this record remain sample amounts and are not approved.

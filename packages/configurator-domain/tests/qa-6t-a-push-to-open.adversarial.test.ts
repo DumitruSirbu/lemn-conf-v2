@@ -6,7 +6,6 @@ import { describe, expect, it } from "vitest";
 
 import { kindLabel } from "../src/catalog.js";
 
-import { isPushOpenByDefault } from "../src/bands.js";
 import { cabinetHandleCount } from "../src/cabinet-handles.js";
 import {
   CABINET_SIZED_OPENING_MAX_M,
@@ -33,6 +32,9 @@ import {
 import { toMetres, toMillimetres } from "../src/millimetres.js";
 import type { PriceBook } from "../src/pricing/price-book.js";
 import { priceDesign } from "../src/pricing/price-design.js";
+import { MEASURED_DEEPENING_ROWS } from "./support/deepening-rows.js";
+import { NOTHING_DISABLED } from "./support/availability.js";
+import { roundedToTenLei } from "./support/line-amounts.js";
 import { SAMPLE_PRICE_BOOK } from "../src/pricing/sample-price-book.js";
 import { isPushToOpen, TOP_ROW_Y0_MM } from "../src/push-to-open.js";
 import {
@@ -119,7 +121,11 @@ function isPushToOpenByTheRuling(body: BodyCensus): boolean {
 }
 
 function openingFrontsOf(body: BodyCensus): number {
-  return body.leafHeightsMm.length + body.drawers;
+  return doorLeavesOf(body) + body.drawers;
+}
+
+function doorLeavesOf(body: BodyCensus): number {
+  return body.leafHeightsMm.length;
 }
 
 function hingesOf(body: BodyCensus): number {
@@ -163,19 +169,24 @@ describe("the demo's 16 latches, derived from the fixture rather than from the c
       "p22",
       "p23",
     ]);
-    expect(sum(latched.map(openingFrontsOf))).toBe(16);
+    expect(sum(latched.map(doorLeavesOf))).toBe(16);
     for (const body of latched) {
       expect(body.y0Mm).toBeGreaterThanOrEqual(TOP_ROW_FLOOR_MM);
     }
   });
 
-  it("agrees with countHardwareMechanisms on all three quantities", () => {
+  it("agrees with countHardwareMechanisms on every quantity", () => {
+    const latched = SEEDED_CENSUS.filter(isPushToOpenByTheRuling);
+    const unlatched = SEEDED_CENSUS.filter(
+      (body) => !isPushToOpenByTheRuling(body),
+    );
+
     expect(countHardwareMechanisms(SEEDED_ENTRIES, CATALOG)).toEqual({
       hinges: sum(SEEDED_CENSUS.map(hingesOf)),
-      drawers: sum(SEEDED_CENSUS.map((body) => body.drawers)),
-      pushToOpen: sum(
-        SEEDED_CENSUS.filter(isPushToOpenByTheRuling).map(openingFrontsOf),
-      ),
+      drawers: sum(unlatched.map((body) => body.drawers)),
+      pushRunners: sum(latched.map((body) => body.drawers)),
+      pushToOpen: sum(latched.map(doorLeavesOf)),
+      lifts: 0,
     });
   });
 
@@ -191,15 +202,16 @@ describe("the demo's 16 latches, derived from the fixture rather than from the c
   });
 });
 
-/** `PUSH_WHEREVER_PERMITTED` in `hardware-tier-reconciliation.test.ts` bills 39. It must not stamp `push` onto
- *  bodies whose definitions permit no mode, so it is checked for that as well as for its number. */
-describe("a genuine push kitchen bills 39, and is genuinely a push kitchen", () => {
+/** `PUSH_WHEREVER_PERMITTED` in `hardware-tier-reconciliation.test.ts` bills 34 latches and 5 push runners. It must
+ *  not stamp `push` onto bodies whose definitions permit no mode, so it is checked for that as well as for its
+ *  numbers. */
+describe("a genuine push kitchen bills 34 latches and 5 push runners, and is genuinely a push kitchen", () => {
   const STAMPED: readonly BodyCensus[] = SEEDED_CENSUS.map((body) =>
     body.canHandle ? { ...body, recordedHandle: "push" as const } : body,
   );
 
   // Asked of the shipped count: `push` stamped onto every body, the ones whose definitions permit no mode
-  // included, bills the same 39 as stamping only where one is permitted.
+  // included, bills the same 34 as stamping only where one is permitted.
   it("stamps a mode only where the definition permits one", () => {
     const stampedEverywhere: Design = {
       ...KITCHEN_L_DESIGN,
@@ -217,23 +229,23 @@ describe("a genuine push kitchen bills 39, and is genuinely a push kitchen", () 
         ),
         CATALOG,
       ).pushToOpen,
-    ).toBe(39);
+    ).toBe(34);
   });
 
-  it("derives 39 as 41 opening fronts less the two bars that stay on", () => {
+  it("derives 34 as 36 door leaves less the two bars that stay on", () => {
     const unlatched = STAMPED.filter(
-      (body) => !isPushToOpenByTheRuling(body) && openingFrontsOf(body) > 0,
+      (body) => !isPushToOpenByTheRuling(body) && doorLeavesOf(body) > 0,
     );
 
     expect(
-      unlatched.map((body) => [body.placementId, openingFrontsOf(body)]),
+      unlatched.map((body) => [body.placementId, doorLeavesOf(body)]),
     ).toEqual([
       ["p25", 1],
       ["p9", 1],
     ]);
-    expect(
-      sum(STAMPED.filter(isPushToOpenByTheRuling).map(openingFrontsOf)),
-    ).toBe(39);
+    expect(sum(STAMPED.filter(isPushToOpenByTheRuling).map(doorLeavesOf))).toBe(
+      34,
+    );
   });
 
   it("agrees with the shipped count on the same design", () => {
@@ -255,8 +267,8 @@ describe("a genuine push kitchen bills 39, and is genuinely a push kitchen", () 
           (group) => group.entries,
         ),
         CATALOG,
-      ).pushToOpen,
-    ).toBe(39);
+      ),
+    ).toMatchObject({ pushToOpen: 34, drawers: 0, pushRunners: 5 });
   });
 });
 
@@ -344,10 +356,10 @@ const EVERY_ROW_AT_EVERY_LEGAL_SIZE: readonly SweptRow[] = [...CATALOG].flatMap(
 
 /**
  * The claim that makes the owner's rule total (ADR 0092 decision 3, Amendment C): every front has a bar or a
- * latch, else nothing opens it and pricing bills a mechanism the body lacks or omits one it has. Stated as
+ * push mechanism, else nothing opens it and pricing bills a mechanism the body lacks or omits one it has. Stated as
  * *no bar implies nothing opens*.
  */
-describe("no catalogue row has a front with neither a bar nor a latch", () => {
+describe("no catalogue row has a front with neither a bar nor a push mechanism", () => {
   it("sweeps every row of both populations, at every legal width and frame height", () => {
     const sweptIds = new Set(
       EVERY_ROW_AT_EVERY_LEGAL_SIZE.map((row) => row.buildId),
@@ -403,17 +415,20 @@ describe("the metre frame and the millimetre predicate survive the trip between 
     "answers the same in millimetres, in metres, and through the scene's frame",
     (y0Mm) => {
       const asDocumented = isPushToOpen({
+        kitchenSettings: {},
         y0Mm,
         recordedHandle: undefined,
         canHandle: true,
       });
       const asTheSceneAsksIt = isPushToOpen({
+        kitchenSettings: {},
         y0Mm: toMillimetres(toMetres(y0Mm)),
         recordedHandle: undefined,
         canHandle: true,
       });
 
-      expect(asDocumented).toBe(isPushOpenByDefault(toMetres(y0Mm)));
+      // the literal line, not a second restatement of the function under test
+      expect(asDocumented).toBe(y0Mm >= 2_200);
       expect(asTheSceneAsksIt).toBe(asDocumented);
     },
   );
@@ -421,6 +436,7 @@ describe("the metre frame and the millimetre predicate survive the trip between 
   it("puts the flip between 2199 and 2200 on the scene's own path too", () => {
     const throughTheFrame = (y0Mm: number): boolean =>
       isPushToOpen({
+        kitchenSettings: {},
         y0Mm: toMillimetres(toMetres(y0Mm)),
         recordedHandle: undefined,
         canHandle: true,
@@ -438,6 +454,7 @@ function entryAt(
   overrides: Partial<DisplayEntry> & { readonly buildId: string },
 ): DisplayEntry {
   return {
+    kitchenSettings: {},
     placementId: "under-test",
     label: kindLabel("under_test"),
     wall: "A",
@@ -497,7 +514,13 @@ describe("canHandle disqualifies the recorded mode and never exempts a body", ()
         [entryAt({ buildId: REFUSING_ROW, y0Mm: 1_500, handle: "push" })],
         CATALOG,
       ),
-    ).toEqual({ hinges: 2, drawers: 0, pushToOpen: 0 });
+    ).toEqual({
+      hinges: 2,
+      drawers: 0,
+      pushRunners: 0,
+      pushToOpen: 0,
+      lifts: 0,
+    });
   });
 
   it.each(["push", "steel", "black"] as const)(
@@ -623,6 +646,8 @@ function hardwareAmountOf(
     book,
     pricingVersion: book.version,
     selections: { hardwareTierId: tierId },
+    deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
   });
   if (!result.ok) throw new Error(`design refused: ${result.failure.code}`);
   const line = result.priced.lines.find(
@@ -650,8 +675,11 @@ describe("the seeded hardware line moves with the book's push rate and not with 
       const book = bookWithPushRate(perPushToOpenMinor);
 
       for (const tierId of EVERY_TIER_ID) {
+        // The line is the exact sum rounded once to ten lei (ADR 0177 A-1): affine in the rate to within that grain.
         expect(hardwareAmountOf(KITCHEN_L_DESIGN, tierId, book)).toBe(
-          (HINGES_AND_DRAWERS_MINOR[tierId] ?? 0) + 16 * perPushToOpenMinor,
+          roundedToTenLei(
+            (HINGES_AND_DRAWERS_MINOR[tierId] ?? 0) + 16 * perPushToOpenMinor,
+          ),
         );
       }
     },
@@ -664,7 +692,7 @@ describe("the seeded hardware line moves with the book's push rate and not with 
     (tierId) => {
       expect(
         hardwareAmountOf(KITCHEN_L_DESIGN, tierId, bookWithPushRate(0)),
-      ).toBe(HINGES_AND_DRAWERS_MINOR[tierId]);
+      ).toBe(roundedToTenLei(HINGES_AND_DRAWERS_MINOR[tierId] ?? Number.NaN));
     },
   );
 });

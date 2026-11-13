@@ -39,7 +39,7 @@ All are archived in [`done/`](done/README.md) and must not be read.
 | M7 | M7B | M7C |
 | 8M2 | 8N (8J2) | 8Q2 |
 | 8V | adversarial-review-remediation | chrome-parity-with-the-design-reference |
-| dom-003-set-width-split | | |
+| dom-003-set-width-split | M10 (archived 2026-11-11) | |
 
 ## Phase sequence and why it holds
 

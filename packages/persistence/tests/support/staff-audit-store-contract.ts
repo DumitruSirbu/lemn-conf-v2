@@ -2,7 +2,10 @@ import {
   STAFF_AUDIT_ACTIONS,
   auditActionNamesDesign,
 } from "@lemnaria/configurator-domain";
-import type { StaffAuditEntry } from "@lemnaria/configurator-domain";
+import type {
+  DashboardAuditEntry,
+  StaffAuditEntry,
+} from "@lemnaria/configurator-domain";
 import { nanoid } from "nanoid";
 import { describe, expect, it } from "vitest";
 
@@ -131,10 +134,49 @@ const ACTIONS_NAMING_NO_DESIGN = STAFF_AUDIT_ACTIONS.filter(
   (action) => !auditActionNamesDesign(action),
 );
 
+const DASHBOARD_ENTRIES: readonly DashboardAuditEntry[] = [
+  { action: "price-draft-changed", detail: { changeKind: "depth-rule" } },
+  {
+    action: "price-draft-reverted",
+    detail: { changeKind: "provisional", revertedCount: 1 },
+  },
+  {
+    action: "price-bulk-changed",
+    detail: { scope: "all", percent: 5, ruleCount: 12, amountCount: 40 },
+  },
+  {
+    action: "price-published",
+    detail: { sequenceNumber: 2, changeCount: 3, provisional: false },
+  },
+  {
+    action: "price-restored-to-draft",
+    detail: { fromSequenceNumber: 1, changeCount: 2 },
+  },
+  {
+    action: "catalogue-item-active-changed",
+    detail: {
+      itemKind: "material",
+      itemId: "material.painted-mdf",
+      active: true,
+      availabilityRevision: "4",
+    },
+  },
+  {
+    action: "kitchen-defaults-saved",
+    detail: { changedFields: ["finish", "handle"] },
+  },
+  { action: "kitchen-seen", detail: {} },
+  { action: "price-catalogue-viewed", detail: { section: "history" } },
+];
+
 function entryOf(action: string): StaffAuditEntry {
   if (action === "status-changed") return STATUS_CHANGED;
   if (action === "kitchens-listed") return KITCHENS_LISTED;
   if (action === "audit-viewed") return AUDIT_VIEWED;
+  const dashboardEntry = DASHBOARD_ENTRIES.find(
+    (entry) => entry.action === action,
+  );
+  if (dashboardEntry !== undefined) return dashboardEntry;
   return { action, detail: null } as StaffAuditEntry;
 }
 

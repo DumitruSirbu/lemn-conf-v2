@@ -40,6 +40,11 @@ import { required } from "./support/required.js";
 import { describeStructure } from "./support/structure.js";
 import { labelOf, mountedById, mountU, SWEPT_US } from "./support/u-scene.js";
 
+// The first test pays for the cold build of the generated rooms: 1.3 s under the parallel package run (0.5 s alone).
+// The unit gate runs every package at once on a slower runner, so this is sized at 10x that and not left at the 5 s
+// default.
+const FIRST_CORNER_BUILD_TIMEOUT_MS = 30_000;
+
 const OCCURRED_AT = "2026-10-01T10:00:00.000Z";
 const DEEP_MM = 700;
 const ONE_MM = 0.001;
@@ -288,11 +293,15 @@ function returnSeams(): Seam[] {
 }
 
 describe("every return seam in a generated room stands on the run's four lines (criterion 1)", () => {
-  it("measures each kind of run body the rooms were chosen for, at both depths", () => {
-    const kinds = new Set(returnSeams().map((seam) => seam.neighbourBuildId));
+  it(
+    "measures each kind of run body the rooms were chosen for, at both depths",
+    () => {
+      const kinds = new Set(returnSeams().map((seam) => seam.neighbourBuildId));
 
-    expect([...kinds].sort()).toEqual(NEIGHBOUR_KINDS_THE_ROOMS_MUST_COVER);
-  });
+      expect([...kinds].sort()).toEqual(NEIGHBOUR_KINDS_THE_ROOMS_MUST_COVER);
+    },
+    FIRST_CORNER_BUILD_TIMEOUT_MS,
+  );
 
   it.each(LINES.map(({ line }) => line))(
     "leaves no %s seam off the line by a millimetre",

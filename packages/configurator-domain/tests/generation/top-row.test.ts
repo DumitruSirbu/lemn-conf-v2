@@ -310,6 +310,7 @@ describe("how a top cabinet opens (criterion 3)", () => {
       expect(top.body.handle).toBeUndefined();
       expect(
         isPushToOpen({
+          kitchenSettings: {},
           y0Mm: top.y0Mm,
           recordedHandle: top.body.handle,
           canHandle: catalog.get(top.body.buildId)?.canHandle === true,

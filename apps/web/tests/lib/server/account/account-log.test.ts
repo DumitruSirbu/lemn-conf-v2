@@ -4,6 +4,7 @@ import {
   ACCOUNT_EVENTS,
   ACCOUNT_OUTCOMES,
   reportAccountEvent,
+  reportUnreadableDesigns,
   type AccountEvent,
   type AccountOutcome,
 } from "@/lib/server/account/account-log";
@@ -45,6 +46,11 @@ describe("the lists", () => {
       "staff-note",
       "staff-status",
       "staff-unhide",
+      "staff-seen",
+      "staff-changed-count",
+      "staff-prices",
+      "staff-price-draft",
+      "staff-price-usage",
       "kitchen-rename",
       "kitchen-duplicate",
       "kitchen-hide",
@@ -218,6 +224,43 @@ describe("a line", () => {
     }).not.toThrow();
     expect(() => {
       reportAccountEvent({ event: "login", outcome: "unavailable" });
+    }).not.toThrow();
+  });
+});
+
+describe("the line of designs a usage read left out", () => {
+  it("is the event and the count alone", () => {
+    reportUnreadableDesigns(3);
+
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith("[account]", {
+      event: "staff-price-usage",
+      unreadableDesigns: 3,
+    });
+    expect(error).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["none", 0],
+    ["a negative count", -1],
+    ["a fraction", 1.5],
+    ["not a number", Number.NaN],
+    ["beyond a safe integer", Number.MAX_SAFE_INTEGER + 1],
+    ["not a number at all", "3" as never],
+  ])("writes nothing for %s", (_label, count) => {
+    reportUnreadableDesigns(count);
+
+    expect(warn).not.toHaveBeenCalled();
+    expect(error).not.toHaveBeenCalled();
+  });
+
+  it("never throws, whatever the console does", () => {
+    warn.mockImplementation(() => {
+      throw new Error("console closed");
+    });
+
+    expect(() => {
+      reportUnreadableDesigns(2);
     }).not.toThrow();
   });
 });

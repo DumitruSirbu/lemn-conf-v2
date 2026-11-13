@@ -17,8 +17,10 @@ import {
   type StaffReadFailure,
 } from "./staff-read-request";
 import { raiseStaffSessionExpired } from "./staff-session-expiry";
+import { withMarksOfKitchen } from "./staff-kitchens-marks-reading";
 import type {
   StaffKitchenNoteWire,
+  StaffKitchenOpenedWire,
   StaffKitchenRequestWire,
   StaffKitchenStatusWire,
   StaffKitchenWire,
@@ -50,10 +52,12 @@ export type StaffKitchenState =
   | { readonly phase: "not-found" }
   /** A live session that holds no right to read kitchens; the screen draws the staff frame's forbidden page. */
   | { readonly phase: "forbidden" }
-  | { readonly phase: "ready"; readonly kitchen: StaffKitchenWire };
+  | { readonly phase: "ready"; readonly kitchen: StaffKitchenOpenedWire };
 
 /** A change the page makes to the kitchen it shows, from the answer of one of its writes. */
-export type StaffKitchenEdit = (kitchen: StaffKitchenWire) => StaffKitchenWire;
+export type StaffKitchenEdit = (
+  kitchen: StaffKitchenOpenedWire,
+) => StaffKitchenOpenedWire;
 
 export interface StaffKitchenReading {
   readonly state: StaffKitchenState;
@@ -68,7 +72,7 @@ export interface StaffKitchenReading {
 }
 
 type KitchenStep =
-  | { readonly kind: "kitchen"; readonly kitchen: StaffKitchenWire }
+  | { readonly kind: "kitchen"; readonly kitchen: StaffKitchenOpenedWire }
   | { readonly kind: "failed"; readonly failure: StaffKitchenFailure }
   | { readonly kind: "not-found" }
   | { readonly kind: "forbidden" }
@@ -198,7 +202,9 @@ function stepOf(
   const outcome = classifySignedInAnswer("staff-kitchen", answer);
   switch (outcome.kind) {
     case "received": {
-      const kitchen = staffKitchenFrom(outcome.body);
+      const base = staffKitchenFrom(outcome.body);
+      const kitchen =
+        base === undefined ? undefined : withMarksOfKitchen(base, outcome.body);
       return kitchen?.kitchen.id === designId
         ? { kind: "kitchen", kitchen }
         : failedStep({ kind: "failed" });

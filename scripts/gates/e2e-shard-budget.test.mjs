@@ -102,8 +102,8 @@ test("the workflow's shard matrices match the configured shard counts", () => {
 });
 
 test("a workflow whose total or shard list drifts from the configured counts is reported", () => {
-  const drifted = WORKFLOW_TEXT.replace("total: [9]", "total: [3]").replace(
-    "shard: [1, 2, 3, 4, 5]",
+  const drifted = WORKFLOW_TEXT.replace("total: [10]", "total: [3]").replace(
+    "shard: [1, 2, 3, 4, 5, 6, 7, 8]",
     "shard: [1, 2]",
   );
 
@@ -112,11 +112,11 @@ test("a workflow whose total or shard list drifts from the configured counts is 
   assert.equal(problems.length, 2);
   assert.match(
     problems.join("\n"),
-    /mobile: ci\.yml matrix\.total is \[3\], expected \[9\]/,
+    /mobile: ci\.yml matrix\.total is \[3\], expected \[10\]/,
   );
   assert.match(
     problems.join("\n"),
-    /desktop: ci\.yml matrix\.shard is \[1,2\], expected \[1, 2, 3, 4, 5\]/,
+    /desktop: ci\.yml matrix\.shard is \[1,2\], expected \[1, 2, 3, 4, 5, 6, 7, 8\]/,
   );
 });
 

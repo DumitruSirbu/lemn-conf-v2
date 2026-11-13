@@ -1,0 +1,27 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+
+import { describe, expect, it } from "vitest";
+
+import { BUILT_CATALOG_PAGES } from "@/price-dashboard/catalog-pages";
+import { CATALOG_PAGES } from "@/staff/staff-paths";
+
+const CATALOG_DIRECTORY = join(
+  import.meta.dirname,
+  "../../src/app/[locale]/staff/catalog",
+);
+
+describe("which catalog pages the menu may link to", () => {
+  it.each(BUILT_CATALOG_PAGES)(
+    "has a page for %s: the menu never links to an address that answers 404",
+    (page) => {
+      expect(existsSync(join(CATALOG_DIRECTORY, page, "page.tsx"))).toBe(true);
+    },
+  );
+
+  it("names only pages of the family", () => {
+    expect(
+      BUILT_CATALOG_PAGES.every((page) => CATALOG_PAGES.includes(page)),
+    ).toBe(true);
+  });
+});

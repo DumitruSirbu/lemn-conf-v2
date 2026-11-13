@@ -1,41 +1,76 @@
 "use client";
 
-// The hooks over the pricing root (`price-book-root.ts`, the only module that names a price book).
+// The hooks over the pricing root (`price-book-root.ts`) and the book the page supplied (`price-book-provider.tsx`).
+// Neither this module nor any other client module names a price book.
 //
-// Derived on every render, stored nowhere (§12): each memo is keyed on the two store slices the answer
+// Derived on every render, stored nowhere (§12): each memo is keyed on the root and the two store slices the answer
 // depends on. That caches a pure query and does not persist a total; `DesignSchema` has no price field.
-import type { PricingResult } from "@lemnaria/configurator-domain";
+import type {
+  CatalogueAvailability,
+  PricingResult,
+} from "@lemnaria/configurator-domain";
 import { useMemo } from "react";
 
 import { useConfiguratorStore } from "@/store/configurator-store";
 
-import { offerTiersAgainstBook, priceAgainstBook } from "./price-book-root";
-import type { WholeKitchenTierOffer } from "./whole-kitchen-tiers";
+import { usePriceBookRoot } from "./price-book-provider";
+import {
+  deepCabinetPercentOf,
+  offerTiersAgainstBook,
+  priceAgainstBook,
+} from "./price-book-root";
+import type { TierOfferAnswer } from "./whole-kitchen-tiers";
 
 /**
  * The current design, priced. The bar and §9's footer both read this one hook, so neither can show a
  * different number. Whole-kitchen selections come straight off `design.settings`, with nothing
- * defaulted here: a missing key is priced at the book's own default tier. A book that did not parse
- * is a refusal, not a throw, which every price surface renders as no figure rather than a zero.
+ * defaulted here: a missing key is priced at the book's own default tier. No book is a refusal, not a
+ * throw, which every price surface renders as no figure rather than a zero.
  */
 export function usePricedDesign(): PricingResult {
-  const design = useConfiguratorStore((state) => state.design);
-  const catalog = useConfiguratorStore((state) => state.catalog);
-
-  return useMemo(() => priceAgainstBook(design, catalog), [design, catalog]);
-}
-
-/**
- * Every whole-kitchen tier the book offers, each measured against its group's default (*inclus*,
- * *de la +9 000*), and the `availableTierIds` the whole-kitchen commands take. Memoised on the same
- * two store slices as `usePricedDesign`: six evaluations of one pure query, stored nowhere.
- */
-export function useWholeKitchenTierOffer(): WholeKitchenTierOffer {
+  const root = usePriceBookRoot();
   const design = useConfiguratorStore((state) => state.design);
   const catalog = useConfiguratorStore((state) => state.catalog);
 
   return useMemo(
-    () => offerTiersAgainstBook(design, catalog),
-    [design, catalog],
+    () => priceAgainstBook(root, design, catalog),
+    [root, design, catalog],
   );
+}
+
+/**
+ * The depth percentage the active book publishes (`depthRule.deepCabinetPercent`): the only source of the figure in the
+ * settings sheet's depth note. Nothing with no book, never a 0 % that would say the depth is free; the note then
+ * says prices are unavailable.
+ */
+export function usePublishedDeepCabinetPercent(): number | undefined {
+  return deepCabinetPercentOf(usePriceBookRoot());
+}
+
+/**
+ * Every whole-kitchen tier the book offers that is not switched off, each measured against its group's default
+ * (*inclus*, *de la +9 000*), and the `availableTierIds` the whole-kitchen commands take. `NO_TIER_OFFER` with no book.
+ * Memoised on the same slices as `usePricedDesign`: six evaluations of one pure query, stored nowhere.
+ */
+export function useWholeKitchenTierOffer(): TierOfferAnswer {
+  const root = usePriceBookRoot();
+  const design = useConfiguratorStore((state) => state.design);
+  const catalog = useConfiguratorStore((state) => state.catalog);
+
+  return useMemo(
+    () => offerTiersAgainstBook(root, design, catalog),
+    [root, design, catalog],
+  );
+}
+
+/** With no book there is nothing to have switched off, so the handle row still shows and works. */
+const NOTHING_SWITCHED_OFF: CatalogueAvailability = Object.freeze({
+  revision: "0",
+  disabled: [],
+});
+
+/** What the page's book says is switched off, for the settings sheet's handle row. Nothing, with no book. */
+export function useCatalogueAvailability(): CatalogueAvailability {
+  const root = usePriceBookRoot();
+  return root.kind === "active" ? root.availability : NOTHING_SWITCHED_OFF;
 }

@@ -84,7 +84,7 @@ function panelAt(
     content: ro,
     ...(direction === undefined ? {} : { direction }),
     material: PAL_KITCHEN,
-    meta: describeSelection({ ...world, target }),
+    meta: describeSelection({ kitchenSettings: {}, ...world, target }),
     offers: offersFor({
       ...world,
       target,

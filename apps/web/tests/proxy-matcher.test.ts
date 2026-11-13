@@ -97,7 +97,7 @@ describe("the interceptor's matcher: a static file still does not reach it", () 
 
 describe("the interceptor's matcher: the entries are written as the framework reads them", () => {
   it("is a list of string literals, the first entry unchanged, and an entry for each family whose address may end in an extension", () => {
-    expect(config.matcher).toHaveLength(4);
+    expect(config.matcher).toHaveLength(5);
     expect(config.matcher.every((entry) => typeof entry === "string")).toBe(
       true,
     );
@@ -105,6 +105,7 @@ describe("the interceptor's matcher: the entries are written as the framework re
       "/:locale/d/:id",
       "/:locale/s/:token",
       "/:locale/staff/kitchens/:id",
+      "/:locale/staff/catalog/:section/:id",
     ]);
   });
 });

@@ -10,6 +10,8 @@ import { KITCHEN_L_DESIGN } from "@lemnaria/configurator-domain";
 import type { StaffKitchenQuery } from "@lemnaria/configurator-domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { COLUMNS_ADDED_BY_0026 } from "./support/contact-submission-columns.js";
+import { EFFECTIVE_SEEN_REVISION } from "../src/staff-kitchen-statements.js";
 import { NeonStaffKitchenReader } from "../src/neon-staff-kitchen-reader.js";
 import {
   NOTES_READ_LIMIT,
@@ -46,9 +48,13 @@ const CEDILLA_S = ROMANIAN_CEDILLA_LETTERS.charAt(0);
 const CEDILLA_T = ROMANIAN_CEDILLA_LETTERS.charAt(2);
 const COMMA_BELOW_S = ROMANIAN_COMMA_BELOW_LETTERS.charAt(0);
 const COMMA_BELOW_T = ROMANIAN_COMMA_BELOW_LETTERS.charAt(2);
-const OPERATIONS = ["listPage", "readOne"] as const;
-const NOTHING_FOUND = [{ total: 0, id: null }];
+const OPERATIONS = ["listPage", "countChanged", "readOne"] as const;
+const NOTHING_FOUND = [{ total: 0, changed_count: 0, id: null }];
 const READABLE_ACCOUNT_COLUMNS = ["id", "email", "name", "phone"];
+
+function squashedEffectiveSeenRevision(): string {
+  return EFFECTIVE_SEEN_REVISION.replace(/\s+/g, " ").trim().toLowerCase();
+}
 
 function normalised(statement: SentQuery): string {
   return statement.text.replace(/\s+/g, " ").trim().toLowerCase();
@@ -106,6 +112,8 @@ function aKitchenRow(overrides: Record<string, unknown> = {}) {
     name: null,
     schema_version: 5,
     document: {},
+    revision: "7",
+    is_changed_since_seen: false,
     is_sent: true,
     is_hidden: false,
     sent_ms: "1790000000000",
@@ -116,6 +124,8 @@ function aKitchenRow(overrides: Record<string, unknown> = {}) {
     client_phone: null,
     request_reference: null,
     request_ms: null,
+    priced_total_minor: null,
+    priced_currency: null,
     sent_schema_version: null,
     sent_document: null,
     stored_status: null,
@@ -130,10 +140,13 @@ function aKitchenRow(overrides: Record<string, unknown> = {}) {
 function aListedRow(overrides: Record<string, unknown> = {}) {
   return {
     total: 1,
+    changed_count: 0,
     id: DESIGN_ID,
     name: null,
     is_sent: true,
     is_hidden: false,
+    is_changed: false,
+    seen_ms: null,
     sent_ms: "1790000000000",
     updated_ms: "1790000000000",
     client_id: null,
@@ -208,10 +221,86 @@ describe("the list statement", () => {
     expect(text).toContain(
       "case when ?::text = 'sent' then d.sent_at else d.updated_at end as sorted_at",
     );
-    expect(text).toContain("order by m.sorted_at desc, m.id desc limit");
+    expect(text).toContain(
+      "order by m.is_changed desc, m.sorted_at desc, m.id desc limit",
+    );
     expect(
-      text.endsWith("order by p.sorted_at desc nulls last, p.id desc"),
+      text.endsWith(
+        "order by p.is_changed desc nulls last, p.sorted_at desc nulls last, p.id desc",
+      ),
     ).toBe(true);
+  });
+
+  it("puts the kitchens changed after seen first, inside the page's own order and again outside the lateral join", async () => {
+    const text = normalised(await sentByList(aQuery()));
+
+    expect(text.indexOf("order by m.is_changed desc")).toBeGreaterThan(-1);
+    expect(text.indexOf("m.is_changed desc, m.sorted_at desc")).toBeGreaterThan(
+      text.indexOf("from matching m"),
+    );
+    expect(text).toContain("(c.id is not null) as is_changed");
+  });
+
+  it("reads when staff last saw each kitchen from the seen row, unless the mark is above the kitchen's own revision, and joins it once", async () => {
+    const text = normalised(await sentByList(aQuery()));
+
+    expect(text).toContain(
+      "case when seen.seen_revision <= d.revision then seen.seen_at end as seen_at",
+    );
+    expect(text).toContain(
+      "left join design_staff_seen seen on seen.design_id = d.id left join changed c on c.id = d.id",
+    );
+    expect(text).toContain("case when m.seen_at is null then null");
+    expect(text).toContain("as seen_ms");
+    expect(text).toContain("p.is_changed, p.seen_ms,");
+  });
+
+  it("judges changed after seen once, in SQL, over sent kitchens its client has not deleted: the revision against the seen mark, else the latest submission's", async () => {
+    const text = normalised(await sentByList(aQuery()));
+
+    expect(text).toContain(
+      "changed as ( select d.id from designs d left join design_staff_seen seen on seen.design_id = d.id " +
+        "left join latest_submission latest on latest.design_id = d.id " +
+        "where d.deleted_by_client_at is null and d.sent_at is not null " +
+        `and d.revision <> ${EFFECTIVE_SEEN_REVISION} )`,
+    );
+    expect(text).toContain(
+      "latest_submission as ( select distinct on (cs.design_id) cs.design_id, cs.design_revision from contact_submissions cs " +
+        "where cs.design_id is not null order by cs.design_id, cs.created_at desc, cs.client_request_id desc )",
+    );
+  });
+
+  it("counts the changed kitchens whatever the query asks, from the same CTE the filter reads, in the snapshot of the page", async () => {
+    const text = normalised(await sentByList(aQuery()));
+
+    expect(text).toContain(
+      "(select count(*)::int from changed) as changed_count",
+    );
+    expect(text).toContain("and (not ?::boolean or c.id is not null)");
+    expect(text).toContain("left join changed c on c.id = d.id");
+  });
+
+  it.each([
+    { onlyChanged: true, sent: true },
+    { onlyChanged: false, sent: false },
+    { onlyChanged: undefined, sent: false },
+  ])(
+    "passes onlyChanged $onlyChanged as the boolean $sent just before the page size, and never in the text",
+    async ({ onlyChanged, sent }) => {
+      const statement = await sentByList(
+        aQuery(onlyChanged === undefined ? {} : { onlyChanged }),
+      );
+
+      expect(statement.values.at(-3)).toBe(sent);
+      expect(statement.text).not.toContain("onlyChanged");
+    },
+  );
+
+  it("is the same text whether or not the changed kitchens alone are asked for", async () => {
+    const asked = (await sentByList(aQuery({ onlyChanged: true }))).text;
+    const notAsked = (await sentByList(aQuery())).text;
+
+    expect(asked).toBe(notAsked);
   });
 
   it("joins accounts and the status table on the left only, so a kitchen with no account stays", async () => {
@@ -279,6 +368,7 @@ describe("the list statement", () => {
       ROMANIAN_CEDILLA_LETTERS,
       ROMANIAN_COMMA_BELOW_LETTERS,
       null,
+      false,
       STAFF_KITCHEN_PAGE_SIZE,
       0,
     ]);
@@ -300,6 +390,7 @@ describe("the list statement", () => {
       ROMANIAN_CEDILLA_LETTERS,
       ROMANIAN_COMMA_BELOW_LETTERS,
       "%ana%",
+      false,
       STAFF_KITCHEN_PAGE_SIZE,
       staffKitchenOffsetOf(3),
     ]);
@@ -425,7 +516,38 @@ describe("the statements for one kitchen", () => {
     expect(granted).toHaveLength(7);
     const referenced = columnsReferencedThrough("cs", text);
     expect(referenced.size).toBeGreaterThan(0);
-    for (const column of referenced) expect(granted).toContain(column);
+    for (const column of referenced) {
+      expect([...granted, ...COLUMNS_ADDED_BY_0026]).toContain(column);
+    }
+  });
+
+  it("reads of the snapshot `priced` the total and the currency alone, as the two text members the statement names, and never the snapshot whole", async () => {
+    const { kitchen } = await sentByFoundReadOne();
+    const text = normalised(kitchen);
+
+    const pricedReads = [...text.matchAll(/\bcs\.priced (->>?) '(\w+)'/g)].map(
+      ([, operator, member]) => `${operator ?? ""} ${member ?? ""}`,
+    );
+    expect(pricedReads.sort()).toEqual([
+      "-> currency",
+      "-> totalminor",
+      "->> currency",
+      "->> totalminor",
+    ]);
+    expect(text.match(/\bpriced\b/g)).toHaveLength(4);
+  });
+
+  it("judges the kitchen's own changed flag in the statement that reads its revision, for a sent kitchen only", async () => {
+    const { kitchen } = await sentByFoundReadOne();
+    const text = normalised(kitchen);
+
+    expect(text).toContain("d.revision::text as revision");
+    expect(text).toContain(
+      `(d.sent_at is not null and coalesce(d.revision <> ${EFFECTIVE_SEEN_REVISION}, false)) as is_changed_since_seen`,
+    );
+    expect(text).toContain(
+      "left join design_staff_seen seen on seen.design_id = d.id",
+    );
   });
 
   it("never selects every column of a joined table or a row as one value", async () => {
@@ -449,7 +571,6 @@ describe("the statements for one kitchen", () => {
       "channel",
       "consent_text_version",
       "payload_digest",
-      "priced",
     ]) {
       expect(text).not.toContain(personal);
     }
@@ -466,7 +587,7 @@ describe("the statements for one kitchen", () => {
       "from contact_submissions cs where cs.design_id = d.id order by cs.created_at desc, cs.client_request_id desc limit 1",
     );
     expect(text).toContain(
-      "from contact_submission_views csv where csv.client_request_id = request.client_request_id and csv.revoked_at is null order by csv.created_at desc, csv.token_hash desc limit 1",
+      "from contact_submission_views csv where csv.client_request_id = latest.client_request_id and csv.revoked_at is null order by csv.created_at desc, csv.token_hash desc limit 1",
     );
   });
 
@@ -509,18 +630,20 @@ describe("the statements for one kitchen", () => {
 });
 
 describe("every statement is a read", () => {
-  it("sends only selects, in no transaction, for both operations", async () => {
+  it("sends only selects, in no transaction, for every operation", async () => {
     resetQueryDriver();
     answerQueryWith(NOTHING_FOUND);
+    answerQueryWith([{ changed_count: 0 }]);
     answerQueryWith([aKitchenRow()]);
     answerQueryWith([]);
 
     await newReader().listPage(aQuery());
+    await newReader().countChanged();
     await newReader().readOne(DESIGN_ID);
 
     expect(queryDriver.transactions).toHaveLength(0);
     const statements = everySentQuery();
-    expect(statements).toHaveLength(3);
+    expect(statements).toHaveLength(4);
     for (const statement of statements) {
       const text = normalised(statement);
       expect(text).toMatch(/^(with .*)?select /);
@@ -719,8 +842,87 @@ describe("a failure of the database", () => {
   });
 });
 
+describe("the changed count a poll reads", () => {
+  async function sentByCount(rows: unknown = [{ changed_count: 3 }]) {
+    resetQueryDriver();
+    answerQueryWith(rows);
+    const count = await newReader().countChanged();
+    return { count, statement: loneStatement() };
+  }
+
+  it("is the count the statement answers, in one lone read", async () => {
+    const { count, statement } = await sentByCount([{ changed_count: 3 }]);
+
+    expect(count).toBe(3);
+    expect(normalised(statement)).toMatch(/^with latest_submission as/);
+    expect(normalised(statement)).toMatch(
+      /select count\(\*\)::int as changed_count from changed$/,
+    );
+  });
+
+  it("states the list's two CTEs word for word, so the badge and the counter cannot judge differently", async () => {
+    const counted = normalised((await sentByCount()).statement);
+    const listed = normalised(await sentByList(aQuery()));
+    const countedCtes = counted.slice(0, counted.indexOf(" select count(*)"));
+    const listedCtes = listed.slice(0, listed.indexOf(", matching as ("));
+
+    expect(countedCtes).toContain(squashedEffectiveSeenRevision());
+    expect(countedCtes).toBe(listedCtes);
+  });
+
+  it("names only columns of contact_submissions that the application role may select", async () => {
+    const text = normalised((await sentByCount()).statement);
+
+    const referenced = columnsReferencedThrough("cs", text);
+    expect(referenced.size).toBeGreaterThan(0);
+    for (const column of referenced) {
+      expect([
+        ...readableSubmissionColumns(),
+        ...COLUMNS_ADDED_BY_0026,
+      ]).toContain(column);
+    }
+  });
+
+  it("reads no account, no status row, no kitchen document and no page", async () => {
+    const text = normalised((await sentByCount()).statement);
+
+    for (const table of ["accounts", "design_request_states", "limit"]) {
+      expect(text, table).not.toContain(table);
+    }
+    expect(text).not.toContain("document");
+    expect(text).not.toMatch(/\b(insert|update|delete)\b/);
+  });
+
+  it.each([
+    ["no row", []],
+    ["a count that is not a whole number", [{ changed_count: 1.5 }]],
+    ["a negative count", [{ changed_count: -1 }]],
+    ["a count that is text", [{ changed_count: "3" }]],
+    ["two rows", [{ changed_count: 1 }, { changed_count: 1 }]],
+  ])("refuses %s as an unexpected answer", async (_label, rows) => {
+    resetQueryDriver();
+    answerQueryWith(rows);
+
+    const failure = await failureOf(() => newReader().countChanged());
+
+    expect(failure).toMatchObject({
+      operation: "count changed staff kitchens",
+      failure: "unexpected-answer",
+    });
+  });
+
+  it("answers a missing grant as unavailable, with no driver text", async () => {
+    failQueryWith(Object.assign(new Error("secret text"), { code: "42501" }));
+
+    const failure = await failureOf(() => newReader().countChanged());
+
+    expect(failure.failure).toBe("unavailable");
+    expect(failure.message).not.toContain("secret text");
+  });
+});
+
 describe("the operations the reader offers", () => {
-  it("are exactly the two the port names, and no method that writes", () => {
+  it("are exactly the three the port names, and no method that writes", () => {
     const methods = Object.getOwnPropertyNames(
       NeonStaffKitchenReader.prototype,
     ).filter((name) => name !== "constructor");
@@ -831,4 +1033,204 @@ describe("the document of a listed kitchen", () => {
     );
     expect(page.kitchens[1]?.design).toBeNull();
   });
+});
+
+describe("what a kitchen changed after seen reads as (ADR 0178 A-12)", () => {
+  it("reads each listed kitchen's flag and the changed count the statement counted, whatever the page holds", async () => {
+    answerQueryWith([
+      aListedRow({ id: "A".repeat(21), changed_count: 5, is_changed: true }),
+      aListedRow({ id: "B".repeat(21), changed_count: 5, is_changed: false }),
+    ]);
+
+    const page = await newReader().listPage(aQuery());
+
+    expect(page.changedCount).toBe(5);
+    expect(page.kitchens.map((kitchen) => kitchen.isChangedSinceSeen)).toEqual([
+      true,
+      false,
+    ]);
+  });
+
+  it("reads the changed count of an empty page, which is one row with no kitchen", async () => {
+    answerQueryWith([{ total: 0, changed_count: 3, id: null }]);
+
+    const page = await newReader().listPage(aQuery({ onlyChanged: true }));
+
+    expect(page).toMatchObject({ total: 0, changedCount: 3, kitchens: [] });
+  });
+
+  it.each([
+    ["absent", undefined],
+    ["null", null],
+    ["negative", -1],
+    ["a fraction", 1.5],
+    ["text", "3"],
+  ])(
+    "refuses a changed count that is %s as an unexpected answer",
+    async (_label, changedCount) => {
+      answerQueryWith([aListedRow({ changed_count: changedCount })]);
+
+      const failure = await failureOf(() => newReader().listPage(aQuery()));
+
+      expect(failure.failure).toBe("unexpected-answer");
+    },
+  );
+
+  it.each([
+    ["absent", undefined],
+    ["null", null],
+    ["text", "true"],
+  ])(
+    "refuses a listed flag that is %s as an unexpected answer",
+    async (_label, isChanged) => {
+      answerQueryWith([aListedRow({ is_changed: isChanged })]);
+
+      const failure = await failureOf(() => newReader().listPage(aQuery()));
+
+      expect(failure.failure).toBe("unexpected-answer");
+    },
+  );
+
+  it("reads when staff last saw a listed kitchen as an instant, and null where no mark counts", async () => {
+    answerQueryWith([
+      aListedRow({ id: "A".repeat(21), seen_ms: "1790000123456" }),
+      aListedRow({ id: "B".repeat(21), seen_ms: null }),
+    ]);
+
+    const page = await newReader().listPage(aQuery());
+
+    expect(page.kitchens.map((kitchen) => kitchen.seenAt)).toEqual([
+      new Date(1_790_000_123_456),
+      null,
+    ]);
+  });
+
+  it.each([
+    ["absent", undefined],
+    ["text that is not an instant", "yesterday"],
+    ["a number", 1790000123456],
+  ])(
+    "refuses a seen instant that is %s as an unexpected answer",
+    async (_label, seenMs) => {
+      answerQueryWith([aListedRow({ seen_ms: seenMs })]);
+
+      const failure = await failureOf(() => newReader().listPage(aQuery()));
+
+      expect(failure.failure).toBe("unexpected-answer");
+    },
+  );
+
+  it("reads the revision the page displays as the text it was printed in, and the kitchen's own flag", async () => {
+    answerQueryWith([
+      aKitchenRow({
+        revision: "9223372036854775807",
+        is_changed_since_seen: true,
+      }),
+    ]);
+    answerQueryWith([]);
+
+    const reading = await newReader().readOne(DESIGN_ID);
+
+    expect(reading.kind === "found" && reading.kitchen).toMatchObject({
+      revision: "9223372036854775807",
+      isChangedSinceSeen: true,
+    });
+  });
+
+  it.each([
+    ["absent", undefined],
+    ["null", null],
+    ["a number", 7],
+    ["zero", "0"],
+    ["with a leading zero", "07"],
+    ["with a sign", "-7"],
+    ["a fraction", "7.5"],
+  ])(
+    "refuses a revision that is %s as an unexpected answer",
+    async (_label, revision) => {
+      answerQueryWith([aKitchenRow({ revision })]);
+      answerQueryWith([]);
+
+      const failure = await failureOf(() => newReader().readOne(DESIGN_ID));
+
+      expect(failure.failure).toBe("unexpected-answer");
+    },
+  );
+
+  it.each([
+    ["absent", undefined],
+    ["null", null],
+    ["text", "false"],
+  ])(
+    "refuses a kitchen's flag that is %s as an unexpected answer",
+    async (_label, isChanged) => {
+      answerQueryWith([aKitchenRow({ is_changed_since_seen: isChanged })]);
+      answerQueryWith([]);
+
+      const failure = await failureOf(() => newReader().readOne(DESIGN_ID));
+
+      expect(failure.failure).toBe("unexpected-answer");
+    },
+  );
+});
+
+describe("the total a request was sent at", () => {
+  async function sentTotalOf(overrides: Record<string, unknown>) {
+    answerQueryWith([aKitchenRow(overrides)]);
+    answerQueryWith([]);
+    const reading = await newReader().readOne(DESIGN_ID);
+    return reading.kind === "found" ? reading.kitchen.sentTotal : "not found";
+  }
+
+  it("is the stored total and its currency, as the snapshot holds them", async () => {
+    expect(
+      await sentTotalOf({
+        priced_total_minor: "123456",
+        priced_currency: "MDL",
+      }),
+    ).toEqual({ totalMinor: 123456, currency: "MDL" });
+  });
+
+  it("is zero for a snapshot that totals nothing, which is a total and not an absence", async () => {
+    expect(
+      await sentTotalOf({ priced_total_minor: "0", priced_currency: "MDL" }),
+    ).toEqual({ totalMinor: 0, currency: "MDL" });
+  });
+
+  it("is the widest whole number a number holds exactly", async () => {
+    expect(
+      await sentTotalOf({
+        priced_total_minor: String(Number.MAX_SAFE_INTEGER),
+        priced_currency: "MDL",
+      }),
+    ).toEqual({ totalMinor: Number.MAX_SAFE_INTEGER, currency: "MDL" });
+  });
+
+  it("is null for a request with no snapshot or a snapshot with no numeric total", async () => {
+    expect(await sentTotalOf({})).toBeNull();
+    expect(
+      await sentTotalOf({ priced_total_minor: null, priced_currency: "MDL" }),
+    ).toBeNull();
+  });
+
+  it.each([
+    ["more than a number holds exactly", "9007199254740993", "MDL"],
+    ["with a fraction", "12.5", "MDL"],
+    ["negative", "-1", "MDL"],
+    ["in exponent form", "1e3", "MDL"],
+    ["with a leading zero", "012", "MDL"],
+    ["empty", "", "MDL"],
+    ["of a currency this build does not price in", "100", "EUR"],
+    ["with no currency", "100", null],
+  ])(
+    "shows no total, and does not fail the page, for a total that is %s",
+    async (_label, total, currency) => {
+      expect(
+        await sentTotalOf({
+          priced_total_minor: total,
+          priced_currency: currency,
+        }),
+      ).toBeNull();
+    },
+  );
 });

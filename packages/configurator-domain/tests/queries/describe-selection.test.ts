@@ -21,7 +21,11 @@ import { OFFERED_ON_PAL_FINISH } from "../support/material-finish-pairs.js";
 const seeded = () => createWorld(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG);
 
 function metaFor(world: ReturnType<typeof seeded>, id: string) {
-  return describeSelection({ ...world, target: { kind: "placement", id } });
+  return describeSelection({
+    kitchenSettings: {},
+    ...world,
+    target: { kind: "placement", id },
+  });
 }
 
 /** The seeded catalogue with one **insertable** entry rewritten. Rewriting the §7 row rather than
@@ -44,6 +48,7 @@ describe("describeSelection — an occupied body", () => {
   it("reports the numbers §9 disables its sections from", () => {
     const world = seeded();
     const meta = describeSelection({
+      kitchenSettings: {},
       ...world,
       target: { kind: "placement", id: "p0" },
     });
@@ -69,6 +74,7 @@ describe("describeSelection — an occupied body", () => {
   it("reports the corner leg as a body that cannot be replaced or deleted", () => {
     const world = seeded();
     const meta = describeSelection({
+      kitchenSettings: {},
       ...world,
       target: { kind: "placement", id: "p25" },
     });
@@ -82,6 +88,7 @@ describe("describeSelection — an occupied body", () => {
   it("keeps the top row's own label", () => {
     const world = seeded();
     const meta = describeSelection({
+      kitchenSettings: {},
       ...world,
       target: { kind: "placement", id: "p15" },
     });
@@ -92,6 +99,7 @@ describe("describeSelection — an occupied body", () => {
     const world = seeded();
     expect(
       describeSelection({
+        kitchenSettings: {},
         ...world,
         target: { kind: "placement", id: "p999" },
       }),
@@ -104,6 +112,7 @@ describe("describeSelection — a void", () => {
     const world = clearBodies(seeded(), ["p7", "p24"]);
     const slot = voidAt(world, "B|2.45", 0);
     const meta = describeSelection({
+      kitchenSettings: {},
       ...world,
       target: { kind: "void", id: slot.id },
     });
@@ -127,6 +136,7 @@ describe("describeSelection — a void", () => {
     const world = seeded();
     expect(
       describeSelection({
+        kitchenSettings: {},
         ...world,
         target: { kind: "void", id: "A|9.99:v0:0.00" },
       }),
@@ -148,6 +158,7 @@ describe("describeSelection — width chips", () => {
 
     expect(
       describeSelection({
+        kitchenSettings: {},
         ...world,
         target: { kind: "placement", id: inserted.effect.placementId },
       })?.sizesMm,
@@ -283,6 +294,7 @@ describe("describeSelection — §9's canWidth flag", () => {
   it("is true for a body whose width the catalogue lets move", () => {
     const world = seeded();
     const meta = describeSelection({
+      kitchenSettings: {},
       ...world,
       target: { kind: "placement", id: "p0" },
     });
@@ -303,6 +315,7 @@ describe("describeSelection — §9's canWidth flag", () => {
     });
     const world = createWorld(KITCHEN_L_DESIGN, catalog);
     const meta = describeSelection({
+      kitchenSettings: {},
       ...world,
       target: { kind: "placement", id: "p0" },
     });
@@ -313,6 +326,7 @@ describe("describeSelection — §9's canWidth flag", () => {
     const world = clearBodies(seeded(), ["p1"]);
     const opening = voidAt(world, "A|2.00", 0);
     const meta = describeSelection({
+      kitchenSettings: {},
       ...world,
       target: { kind: "void", id: opening.id },
     });
@@ -341,6 +355,7 @@ describe("describeSelection — the appearance the chips must mark", () => {
     if (!handled.ok) throw new Error(handled.reason.code);
 
     const meta = describeSelection({
+      kitchenSettings: {},
       ...advance(world, handled.design),
       target: { kind: "placement", id: "p0" },
     });
@@ -354,10 +369,12 @@ describe("describeSelection — the appearance the chips must mark", () => {
   it("defaults a top-row body to push-to-open and a base body to a bar handle", () => {
     const world = seeded();
     const top = describeSelection({
+      kitchenSettings: {},
       ...world,
       target: { kind: "placement", id: "p15" },
     });
     const base = describeSelection({
+      kitchenSettings: {},
       ...world,
       target: { kind: "placement", id: "p0" },
     });

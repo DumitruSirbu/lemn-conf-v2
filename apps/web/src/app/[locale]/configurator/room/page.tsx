@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 
 import { routing } from "@/i18n/routing";
+import { readNewKitchenDefaults } from "@/lib/server/price-dashboard/new-kitchen-defaults";
 import { RoomScreen } from "@/room/room-screen";
 
 export default async function RoomPage({
@@ -28,5 +29,8 @@ export default async function RoomPage({
   // nobody used, which the next reader would have deleted as dead and silently made the route
   // static. `next build`'s route table is the check, not this comment.
   await connection();
-  return <RoomScreen />;
+  // The settings a kitchen created from this load starts with. The read waits at most its deadline, then gives the fixed
+  // fallbacks (ADR 0178).
+  const newKitchenSettings = await readNewKitchenDefaults();
+  return <RoomScreen newKitchenSettings={newKitchenSettings} />;
 }

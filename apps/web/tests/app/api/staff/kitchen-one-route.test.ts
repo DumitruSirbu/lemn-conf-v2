@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { designNotFoundResponse } from "@/lib/server/design-errors";
+import {
+  FAKE_PRICE_BOOK_FLAG,
+  FAKE_PRICE_BOOK_FLAG_ENABLED,
+} from "@/lib/server/fake-price-book-flag";
 import { CLIENT_NETWORK_SOURCE_VARIABLE } from "@/lib/server/rate-limit/network-source";
 
 import {
@@ -17,6 +21,8 @@ import {
   wireOf,
   type AccountWorld,
 } from "../../../support/account-world";
+import { forgetHeldPriceStores } from "../../../support/held-price-stores";
+import { holdNoActivePriceVersion } from "../../../support/no-active-price-version";
 import {
   SENT_AT,
   freshStaffWorld,
@@ -360,7 +366,7 @@ describe("what the answer holds", () => {
     return { staff, client, kitchen };
   }
 
-  it("is private, no-store, with exactly the kitchen, client, request, status, notes and the truncation flag", async () => {
+  it("is private, no-store, with exactly the kitchen, client, request, status, notes, truncation flag, mark, displayed revision and estimates", async () => {
     const { staff, kitchen } = await plantARichKitchen();
 
     const answer = await open(kitchen.id, { cookie: staff.session.cookie });
@@ -369,11 +375,15 @@ describe("what the answer holds", () => {
     expect(answer.headers.get("cache-control")).toBe("private, no-store");
     const body = (await jsonOf(answer)) as Record<string, unknown>;
     expect(Object.keys(body).sort()).toEqual([
+      "changedAfterSeen",
       "client",
+      "currentEstimate",
+      "displayedRevision",
       "kitchen",
       "notes",
       "notesTruncated",
       "request",
+      "sentEstimate",
       "status",
     ]);
   });
@@ -515,5 +525,118 @@ describe("what the answer holds", () => {
     ]) {
       expect(logged).not.toContain(secret);
     }
+  });
+});
+
+describe("the kitchen's mark, revision and estimates", () => {
+  afterEach(forgetHeldPriceStores);
+
+  const STORED_TOTAL = { totalMinor: 1_234_500, currency: "MDL" } as const;
+
+  interface OpenedBody {
+    readonly changedAfterSeen: boolean;
+    readonly displayedRevision: string;
+    readonly sentEstimate: unknown;
+    readonly currentEstimate: unknown;
+  }
+
+  async function opened(id: string, cookie: string): Promise<OpenedBody> {
+    const answer = await open(id, { cookie });
+    expect(answer.status).toBe(200);
+    return (await jsonOf(answer)) as OpenedBody;
+  }
+
+  function plantRequestSentAt(
+    designId: string,
+    fields: { designRevision?: string; pricedTotal?: typeof STORED_TOTAL },
+  ): void {
+    staffWorld.reader.plantRequest({
+      clientRequestId: aDesignId(),
+      designId,
+      reference: "LM-2026-0042",
+      createdAt: SENT_AT,
+      ...fields,
+    });
+  }
+
+  it("carries the revision the page displays and the store's judgement of whether the kitchen changed", async () => {
+    const { session } = await signedInOperator();
+    const changed = plantKitchen({ revision: "2" });
+    plantRequestSentAt(changed.id, { designRevision: "1" });
+    const unchanged = plantKitchen({ revision: "2" });
+    plantRequestSentAt(unchanged.id, { designRevision: "2" });
+
+    const [changedBody, unchangedBody] = [
+      await opened(changed.id, session.cookie),
+      await opened(unchanged.id, session.cookie),
+    ];
+
+    expect([
+      changedBody.changedAfterSeen,
+      changedBody.displayedRevision,
+      unchangedBody.changedAfterSeen,
+      unchangedBody.displayedRevision,
+    ]).toEqual([true, "2", false, "2"]);
+  });
+
+  it("sends the stored total of the request byte for byte, and null for a request that stored none or for no request", async () => {
+    const { session } = await signedInOperator();
+    const priced = plantKitchen();
+    plantRequestSentAt(priced.id, { pricedTotal: STORED_TOTAL });
+    const intent = plantKitchen();
+    plantRequestSentAt(intent.id, {});
+    const neverSent = plantKitchen({
+      isSent: false,
+      accountId: plantClient().id,
+    });
+
+    expect((await opened(priced.id, session.cookie)).sentEstimate).toEqual(
+      STORED_TOTAL,
+    );
+    expect((await opened(intent.id, session.cookie)).sentEstimate).toBeNull();
+    expect(
+      (await opened(neverSent.id, session.cookie)).sentEstimate,
+    ).toBeNull();
+  });
+
+  it("refuses the current estimate with the pricing's code, never a zero, when no book is active", async () => {
+    await holdNoActivePriceVersion();
+    const { session } = await signedInOperator();
+    const { id } = plantKitchen();
+    plantRequestSentAt(id, { pricedTotal: STORED_TOTAL });
+
+    const body = await opened(id, session.cookie);
+
+    expect(body.currentEstimate).toEqual({ refused: "INVALID_PRICE_BOOK" });
+    expect(body.sentEstimate).toEqual(STORED_TOTAL);
+  });
+
+  it("prices the current estimate with the active book, apart from the stored total", async () => {
+    vi.stubEnv(FAKE_PRICE_BOOK_FLAG, FAKE_PRICE_BOOK_FLAG_ENABLED);
+    forgetHeldPriceStores();
+    const { session } = await signedInOperator();
+    const { id } = plantKitchen({ design: aDesign("current") });
+    plantRequestSentAt(id, { pricedTotal: STORED_TOTAL });
+
+    const body = await opened(id, session.cookie);
+
+    const current = body.currentEstimate as {
+      totalMinor: number;
+      currency: string;
+    };
+    expect(Number.isSafeInteger(current.totalMinor)).toBe(true);
+    expect(current.totalMinor).toBeGreaterThan(0);
+    expect(current.currency).toBe("MDL");
+    expect(current).not.toEqual(STORED_TOTAL);
+    expect(body.sentEstimate).toEqual(STORED_TOTAL);
+  });
+
+  it("writes the same single kitchen-opened row as before, after both estimates are shaped", async () => {
+    const { session } = await signedInOperator();
+    const { id } = plantKitchen();
+
+    await opened(id, session.cookie);
+
+    expect(heldRows().map(({ action }) => action)).toEqual(["kitchen-opened"]);
   });
 });

@@ -30,15 +30,11 @@ import {
   unauthenticatedResponse,
 } from "@/lib/server/account/account-responses";
 import type { SignedInSession } from "@/lib/server/account/current-session";
-import {
-  readSessionCookie,
-  type SessionCookieReader,
-} from "@/lib/server/account/session-cookie";
-import { IDLE_LIFETIME_SECONDS_BY_ROLE } from "@/lib/server/account/session-lifetimes";
+import type { SessionCookieReader } from "@/lib/server/account/session-cookie";
 import { designNotFoundResponse } from "@/lib/server/design-errors";
 import { judgeAccountSubject } from "@/lib/server/rate-limit/judge-account-request";
 import type { HeaderReader } from "@/lib/server/rate-limit/network-source";
-import { sha256Hex } from "@/lib/server/sha256-hex";
+import { actingSessionOf } from "@/lib/server/staff/staff-acting-session";
 import { admitStaff } from "@/lib/server/staff/staff-admission";
 import { getStaffKitchenActionsStore } from "@/lib/server/staff/staff-kitchen-actions-store-instance";
 import {
@@ -80,7 +76,7 @@ export interface StaffBodyActionRequest extends StaffActionRequest {
   readonly bodyText: string;
 }
 
-type Judged<Value> =
+export type Judged<Value> =
   | { readonly kind: "judged"; readonly value: Value }
   | { readonly kind: "refused"; readonly response: NextResponse };
 
@@ -250,7 +246,7 @@ function judgedStatusSave(bodyText: string): Judged<StatusSaveInput> {
 /** The body is an object whose members are among the ones this route takes. Any other member, whatever its name, is a
  *  request this route does not read, and its name is not echoed. Each member is judged by the caller: an absent member is
  *  `undefined`. */
-function onlyMembersOf<Name extends string>(
+export function onlyMembersOf<Name extends string>(
   bodyText: string,
   names: readonly Name[],
 ): Judged<Readonly<Record<Name, unknown>>> {
@@ -299,18 +295,6 @@ async function refusalOfWriteLimit(
       accountId: session.accountId,
     }),
   );
-}
-
-/** The store takes the actor from the live session the cookie names, so no caller can name another account. */
-function actingSessionOf(cookies: SessionCookieReader): StaffActingSession {
-  const sessionValue = readSessionCookie(cookies);
-  if (sessionValue === undefined) {
-    throw new Error("A staff write has no session cookie to name its actor.");
-  }
-  return {
-    sessionTokenHash: sha256Hex(sessionValue),
-    idleLifetimeSeconds: IDLE_LIFETIME_SECONDS_BY_ROLE,
-  };
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

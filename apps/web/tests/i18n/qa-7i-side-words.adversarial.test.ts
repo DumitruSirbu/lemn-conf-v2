@@ -172,7 +172,7 @@ describe("7I-A15 — the panel crosses the side word for every width refusal of 
       content: ro,
       direction,
       material: PAL_KITCHEN,
-      meta: describeSelection({ ...world, target }),
+      meta: describeSelection({ kitchenSettings: {}, ...world, target }),
       offers: offersFor({
         ...world,
         target,

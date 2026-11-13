@@ -1,0 +1,331 @@
+/* The accessory screens: the list of accessories and one accessory's page. One markup, two layouts: a card until 1100 px,
+ * and the table from there. Beside the staff frame's 264 px navigation the five columns hold their titles whole and the
+ * rules' words unbroken from a layout width of 1060 px in Russian (measured in a browser, 1000 px in Romanian), so the table
+ * begins 40 px later: a classic scrollbar takes up to 20 px of the layout without touching the width the media query reads.
+ * A price is changed on the accessory's own page, never in the card. Every interactive box is at least `--touch-target`
+ * tall and wide, and every cell may shrink (`min-width: 0`) so no width makes a page scroll sideways. */
+.heading {
+  composes: heading from "./item-screen.module.css";
+}
+
+.title {
+  composes: title from "./item-screen.module.css";
+}
+
+.subtitle {
+  composes: subtitle from "./item-screen.module.css";
+}
+
+.back {
+  composes: back from "./item-screen.module.css";
+}
+
+.columns {
+  composes: columns from "./item-screen.module.css";
+}
+
+.rows {
+  composes: rows from "./item-screen.module.css";
+}
+
+.row {
+  composes: row from "./item-screen.module.css";
+}
+
+.rowName {
+  composes: rowName from "./item-screen.module.css";
+}
+
+.name {
+  composes: name from "./item-screen.module.css";
+}
+
+.rowActions {
+  composes: rowActions from "./item-screen.module.css";
+}
+
+.editLink {
+  composes: editLink from "./item-screen.module.css";
+}
+
+.more {
+  composes: more from "./item-screen.module.css";
+}
+
+.menu {
+  composes: menu from "./item-screen.module.css";
+}
+
+.description {
+  composes: description from "./item-screen.module.css";
+}
+
+.chips {
+  composes: chips from "./item-screen.module.css";
+}
+
+.menuEntry {
+  composes: menuEntry from "./item-screen.module.css";
+}
+
+.rowMenu {
+  composes: rowMenu from "./item-screen.module.css";
+}
+
+.menuItem {
+  composes: menuItem from "./item-screen.module.css";
+}
+
+.menuReason {
+  composes: menuReason from "./item-screen.module.css";
+}
+
+.notice {
+  composes: notice from "./item-screen.module.css";
+}
+
+.addLink {
+  composes: addLink from "./item-screen.module.css";
+}
+
+.linkAction {
+  composes: linkAction from "./item-screen.module.css";
+}
+
+.editColumns {
+  composes: editColumns from "./item-screen.module.css";
+}
+
+.editColumn {
+  composes: editColumn from "./item-screen.module.css";
+}
+
+.cardTitle {
+  composes: cardTitle from "./item-screen.module.css";
+}
+
+.intro {
+  composes: intro from "./item-screen.module.css";
+}
+
+.words {
+  composes: words from "./item-screen.module.css";
+}
+
+.wordsLabel {
+  composes: wordsLabel from "./item-screen.module.css";
+}
+
+.wordsValue {
+  composes: wordsValue from "./item-screen.module.css";
+}
+
+.switch {
+  composes: switch from "./item-screen.module.css";
+}
+
+.switchState {
+  composes: switchState from "./item-screen.module.css";
+}
+
+.hint {
+  composes: hint from "./item-screen.module.css";
+}
+
+.fields {
+  composes: fields from "./item-screen.module.css";
+}
+
+.actions {
+  composes: actions from "./item-screen.module.css";
+}
+
+.saved {
+  composes: saved from "./item-screen.module.css";
+}
+
+.savedLink {
+  composes: savedLink from "./item-screen.module.css";
+}
+
+.fixToSave {
+  composes: fixToSave from "./item-screen.module.css";
+}
+
+.danger {
+  composes: danger from "./item-screen.module.css";
+}
+
+.page {
+  composes: page from "./item-screen.module.css";
+  /* The widest title word of a column at 11 px uppercase with its letter-spacing ("Состояние", about 85 px at the
+   * proportion of a measured Russian title word) plus a few pixels: no title runs into the next one. */
+  --title-column-min: 96px;
+
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  padding-bottom: 28px;
+}
+
+.chip {
+  composes: chip from "./item-screen.module.css";
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 10px;
+  font: 700 11.5px/1.3 var(--font-ui);
+  color: var(--ink-muted);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+
+.cells {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 12px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font: 400 13px/1.4 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+}
+
+.cellLabel {
+  font: 400 12px/1.3 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.cellValue {
+  font: 700 14px/1.3 var(--font-ui);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.cellText {
+  font: 400 13px/1.4 var(--font-ui);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.cellNote {
+  font: 400 12px/1.3 var(--font-ui);
+  color: var(--ink-muted);
+  overflow-wrap: anywhere;
+}
+
+/* The cabinet types of the creation form: a box like the fields' own, with the browser's arrow. */
+.select {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 14px;
+  font: 400 15px/1.3 var(--font-ui);
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.select[aria-invalid="true"] {
+  background: var(--refusal-surface);
+  border: 2px solid var(--refusal);
+}
+
+@media (min-width: 1100px) {
+  .page {
+    --table-columns: minmax(0, 1.6fr) minmax(0, 2fr)
+      minmax(var(--title-column-min), 1fr)
+      minmax(var(--title-column-min), 1.4fr) minmax(10rem, 1.6fr);
+  }
+
+  .columns {
+    display: grid;
+    grid-template-columns: var(--table-columns);
+    gap: 16px;
+    padding: 0 14px;
+    font: 700 11px/1.4 var(--font-ui);
+    color: var(--ink-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    border-bottom: 1px solid var(--line-soft);
+  }
+
+  .rows {
+    gap: 0;
+  }
+
+  .row {
+    grid-template-columns: var(--table-columns);
+    gap: 16px;
+    align-items: center;
+    padding: 10px 14px;
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid var(--line-soft);
+    border-radius: 0;
+  }
+
+  .row[data-modified="true"] {
+    background: var(--warm-row);
+  }
+
+  /* The cells of a row say what they are in their own words for a reader, and the column titles say it to the eye. */
+  .cells {
+    display: contents;
+  }
+
+  .cellLabel {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    white-space: nowrap;
+    border: 0;
+    clip-path: inset(50%);
+  }
+
+  .rowActions {
+    position: relative;
+    align-content: center;
+    align-self: stretch;
+  }
+
+  .rowMenu {
+    position: static;
+  }
+
+  .menu {
+    top: calc(100% + 4px);
+    right: calc(100% + 8px);
+    left: auto;
+  }
+}
+
+@media (min-width: 1200px) {
+  .editColumns {
+    flex-direction: row;
+    gap: 40px;
+  }
+
+  .editColumn {
+    flex: 1;
+  }
+}

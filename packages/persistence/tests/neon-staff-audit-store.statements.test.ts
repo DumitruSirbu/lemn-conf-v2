@@ -376,7 +376,10 @@ describe("a record the code refuses before any statement", () => {
             entry:
               action === "status-changed"
                 ? STATUS_CHANGED
-                : ({ action, detail: null } as StaffAuditEntry),
+                : ({
+                    action,
+                    detail: action === "kitchen-seen" ? {} : null,
+                  } as StaffAuditEntry),
             designId: null,
           },
           "DESIGN_ID_MISSING",

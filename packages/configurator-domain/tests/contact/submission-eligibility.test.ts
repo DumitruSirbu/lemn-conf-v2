@@ -13,10 +13,14 @@ import {
 } from "../../src/index.js";
 
 import { catalogOf, SAMPLE_BOOK } from "./support/submission-kitchens.js";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows.js";
+import { NOTHING_DISABLED } from "../support/availability.js";
 
 const NO_BODIES: Design = { ...KITCHEN_L_DESIGN, placements: [] };
 
 const PRICED_SEEDED = priceDesign({
+  deepeningRows: MEASURED_DEEPENING_ROWS,
+  availability: NOTHING_DISABLED,
   design: KITCHEN_L_DESIGN,
   catalog: catalogOf(KITCHEN_L_DESIGN),
   book: SAMPLE_BOOK,
@@ -54,6 +58,8 @@ function refusalCodeOf(eligibility: SubmissionEligibility): string {
 function pricedUnder(design: Design): PricedDesign {
   return pricedOf(
     priceDesign({
+      deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
       design,
       catalog: catalogOf(design),
       book: SAMPLE_BOOK,

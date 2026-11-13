@@ -134,6 +134,9 @@ Pointer: the account-to-contact read this list sits beside is recorded in ADR 01
   administrator-only and fail-closed, and ids are unguessable.
 - **Unrecognised actions appear only on unfiltered pages.** The action filter accepts the six closed codes only (`audit-viewed` included), while
   the store would accept any table-shaped code; a row the build does not know is therefore found by paging, not by filter.
+  **Dated amendment, 2026-10-26 (coordinator, relayed; the scribe ran nothing):** the action filter now accepts **fifteen**
+  closed codes, the six above plus the nine dashboard actions of [ADR 0178](0178-the-m10-dashboard-storage-lifecycle-defaults-notice-seen-and-digest.md),
+  not six. The sentence above is kept as the Lot 3 state.
 
 ## L3-S9: the notes in the client's own export, 2026-10-21 [written by the wave's implementer from the dispatch and the code; no owner ruling, no review yet]
 
@@ -235,3 +238,16 @@ built. The plan's row E-L3-4 carries the new request body.
   and security review; see ADR 0174.
 - Migration numbers `0020`-`0024` are provisional (plan §2.3); wave L3-S1 re-lists them.
 - Nothing here reverses an accepted record. ADR 0172 D7, D9-D12, ADR 0153 d1 and ADR 0019 d11 stand.
+
+## Dated note, 2026-10-26: M10 builds on the Proposed P-rows [doc-quoted from `docs/milestones/M10-price-dashboard.md` §3 and §7; nothing built; the scribe ran nothing]
+
+Milestone M10 ([ADR 0176](0176-the-manufacturer-price-dashboard-is-milestone-m10-and-starts-now.md)) builds on this
+record's P-rows: every staff read and write is audited and fails closed (P-L3-3), and the request statuses are the
+reconciled four (P-L3-8; owner-confirmed for M10's purposes as OQ-9 on 2026-10-26, relayed). **This record's status is
+still Proposed.** Its acceptance (the coordinator's, after a security read) is owed before M10's persistence and route
+lanes merge. M10's own storage, grants and audit actions are in
+[ADR 0178](0178-the-m10-dashboard-storage-lifecycle-defaults-notice-seen-and-digest.md), which also awaits a security read.
+**P-L3-3 note, 2026-10-27 (R2 review, coordinator-relayed; recorded choice):** the dashboard GET's `409` refusals write
+no `price-catalogue-viewed` row, because they serve no catalogue data (see [ADR 0178](0178-the-m10-dashboard-storage-lifecycle-defaults-notice-seen-and-digest.md)
+for the audit rule).
+M10 first claimed `0025`-`0031` with `0023` and `0024` reserved here (§2.3). **Superseded 2026-10-27 by ADR 0178's Amendment of that date:** M10 takes `0023`-`0029` contiguously, and this plan's later migrations take the next free numbers after M10's.

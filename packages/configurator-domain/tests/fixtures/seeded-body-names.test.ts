@@ -64,6 +64,7 @@ function labelOf(
   placementId: string,
 ): BodyLabel | undefined {
   return describeSelection({
+    kitchenSettings: {},
     records: world.records,
     voids: world.voids,
     catalog: world.catalog,

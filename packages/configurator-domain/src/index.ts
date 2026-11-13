@@ -63,10 +63,13 @@ export {
   drawerCount,
   frontPopulationQueryFor,
   FRIDGE_HOUSING_DOOR_BAND_HEIGHTS_MM,
+  LIFT_DOOR_WIDTH_REVEAL_MM,
+  liftDoorWidthsMm,
   NO_DOOR_BANDS,
   NO_DRAWERS,
   NO_OPENING_FRONTS,
   oneBandInsetFromFrameMm,
+  openingFrontCount,
   refuseContradictoryFrontDeclarations,
   OVEN_TOWER_DOOR_BAND_HEIGHTS_MM,
   PANTRY_DOOR_BAND_HEIGHTS_MM,
@@ -86,8 +89,12 @@ export {
 // three-adapter's `scene-sync.ts` hides bars by this, so the scene and the price cannot differ.
 export {
   isPushToOpen,
+  isTopRowFloorMm,
+  resolvedHandleAt,
   TOP_ROW_Y0_MM,
+  wornHandleAt,
   type PushToOpenQuery,
+  type WornHandleQuery,
 } from "./push-to-open.js";
 export {
   countHardwareMechanisms,
@@ -95,6 +102,7 @@ export {
   HINGES_PER_TALL_DOOR_LEAF,
   NO_HARDWARE_MECHANISMS,
   TALL_DOOR_LEAF_THRESHOLD_MM,
+  WIDE_LIFT_DOOR_THRESHOLD_MM,
   type HardwareMechanismCounts,
 } from "./hardware-mechanisms.js";
 // `buildToTheClearanceM` and `shallowerBuildDepthM` stay module-internal: a second caller outside this
@@ -174,11 +182,13 @@ export * from "./commands/remove-placement.js";
 export * from "./commands/insert-body.js";
 export * from "./commands/set-appearance.js";
 export * from "./commands/set-whole-kitchen-settings.js";
+export * from "./commands/replace-switched-off-appearance.js";
 export * from "./commands/set-cabinet-depth.js";
 export * from "./commands/set-width.js";
 export * from "./queries/describe-selection.js";
 export {
   compareDisplayOrder,
+  countDisplayedBodies,
   projectDesignForDisplay,
   type DisplayEntry,
   type DisplayGroup,
@@ -235,18 +245,70 @@ export type {
   PresetRemovalCause,
 } from "./preset/preset-adaptation-result.js";
 export * from "./pricing/price-book.js";
+export { MAX_PRICE_COEFFICIENT_MINOR } from "./pricing/book-reading.js";
+export * from "./pricing/anchored-price-formula.js";
 export * from "./pricing/price-lines.js";
 // The book's ingress (ADR 0062 seam 1): a composition root parses once, so every consumer downstream
 // reads a shape something has established rather than a type somebody declared.
 export * from "./pricing/parse-price-book.js";
 export * from "./pricing/price-design.js";
+export {
+  DEEP_CABINET_DEPTH_MM,
+  MAX_CABINET_AMOUNT_MINOR,
+  percentageStagesOf,
+  roundHalfUpToTenLei,
+  TEN_LEI_MINOR,
+  type CabinetPercentages,
+  type CabinetStages,
+} from "./pricing/percentage-lines.js";
+export { measureDeepeningRows } from "./pricing/deepening-rows.js";
+export {
+  MAX_DEEP_CABINET_PERCENT,
+  MAX_MATERIAL_PERCENT,
+  PERCENT_BASE,
+} from "./pricing/price-bounds.js";
 // The one module that names the sample book (ADR 0062 seam 1): the query imports no book, so a
 // composition root picks it up here and a book from another source is a substitution.
 // `pricing-seams.test.ts` holds the import graph to that.
 export * from "./pricing/sample-price-book.js";
+// What can be switched off, beside the book (A-17): the item and availability types, their comparison, and the
+// colours and handles a design names. The dashboard's field address imports the types from here.
+export * from "./pricing/catalogue-availability.js";
+// What a design names that availability can switch off, and the accessories a switched-off item takes away (A-17).
+export {
+  disabledItemsNamedBy,
+  itemsNamedBy,
+  type NamedItemsQuery,
+} from "./pricing/named-items.js";
+export {
+  earnedAccessoryQuantities,
+  removedAccessoriesSince,
+  type EarnedAccessoryQuantities,
+  type RemovedAccessoriesRequest,
+} from "./pricing/earned-accessories.js";
+// The accessories the dashboard creates (A-19): how many a kitchen earns, the most a book may hold, and the question
+// behind the prices-updated notice (A-11).
+export {
+  earnedLinkedAccessories,
+  type EarnedLinkedAccessory,
+  type LinkedAccessoryEarningRequest,
+} from "./pricing/linked-accessories.js";
+export { MAX_LINKED_ACCESSORIES } from "./pricing/parse-linked-accessories.js";
+export {
+  PriceChangeNotComparableError,
+  pricesChangedBetween,
+  type PriceChangeRequest,
+} from "./pricing/price-change-notice.js";
+export {
+  NoReplacementOptionError,
+  replacementsRequired,
+  type ReplacementRequired,
+  type ReplacementsRequiredRequest,
+} from "./queries/replacements-required.js";
 export * from "./fixtures/kitchen-l-design.js";
 export * from "./serialize-design.js";
 export * from "./repository.js";
+export * from "./revision-shape.js";
 export * from "./migrate-design.js";
 // The room a customer types, judged against policy data (ADR 0108). The policy is a parameter of the
 // validator, and the owner-approved one is exported for `apps/web`'s composition root to hand in. The
@@ -351,6 +413,7 @@ export type {
 } from "./generation/run-layout.js";
 export * from "./generation/u-composition.js";
 export * from "./generation/generate-kitchen.js";
+export * from "./generation/index.js";
 export * from "./commands/reconcile-command-result.js";
 export * from "./contact/index.js";
 export * from "./account/index.js";
@@ -381,6 +444,44 @@ export {
   type KitchensListedDetail,
   type StatusChangedDetail,
 } from "./staff/staff-audit-action.js";
+// The price dashboard's audit actions, a list of their own beside `STAFF_AUDIT_ACTIONS` (M10 X0).
+export {
+  BULK_CHANGE_SCOPES,
+  BULK_GROUP_CHANGE_KIND,
+  CATALOGUE_ACTIVATION_AUDIT_ACTION,
+  CHANGE_ITEM_KINDS,
+  DASHBOARD_AUDIT_ACTION_NAMES_DESIGN,
+  DASHBOARD_AUDIT_ACTIONS,
+  DISCARD_ALL_CHANGE_KIND,
+  DASHBOARD_DETAIL_KEYS,
+  dashboardAuditActionNamesDesign,
+  isDashboardAuditAction,
+  KITCHEN_DEFAULTS_FIELDS,
+  PRICE_CATALOGUE_SECTIONS,
+  PRICE_GROUP_CODES,
+  readDashboardAuditEntry,
+  type BulkChangeScope,
+  type CatalogueActivationAuditInput,
+  type CatalogueItemActivationChangedDetail,
+  type ChangeItemKind,
+  type DashboardAuditAction,
+  type DashboardAuditDetailByAction,
+  type DashboardAuditEntry,
+  type DashboardAuditEntryReading,
+  type DashboardDetailKeys,
+  type DraftChangeTarget,
+  type KitchenDefaultsField,
+  type KitchenDefaultsSavedDetail,
+  type KitchenSeenDetail,
+  type PriceBulkChangedDetail,
+  type PriceCatalogueSection,
+  type PriceCatalogueViewedDetail,
+  type PriceDraftChangedDetail,
+  type PriceDraftRevertedDetail,
+  type PriceGroupCode,
+  type PricePublishedDetail,
+  type PriceRestoredToDraftDetail,
+} from "./staff/dashboard-audit-action.js";
 export {
   judgeNoteText,
   NOTE_TEXT_MAX_LENGTH,
@@ -403,3 +504,8 @@ export {
   type StaffKitchenQueryRefusalCode,
   type StaffKitchenSegment,
 } from "./staff/staff-kitchen-query.js";
+// The three M10 lane sub-barrels (plan §9.1). X0 writes these lines; after MP-0 only lane P edits this file, and
+// lanes M, K and H export through their own sub-barrel.
+export * from "./price-dashboard/index.js";
+export * from "./staff-changes/index.js";
+export * from "./kitchen-handle/index.js";

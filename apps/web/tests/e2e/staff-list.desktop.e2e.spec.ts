@@ -17,6 +17,7 @@ import {
   type StaffWorld,
 } from "./support/staff-world";
 import {
+  expectKitchensLinkLabelled,
   kitchenRows,
   openStaffList,
   pageScrollsSideways,
@@ -82,9 +83,9 @@ test("the table lists twenty rows, the numbered pages lead to the last six, and 
   await expect(page.getByTestId("staff-role-chip")).toHaveText(
     romanian("staffShell.roleOperator"),
   );
-  await expect(page.getByTestId("staff-nav").getByRole("link")).toHaveText([
-    romanian("staffShell.navKitchens"),
-  ]);
+  const navLinks = page.getByTestId("staff-nav").getByRole("link");
+  await expect(navLinks).toHaveCount(1);
+  await expectKitchensLinkLabelled(navLinks.first());
 
   await page
     .getByRole("button", {

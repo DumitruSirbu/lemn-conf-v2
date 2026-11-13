@@ -55,6 +55,10 @@ import {
   SEEDED_ROOM,
 } from "./support/approved-rooms.js";
 
+// The sweep builds a kitchen in every room it covers: 0.3 s under the parallel package run. The unit gate runs every
+// package at once on a slower runner, so this is sized at 10x that and not left at the 5 s default.
+const ROOM_SWEEP_TIMEOUT_MS = 30_000;
+
 const OCCURRED_AT = "2026-09-11T12:00:00.000Z";
 
 /** Wall A's plane is z = 0 fronting +Z and wall B's is x = 0 fronting +X — the domain's convention
@@ -138,14 +142,18 @@ describe("no preset stands inside the kitchen it frames", () => {
 
   /** Non-vacuity: the sweep above is only evidence if a kitchen was really built for those rooms
    *  and really has bodies standing where a camera could reach them. */
-  it("builds a kitchen with bodies in every room it sweeps", () => {
-    for (const room of GENERATED_ROOMS) {
-      expect(
-        generatedBodyBoxes(room).length,
-        `${String(room.widthMm)} x ${String(room.depthMm)}`,
-      ).toBeGreaterThan(3);
-    }
-  });
+  it(
+    "builds a kitchen with bodies in every room it sweeps",
+    () => {
+      for (const room of GENERATED_ROOMS) {
+        expect(
+          generatedBodyBoxes(room).length,
+          `${String(room.widthMm)} x ${String(room.depthMm)}`,
+        ).toBeGreaterThan(3);
+      }
+    },
+    ROOM_SWEEP_TIMEOUT_MS,
+  );
 
   /** And the shell itself, which no generated design can miss: the floor slab, the two planes and
    *  the backsplash are drawn at the entered room, and none of the three eyes may be inside one. */

@@ -8,6 +8,9 @@ import type { CurrentSession } from "@/lib/server/account/current-session";
 import { SESSION_COOKIE_NAME } from "@/lib/server/account/session-cookie";
 import type { StaffPage } from "@/staff/staff-shell";
 
+/** The seeded fake world every page test reads holds no draft. */
+const SEEDED_WORLD_PENDING_PRICES = 0;
+
 /**
  * The staff gate must answer what the signed-in page gate answers for the same page, so the staff area is not a second,
  * looser door. The session read and the framework's redirect are replaced; the capability table, the cookie name and
@@ -255,7 +258,7 @@ describe("readStaffPage shows the staff frame to staff and to no one else", () =
     });
   });
 
-  it("opens the audit page to a verified administrator, whose navigation now lists it after the kitchens", async () => {
+  it("opens the audit page to a verified administrator, whose navigation lists it after the kitchens and the built catalog pages after both", async () => {
     become(callerNamed("a verified administrator"));
 
     expect(await readStaffPage({ locale: "ro", page: "audit" })).toEqual({
@@ -263,7 +266,38 @@ describe("readStaffPage shows the staff frame to staff and to no one else", () =
       shell: {
         role: "administrator",
         email: STAFF_ADDRESS,
-        navigation: ["kitchens", "audit"],
+        navigation: [
+          "kitchens",
+          "audit",
+          "cabinets",
+          "hardware",
+          "materials",
+          "accessories",
+          "defaults",
+          "publish",
+        ],
+        pendingPriceCount: SEEDED_WORLD_PENDING_PRICES,
+      },
+    });
+  });
+
+  it("gives an operator no catalog page, on a page it may open and on one it may not", async () => {
+    become(callerNamed("a verified operator"));
+
+    expect(await readStaffPage({ locale: "ro", page: "kitchens" })).toEqual({
+      kind: "signed-in",
+      shell: {
+        role: "operator",
+        email: STAFF_ADDRESS,
+        navigation: ["kitchens"],
+      },
+    });
+    expect(await readStaffPage({ locale: "ro", page: "cabinets" })).toEqual({
+      kind: "staff-forbidden",
+      shell: {
+        role: "operator",
+        email: STAFF_ADDRESS,
+        navigation: ["kitchens"],
       },
     });
   });
@@ -287,6 +321,33 @@ describe("staffNavigationOf", () => {
       "kitchens",
       "audit",
     ]);
+  });
+
+  it("lists the catalog pages in the family's own order, after the staff pages, whatever order they were built in", () => {
+    expect(
+      staffNavigationOf(ADMINISTRATOR, [
+        "publish",
+        "hardware",
+        "cabinets",
+        "audit",
+        "kitchens",
+      ]),
+    ).toEqual(["kitchens", "audit", "cabinets", "hardware", "publish"]);
+  });
+
+  it("lists an operator no catalog page, each of which asks for price.edit", () => {
+    expect(
+      staffNavigationOf(OPERATOR, [
+        "kitchens",
+        "cabinets",
+        "hardware",
+        "materials",
+        "accessories",
+        "accessories",
+        "defaults",
+        "publish",
+      ]),
+    ).toEqual(["kitchens"]);
   });
 
   it("leaves out a page that is not built, though the administrator holds its capability", () => {

@@ -1179,6 +1179,113 @@ fixed by a new migration, never by editing a file that has been applied.
 **The test database.** The live persistence suite applies every migration to the test database through its `beforeAll`
 hooks; the coordinator applies `0020`–`0022` there, and no grant is needed there for the live suite.
 
+## For the M10 price-book and availability tables (wave S2, added 2026-10-27; **exact grant text pending**)
+
+**Status: relayed by the coordinator from wave S2's developer; the scribe ran nothing, and these migrations are unapplied
+anywhere.** The grant text below is **as written in S2's migration headers at branch `m10/s2`; re-check it against the
+merged files** before applying. Apply order: `0023_create_price_book_versions`, `0024_create_price_book_draft`,
+`0025_create_catalogue_availability_changes` (which also creates `catalogue_availability_head`). The ledger reads 1–22
+before and 1–25 after. Every apply is asked of the owner first (M10 plan §6.3). Applying puts the shared ledger ahead
+of every other checkout (`ledgerAheadOfCheckoutError`).
+
+```sql
+GRANT SELECT ON TABLE public.price_book_versions TO app_designs;
+GRANT INSERT (id, sequence_number, label, note, book, change_summary, change_count, published_by_account_id) ON TABLE public.price_book_versions TO app_designs;
+GRANT SELECT ON TABLE public.price_book_draft TO app_designs;
+GRANT UPDATE (revision, changes, base_version_id, updated_at, updated_by_account_id) ON TABLE public.price_book_draft TO app_designs;
+GRANT SELECT ON TABLE public.catalogue_availability_head TO app_designs;
+GRANT UPDATE (revision) ON TABLE public.catalogue_availability_head TO app_designs;
+GRANT SELECT ON TABLE public.catalogue_availability_changes TO app_designs;
+GRANT INSERT (revision, item_kind, item_id, active, changed_by_account_id) ON TABLE public.catalogue_availability_changes TO app_designs;
+```
+
+Eight lines. **None** of `DELETE`, `TRUNCATE`, `ALL`, `PUBLIC` or a grant option. **No `INSERT`** on the singleton tables
+(`price_book_draft` and `catalogue_availability_head` are seeded rows). `sequence_number` is the column name in S2's
+`0023_create_price_book_versions.sql` (the S2 developer's report); re-check it against the merged file.
+
+**Wave S4, `0026` and `0027` (relayed 2026-10-27; as written in S4's migration headers at branch `m10/s4`; re-check
+against the merged files).**
+
+```sql
+GRANT SELECT ON TABLE public.design_staff_seen TO app_designs;
+GRANT INSERT (design_id, seen_revision, seen_by_account_id) ON TABLE public.design_staff_seen TO app_designs;
+GRANT UPDATE (seen_revision, seen_by_account_id, seen_at) ON TABLE public.design_staff_seen TO app_designs;
+GRANT SELECT (priced) ON TABLE public.contact_submissions TO app_designs;
+GRANT SELECT ON TABLE public.staff_change_digest_rounds TO app_designs;
+GRANT INSERT (day_key) ON TABLE public.staff_change_digest_rounds TO app_designs;
+GRANT UPDATE (sent_count) ON TABLE public.staff_change_digest_rounds TO app_designs;
+GRANT SELECT ON TABLE public.staff_change_digest_entries TO app_designs;
+GRANT INSERT (day_key, design_id, revision) ON TABLE public.staff_change_digest_entries TO app_designs;
+```
+
+The ledger reads 1–25 before and 1–27 after. **Deploy order:** apply `0023`–`0027` and issue **all** their grants **before the
+code deploys**. The existing staff kitchens list and kitchen page read `design_staff_seen` and `contact_submissions.priced`,
+so they answer 503 from deploy until `0026` and its grants are in place.
+
+**After applying, cross-check (owner, by hand).** The application credential could insert an availability-log row and move
+the head, and a planted newest version makes prices live with no audit row. Compare:
+- every availability-log revision against a matching `catalogue-item-active-changed` audit row;
+- every price-book version with `sequence_number > 1` against a matching `price-published` audit row whose
+  `detail.sequenceNumber` is the same.
+A log revision or version with no matching audit row is the sign of a write that bypassed the application.
+
+**Seeding.** Run `seed-price-book <environment> <owner-account-id>` **only after wave P3** has landed (the seed converts the
+sample book to its final form). It refuses when any version already exists. It never prints a secret.
+
+**Wave S5, `0028_create_design_price_notices` (added 2026-11-04; as written in the migration's header at branch
+`m10/s5`; re-check against the merged file). Unapplied anywhere.** Applying it, to any database, is asked of the owner
+first, every time: the owner's approval of `0023`–`0027` on 2026-11-04 does not cover it.
+
+```sql
+GRANT SELECT ON TABLE public.design_price_notices TO app_designs;
+GRANT INSERT (design_id, acknowledged_version_id, acknowledged_availability_revision) ON TABLE public.design_price_notices TO app_designs;
+GRANT UPDATE (acknowledged_version_id, acknowledged_availability_revision, acknowledged_at) ON TABLE public.design_price_notices TO app_designs;
+```
+
+Three lines. **None** of `DELETE`, `TRUNCATE`, `ALL`, `PUBLIC` or a grant option; no `INSERT` of `acknowledged_at` and no
+`UPDATE` of `design_id`. Nothing is granted on `price_book_versions` or `catalogue_availability_head`: the store's
+acknowledgement statement only reads them, under `0023`'s and `0025`'s `SELECT`. The ledger reads 1–27 before and 1–28
+after. **Deploy order:** nothing reads this table until the price-notice routes ship, so apply `0028` and issue the three
+grants **before those routes deploy**; until then they answer 503.
+
+**After applying, cross-check (owner, by hand).** The application credential can write any pair for any design, so a
+marker can hide a notice from a customer or show one to them; it changes no price. A marker whose `acknowledged_version_id`
+is not an `id` in `price_book_versions`, or whose `acknowledged_availability_revision` is greater than the head's
+`revision`, did not come from the application: an acknowledgement is refused for either, and a first open records the
+server's own current pair.
+
+**Wave S3, `0029_create_kitchen_defaults` (added 2026-11-04; as written in the migration's header at branch `m10/s3`;
+re-check against the merged file). Unapplied anywhere.** Applying it, to any database, is asked of the owner first, every
+time: no earlier approval, of `0023`–`0027` or of `0028`, covers it.
+
+```sql
+GRANT SELECT ON TABLE public.kitchen_defaults TO app_designs;
+GRANT UPDATE (revision, defaults, saved_at, saved_by_account_id) ON TABLE public.kitchen_defaults TO app_designs;
+```
+
+Two lines. **None** of `INSERT`, `DELETE`, `TRUNCATE`, `ALL`, `PUBLIC` or a grant option, and no `UPDATE` of `singleton`.
+`kitchen_defaults` is a seeded singleton (`0009`'s pattern): the migration inserts its one row at revision 0 with
+`on conflict do nothing`, so the application never inserts. Nothing is granted on `designs` or on
+`catalogue_availability_head` for this wave: the usage reader reads `designs` under the `SELECT` it already holds (it reads
+`document`, `schema_version`, `id` and `deleted_by_client_at`, all inside that grant), and a defaults save moves the head
+under `0025`'s `UPDATE (revision)`. The ledger reads 1–28 before and 1–29 after. **Deploy order:** apply `0029` and issue the
+two grants **before the defaults routes or the dashboard's disable and delete judgements deploy**: until then they answer
+503.
+
+**The privilege test is the check.** Its arm for `public.kitchen_defaults` is written to be red with nothing granted and green
+with exactly the two lines above, and its statement-planning arm plans the store's save and read and the reader's three
+counts as the application role. Neither arm has run against any database in this wave (the worktree has no database); run
+the test against the target before trusting the grants.
+
+**After applying, cross-check (owner, by hand).** The application credential can write any defaults into the one row, so
+whoever holds it can change what every new kitchen starts with; it changes no saved kitchen and no price. Every save moves
+`revision` by exactly one, from 0, and writes one `kitchen-defaults-saved` row in `staff_audit_events` in the same
+statement. So `kitchen_defaults.revision` must equal the number of `kitchen-defaults-saved` rows in `staff_audit_events`. A
+revision that differs, higher or lower, means the row was written, or the audit rows were removed, by something other than the
+application's save.
+
+**Not in the nightly export.** A restore leaves new kitchens at the fixed fallbacks until the defaults are saved again.
+
 ## Why step 5 names the application role
 
 The file is safe on any credential (criterion 13): it refuses to run past its guard as an owner. It is also only

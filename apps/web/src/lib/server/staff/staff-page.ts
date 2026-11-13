@@ -8,7 +8,11 @@ import {
   type CapabilityHolder,
 } from "@/lib/server/account/require-capability";
 import { readSignedInPage } from "@/lib/server/account/signed-in-page";
+import { BUILT_CATALOG_PAGES } from "@/price-dashboard/catalog-pages";
+import { readPendingPriceCount } from "@/price-dashboard/publish-source";
+import { CATALOG_PAGES } from "@/staff/staff-paths";
 import type {
+  StaffAreaPage,
   StaffPage,
   StaffRole,
   StaffShellContext,
@@ -19,17 +23,34 @@ import type {
 // and adds the page's own capability and the navigation that goes with the person's role. It reads and never writes.
 
 /** What each staff page asks of the session. Only a verified address holds any of these (`isCapabilityHeld`). */
-const CAPABILITY_OF_PAGE: Readonly<Record<StaffPage, Capability>> = {
+const CAPABILITY_OF_PAGE: Readonly<Record<StaffAreaPage, Capability>> = {
   kitchens: "design.read.any",
   audit: "audit.read",
+  cabinets: "price.edit",
+  hardware: "price.edit",
+  materials: "price.edit",
+  accessories: "price.edit",
+  defaults: "price.edit",
+  publish: "price.edit",
 };
 
-/** The pages in the order the navigation lists them. */
-const NAVIGATION_ORDER: readonly StaffPage[] = ["kitchens", "audit"];
+/** The pages in the order the navigation lists them: the staff pages, then the price dashboard's. */
+const NAVIGATION_ORDER: readonly StaffAreaPage[] = [
+  "kitchens",
+  "audit",
+  ...CATALOG_PAGES,
+];
 
-/** The pages that have a screen. A page joins this list when its directory under
- *  `app/[locale]/staff` exists, never before: the navigation must not link to a page that answers 404. */
+/** The staff pages that have a screen. A page joins this list when its directory under
+ *  `app/[locale]/staff` exists, never before: the navigation must not link to a page that answers 404. The price
+ *  dashboard's pages have their own list, `BUILT_CATALOG_PAGES`. */
 export const BUILT_STAFF_PAGES: readonly StaffPage[] = ["kitchens", "audit"];
+
+/** Every page the navigation may link to when it is not told otherwise. */
+const BUILT_NAVIGATION_PAGES: readonly StaffAreaPage[] = [
+  ...BUILT_STAFF_PAGES,
+  ...BUILT_CATALOG_PAGES,
+];
 
 /** Held by every live session, an unconfirmed address included, so the signed-in gate answers the redirect, the outage
  *  and the unknown role, and the staff gate alone judges what the page asks. */
@@ -55,7 +76,7 @@ export async function readStaffPage({
   page,
 }: {
   locale: string;
-  page: StaffPage;
+  page: StaffAreaPage;
 }): Promise<StaffPageRead> {
   const gate = await readSignedInPage({
     locale,
@@ -63,18 +84,37 @@ export async function readStaffPage({
   });
   if (gate.kind !== "signed-in") return gate;
 
-  const shell = staffShellOf(gate.session);
-  if (shell === undefined) return { kind: "forbidden" };
+  const staffShell = staffShellOf(gate.session);
+  if (staffShell === undefined) return { kind: "forbidden" };
+  const shell = await withPendingPriceCount(staffShell);
   return isCapabilityHeld(gate.session, CAPABILITY_OF_PAGE[page])
     ? { kind: "signed-in", shell }
     : { kind: "staff-forbidden", shell };
 }
 
-/** The navigation's pages: those built, in the navigation's order, that the holder's capabilities open. */
+/**
+ * The count of waiting prices the frame draws on every staff page, read only for a person whose navigation offers the
+ * publish page (a holder of `price.edit`). A count that cannot be read is no count: the frame then draws nothing, and a page
+ * is never refused for it.
+ */
+async function withPendingPriceCount(
+  shell: StaffShellContext,
+): Promise<StaffShellContext> {
+  if (!shell.navigation.includes("publish")) return shell;
+  const pendingPriceCount = await readPendingPriceCount().catch(
+    () => undefined,
+  );
+  return { ...shell, pendingPriceCount };
+}
+
+/**
+ * The navigation's pages: those built, in the navigation's order, that the holder's capabilities open. The staff pages
+ * come first and the price dashboard's pages after them, which only a holder of `price.edit` is offered.
+ */
 export function staffNavigationOf(
   holder: CapabilityHolder,
-  builtPages: readonly StaffPage[] = BUILT_STAFF_PAGES,
-): readonly StaffPage[] {
+  builtPages: readonly StaffAreaPage[] = BUILT_NAVIGATION_PAGES,
+): readonly StaffAreaPage[] {
   return NAVIGATION_ORDER.filter(
     (page) =>
       builtPages.includes(page) &&

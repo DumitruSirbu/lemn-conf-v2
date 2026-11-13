@@ -1,6 +1,8 @@
 import { KITCHEN_L_DESIGN } from "@lemnaria/configurator-domain";
 import { expect } from "@playwright/test";
 
+import { SEEDED_MINT_DESIGN } from "../support/seeded-mint-design";
+
 import { findMintedDesignIds } from "./support/minted-designs";
 import { openSeededDesign, test } from "./support/seeded-design";
 
@@ -52,7 +54,10 @@ test("the rows of every earlier test, including the failed one, are gone", async
   expect(remaining).toEqual([]);
 });
 
-test("the opened document deep-equals KITCHEN_L_DESIGN", async ({
+// Since M10 R4b3 the mint stamps `KITCHEN_L_DESIGN` with the new-kitchen defaults (the fixed fallbacks, while nothing is
+// saved), at the fixture's depth. The comparison is to that stamped seed, not loosened: the timestamps and every other
+// key are the fixture's.
+test("the opened document deep-equals KITCHEN_L_DESIGN stamped with the fixed fallbacks", async ({
   page,
   seededDesign,
 }) => {
@@ -64,7 +69,7 @@ test("the opened document deep-equals KITCHEN_L_DESIGN", async ({
   await openSeededDesign(page, seededDesign);
 
   const loaded = (await (await probe).json()) as { design: unknown };
-  expect(loaded.design).toEqual(KITCHEN_L_DESIGN);
+  expect(loaded.design).toEqual(SEEDED_MINT_DESIGN);
   await expect(page.getByTestId("selection-debug")).toHaveAttribute(
     "data-updated-at",
     KITCHEN_L_DESIGN.updatedAt,

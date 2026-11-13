@@ -24,7 +24,7 @@ describe("configurator-domain package", () => {
   /** A domain error a caller outside the package cannot catch **by name** is only half-published,
    *  and the field type is what a caller reads off it to say which coefficient was malformed. */
   it("publishes the malformed-coefficient error and the field it names", () => {
-    const field: PriceCoefficientField = "baseMinor";
+    const field: PriceCoefficientField = "anchorMinor";
     const error = new MalformedPriceCoefficientError({
       field,
       declared: undefined,

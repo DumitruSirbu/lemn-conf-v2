@@ -81,6 +81,7 @@ function recordAt(input: {
     canReplace: true,
     canDelete: true,
     fixedWidth: false,
+    kitchenSettings: {},
   };
 }
 

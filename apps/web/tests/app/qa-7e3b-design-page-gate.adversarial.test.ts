@@ -13,6 +13,7 @@ import { isValidElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import DesignPage from "../../src/app/[locale]/d/[id]/page";
+import { withoutPriceBook } from "../support/price-book-wrapper";
 
 /**
  * M7 wave 7E3b adversarial QA for `/[locale]/d/{id}` (criterion 1 and the page half of criterion
@@ -209,7 +210,7 @@ describe("criterion 1 — the page gate, per refusal case and locale", () => {
   it("the owner is served the editor with the stored design", async () => {
     state.cookieValue = OWNER_VALUE;
 
-    const page = await renderPage("ro", OWNED_ROW_ID);
+    const page = withoutPriceBook(await renderPage("ro", OWNED_ROW_ID));
 
     if (!isValidElement(page)) throw new Error("non-element");
     expect(page.type).toBe(hydrateAndConfigure);

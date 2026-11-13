@@ -21,6 +21,9 @@ import {
 } from "../support/account-world";
 import { signedInAs } from "../support/staff-world";
 
+/** The seeded fake world every page test reads holds no draft. */
+const SEEDED_WORLD_PENDING_PRICES = 0;
+
 const framework = vi.hoisted(() => ({
   connection: vi.fn(() => Promise.resolve()),
   cookie: undefined as string | undefined,
@@ -85,7 +88,7 @@ async function signInAs(
 }
 
 describe("an administrator", () => {
-  it("gets the log in the staff frame, with the kitchens and the log in its navigation", async () => {
+  it("gets the log in the staff frame, with the kitchens, the log and the built catalog pages in its navigation", async () => {
     await signInAs({ role: "administrator" });
 
     const page = await StaffAuditPage(paramsOf("ro"));
@@ -96,7 +99,17 @@ describe("an administrator", () => {
       context: {
         role: "administrator",
         email: "administrator@example.test",
-        navigation: ["kitchens", "audit"],
+        navigation: [
+          "kitchens",
+          "audit",
+          "cabinets",
+          "hardware",
+          "materials",
+          "accessories",
+          "defaults",
+          "publish",
+        ],
+        pendingPriceCount: SEEDED_WORLD_PENDING_PRICES,
       },
     });
   });

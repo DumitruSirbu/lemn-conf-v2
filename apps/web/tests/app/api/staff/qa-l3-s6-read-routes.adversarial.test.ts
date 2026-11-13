@@ -8,6 +8,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ACCOUNT_EVENTS } from "@/lib/server/account/account-log";
 import { designNotFoundResponse } from "@/lib/server/design-errors";
+import {
+  FAKE_PRICE_BOOK_FLAG,
+  FAKE_PRICE_BOOK_FLAG_ENABLED,
+} from "@/lib/server/fake-price-book-flag";
 import { CLIENT_NETWORK_SOURCE_VARIABLE } from "@/lib/server/rate-limit/network-source";
 
 import {
@@ -73,6 +77,9 @@ beforeEach(() => {
   staffWorld = freshStaffWorld();
   captureConsole();
   vi.stubEnv(CLIENT_NETWORK_SOURCE_VARIABLE, "vercel");
+  // The kitchen's answer prices it, so the price stores are the seeded ones even beside a named network source: a missing
+  // book would write a line of its own, and these tests read the log's whole content.
+  vi.stubEnv(FAKE_PRICE_BOOK_FLAG, FAKE_PRICE_BOOK_FLAG_ENABLED);
 });
 
 afterEach(() => {
@@ -885,6 +892,7 @@ describe("what the log and the audit rows may hold", () => {
           page: 1,
           rowCount: 0,
           hasSearch: true,
+          onlyChanged: false,
         },
         {
           segment: "sent",
@@ -892,6 +900,7 @@ describe("what the log and the audit rows may hold", () => {
           page: 1,
           rowCount: 0,
           hasSearch: true,
+          onlyChanged: false,
         },
         {
           segment: "sent",
@@ -899,6 +908,7 @@ describe("what the log and the audit rows may hold", () => {
           page: 1,
           rowCount: 0,
           hasSearch: true,
+          onlyChanged: false,
         },
       ]);
     },
@@ -1013,6 +1023,7 @@ describe("what the log and the audit rows may hold", () => {
           page,
           rowCount: body.kitchens.length,
           hasSearch: false,
+          onlyChanged: false,
         });
       }
     }
@@ -1100,12 +1111,20 @@ describe("the wire contract's key sets against a hostile reader", () => {
         sentAt: SENT_AT,
         updatedAt: UPDATED_AT,
         requestStatus: "new",
+        isChangedSinceSeen: true,
+        seenAt: SENT_AT,
       },
       touched,
       "row",
     );
     const page = hostile(
-      { total: 1, page: 1, pageSize: STAFF_KITCHEN_PAGE_SIZE, kitchens: [row] },
+      {
+        total: 1,
+        changedCount: 1,
+        page: 1,
+        pageSize: STAFF_KITCHEN_PAGE_SIZE,
+        kitchens: [row],
+      },
       touched,
       "page",
     );
@@ -1120,8 +1139,15 @@ describe("the wire contract's key sets against a hostile reader", () => {
     };
 
     expect(answer.status).toBe(200);
-    expect(keysOf(body)).toEqual(["kitchens", "page", "pageSize", "total"]);
+    expect(keysOf(body)).toEqual([
+      "changedCount",
+      "kitchens",
+      "page",
+      "pageSize",
+      "total",
+    ]);
     expect(keysOf(body.kitchens[0])).toEqual([
+      "changedAfterSeen",
       "client",
       "design",
       "id",
@@ -1129,6 +1155,7 @@ describe("the wire contract's key sets against a hostile reader", () => {
       "isSent",
       "name",
       "requestStatus",
+      "seenAt",
       "sentAt",
       "updatedAt",
     ]);
@@ -1158,6 +1185,13 @@ describe("the wire contract's key sets against a hostile reader", () => {
       {
         id: aDesignId(),
         name: "Nume",
+        revision: "7",
+        isChangedSinceSeen: false,
+        sentTotal: hostile(
+          { totalMinor: 1_000_000, currency: "MDL" },
+          touched,
+          "sentTotal",
+        ),
         design: aDesign("current"),
         asSent: aDesign("sent"),
         isSent: true,
@@ -1219,13 +1253,21 @@ describe("the wire contract's key sets against a hostile reader", () => {
 
     expect(answer.status).toBe(200);
     expect(keysOf(body)).toEqual([
+      "changedAfterSeen",
       "client",
+      "currentEstimate",
+      "displayedRevision",
       "kitchen",
       "notes",
       "notesTruncated",
       "request",
+      "sentEstimate",
       "status",
     ]);
+    expect(body.sentEstimate).toEqual({
+      totalMinor: 1_000_000,
+      currency: "MDL",
+    });
     expect(keysOf(body.kitchen)).toEqual([
       "asSent",
       "design",

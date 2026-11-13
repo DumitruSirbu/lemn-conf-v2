@@ -160,3 +160,21 @@ while `PaletteEntryId` is a closed union behind a zod enum that no dashboard aut
   rather than deleted, pointing here.
 - 6B-j's lint gate must not fire on a book row's `name` fallback. The allow-list entry is written
   with its reason, as that wave requires of every entry.
+
+## Amendment C — 2026-10-26: created rows are Romanian-only; the "inclus" sentence now restates "PAL is 0 %"
+
+**Evidence tier: owner answer of 2026-10-26, coordinator-relayed (words as relayed, not a verbatim transcript);
+doc-quoted from `docs/milestones/M10-price-dashboard.md` §4 (S-3, S-4) and §5 (A-21). Nothing is built.**
+
+- **Alternatives, "Leave it Romanian-only": superseded for rows the dashboard creates only.** Owner (OQ-3): "all the
+  translations should be done through files and a separate functionality for this … need only to set the title … in
+  Romanian." A created row (a hardware class, a linked accessory) carries an authored Romanian `name`/`description`, no
+  Russian field, and **renders its Romanian in both locales** until the deferred translation feature (ADR 0174 O-L3-3)
+  supplies Russian. Decision 2 ("a name is how any book … still works") already allows the row; what changes is that the
+  one-language fallback this record rejected is now accepted for created rows. **Keyed rows are unchanged**: their text is
+  read-only in the dashboard. Amendment A still binds authored text (no amount, percentage or "inclus"). Record:
+  [ADR 0178](0178-the-m10-dashboard-storage-lifecycle-defaults-notice-seen-and-digest.md) A-21.
+- **Line 87, `priceBook.material.melamine.description` "…inclus în preț".** It restated `wholeKitchenMinor: 0`, which ADR
+  0092's Amendment of 2026-10-25 retires. The leaf's claim stays true under percentages: PAL is the 0 % reference and its
+  material line is 0, rendered *inclus*. The duplicated fact is now "PAL is 0 %". `wholeKitchenMinor` is retired in wave P3 (the
+  cut-over, per the plan); this note changes no text.

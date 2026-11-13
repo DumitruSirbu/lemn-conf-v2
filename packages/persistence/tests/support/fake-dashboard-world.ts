@@ -1,0 +1,186 @@
+import { randomBytes } from "node:crypto";
+
+import type { ItemRef } from "@lemnaria/configurator-domain";
+import { nanoid } from "nanoid";
+
+import { FakeCatalogueAvailabilityStore } from "../../src/fake-catalogue-availability-store.js";
+import {
+  FakeDashboardAuditLedger,
+  FakeRevisionHead,
+} from "../../src/fake-dashboard-support.js";
+import { FakeHeldDesigns } from "../../src/fake-held-designs.js";
+import { FakeKitchenChangeStore } from "../../src/fake-kitchen-change-store.js";
+import { FakeKitchenDefaultsStore } from "../../src/fake-kitchen-defaults-store.js";
+import { FakePriceBookStore } from "../../src/fake-price-book-store.js";
+import { FakePriceNoticeStore } from "../../src/fake-price-notice-store.js";
+import { FakeSessionStore } from "../../src/fake-session-store.js";
+import type { ItemUsageProbe } from "../../src/m10-ports.js";
+import type {
+  DashboardStaffMember,
+  DashboardStaffWorld,
+  SavedDesignsWorld,
+} from "./dashboard-contract-support.js";
+
+const PASSWORD_HASH = `$argon2id$v=19$m=19456,t=2,p=1$${"A".repeat(22)}$${"B".repeat(43)}`;
+const IDLE_LIFETIMES = {
+  client: 2_592_000,
+  operator: 43_200,
+  administrator: 43_200,
+};
+const SESSIONS_NOW_MS = Date.parse("2026-10-21T09:00:00.000Z");
+const SESSION_LIFETIME_MS = 30 * 24 * 60 * 60 * 1000;
+const STORE_CLOCK_START_MS = Date.parse("2026-10-21T10:00:00.000Z");
+const STORE_CLOCK_STEP_MS = 1000;
+const WIDEST_BIGINT = 9223372036854775807n;
+
+/**
+ * Every M10 fake, built as the tables they stand for are shared: one audit log, one availability head, one price book.
+ * Each fake's test hands the contract its own port from here, and what the contract reads around the store, from the
+ * fakes' own held rows. The stores' clock moves one second each time it is read, so the order of two writes is visible.
+ */
+export interface FakeDashboardWorld
+  extends DashboardStaffWorld,
+    SavedDesignsWorld {
+  readonly ledger: FakeDashboardAuditLedger;
+  readonly priceBook: FakePriceBookStore;
+  readonly availability: FakeCatalogueAvailabilityStore;
+  readonly defaults: FakeKitchenDefaultsStore;
+  readonly changes: FakeKitchenChangeStore;
+  readonly notice: FakePriceNoticeStore;
+}
+
+export function newFakeDashboardWorld(): FakeDashboardWorld {
+  let tick = 0;
+  const now = () =>
+    new Date(STORE_CLOCK_START_MS + STORE_CLOCK_STEP_MS * tick++);
+  const roleByAccountId = new Map<
+    string,
+    "administrator" | "operator" | "client"
+  >();
+  const sessions = new FakeSessionStore({
+    now: () => new Date(SESSIONS_NOW_MS),
+    accountOf: (accountId) =>
+      roleByAccountId.has(accountId)
+        ? {
+            id: accountId,
+            email: `staff-${accountId}@example.invalid`,
+            role: roleByAccountId.get(accountId) ?? "administrator",
+            isEmailVerified: true,
+          }
+        : undefined,
+    passwordHashOf: (accountId) =>
+      roleByAccountId.has(accountId) ? PASSWORD_HASH : undefined,
+    passwordChangedAtOf: (accountId) =>
+      roleByAccountId.has(accountId)
+        ? new Date("2026-01-01T00:00:00.000Z")
+        : undefined,
+  });
+  const ledger = new FakeDashboardAuditLedger({ now, sessions });
+  const availability = new FakeCatalogueAvailabilityStore({
+    head: new FakeRevisionHead(),
+    ledger,
+  });
+  const designs = new FakeHeldDesigns();
+  const priceBook = new FakePriceBookStore({
+    now,
+    ledger,
+    availability,
+    designs,
+  });
+  const defaults = new FakeKitchenDefaultsStore({
+    now,
+    ledger,
+    availability,
+    designs,
+  });
+  const changes = new FakeKitchenChangeStore({ now, ledger });
+  const notice = new FakePriceNoticeStore({ priceBook, availability });
+
+  async function signedIn(
+    role: "administrator" | "operator" | "client" = "administrator",
+  ): Promise<DashboardStaffMember> {
+    const accountId = nanoid();
+    roleByAccountId.set(accountId, role);
+    const sessionTokenHash = randomBytes(32).toString("hex");
+    await sessions.create({
+      tokenHash: sessionTokenHash,
+      accountId,
+      expectedPasswordHash: PASSWORD_HASH,
+      absoluteExpiresAt: new Date(SESSIONS_NOW_MS + SESSION_LIFETIME_MS),
+    });
+    return {
+      accountId,
+      session: { sessionTokenHash, idleLifetimeSeconds: IDLE_LIFETIMES },
+    };
+  }
+
+  return {
+    ledger,
+    priceBook,
+    availability,
+    defaults,
+    changes,
+    notice,
+    aDesignNaming(item, { isDeletedByClient = false } = {}) {
+      designs.plant({ designId: nanoid(), uses: [item], isDeletedByClient });
+      return Promise.resolve();
+    },
+    countDesignsUsing: async (item) =>
+      (await defaults.countEach([probeTheFakeAccepts(item)])).counts[0]
+        ?.designCount ?? NaN,
+    aStaffMember: () => signedIn(),
+    aStaffMemberWhoIsNotAnAdministrator: () => signedIn("operator"),
+    aClientWithALiveSession: () => signedIn("client"),
+    async aStaffMemberDemotedAfterSigningIn() {
+      const member = await signedIn();
+      roleByAccountId.set(member.accountId, "operator");
+      return member;
+    },
+    async aStaffMemberWhoseSessionIsRevoked() {
+      const member = await signedIn();
+      await sessions.revoke(member.session.sessionTokenHash);
+      return member;
+    },
+    aRevisionAfter: (revision, steps) =>
+      Promise.resolve().then(() => revisionAfter(revision, steps)),
+    auditEventsOf: (accountId) =>
+      Promise.resolve(
+        ledger
+          .heldEvents()
+          .filter((event) => event.actorAccountId === accountId)
+          .map(({ action, designId, detail }) => ({
+            action,
+            designId,
+            detail,
+          })),
+      ),
+  };
+}
+
+/**
+ * The stand-in for the Neon world's `($1::bigint + $2)::text`, which raises "bigint out of range" past the widest
+ * revision; a contract never does this arithmetic itself.
+ */
+function revisionAfter(revision: string, steps: number): string {
+  const after = BigInt(revision) + BigInt(steps);
+  if (after > WIDEST_BIGINT) throw new Error("bigint out of range");
+  return String(after);
+}
+
+/**
+ * A probe the fake accepts for an item. The fake counts the items its designs were planted as using and reads no fact a
+ * probe carries, so the facts here are placeholders of the right shape: a fallback of false, no build ids, and a
+ * predicate that is never asked.
+ */
+export function probeTheFakeAccepts(item: ItemRef): ItemUsageProbe {
+  switch (item.kind) {
+    case "material":
+    case "hardware":
+      return { via: "settings-tier", item, isFallback: false };
+    case "accessory":
+      return { via: "placed-bodies", item, buildIds: [] };
+    case "finish":
+    case "handle":
+      return { via: "migrated-design", item, isUsedBy: () => false };
+  }
+}

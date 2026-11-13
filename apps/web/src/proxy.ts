@@ -57,6 +57,20 @@ const STAFF_SIGNED_IN_PAGES: readonly string[] = [
   "audit",
 ];
 
+/** The price dashboard's family, `/{locale}/staff/catalog/{section}` and `/{locale}/staff/catalog/{section}/{id}`: the
+ *  sections are a closed list (spelled again here because this file may not import the domain; a test holds the two
+ *  lists equal) and the id is any non-empty segment, as a kitchen's is. Every page holds the manufacturer's prices, so
+ *  each gets the staff pages' headers. */
+const STAFF_CATALOG_SEGMENT = "catalog";
+const STAFF_CATALOG_SECTIONS: readonly string[] = [
+  "cabinets",
+  "hardware",
+  "materials",
+  "accessories",
+  "defaults",
+  "publish",
+];
+
 /** The one status of a response the interceptor passes on to its page: not the locale's redirect and not a `404`. */
 const PASSED_ON_STATUS = 200;
 
@@ -70,7 +84,7 @@ const LIMITER_UNAVAILABLE_EVENT = "design-read-limiter-unavailable";
  * headers from `next.config.ts`; and, whatever their last segment ends in, the design and share families. The
  * framework routes `/ro/d/abc.png` to the design's page with the id `abc.png`, so an address of either family that
  * ends in a static extension must still reach this file, or its lookup runs uncounted. A staff kitchen's address is
- * the same: it must carry the staff headers whatever its id ends in. The patterns are literals:
+ * the same, and so is a catalog item's: it must carry the staff headers whatever its id ends in. The patterns are literals:
  * the framework reads a matcher at build time.
  */
 export const config = {
@@ -79,6 +93,7 @@ export const config = {
     "/:locale/d/:id",
     "/:locale/s/:token",
     "/:locale/staff/kitchens/:id",
+    "/:locale/staff/catalog/:section/:id",
   ],
 };
 
@@ -315,17 +330,27 @@ function isAccountPath(pathname: string): boolean {
   ]);
 }
 
-/** A staff page: a real locale, then `staff/{page}` for a page named above, or `staff/kitchens/{id}` with a non-empty
- *  id. A path written any other way (no locale, a case variant, an escaped segment, a longer path) is not one. */
+/** A staff page: a real locale, then `staff/{page}` for a page named above, `staff/kitchens/{id}` with a non-empty id,
+ *  or a page of the price dashboard's family. A path written any other way (no locale, a case variant, an escaped
+ *  segment, a longer path) is not one. */
 function isStaffPath(pathname: string): boolean {
   const segments = pathname.split("/").filter(Boolean);
   const [locale, family, page] = segments;
   if (!hasLocale(routing.locales, locale) || family !== STAFF_FAMILY_SEGMENT) {
     return false;
   }
+  if (page === STAFF_CATALOG_SEGMENT) return isStaffCatalogPath(segments);
   if (page === undefined || !STAFF_SIGNED_IN_PAGES.includes(page)) return false;
   const isKitchenWithId = page === STAFF_KITCHENS_PAGE && segments.length === 4;
   return segments.length === 3 || isKitchenWithId;
+}
+
+/** `catalog/{section}` or `catalog/{section}/{id}`, the locale and the family already checked. */
+function isStaffCatalogPath(segments: readonly string[]): boolean {
+  const [, , , section] = segments;
+  const isKnownSection =
+    section !== undefined && STAFF_CATALOG_SECTIONS.includes(section);
+  return isKnownSection && (segments.length === 4 || segments.length === 5);
 }
 
 /** The account screens that read a single-use token: the only ones that answer `Referrer-Policy: no-referrer`. */

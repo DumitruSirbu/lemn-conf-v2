@@ -82,7 +82,7 @@ function sortedUnique(values: readonly string[]): readonly string[] {
 }
 
 describe("golden-output fixture coverage", () => {
-  it("covers exactly the 34 function-valued legacy content families", () => {
+  it("covers exactly the 35 function-valued legacy content families", () => {
     const actualFamilies = collectContentFunctionFamilies();
     expect(actualFamilies).toEqual([...CONTENT_FUNCTION_FAMILIES].sort());
     expect(
@@ -166,15 +166,15 @@ describe("golden-output fixture coverage", () => {
     }
   });
 
-  it("covers every rejection code and all 38 top-level rejection messages", () => {
+  it("covers every rejection code and all 39 top-level rejection messages", () => {
     expect(
       sortedUnique(REJECTION_FIXTURES.map((fixture) => fixture.code)),
     ).toEqual([...REJECTION_CODES].sort());
     expect(
       sortedUnique(REJECTION_FIXTURES.map((fixture) => fixture.messageKey)),
     ).toEqual([...REJECTION_CATALOGUE_MESSAGE_KEYS].sort());
-    expect(REJECTION_CODES).toHaveLength(35);
-    expect(REJECTION_CATALOGUE_MESSAGE_KEYS).toHaveLength(38);
+    expect(REJECTION_CODES).toHaveLength(36);
+    expect(REJECTION_CATALOGUE_MESSAGE_KEYS).toHaveLength(39);
   });
 
   it("covers both band branches, all width-clause forms, and every side/reason branch", () => {
@@ -257,14 +257,22 @@ describe("golden-output fixture coverage", () => {
     // +2 for the carousel Select's own failure sentences, `presetChooser.selectFailed` and `.selectLimitReached`.
     // Lot 2 tests round: +1 for `designLoadError.bodyClient`, the design-load error's sentence for a signed-in client.
     // Lot 2 U15c: +1 net for `configure.backConfirm.body`, replaced by `.bodyClient` and `.bodyVisitor`.
-    expect(RESOLVED_STATIC_CONTENT).toHaveLength(260);
+    // M10 T3b: +1 for `priceBreakdown.depthLineScope`.
+    // +2 for `globalSettings.kitchenHandleHeading` and `.kitchenHandleHint`.
+    // M10 T2: -1 for the retired `globalSettings.depthNote`.
+    // +1 for `panel.handleFollowsKitchen`.
+    // M10 Q3b: +1 for `globalSettings.pricesUnavailable`, the sheet's line when no book can be read.
+    // M10 Q5c: +1 for `replacementSheet.headerMaterialToChoose`, the pill's material while a material is owed.
+    expect(RESOLVED_STATIC_CONTENT).toHaveLength(265);
     // +3 for the notice's subject, line and figure.
     // +2 for `panel.savePausedNotice`'s two times.
     // M8 8M S4: +4 for `submissionResult.channelLine`'s three channels and `.whatsappMessage`.
     // M8 8M2 S2: +2 for `submissionResult.whatsappMessageToShop` and `.alreadySentAdvice`.
     // M8 8M2 S3: -1 for the retired `submissionResult.whatsappMessage`.
     // +6 for `leadNotice.groupCount`'s four counts and `.preheader` with and without a locality.
-    expect(FUNCTION_CONTENT_FIXTURES).toHaveLength(75);
+    // M10 T3b: +3 for `priceBreakdown.depthLine` and `globalSettings.depthNotePriced`'s zero and surcharge forms.
+    // -2 for the retired `panel.handleDefaultNote`.
+    expect(FUNCTION_CONTENT_FIXTURES).toHaveLength(76);
     // 7L S3: +2 for `room.suggestion.title` and `room.suggestion.switchToLinear`.
     // +1 for `room.compose.limitReached`.
     expect(ROOM_FIXTURES).toHaveLength(73);
@@ -273,7 +281,8 @@ describe("golden-output fixture coverage", () => {
     // M8 8L S2: the contact leaves reached by field code and by class of answer: 11 field errors, 7 outcomes.
     // M8 8M S4: -2 for the retired `contact.outcomes.sent` and `.failed`.
     expect(CONTACT_FIXTURES).toHaveLength(16);
-    expect(REJECTION_FIXTURES).toHaveLength(41);
+    // M10 H1: +1 for `UNKNOWN_HANDLE`.
+    expect(REJECTION_FIXTURES).toHaveLength(42);
     expect(INSERTABLE_BODY_DEFINITIONS).toHaveLength(16);
     expect(CATALOGUE_FIXTURES).toHaveLength(98);
     // 7L S3: +2 for `room.suggestion.title` and `room.suggestion.switchToLinear`.
@@ -302,7 +311,14 @@ describe("golden-output fixture coverage", () => {
     // +2 static fixtures for `presetChooser.selectFailed` and `.selectLimitReached`.
     // Lot 2 tests round: +1 static fixture for `designLoadError.bodyClient`.
     // Lot 2 U15c: +1 net static fixture for `configure.backConfirm.bodyClient` and `.bodyVisitor` replacing `.body`.
-    expect(GOLDEN_FIXTURES).toHaveLength(577);
+    // M10 H1: +1 rejection fixture for `UNKNOWN_HANDLE`.
+    // M10 T3b: +1 static and +3 function fixtures for the depth line and the priced depth sentence.
+    // +2 static fixtures for the whole-kitchen handle row's heading and hint.
+    // M10 T2: -1 static fixture for the retired `globalSettings.depthNote`.
+    // +1 static fixture for `panel.handleFollowsKitchen`, -2 function ones for the retired `panel.handleDefaultNote`.
+    // M10 Q3b: +1 static fixture for `globalSettings.pricesUnavailable`.
+    // M10 Q5c: +1 static fixture for `replacementSheet.headerMaterialToChoose`.
+    expect(GOLDEN_FIXTURES).toHaveLength(584);
     expect(new Set(GOLDEN_FIXTURES.map((fixture) => fixture.id)).size).toBe(
       GOLDEN_FIXTURES.length,
     );

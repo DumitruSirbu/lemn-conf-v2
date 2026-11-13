@@ -52,6 +52,11 @@ process.env.DIGEST_SECRET = randomBytes(32).toString("hex");
 // repository getter. Cleared here, once per file and before it runs; a test about the origin stubs it for itself.
 Reflect.deleteProperty(process.env, PUBLIC_ORIGIN_VARIABLE);
 
+// The application's database is never inherited either: production's price stores are the database's, so a connection
+// string from the shell would send any test that selects production to a live database. A test that is about the
+// connection stubs it for itself.
+Reflect.deleteProperty(process.env, "DATABASE_URL");
+
 // The rate-limit store's instance is the persistence package's own fake, fresh for each test, so no test counts in a
 // database and no test sees another's count.
 const rateLimitStore = vi.hoisted(() => ({ current: undefined as unknown }));

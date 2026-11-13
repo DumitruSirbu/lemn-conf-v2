@@ -17,6 +17,9 @@ import {
 } from "../support/account-world";
 import { signedInAs } from "../support/staff-world";
 
+/** The seeded fake world every page test reads holds no draft. */
+const SEEDED_WORLD_PENDING_PRICES = 0;
+
 const framework = vi.hoisted(() => ({
   connection: vi.fn(() => Promise.resolve()),
   cookie: undefined as string | undefined,
@@ -83,7 +86,19 @@ async function signInAs(
 describe("a person who is signed in as staff", () => {
   it.each([
     ["operator", ["kitchens"]],
-    ["administrator", ["kitchens", "audit"]],
+    [
+      "administrator",
+      [
+        "kitchens",
+        "audit",
+        "cabinets",
+        "hardware",
+        "materials",
+        "accessories",
+        "defaults",
+        "publish",
+      ],
+    ],
   ] as const)(
     "gets the list for a verified %s, in the staff frame with the pages the role opens in its navigation",
     async (role, navigation) => {
@@ -98,6 +113,11 @@ describe("a person who is signed in as staff", () => {
           role,
           email: `${role}@example.test`,
           navigation,
+          ...(role === "administrator"
+            ? {
+                pendingPriceCount: SEEDED_WORLD_PENDING_PRICES,
+              }
+            : {}),
         },
       });
     },

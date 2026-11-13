@@ -342,6 +342,7 @@ describe("§9's description of the shipped hob cabinet", () => {
   // hob cabinet resize and donate width to a neighbour, and there is no 400 mm hob.
   it("reports the hob cabinet as fixed-width, which is what its catalogue entry is", () => {
     const meta = describeSelection({
+      kitchenSettings: {},
       ...seeded(),
       target: { kind: "placement", id: HOB_PLACEMENT_ID },
     });

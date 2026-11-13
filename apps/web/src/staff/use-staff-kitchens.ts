@@ -16,9 +16,10 @@ import {
   failureOf,
   type StaffReadFailure,
 } from "./staff-read-request";
+import { withMarksOfList } from "./staff-kitchens-marks-reading";
 import type {
-  StaffKitchenListWire,
-  StaffListedKitchenWire,
+  StaffKitchenMarkedListWire,
+  StaffListedKitchenMarkedWire,
 } from "./staff-kitchens-wire-contract";
 import { staffKitchenListFrom } from "./staff-kitchens-wire-reading";
 
@@ -44,6 +45,8 @@ export interface StaffKitchenFilters {
   readonly status: RequestStatus | null;
   /** What the box holds now, before it has settled. */
   readonly searchText: string;
+  /** Only the kitchens the client changed after staff saw them. */
+  readonly onlyChanged: boolean;
 }
 
 /** What one request asked for. The search is trimmed and `null` for none. */
@@ -51,6 +54,7 @@ interface StaffListQuery {
   readonly segment: StaffKitchenSegment;
   readonly status: RequestStatus | null;
   readonly search: string | null;
+  readonly onlyChanged: boolean;
   readonly page: number;
 }
 
@@ -75,11 +79,12 @@ export interface StaffKitchensListing {
   readonly search: string | null;
   readonly segment: StaffKitchenSegment;
   readonly status: RequestStatus | null;
+  readonly onlyChanged: boolean;
   readonly total: number;
   readonly pageSize: number;
   readonly firstPage: number;
   readonly lastPage: number;
-  readonly rows: readonly StaffListedKitchenWire[];
+  readonly rows: readonly StaffListedKitchenMarkedWire[];
   /** When the newest page was read: the moment "modified 2 days ago" is told against. */
   readonly readAtMs: number;
   readonly focusRequest: RowFocusRequest | undefined;
@@ -107,8 +112,11 @@ export interface StaffKitchens {
   readonly filters: StaffKitchenFilters;
   readonly searchProblem: SearchProblem | undefined;
   readonly state: StaffKitchensState;
+  /** Every sent kitchen that reads as changed, whatever the filters: the last count the server gave. */
+  readonly changedCount: number;
   readonly chooseSegment: (segment: StaffKitchenSegment) => void;
   readonly chooseStatus: (status: RequestStatus | null) => void;
+  readonly chooseOnlyChanged: (onlyChanged: boolean) => void;
   readonly typeSearch: (text: string) => void;
   /** Enter: the typed search is asked for now. */
   readonly submitSearch: () => void;
@@ -145,7 +153,7 @@ const MODE_RULES: Readonly<
 };
 
 type PageStep =
-  | { readonly kind: "page"; readonly list: StaffKitchenListWire }
+  | { readonly kind: "page"; readonly list: StaffKitchenMarkedListWire }
   | { readonly kind: "failed"; readonly failure: ListFailure }
   | { readonly kind: "forbidden" }
   | { readonly kind: "sign-in" }
@@ -155,12 +163,14 @@ const INITIAL_FILTERS: StaffKitchenFilters = {
   segment: "sent",
   status: null,
   searchText: "",
+  onlyChanged: false,
 };
 
 const INITIAL_QUERY: StaffListQuery = {
   segment: "sent",
   status: null,
   search: null,
+  onlyChanged: false,
   page: FIRST_PAGE,
 };
 
@@ -176,6 +186,7 @@ export function useStaffKitchens(): StaffKitchens {
   const [filters, setFilters] = useState<StaffKitchenFilters>(INITIAL_FILTERS);
   const [searchProblem, setSearchProblem] = useState<SearchProblem>();
   const [state, setState] = useState<StaffKitchensState>({ phase: "loading" });
+  const [changedCount, setChangedCount] = useState(0);
   const filtersRef = useRef(INITIAL_FILTERS);
   const queryRef = useRef(INITIAL_QUERY);
   const flightRef = useRef<Flight>({
@@ -218,6 +229,7 @@ export function useStaffKitchens(): StaffKitchens {
         read({ ...query, page: lastPage }, "correct");
         return;
       }
+      if (step.kind === "page") setChangedCount(step.list.changedCount);
       const readAtMs = Date.now();
       setState((current) =>
         stateAfter({ current, step, query, mode, readAtMs }),
@@ -273,6 +285,7 @@ export function useStaffKitchens(): StaffKitchens {
           segment,
           status: null,
           search: searchForNewQuery(),
+          onlyChanged: filtersRef.current.onlyChanged,
           page: FIRST_PAGE,
         },
         "replace",
@@ -287,7 +300,31 @@ export function useStaffKitchens(): StaffKitchens {
       if (segment !== "sent" || status === filtersRef.current.status) return;
       setFiltersNow({ ...filtersRef.current, status });
       read(
-        { segment, status, search: searchForNewQuery(), page: FIRST_PAGE },
+        {
+          segment,
+          status,
+          search: searchForNewQuery(),
+          onlyChanged: filtersRef.current.onlyChanged,
+          page: FIRST_PAGE,
+        },
+        "replace",
+      );
+    },
+    [read, searchForNewQuery, setFiltersNow],
+  );
+
+  const chooseOnlyChanged = useCallback(
+    (onlyChanged: boolean) => {
+      if (onlyChanged === filtersRef.current.onlyChanged) return;
+      setFiltersNow({ ...filtersRef.current, onlyChanged });
+      read(
+        {
+          segment: filtersRef.current.segment,
+          status: filtersRef.current.status,
+          search: searchForNewQuery(),
+          onlyChanged,
+          page: FIRST_PAGE,
+        },
         "replace",
       );
     },
@@ -336,8 +373,10 @@ export function useStaffKitchens(): StaffKitchens {
     filters,
     searchProblem,
     state,
+    changedCount,
     chooseSegment,
     chooseStatus,
+    chooseOnlyChanged,
     typeSearch,
     submitSearch,
     clearSearch,
@@ -394,7 +433,7 @@ function firstListing({
   mode,
   readAtMs,
 }: {
-  readonly list: StaffKitchenListWire;
+  readonly list: StaffKitchenMarkedListWire;
   readonly query: StaffListQuery;
   readonly mode: ReadMode;
   readonly readAtMs: number;
@@ -403,6 +442,7 @@ function firstListing({
     search: query.search,
     segment: query.segment,
     status: query.status,
+    onlyChanged: query.onlyChanged,
     total: list.total,
     pageSize: list.pageSize,
     firstPage: list.page,
@@ -438,7 +478,7 @@ function pageAfterTheEnd(step: PageStep, mode: ReadMode): number | undefined {
 /** The shown pages with the next one after them. A kitchen that moved between two requests is shown once. */
 function appended(
   listing: StaffKitchensListing,
-  list: StaffKitchenListWire,
+  list: StaffKitchenMarkedListWire,
   readAtMs: number,
 ): StaffKitchensListing {
   const shownIds = new Set(listing.rows.map(({ id }) => id));
@@ -490,6 +530,7 @@ function addressOf(query: StaffListQuery): string {
   const members = new URLSearchParams({ segment: query.segment });
   if (query.status !== null) members.set("status", query.status);
   if (query.search !== null) members.set("q", query.search);
+  if (query.onlyChanged) members.set("onlyChanged", "true");
   members.set("page", String(query.page));
   return `${STAFF_KITCHENS_ENDPOINT}?${members.toString()}`;
 }
@@ -500,7 +541,9 @@ function stepOf(
   const outcome = classifySignedInAnswer("kitchens", answer);
   switch (outcome.kind) {
     case "received": {
-      const list = staffKitchenListFrom(outcome.body);
+      const base = staffKitchenListFrom(outcome.body);
+      const list =
+        base === undefined ? undefined : withMarksOfList(base, outcome.body);
       return list === undefined
         ? failedStep({ kind: "failed" })
         : { kind: "page", list };

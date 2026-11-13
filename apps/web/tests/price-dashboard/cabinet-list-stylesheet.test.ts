@@ -1,0 +1,164 @@
+// Reads the stylesheet's text (no layout runs here) for what a thumb and a narrow screen need from the cabinet list: every
+// interactive box at least a touch target tall, the card layout on a phone and the table from 900 px, the staff frame's own
+// breakpoint, and nothing that would make a 390 px page scroll sideways.
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
+import { describe, expect, it } from "vitest";
+
+import { declarationsFor, valuesFor } from "../support/css-declarations";
+
+const css = readFileSync(
+  join(
+    import.meta.dirname,
+    "../../src/price-dashboard/cabinet-list.module.css",
+  ),
+  "utf8",
+);
+const TOUCH_TARGET = "var(--touch-target)";
+const DESKTOP = "@media (min-width: 900px)";
+
+function pixelsOf(className: string, property: string): number[] {
+  return valuesFor(css, className, property).map((value) =>
+    Number.parseFloat(value),
+  );
+}
+
+describe("what a thumb must hit", () => {
+  it.each([
+    ["groupHeader", "min-height"],
+    ["filterToggle", "min-height"],
+    ["emptyAction", "min-height"],
+    ["searchControl", "min-height"],
+  ])("declares .%s at least 44 px tall", (className, property) => {
+    const [height] = pixelsOf(className, property);
+
+    expect(height).toBeGreaterThanOrEqual(44);
+  });
+
+  it("declares the clear button a touch target wide and tall", () => {
+    expect(valuesFor(css, "searchClear", "width")).toEqual([TOUCH_TARGET]);
+    expect(valuesFor(css, "searchClear", "height")).toEqual([TOUCH_TARGET]);
+  });
+
+  it("draws a visible ring on every control that can take focus", () => {
+    for (const control of [
+      "searchClear",
+      "filterToggle",
+      "emptyAction",
+      "groupHeader",
+    ]) {
+      const hasRing = css
+        .split("}")
+        .some(
+          (rule) =>
+            rule.includes(`.${control}:focus-visible`) &&
+            rule.includes("outline: 2px"),
+        );
+
+      expect(hasRing, `${control} has a focus ring`).toBe(true);
+    }
+    expect(css).toContain(".searchControl:focus-within");
+  });
+});
+
+describe("one markup, two layouts", () => {
+  it("is a two-column card on a phone and the table's four columns from 900 px", () => {
+    expect(
+      declarationsFor(css, "row", "grid-template-columns").map((d) => [
+        d.media,
+        d.value,
+      ]),
+    ).toEqual([
+      ["", "56px minmax(0, 1fr)"],
+      [DESKTOP, "var(--row-columns)"],
+    ]);
+  });
+
+  it("shows the column titles only from 900 px", () => {
+    expect(
+      declarationsFor(css, "columns", "display").map((d) => [d.media, d.value]),
+    ).toEqual([
+      ["", "none"],
+      [DESKTOP, "grid"],
+    ]);
+  });
+});
+
+describe("the way into a cabinet's page", () => {
+  const PHONE = "@media (max-width: 899.98px)";
+
+  it("stretches the name's link over the whole card on a phone, and only there", () => {
+    expect(
+      declarationsFor(css, "name", "inset").map((d) => [d.media, d.value]),
+    ).toEqual([[PHONE, "0"]]);
+    expect(valuesFor(css, "row", "position")).toEqual(["relative"]);
+  });
+
+  it("reaches the name's link over the chevron's end of the row in the table, and not over the price", () => {
+    const reach = declarationsFor(css, "name", "inline-size");
+
+    expect(reach.map((d) => [d.media, d.value])).toEqual([[DESKTOP, "44px"]]);
+    expect(
+      declarationsFor(css, "name", "inset-inline-end").map((d) => d.media),
+    ).toEqual([DESKTOP]);
+    expect(
+      declarationsFor(css, "name", "position").map((d) => [d.media, d.value]),
+    ).toEqual([
+      [PHONE, "absolute"],
+      [DESKTOP, "absolute"],
+    ]);
+  });
+
+  it("makes the name's link a touch target tall in the table, where only the link opens the cabinet", () => {
+    expect(
+      declarationsFor(css, "name", "min-height").map((d) => [d.media, d.value]),
+    ).toEqual([[DESKTOP, TOUCH_TARGET]]);
+  });
+
+  it("gives the chevron a fifth column of the table and a place at the card's end", () => {
+    expect(css).toMatch(/--row-columns: .*16px;/);
+    expect(
+      declarationsFor(css, "chevron", "position").map((d) => [
+        d.media,
+        d.value,
+      ]),
+    ).toEqual([
+      ["", "absolute"],
+      [DESKTOP, "static"],
+    ]);
+  });
+
+  it("draws the chevron, so no glyph is text, and gives the link a focus ring", () => {
+    expect(valuesFor(css, "chevron", "content")).toEqual(['"\\203A" / ""']);
+    expect(
+      css
+        .split("}")
+        .some(
+          (rule) =>
+            rule.includes(".name:focus-visible") &&
+            rule.includes("outline: 2px"),
+        ),
+    ).toBe(true);
+  });
+});
+
+describe("a narrow screen", () => {
+  it("lets every column shrink below its content, so a long name wraps instead of widening the page", () => {
+    expect(css).toMatch(
+      /--row-columns: .*minmax\(0, 1\.6fr\).*minmax\(0, 1fr\).*minmax\(0, 1\.2fr\)/,
+    );
+    expect(valuesFor(css, "rowName", "min-width")).toEqual(["0"]);
+    expect(valuesFor(css, "name", "overflow-wrap")).toEqual(["anywhere"]);
+    expect(valuesFor(css, "emptyTitle", "overflow-wrap")).toEqual(["anywhere"]);
+  });
+
+  it("scrolls nothing sideways and fixes no width on the page", () => {
+    expect(css).not.toMatch(/overflow(-x)?:\s*(auto|scroll)/);
+    expect(css).not.toMatch(/(?<![-\w])width:\s*\d{3,}px/);
+  });
+
+  it("keeps a closed group out of the layout whatever display its list declares", () => {
+    expect(css).toMatch(/\.rows\[hidden\]\s*\{\s*display:\s*none/);
+  });
+});

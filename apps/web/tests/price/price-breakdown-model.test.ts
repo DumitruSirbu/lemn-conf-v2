@@ -35,10 +35,17 @@ import {
   type AvailableBreakdown,
 } from "@/price/price-breakdown-model";
 import { PriceBreakdownSurface } from "@/price/price-breakdown";
-import { describeRoundedAmount } from "@/price/starting-price";
+import {
+  describeLineAmount,
+  describeTotalAmount,
+} from "@/price/starting-price";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
+import { NOTHING_DISABLED } from "../support/availability";
 
 function priceOf(design: Design): PricingResult {
   return priceDesign({
+    deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
     design,
     catalog: KITCHEN_L_BODY_CATALOG,
     book: SAMPLE_PRICE_BOOK,
@@ -375,7 +382,7 @@ describe("what an amount reads as", () => {
     }
   });
 
-  it("rounds a line up to the thousand, through the one rounding site", () => {
+  it("shows a line to the ten lei, through the one line-amount site", () => {
     const view = shippedBreakdown();
     const firstRow = view.groups[0]?.rows[0];
     const firstLine = SHIPPED_PRICING.ok
@@ -386,7 +393,7 @@ describe("what an amount reads as", () => {
       : undefined;
 
     expect(firstRow?.amountText).toBe(
-      describeRoundedAmount(firstLine?.amountMinor ?? -1),
+      describeLineAmount(firstLine?.amountMinor ?? -1),
     );
   });
 
@@ -418,7 +425,7 @@ describe("the figure at the foot of the sheet", () => {
     expect(view.figure.amountText).toBe(
       SHIPPED_PRICING.ok
         ? ro.price.amountWithCurrency(
-            describeRoundedAmount(SHIPPED_PRICING.priced.totalMinor),
+            describeTotalAmount(SHIPPED_PRICING.priced.totalMinor),
           )
         : "",
     );
@@ -444,6 +451,8 @@ describe("the figure at the foot of the sheet", () => {
 describe("a pricing failure", () => {
   it("offers no breakdown at all — not an empty one, not a zeroed one", () => {
     const failed = priceDesign({
+      deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
       design: KITCHEN_L_DESIGN,
       catalog: KITCHEN_L_BODY_CATALOG,
       book: SAMPLE_PRICE_BOOK,

@@ -1,3 +1,4 @@
+import { KITCHEN_L_DESIGN } from "@lemnaria/configurator-domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { designNotFoundResponse } from "@/lib/server/design-errors";
@@ -36,6 +37,22 @@ vi.mock("@/lib/server/account/session-store-instance", () =>
     world.sessionStoreModule(),
   ),
 );
+// A duplicate is not a new kitchen (rule 8): this read answers with settings that differ from the source's in every key,
+// and a test below asserts that nothing of it reaches the copy and that it is never asked.
+const defaultsRead = vi.hoisted(() => ({ calls: 0 }));
+vi.mock("@/lib/server/price-dashboard/new-kitchen-defaults", () => ({
+  readNewKitchenDefaults: () => {
+    defaultsRead.calls += 1;
+    return Promise.resolve({
+      materialTierId: "material.painted-mdf",
+      hardwareTierId: "hardware.premium",
+      cabinetDepthMm: 700,
+      handle: "black",
+      topRowHandle: "steel",
+    });
+  },
+}));
+
 vi.mock("@/lib/server/account/account-kitchen-store-instance", () =>
   import("../../../support/account-world").then((world) =>
     world.accountKitchenStoreModule(),
@@ -752,6 +769,22 @@ describe("duplicate: a copy is a mint, so the network's mint bucket comes first 
     expect(copy?.hiddenAt).toBeUndefined();
     expect(copy?.deletedAt).toBeUndefined();
     expect(world.kitchens.held(KITCHEN_ID)).toEqual(source);
+  });
+
+  it("keeps its source's settings under any saved defaults, and never reads them (rule 8)", async () => {
+    const source = {
+      ...KITCHEN_L_DESIGN,
+      settings: { cabinetDepthMm: 600, materialTierId: "material.veneer" },
+    };
+    seedActionable(duplicate, { design: source });
+    defaultsRead.calls = 0;
+
+    const answer = await duplicate.send(KITCHEN_ID);
+    const { id } = (await jsonOf(answer)) as { id: string };
+
+    expect(answer.status).toBe(201);
+    expect(world.kitchens.held(id)?.design.settings).toEqual(source.settings);
+    expect(defaultsRead.calls).toBe(0);
   });
 
   it("never truncates a name: the client composes the whole of it, and the server refuses 121", async () => {

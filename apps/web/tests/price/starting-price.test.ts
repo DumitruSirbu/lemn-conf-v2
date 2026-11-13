@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import { ro } from "../support/romanian-content";
 import {
+  describeLineAmount,
   describeStartingPrice,
   roundUpToThousandMdl,
 } from "@/price/starting-price";
@@ -32,6 +33,37 @@ describe("the De la prefix", () => {
       label: "De la",
       amountText: "43 000 MDL",
     });
+  });
+});
+
+// Owner ruling 2026-10-28: a line is shown to the ten lei the domain priced it at, only the total to the thousand.
+describe("a line shown to the ten lei", () => {
+  const BANI_PER_TEN_MDL = 10 * BANI_PER_MDL;
+
+  it("prints a priced amount exactly, grouped, with no currency", () => {
+    expect(describeLineAmount(173_000)).toBe("1 730");
+    expect(describeLineAmount(951_000)).toBe("9 510");
+    expect(describeLineAmount(1_000_000 * BANI_PER_MDL)).toBe("1 000 000");
+  });
+
+  it("prints the smallest priced amount, ten lei, as ten and not as a thousand", () => {
+    expect(describeLineAmount(BANI_PER_TEN_MDL)).toBe("10");
+  });
+
+  it("rounds an amount that is not a whole ten lei up to the next ten, never showing bani", () => {
+    expect(describeLineAmount(1)).toBe("10");
+    expect(describeLineAmount(BANI_PER_TEN_MDL + 1)).toBe("20");
+  });
+
+  it("refuses what the total refuses: a negative, fractional or non-finite amount", () => {
+    for (const refused of [-1, 0.5, Number.NaN, Number.POSITIVE_INFINITY])
+      expect(() => describeLineAmount(refused)).toThrow(RangeError);
+  });
+
+  it("differs from the total's rounding on the same amount", () => {
+    expect(describeLineAmount(173_000)).not.toBe(
+      String(roundUpToThousandMdl(173_000)),
+    );
   });
 });
 

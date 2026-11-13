@@ -80,7 +80,7 @@ function panelAt(world: World, target: CommandTarget, canWrite = true) {
   return describePanel({
     content: ro,
     material: PAL_KITCHEN,
-    meta: describeSelection({ ...world, target }),
+    meta: describeSelection({ kitchenSettings: {}, ...world, target }),
     offers: offersFor({
       ...world,
       target,

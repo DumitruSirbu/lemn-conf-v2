@@ -65,7 +65,7 @@ export function refuseUnusableMeasurement(
 
 /** "Choice beats default" (§5.4): a swap keeps the recorded finish and handle where the incoming body
  *  supports them and drops them where it does not (an open shelf has no doors). The top row's
- *  push-open default is not recorded here: the slot decides it at render time (`isPushOpenByDefault`),
+ *  push-open default is not recorded here: the slot decides it at render time (`isTopRowFloorMm`),
  *  so `canHandle` stays true.
  *
  *  Called for every member of a resized column and every member an insert re-plans (§11 rows 12 and

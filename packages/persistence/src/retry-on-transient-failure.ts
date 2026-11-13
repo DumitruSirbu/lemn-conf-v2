@@ -47,8 +47,19 @@ function isErrorOfAnyRealm(error: unknown): error is Error {
   return Object.prototype.toString.call(error) === "[object Error]";
 }
 
-function sleep(milliseconds: number): Promise<void> {
-  return new Promise((resume) => setTimeout(resume, milliseconds));
+/** Waits, or ends early when the signal aborts: the caller looks at the signal after, and does not resume. */
+function sleep(milliseconds: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resume) => {
+    const onAbort = (): void => {
+      clearTimeout(timer);
+      resume();
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resume();
+    }, milliseconds);
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
 }
 
 /**
@@ -56,9 +67,13 @@ function sleep(milliseconds: number): Promise<void> {
  * committed, so every caller must end in the same rows as a first-time success: a read, an idempotent write, or a
  * write whose key was fixed before this call (see ADR 0145). Any other failure propagates at once, and the
  * final attempt is unguarded so a lasting failure reaches the caller as the driver's own error.
+ *
+ * An aborted `signal` ends the repeating: no statement is reissued once it has aborted, and the call rejects with the
+ * signal's reason, so a caller that gave up is never answered with rows.
  */
 export async function retryOnTransientFailure<T>(
   runQuery: (attempt: Attempt) => Promise<T>,
+  signal?: AbortSignal,
 ): Promise<T> {
   let isRetry = false;
   for (const backoff of BACKOFF_MS) {
@@ -66,7 +81,9 @@ export async function retryOnTransientFailure<T>(
       return await runQuery({ isRetry });
     } catch (error) {
       if (!isTransientFailure(error)) throw error;
-      await sleep(backoff);
+      signal?.throwIfAborted();
+      await sleep(backoff, signal);
+      signal?.throwIfAborted();
       isRetry = true;
     }
   }

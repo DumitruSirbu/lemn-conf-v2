@@ -10,7 +10,7 @@ import { describe, expect, it } from "vitest";
 import { isDesignRevision } from "../src/design-revision.js";
 
 describe("isDesignRevision", () => {
-  it.each(["1", "2", "10", "9007199254740993", "9".repeat(19)])(
+  it.each(["1", "2", "10", "9007199254740993", "9223372036854775807"])(
     "accepts %s",
     (value) => {
       expect(isDesignRevision(value)).toBe(true);
@@ -28,6 +28,7 @@ describe("isDesignRevision", () => {
     { name: "a trailing space", value: "1 " },
     { name: "a SQL tautology", value: "' or '1'='1" },
     { name: "twenty digits, wider than bigint", value: "9".repeat(20) },
+    { name: "nineteen nines, past the widest bigint", value: "9".repeat(19) },
   ])("refuses $name", ({ value }) => {
     expect(isDesignRevision(value)).toBe(false);
   });

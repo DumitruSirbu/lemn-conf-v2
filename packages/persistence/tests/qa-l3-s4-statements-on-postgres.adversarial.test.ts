@@ -31,11 +31,12 @@ import {
   liveTestDatabaseUrl,
 } from "./support/live-test-database.js";
 import { rejectionOf } from "./support/rejection-of.js";
-import { holdSharedTestSchemaLock } from "./support/test-schema-lock.js";
+import { holdExclusiveTestSchemaLock } from "./support/test-schema-lock.js";
 
-// Shared: every write below happens inside a transaction that is rolled back, so the file needs the schema intact and
-// leaves nothing behind.
-holdSharedTestSchemaLock();
+// Exclusive, not shared: every write below is rolled back, but the segment and tie tests page the unfiltered list and
+// require the planted kitchens first. The list puts changed kitchens above everything, so another file's live changed
+// kitchen, committed before this file's snapshot, comes first and fails them (run 43273638364, shard 3).
+holdExclusiveTestSchemaLock();
 
 /**
  * Adversarial QA of the staff kitchen reader, against the statements it really sends, on a real Postgres.

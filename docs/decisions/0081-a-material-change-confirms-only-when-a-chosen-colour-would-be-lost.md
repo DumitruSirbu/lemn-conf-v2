@@ -262,3 +262,55 @@ turned back on. **No wave is blocked on it and wave 6Q-c ships as ruled.**
   of 2026-09-04: the confirmation's title/body and its two actions.
 - A later wave that adds a fourth material inherits the predicate for free — it compares against a
   declaration, so a new material's default enters the rule by being declared.
+
+## Amendment 2026-11-09 — inside the dashboard's replacement sheet (C4) the colour reset is announced after the change
+
+**Status: SUPERSEDED by the owner's ruling of 2026-11-10 (below).** The text of this amendment is kept as history. It
+was a coordinator proposal, never an owner ruling; the owner rewrote it, and the "Culoarea a revenit la ..." announcement it proposes
+(the C4C line) is **not** the rule. Nothing above this amendment is struck.
+
+**The ruling proposed (superseded).** In the replacement sheet (C4), when a forced replacement of a switched-off or vanished material
+changes the material, the colour reset is **announced after the change** — by the C4C line "Culoarea a revenit la …",
+shown only when a stored colour was actually rewritten — and is **not confirmed before it**.
+
+**Why.**
+- **(a)** [ADR 0178](0178-the-m10-dashboard-storage-lifecycle-defaults-notice-seen-and-digest.md) A-16 (2026-10-26, later
+  than this record) says a colour reset caused by a material replacement "is announced ("Culoarea a revenit la …", C4C)",
+  and frame C4C draws that line. [doc-quoted, ADR 0178 lines 128-134]
+- **(b)** Inside the sheet there is nothing to decline: every material's palette is separate
+  ([ADR 0078](0078-a-materials-offer-is-its-controls-shape-and-the-load-seam-resolves-before-it-validates.md) decision 1),
+  so any choice loses the colour, and the only other exit, the back button, leaves the kitchen unpriced. [inference, as
+  relayed by the coordinator; falsified if a material with a carried-over palette exists]
+
+**What is narrowed.** Decisions 2 (blocking, cancel writes nothing), 3 (one dialog, two steps), 6 (the copy is never shown
+after the apply) and 8, **for the C4 sheet only**. Decision 1's predicate is untouched.
+
+**What is not narrowed.** The settings sheet keeps this record whole: a blocking confirmation before the change. QA pins
+both directions.
+
+**Links.** ADR 0178 A-16; the *Q5 split and R4c plan* block in
+[`M10-price-dashboard.md`](../milestones/done/M10-price-dashboard.md) (Lane Q).
+
+**If the owner declines**, C4 would need a confirmation step before the change and the C4C line would lose its trigger;
+Q5b is built to the proposal.
+
+## Amendment 2026-11-10 — owner ruling: the replacement sheet only says the material and its colours are unavailable
+
+**Status: OWNER RULING, dated 2026-11-10, given in chat by the owner and relayed by the coordinator** (tier: owner ruling,
+relayed; the scribe ran nothing). It supersedes the proposed amendment of 2026-11-09 above, which stays readable as history.
+
+**The ruling.** In the dashboard's replacement sheet (C4), when a forced replacement of a switched-off or vanished material
+happens, the sheet **only says that the material and its colours are not available and that the customer must choose
+another**. There is **no** "Culoarea a revenit la ..." line (C4C) and **no** confirmation before the change.
+
+**Not narrowed.** The settings sheet keeps this record whole: a blocking confirmation before a material change that would
+lose a chosen colour.
+
+**Consequences (relayed; each is for its owner to act on).**
+- Q5b was built to the superseded proposal (it shows C4C) and **needs a rework**.
+- [ADR 0178](0178-the-m10-dashboard-storage-lifecycle-defaults-notice-seen-and-digest.md) A-16 says the reset "is announced
+  (Culoarea a revenit la ..., C4C)"; it gets an amendment pointer to this ruling (done, same date).
+- The raw-hex question (a hex shown in the reset line) is **moot**: the line no longer exists. The owner's remark: nobody
+  uses colour names, they use the RAL palette.
+- `replacementSheet.changedColour` (T5, OQ-11h) **may be dead copy**. Flagged for the architect; not decided here.
+- The block on any push that came from the proposed amendment is **lifted**. A push still needs a green `pnpm ci:local`.

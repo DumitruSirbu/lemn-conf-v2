@@ -41,6 +41,9 @@ server had no configured public origin (F10).
 **Q-8V-2 = yes**: the done page's link opens for editing only in the same browser until customer accounts (M8B); the
 owner plans accounts later, with GDPR.
 
+> **Pointer, 2026-10-25.** A sent kitchen stays editable (no lock): see the
+> [ADR 0062 fifth Amendment](0062-a-manufacturer-price-dashboard-comes-after-m8-and-shapes-seams-now.md). D1 is unchanged.
+
 ## Decisions
 
 The labels D1–D10 are the plan's, kept so that code comments citing *"wave 8V Dn"* repoint to the same label here.

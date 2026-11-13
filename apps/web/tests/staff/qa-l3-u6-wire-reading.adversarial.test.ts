@@ -345,7 +345,7 @@ describe("a row whose action this build does not know", () => {
     },
   );
 
-  it("keeps the six listed actions with the details the domain accepts for each, and no detail for the three that carry none", () => {
+  it("keeps the fifteen listed actions with the details the domain accepts for each, and no detail for the three Lot 3 actions that carry none", () => {
     const details: Record<string, unknown> = {
       "kitchen-opened": null,
       "note-added": null,
@@ -365,6 +365,30 @@ describe("a row whose action this build does not know", () => {
         hasActionFilter: true,
         hasDateFilter: false,
       },
+      "price-draft-changed": { changeKind: "depth-rule" },
+      "price-draft-reverted": { changeKind: "provisional", revertedCount: 1 },
+      "price-bulk-changed": {
+        scope: "group",
+        groupCode: "wall",
+        percent: -5,
+        ruleCount: 12,
+        amountCount: 40,
+      },
+      "price-published": {
+        sequenceNumber: 2,
+        changeCount: 3,
+        provisional: false,
+      },
+      "price-restored-to-draft": { fromSequenceNumber: 1, changeCount: 2 },
+      "catalogue-item-active-changed": {
+        itemKind: "material",
+        itemId: "material.painted-mdf",
+        active: true,
+        availabilityRevision: "4",
+      },
+      "kitchen-defaults-saved": { changedFields: ["finish", "handle"] },
+      "kitchen-seen": {},
+      "price-catalogue-viewed": { section: "history" },
     };
 
     for (const action of STAFF_AUDIT_ACTIONS) {

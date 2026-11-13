@@ -11,6 +11,10 @@ import { join } from "node:path";
 import { resolveTestDatabaseUrl } from "@lemnaria/persistence";
 
 import { DIGEST_SECRET_VARIABLE } from "../../../src/lib/server/digest/digest-secret-variable";
+import {
+  FAKE_PRICE_BOOK_FLAG,
+  FAKE_PRICE_BOOK_FLAG_ENABLED,
+} from "../../../src/lib/server/fake-price-book-flag";
 import { PUBLIC_ORIGIN_VARIABLE } from "../../../src/lib/server/public-origin-variable";
 import { E2E_RATE_LIMIT_POLICY_FLAG } from "../../../src/lib/server/rate-limit/limit-policy";
 import { CLIENT_NETWORK_SOURCE_VARIABLE } from "../../../src/lib/server/rate-limit/network-source";
@@ -64,14 +68,19 @@ const READY_TIMEOUT_MS = 120_000;
 const POLL_INTERVAL_MS = 500;
 const STOP_TIMEOUT_MS = 10_000;
 
+/** Named on a deployment alone: where it is set, the price stores are the database's whatever else the server asks for. */
+export const DEPLOYMENT_ENVIRONMENT_VARIABLE = "VERCEL_ENV";
+
 /**
  * Variables the second server must never inherit: they would choose its secret, policy, network source or public
- * origin, or give it a mail sender. It runs under `CI`, where a Gmail name inherited from the runner would be a real one.
+ * origin, name it a deployment, or give it a mail sender. It runs under `CI`, where a Gmail name inherited from the
+ * runner would be a real one.
  */
 const NOT_INHERITED: readonly string[] = [
   DIGEST_SECRET_VARIABLE,
   PUBLIC_ORIGIN_VARIABLE,
   CLIENT_NETWORK_SOURCE_VARIABLE,
+  DEPLOYMENT_ENVIRONMENT_VARIABLE,
   E2E_RATE_LIMIT_POLICY_FLAG,
   RUN_SECRET_VARIABLE,
   FAKE_MAIL_FLAG_NAME,
@@ -100,7 +109,7 @@ export interface ProductionPolicyServer {
 
 /**
  * A second server beside the suite's, under the production policy: no policy flag, no network source, and a secret of
- * its own, on the test database. It is `next start` of the production build the first server made, so it runs under
+ * its own, on the test database, reading the sample book from the seeded fake price stores as the suite's server does. It is `next start` of the production build the first server made, so it runs under
  * `CI` only and builds nothing: a build inside a developer's run would write where a running server reads. Only a
  * process it started is ever stopped.
  */
@@ -199,7 +208,7 @@ interface OwnServerValues {
   readonly origin: string;
 }
 
-function environmentOfTheServer(
+export function environmentOfTheServer(
   { secret, origin }: OwnServerValues,
   { networkSource, unreachableDatabaseUrl }: ProductionPolicyServerOptions,
 ): NodeJS.ProcessEnv {
@@ -210,6 +219,10 @@ function environmentOfTheServer(
   // The guarded resolver refuses anything but an allowlisted test database, as the suite's own server's does.
   environment.DATABASE_URL = unreachableDatabaseUrl ?? resolveTestDatabaseUrl();
   environment[DIGEST_SECRET_VARIABLE] = secret;
+  // The suite's own server gets this flag from `playwright.config.ts`, which the runner's environment never holds, so a
+  // second server would otherwise read the database's price stores, against the test database, and price nothing the
+  // suite seeded.
+  environment[FAKE_PRICE_BOOK_FLAG] = FAKE_PRICE_BOOK_FLAG_ENABLED;
   if (networkSource !== undefined) {
     environment[CLIENT_NETWORK_SOURCE_VARIABLE] = networkSource;
   }

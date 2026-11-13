@@ -465,12 +465,15 @@ describe("the sub-state the screen marks is the live query's (criterion 19)", ()
 });
 
 describe("the route stays a server shell (criterion 17)", () => {
-  it("renders one client component and hands it nothing, and declares nothing else", () => {
+  it("renders one client component and hands it the new-kitchen settings alone, and declares nothing else", () => {
     // The route must not parse the query or hand it over: an unused parse is one edit from being handed over.
+    // The one prop it hands is the dashboard's defaults read (R4b3), which is no reading of the URL.
     // The must-nots read the route's code, not its comments.
     const code = codeOf(ROOM_PAGE_SOURCE);
 
-    expect(code).toContain("<RoomScreen />");
+    expect(code).toContain(
+      "<RoomScreen newKitchenSettings={newKitchenSettings} />",
+    );
     expect(code).not.toMatch(/parseRoomUrlState/);
     expect(code).not.toMatch(/searchParams/);
     // `connection()` holds the route out of the prerender manifest; this guards it against deletion as dead code.

@@ -1,0 +1,357 @@
+"use client";
+
+import { useTranslations } from "next-intl";
+import { useRef } from "react";
+
+import type { ContentTranslator } from "@/i18n/content";
+import type { AppLocale } from "@/i18n/routing";
+import { useContent } from "@/i18n/use-content";
+import { StaffShell, type StaffShellContext } from "@/staff/staff-shell";
+
+import { pendingPriceCountOf } from "./cabinet-list-model";
+import { CreatedNameField } from "./created-name-field";
+import { formatLei } from "./format-lei";
+import {
+  hardwareClassOf,
+  type HardwareClassFacts,
+  type HardwarePageInput,
+  type ReadyHardware,
+} from "./hardware-model";
+import { hardwareNameOf } from "./hardware-names";
+import { ClassChips, hardwareItemOf, reasonsOf } from "./hardware-parts";
+import { hardwarePathOf } from "./hardware-paths";
+import { HARDWARE_RATE_WORDS } from "./hardware-rate-words";
+import { ItemUnavailableScreen } from "./catalog-states";
+import styles from "./hardware.module.css";
+import { ItemDeskNotice, ItemDialogs } from "./item-dialogs";
+import { ItemLifecycleSection, ItemRemovedNotice } from "./item-edit-parts";
+import type { ItemLifecycleClient } from "./item-lifecycle-client";
+import type { PriceDraftClient } from "./price-draft-client";
+import { leiRefusalWords, saveFailureWords } from "./price-input-words";
+import { PriceSaveBar } from "./price-save-bar";
+import { PriceUnitField } from "./price-unit-field";
+import {
+  useCreatedRowNameEditing,
+  type CreatedRowNameEditing,
+} from "./use-created-row-name-editing";
+import { useFocusAfterCancel } from "./use-focus-after-cancel";
+import { useHardwareDesk, type HardwareDesk } from "./use-hardware-desk";
+import {
+  useHardwareRateEditing,
+  type HardwareRateEditing,
+  type RateFieldState,
+} from "./use-hardware-rate-editing";
+
+// One hardware class (frame D4B): its words, whether customers may choose it, every rate, and its deletion. A rate is
+// sent to "De publicat" only on Save; whether the class is on applies at once, through the dialogs, and never joins the draft.
+
+export interface HardwareEditScreenProps {
+  readonly locale: AppLocale;
+  readonly context: StaffShellContext;
+  readonly page: HardwarePageInput;
+  readonly tierId: string;
+  /** The routes the draft is written through; the fetching client when left out. */
+  readonly client?: PriceDraftClient | undefined;
+  /** Where a switch is written and the saved kitchens are counted; the page's own stand-in when left out. */
+  readonly lifecycleClient?: ItemLifecycleClient | undefined;
+}
+
+export function HardwareEditScreen({
+  locale,
+  context,
+  page,
+  tierId,
+  client,
+  lifecycleClient,
+}: HardwareEditScreenProps) {
+  const desk = useHardwareDesk({ page, client, lifecycleClient });
+  const translate = useTranslations();
+  const { derivation } = desk;
+  if (derivation.kind !== "ready") {
+    return (
+      <ItemUnavailableScreen
+        locale={locale}
+        context={context}
+        page="hardware"
+      />
+    );
+  }
+  const shell = {
+    ...context,
+    pendingPriceCount: pendingPriceCountOf(desk.draft.state.draft),
+  };
+  const facts = hardwareClassOf(derivation, tierId);
+  if (facts === undefined) {
+    return (
+      <StaffShell locale={locale} page="hardware" context={shell}>
+        <ItemRemovedNotice
+          testId="hardware-removed"
+          backHref={hardwarePathOf(locale)}
+          backLabel={translate("priceDashboard.hardware.title")}
+          message={translate("priceDashboard.hardware.createdRemoved")}
+        />
+      </StaffShell>
+    );
+  }
+  return (
+    <StaffShell locale={locale} page="hardware" context={shell}>
+      <HardwareEdit
+        key={tierId}
+        locale={locale}
+        desk={desk}
+        derivation={derivation}
+        facts={facts}
+      />
+    </StaffShell>
+  );
+}
+
+function HardwareEdit({
+  locale,
+  desk,
+  derivation,
+  facts,
+}: {
+  readonly locale: AppLocale;
+  readonly desk: HardwareDesk;
+  readonly derivation: ReadyHardware;
+  readonly facts: HardwareClassFacts;
+}) {
+  const translate = useTranslations();
+  const content = useContent();
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const { availability } = desk;
+  const name = content.bookText(facts.name.authored, facts.name.key);
+  const editing = useHardwareRateEditing({
+    tierId: facts.tierId,
+    rates: facts.rates,
+    draft: desk.draft,
+  });
+  const renaming = useCreatedRowNameEditing({
+    item: hardwareItemOf(facts),
+    currentName: facts.name.authored,
+    publishedName: facts.activeName,
+    draft: desk.draft,
+  });
+  return (
+    <section className={styles.page} data-testid="hardware-edit">
+      <div className={styles.heading}>
+        <a className={styles.back} href={hardwarePathOf(locale)}>
+          {translate("priceDashboard.hardware.title")}
+        </a>
+        <h1 ref={headingRef} tabIndex={-1} className={styles.title}>
+          {name}
+        </h1>
+        <ClassChips facts={facts} context={availability.context} />
+      </div>
+      <ItemDeskNotice desk={availability} />
+      <div className={styles.editColumns}>
+        <div className={styles.editColumn}>
+          <ClassWords facts={facts} name={name} renaming={renaming} />
+          {facts.isDeletionPending ? (
+            <p className={styles.notice} role="status">
+              {translate("priceDashboard.hardware.deleteNotice")}
+            </p>
+          ) : (
+            <Lifecycle facts={facts} desk={desk} />
+          )}
+        </div>
+        {facts.isDeletionPending ? null : (
+          <div className={styles.editColumn}>
+            <RateFields locale={locale} editing={editing} />
+          </div>
+        )}
+      </div>
+      <ItemDialogs
+        desk={availability}
+        nameOf={(item) => hardwareNameOf(derivation, content.bookText, item)}
+        returnFocusFallbackRef={headingRef}
+      />
+    </section>
+  );
+}
+
+/** The class's name and description. A catalogue row's are the catalogue's and read-only; a created row's name is
+ *  authored Romanian and can be reworded here, its description is shown only. */
+function ClassWords({
+  facts,
+  name,
+  renaming,
+}: {
+  readonly facts: HardwareClassFacts;
+  readonly name: string;
+  readonly renaming: CreatedRowNameEditing;
+}) {
+  const translate = useTranslations();
+  const content = useContent();
+  const description = content.bookText(
+    facts.description.authored,
+    facts.description.key,
+  );
+  const canRename = !facts.isKeyed && !facts.isDeletionPending;
+  return (
+    <>
+      {canRename ? (
+        <CreatedNameField
+          renaming={renaming}
+          nameLabel={translate("priceDashboard.hardware.nameLabel")}
+          renameLabel={translate("priceDashboard.hardware.renameAction")}
+        />
+      ) : (
+        <div className={styles.words}>
+          <span className={styles.wordsLabel}>
+            {translate("priceDashboard.hardware.nameLabel")}
+          </span>
+          <span className={styles.wordsValue}>{name}</span>
+        </div>
+      )}
+      <div className={styles.words}>
+        <span className={styles.wordsLabel}>
+          {translate("priceDashboard.hardware.descriptionLabel")}
+        </span>
+        <span className={styles.wordsValue}>{description}</span>
+      </div>
+      <p className={styles.hint}>
+        {translate(
+          facts.isKeyed
+            ? "priceDashboard.common.keyedTextNote"
+            : "priceDashboard.common.createdTextNote",
+        )}
+      </p>
+    </>
+  );
+}
+
+/** Whether customers may choose the class, and its deletion. */
+function Lifecycle({
+  facts,
+  desk,
+}: {
+  readonly facts: HardwareClassFacts;
+  readonly desk: HardwareDesk;
+}) {
+  const translate = useTranslations();
+  const { availability } = desk;
+  return (
+    <ItemLifecycleSection
+      availability={availability}
+      item={hardwareItemOf(facts)}
+      reasons={reasonsOf({ translate, facts, context: availability.context })}
+      words={{
+        activeLabel: translate("priceDashboard.hardware.activeLabel"),
+        activeNote: translate(
+          facts.isCreated
+            ? "priceDashboard.hardware.activeHintNew"
+            : "priceDashboard.hardware.activeHint",
+        ),
+        deleteHeading: translate("priceDashboard.hardware.deleteHeading"),
+        deleteHint: translate("priceDashboard.hardware.deleteHint"),
+        deleteAction: translate("priceDashboard.hardware.deleteAction"),
+      }}
+    />
+  );
+}
+
+function RateFields({
+  locale,
+  editing,
+}: {
+  readonly locale: AppLocale;
+  readonly editing: HardwareRateEditing;
+}) {
+  const translate = useTranslations();
+  const fieldsRef = useRef<HTMLDivElement>(null);
+  const cancel = useFocusAfterCancel(editing.cancel, fieldsRef);
+  const mustFix = editing.states.some(
+    (state) => state.reading.kind === "refused",
+  );
+  return (
+    <>
+      <h2 className={styles.cardTitle}>
+        {translate("priceDashboard.hardware.pricesHeading")}
+      </h2>
+      <p className={styles.intro}>
+        {translate("priceDashboard.hardware.pricesHint")}
+      </p>
+      <div ref={fieldsRef} tabIndex={-1} className={styles.fields}>
+        {editing.states.map((state) => (
+          <RateField key={state.rate.field} state={state} editing={editing} />
+        ))}
+      </div>
+      <PriceSaveBar
+        locale={locale}
+        feedback={editing.feedback}
+        isChanged={editing.isChanged}
+        canSave={editing.canSave}
+        mustFix={mustFix}
+        onSave={() => {
+          void editing.save();
+        }}
+        onCancel={cancel}
+      />
+    </>
+  );
+}
+
+function RateField({
+  state,
+  editing,
+}: {
+  readonly state: RateFieldState;
+  readonly editing: HardwareRateEditing;
+}) {
+  const translate = useTranslations();
+  const { rate } = state;
+  const error = errorOf(translate, state, editing);
+  const hint = error === undefined ? hintOf(translate, rate) : undefined;
+  return (
+    <PriceUnitField
+      label={translate(HARDWARE_RATE_WORDS[rate.field].label)}
+      unit={translate(HARDWARE_RATE_WORDS[rate.field].unit)}
+      inputMode="decimal"
+      value={state.text}
+      hint={hint}
+      error={error}
+      isPending={rate.pendingMinor !== rate.activeMinor || state.isChanged}
+      onChange={(text) => {
+        editing.type(rate.field, text);
+      }}
+    />
+  );
+}
+
+/** Beside the field: what is active now, then what the rate is charged for, where the frame says so. A class only the draft
+ *  knows has no active rate. */
+function hintOf(
+  translate: ContentTranslator,
+  rate: RateFieldState["rate"],
+): string | undefined {
+  const noteWords = HARDWARE_RATE_WORDS[rate.field].hint;
+  const note = noteWords === undefined ? undefined : translate(noteWords);
+  if (rate.activeMinor === undefined) return note;
+  const amount = formatLei(
+    rate.activeMinor,
+    translate("priceDashboard.units.currency"),
+  );
+  return note === undefined
+    ? translate("priceDashboard.common.activeValue", { amount })
+    : translate("priceDashboard.common.activeValueWithHint", {
+        amount,
+        hint: note,
+      });
+}
+
+/** What a typed value reads as, and where the server's answer to the write last tried is told: under its own field. */
+function errorOf(
+  translate: ContentTranslator,
+  { rate, reading }: RateFieldState,
+  { feedback }: HardwareRateEditing,
+): string | undefined {
+  if (reading.kind === "refused") {
+    return leiRefusalWords(translate, reading.refusal);
+  }
+  if (feedback.kind === "failed" && feedback.fieldKey === rate.field) {
+    return saveFailureWords(translate, feedback);
+  }
+  return undefined;
+}

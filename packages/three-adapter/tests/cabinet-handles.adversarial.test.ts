@@ -42,6 +42,11 @@ import {
   installHeadlessDocument,
 } from "./support/headless-canvas.js";
 
+// Each row builds a body at every whole millimetre of its width range: up to 0.43 s a row under the parallel package
+// run. The unit gate runs every package at once on a slower runner, so this is sized at 10x that and not left at the 5
+// s default.
+const ROW_WIDTH_SWEEP_TIMEOUT_MS = 30_000;
+
 /** Every mesh `barHandle` builds — the bar and its two stems — whoever the handle belongs to. */
 const HANDLE_PART_NAME = /handle_bar|handle_stem/;
 
@@ -176,6 +181,7 @@ describe("the declaration holds at every width a row can be built at, not only a
 
       expect(mismatches).toEqual([]);
     },
+    ROW_WIDTH_SWEEP_TIMEOUT_MS,
   );
 
   // The sweep above is only worth its runtime if some row's count actually moves inside its own

@@ -24,9 +24,12 @@ import {
   resolveClaimDialogCopy,
   resolveContent,
   resolveLogoutEverywhereCopy,
+  resolvePriceNoticeCopy,
+  resolveSentKitchenNoteCopy,
   resolveSessionExpiredSheetCopy,
   resolveStaffActionsCopy,
   resolveStaffAuditCopy,
+  resolveStaffChangesCopy,
   resolveStaffKitchenCopy,
   resolveStaffKitchensCopy,
   resolveStaffNotesCopy,
@@ -95,6 +98,10 @@ export function useStaffKitchenCopy() {
   return useResolved(resolveStaffKitchenCopy);
 }
 
+export function useStaffChangesCopy() {
+  return useResolved(resolveStaffChangesCopy);
+}
+
 export function useStaffNotesCopy() {
   return useResolved(resolveStaffNotesCopy);
 }
@@ -109,6 +116,14 @@ export function useAccountKitchensCopy() {
 
 export function useLogoutEverywhereCopy() {
   return useResolved(resolveLogoutEverywhereCopy);
+}
+
+export function usePriceNoticeCopy() {
+  return useResolved(resolvePriceNoticeCopy);
+}
+
+export function useSentKitchenNoteCopy() {
+  return useResolved(resolveSentKitchenNoteCopy);
 }
 
 export function useSessionExpiredSheetCopy() {

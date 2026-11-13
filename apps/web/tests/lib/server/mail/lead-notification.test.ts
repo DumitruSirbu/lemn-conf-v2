@@ -49,6 +49,8 @@ import {
   readMailModuleSource,
   releaseFetch,
 } from "./mail-test-support";
+import { MEASURED_DEEPENING_ROWS } from "../../../support/deepening-rows";
+import { NOTHING_DISABLED } from "../../../support/availability";
 
 const ARMS_BY_NAME = VARIED_ARMS.map((arm) => [arm.name, arm] as const);
 
@@ -76,6 +78,8 @@ function validContact(overrides: ContactFieldsInput = {}): ContactFields {
 
 function snapshotOfDesign(design: Design): SubmissionSnapshot {
   const result = snapshotSubmission({
+    deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
     design,
     catalog: buildKitchenLBodyCatalog(cabinetDepthMmOf(design)),
     book: SAMPLE_PRICE_BOOK,
@@ -91,6 +95,8 @@ function sendableDesigns(arm: VariedArm, limit: number): readonly Design[] {
     .filter(
       (design) =>
         snapshotSubmission({
+          deepeningRows: MEASURED_DEEPENING_ROWS,
+          availability: NOTHING_DISABLED,
           design,
           catalog: buildKitchenLBodyCatalog(cabinetDepthMmOf(design)),
           book: SAMPLE_PRICE_BOOK,
@@ -553,6 +559,8 @@ describe("the notice's kitchen lines", () => {
       content: ro,
       design,
       pricing: priceDesign({
+        deepeningRows: MEASURED_DEEPENING_ROWS,
+        availability: NOTHING_DISABLED,
         design,
         catalog,
         book: SAMPLE_PRICE_BOOK,
@@ -632,16 +640,18 @@ describe("the notice's kitchen lines", () => {
   );
 
   it.each(ARMS_BY_NAME)(
-    "prints each handle's word, from the body's own member, under its row in the %s arm",
+    "prints the word of a handle a body chose and can take, from the body's own member, under its row in the %s arm",
     (_name, arm) => {
       const missing = dressedKitchens(arm, KITCHENS_PER_ARM).filter(
         (design) => {
           const printed = bodyLinesOf(
             designRequest({ snapshot: snapshotOfDesign(design) }),
           );
+          const catalog = buildKitchenLBodyCatalog(cabinetDepthMmOf(design));
           return entriesOf(design).some(
             (entry) =>
               entry.handle !== undefined &&
+              catalog.get(entry.buildId)?.canHandle === true &&
               !printed.includes(`  ${ro.panel.handleLabels[entry.handle]}`),
           );
         },
@@ -845,6 +855,8 @@ describe("a request whose kitchen the notice cannot describe", () => {
       columnExtents: [],
     };
     const pricing = priceDesign({
+      deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
       design: empty,
       catalog: buildKitchenLBodyCatalog(cabinetDepthMmOf(empty)),
       book: SAMPLE_PRICE_BOOK,

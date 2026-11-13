@@ -20,6 +20,7 @@ import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ownerVisitorCookiePair } from "../../../support/owned-design-lookup";
+import { SEEDED_MINT_DESIGN } from "../../../support/seeded-mint-design";
 
 /**
  * An in-memory stand-in for the Neon repository that reproduces the one property these route tests
@@ -447,7 +448,7 @@ describe("GET /api/designs/[id]", () => {
     expect(body).toEqual({
       id,
       revision: FIRST_REVISION,
-      design: KITCHEN_L_DESIGN,
+      design: SEEDED_MINT_DESIGN,
       canWrite: false,
       canAuthorPresets: false,
     });
@@ -633,7 +634,7 @@ describe("PUT /api/designs/[id] — the revision the save is conditional on (WEB
         error: "Design write not authorized.",
       });
       expect(storedSerialization(theirs.id)).toBe(
-        canonicalSerializeDesign(KITCHEN_L_DESIGN),
+        canonicalSerializeDesign(SEEDED_MINT_DESIGN),
       );
     },
   );
@@ -670,7 +671,7 @@ describe("PUT /api/designs/[id] — the revision the save is conditional on (WEB
         error: "Design save must state the revision it edits.",
       });
       expect(storedSerialization(id)).toBe(
-        canonicalSerializeDesign(KITCHEN_L_DESIGN),
+        canonicalSerializeDesign(SEEDED_MINT_DESIGN),
       );
     },
   );

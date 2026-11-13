@@ -44,6 +44,8 @@ import {
   type VoidRecord,
 } from "../../src/void-engine.js";
 import { createFakeProbeFactory } from "../support/fake-probe.js";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows.js";
+import { NOTHING_DISABLED } from "../support/availability.js";
 
 const OCCURRED_AT = "2026-10-01T10:00:00.000Z";
 const SHALLOW_MM = 600;
@@ -338,6 +340,7 @@ describe.each(ROOMS)("%s: where the top row does not stand", (_label, room) => {
       ]);
       expect(
         isPushToOpen({
+          kitchenSettings: {},
           y0Mm: top.y0Mm,
           recordedHandle: top.body.handle,
           canHandle: record?.canHandle === true,
@@ -398,6 +401,8 @@ function priced(design: Design) {
     catalog: buildKitchenLBodyCatalog(cabinetDepthMmOf(design)),
     book: SAMPLE_PRICE_BOOK,
     pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
+    deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
     selections: design.settings,
   });
   if (!result.ok) throw new Error("the design did not price");
@@ -533,6 +538,7 @@ describe.each(ROOMS)(
         );
         expect(
           isPushToOpen({
+            kitchenSettings: {},
             y0Mm: TOP_ROW_FLOOR_MM,
             recordedHandle: withABar?.body.handle,
             canHandle: true,

@@ -35,6 +35,10 @@ import {
   installHeadlessDocument,
 } from "./support/headless-canvas.js";
 
+// The sweep rebuilds the kitchen for every resize it accepts: 0.6 s under the parallel package run. The unit gate runs
+// every package at once on a slower runner, so this is sized at 10x that and not left at the 5 s default.
+const RESIZE_SWEEP_TIMEOUT_MS = 30_000;
+
 /** §7's head-clearance cap on a wall carcass over a worktop, restated as the *expectation* rather
  *  than imported from the code under test. Wave 5A's map row for the shipped 600 mm worktop. */
 const WALL_DEPTH_OVER_WORKTOP_MM = 330;
@@ -238,38 +242,44 @@ describe("a resize does not change any member's recorded depth", () => {
     expect(depthMm(result.design, "w1300")).toBe(WALL_DEPTH_OVER_WORKTOP_MM);
   });
 
-  it("holds for every resize the shipped kitchen accepts after one column is cleared", () => {
-    const accepted: string[] = [];
-    for (const cleared of CLEARABLE_COLUMNS) {
-      const world = clear(load(KITCHEN_L_DESIGN), cleared.ids);
-      for (const placement of world.design.placements) {
-        for (const widthMm of [200, 300, 400, 450, 600, 700, 800, 900]) {
-          const result = resize(world, placement.id, widthMm);
-          if (!result.ok) continue;
-          accepted.push(`${cleared.key}:${placement.id}@${String(widthMm)}`);
-          for (const id of result.effect.columnPlacementIds) {
-            expect(depthMm(result.design, id)).toBe(depthMm(world.design, id));
+  it(
+    "holds for every resize the shipped kitchen accepts after one column is cleared",
+    () => {
+      const accepted: string[] = [];
+      for (const cleared of CLEARABLE_COLUMNS) {
+        const world = clear(load(KITCHEN_L_DESIGN), cleared.ids);
+        for (const placement of world.design.placements) {
+          for (const widthMm of [200, 300, 400, 450, 600, 700, 800, 900]) {
+            const result = resize(world, placement.id, widthMm);
+            if (!result.ok) continue;
+            accepted.push(`${cleared.key}:${placement.id}@${String(widthMm)}`);
+            for (const id of result.effect.columnPlacementIds) {
+              expect(depthMm(result.design, id)).toBe(
+                depthMm(world.design, id),
+              );
+            }
           }
         }
       }
-    }
-    // **Counted here, and named in `qa-w5c.adversarial.test.ts`.** The list was spelled out in this
-    // file so the sweep could not pass by accepting nothing: fifteen taps until ADR 0033 merged the
-    // door-count entries, thirty-three after it, forty-four once ADR 0035 replaced each entry's list
-    // with a bound stepped at 50 mm, fifty-nine once the owner retired ADR 0030's one-door cap.
-    //
-    // ADR 0035 decision 7 takes it to 230 by making every shrink fund itself out of the space it
-    // vacates, so the population stops being "what a delete unlocks" and becomes "every legal move,
-    // plus what a delete unlocks"; **ADR 0043 takes it to 238** by letting a growth stop short of
-    // consuming the whole freed column, and **ADR 0048 to 278** by unfreezing the seeded pantry's
-    // column, which puts `p6` and `p23` into the population for the first time. 278 lines of
-    // fixture would bury the one assertion this file exists for. The itemisation lives in the domain's adversarial census — 26 taps at load, 32
-    // gained per clear, 2 lost to `RESIZE_OPENS_GAP` — over this exact width list.
-    //
-    // What this file asserts is unchanged and now holds over fifteen times the population it started
-    // with: a resize never changes any member's recorded depth.
-    expect(accepted).toHaveLength(278);
-  });
+      // **Counted here, and named in `qa-w5c.adversarial.test.ts`.** The list was spelled out in this
+      // file so the sweep could not pass by accepting nothing: fifteen taps until ADR 0033 merged the
+      // door-count entries, thirty-three after it, forty-four once ADR 0035 replaced each entry's list
+      // with a bound stepped at 50 mm, fifty-nine once the owner retired ADR 0030's one-door cap.
+      //
+      // ADR 0035 decision 7 takes it to 230 by making every shrink fund itself out of the space it
+      // vacates, so the population stops being "what a delete unlocks" and becomes "every legal move,
+      // plus what a delete unlocks"; **ADR 0043 takes it to 238** by letting a growth stop short of
+      // consuming the whole freed column, and **ADR 0048 to 278** by unfreezing the seeded pantry's
+      // column, which puts `p6` and `p23` into the population for the first time. 278 lines of
+      // fixture would bury the one assertion this file exists for. The itemisation lives in the domain's adversarial census — 26 taps at load, 32
+      // gained per clear, 2 lost to `RESIZE_OPENS_GAP` — over this exact width list.
+      //
+      // What this file asserts is unchanged and now holds over fifteen times the population it started
+      // with: a resize never changes any member's recorded depth.
+      expect(accepted).toHaveLength(278);
+    },
+    RESIZE_SWEEP_TIMEOUT_MS,
+  );
 });
 
 /** Every column of the shipped kitchen whose members are all deletable. The three that are missing

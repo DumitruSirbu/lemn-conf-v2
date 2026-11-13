@@ -1,6 +1,6 @@
-// What a body's fronts are, told apart: how many open on hinges, how many pull out on runners, and how
-// tall each door band is (ADR 0070 prices hinges by door leaf, runners by drawer, and a third hinge on
-// any leaf taller than 900 mm).
+// What a body's fronts are, told apart: how many open on hinges, how many pull out on runners, which doors
+// are lift-up flaps, and how tall each door band is (ADR 0070 prices hinges by door leaf, runners by drawer,
+// and a third hinge on any leaf taller than 900 mm; ADR 0177 A-20 prices a lift per lift-up door).
 //
 // Declared per catalogue entry, because the domain has no meshes to inspect (ADR 0061 decision 3). A
 // door band's height is not the frame height: `tallPantry` draws 1290 mm and 790 mm bands inside a
@@ -28,7 +28,8 @@ export type DoorBandsRule =
  *  and `base-3drawer` are both `base_cabinet`) nor from a handle edge (`doorSlab(…, "top")` covers
  *  drawers and doors below the worktop alike). see ADR 0061
  *
- *  - `declared-leaves`: the leaf population is fixed at every width (`base-sink`: one band of two).
+ *  - `declared-leaves`: the leaf population is fixed at every width (`base-sink`: one band of two). It alone may
+ *    declare `liftUp`: every door of the body is a lift-up flap with its own lift mechanism.
  *  - `leaves-follow-width`: a `doorCountFollowsWidth` row whose leaves per band come from
  *    `deriveDoorCount` (`tall-pantry`: two bands, so two leaves at 400 mm and four at 600).
  *
@@ -39,6 +40,7 @@ export type FrontPopulationRule =
       readonly doorBands: DoorBandsRule;
       readonly leavesPerBand: number;
       readonly drawers: number;
+      readonly liftUp?: true;
     }
   | {
       readonly countedFrom: "leaves-follow-width";
@@ -111,6 +113,8 @@ export interface DeclaredFronts {
   readonly doorBands: DoorBandsRule;
   readonly leavesPerBand: number;
   readonly drawers: number;
+  /** Every door of this body is a lift-up flap. Declared per row, never read off a build id or a handle edge. */
+  readonly liftUp?: true;
 }
 
 /** A body whose front population is fixed at every width it is built to. Throws at construction on a
@@ -127,6 +131,7 @@ export function carriesFronts(fronts: DeclaredFronts): FrontPopulationRule {
     doorBands: fronts.doorBands,
     leavesPerBand: fronts.leavesPerBand,
     drawers: fronts.drawers,
+    ...(fronts.liftUp === true ? { liftUp: true as const } : {}),
   };
 }
 
@@ -273,14 +278,27 @@ export class UndeclaredFrontPopulationError extends Error {
     readonly declared: unknown;
     /** The rule field that held no usable value, on a rule whose tag was recognised. */
     readonly missingField?: FrontPopulationField;
+    /** Why a usable-looking rule is still refused, where no single field is missing. */
+    readonly reason?: string;
   }) {
     super(
-      `No front population declared for buildId "${refusal.buildId}". ` +
+      openingOf(refusal) +
         describeMissing(refusal.missingField) +
+        describeReason(refusal.reason) +
         `Found: ${describeDeclared(refusal.declared)}.`,
     );
     this.name = "UndeclaredFrontPopulationError";
   }
+}
+
+/** A rule that is declared but cannot be built is not "undeclared": its refusal says what was declared. */
+function openingOf(refusal: {
+  readonly buildId: string;
+  readonly reason?: string;
+}): string {
+  return refusal.reason === undefined
+    ? `No front population declared for buildId "${refusal.buildId}". `
+    : `The front population declared for buildId "${refusal.buildId}" cannot be built: `;
 }
 
 function describeMissing(
@@ -288,6 +306,10 @@ function describeMissing(
 ): string {
   if (missingField === undefined) return "";
   return `Its rule declares no usable "${missingField}". `;
+}
+
+function describeReason(reason: string | undefined): string {
+  return reason === undefined ? "" : `${reason} `;
 }
 
 function describeDeclared(declared: unknown): string {
@@ -358,12 +380,54 @@ export function doorLeafCount(query: FrontPopulationQuery): number {
   return doorLeafHeightsMm(query).length;
 }
 
+/** One flap per band: the only lift door the adapter builds, so no width is held for a second leaf. */
+const ONE_LIFT_LEAF_PER_BAND = 1;
+
+const LIFT_LEAF_REFUSAL_REASON =
+  "A lift-up door is one flap per band, and no width is held for a second leaf.";
+
+/** How much narrower a lift-up door is than its body, in mm: must equal the reveal `wallLift` builds (3 mm each side).
+ *  A width, unlike `WALL_DOOR_BAND_INSET_MM`, which is a height.
+ *  see `lift-door-width.parity.test.ts` in the adapter. */
+export const LIFT_DOOR_WIDTH_REVEAL_MM = 6;
+
+/** The width of each lift-up door this body carries, one entry per door, empty for a body that declares none: the
+ *  list ADR 0177 A-20's lift count and width-based hinge rule are applied over. Each entry is the built door's width,
+ *  the body's less `LIFT_DOOR_WIDTH_REVEAL_MM`. Only a declared `liftUp` makes a door a lift door.
+ *  Fails closed on a lift-up declaration of more than one leaf per band: the adapter builds one flap, so no width
+ *  is held for a second. */
+export function liftDoorWidthsMm(
+  query: FrontPopulationQuery,
+): readonly number[] {
+  if (!declaresLiftUp(query.rule)) return [];
+  if (leavesPerBandOf(query) !== ONE_LIFT_LEAF_PER_BAND) {
+    throw new UndeclaredFrontPopulationError({
+      buildId: query.buildId,
+      declared: query.rule,
+      reason: LIFT_LEAF_REFUSAL_REASON,
+    });
+  }
+  const doorWidthMm = query.widthMm - LIFT_DOOR_WIDTH_REVEAL_MM;
+  return Array.from<number>({ length: doorLeafCount(query) }).fill(doorWidthMm);
+}
+
+/** Read as `=== true` because `BodyCatalog` is a port: a definition from outside TypeScript can carry any value. */
+function declaresLiftUp(rule: FrontPopulationRule | undefined): boolean {
+  return rule?.countedFrom === "declared-leaves" && rule.liftUp === true;
+}
+
 /** How many drawers this body carries: the quantity ADR 0070's runner rule is counted over. Its
  *  precondition is deliberately weaker than `doorLeafCount`'s: it reads only `drawers`, so a row with a
  *  broken band list still answers a drawer count, since a drawer has no band. */
 export function drawerCount(query: FrontPopulationQuery): number {
   const rule = recognisedRuleOf(query);
   return usableCountOf(query, rule.drawers, "drawers");
+}
+
+/** How many fronts of this body open: its door leaves and its drawers, zero for a body with nothing that opens (an open
+ *  shelf). Not the latch count: a latch is billed over door leaves alone, a drawer opens on a push runner. */
+export function openingFrontCount(query: FrontPopulationQuery): number {
+  return doorLeafCount(query) + drawerCount(query);
 }
 
 /** How tall each of this body's door bands is, in millimetres, one entry per band. Not the frame height

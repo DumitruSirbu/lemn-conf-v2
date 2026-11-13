@@ -5,6 +5,8 @@
 // and the flagged-total warning is owner-ruled copy belonging to the rendering surface (ADR 0065
 // decision 7b).
 import type { BodyLabel } from "../catalog.js";
+
+import type { ItemRef } from "./catalogue-availability.js";
 import type {
   CabinetSupplier,
   PriceBookCurrency,
@@ -12,14 +14,20 @@ import type {
 } from "./price-book.js";
 
 /** What a line is for. `cabinet` traces to a placement; `hardware` and `material` are the named
- *  whole-kitchen rules §12 permits a line to trace to instead; `accessory` traces to neither — it is
- *  billed per sink, which is a count of bodies rather than one body or the whole kitchen. */
-export type PriceLineKind = "cabinet" | "hardware" | "material" | "accessory";
+ *  whole-kitchen rules §12 permits a line to trace to instead; `depth` is the book's one depth rule; `accessory` traces
+ *  to neither — it is billed per sink, which is a count of bodies rather than one body or the whole kitchen. */
+export type PriceLineKind =
+  | "cabinet"
+  | "hardware"
+  | "material"
+  | "depth"
+  | "accessory";
 
 /** The fields every line carries, whatever it prices.
  *
- *  `amountMinor` is always `quantity × unitAmountMinor` and both are exact safe integers: nothing
- *  here rounds, and a fraction reaching a line would be an amount somebody has already rounded. */
+ *  `amountMinor` is `quantity × unitAmountMinor` and both are exact safe integers, except on an accessory line. Pricing
+ *  rounds at one named seam (ADR 0177 A-1): every amount is a whole number of tens of lei, and an accessory line is
+ *  `r10(quantity × unitAmountMinor)` with the book's exact rate as its unit. */
 export interface PriceLineCommon {
   /** Derived, never supplied by price data, so it is stable across a re-ordered input array and
    *  across a change of amount. */
@@ -64,16 +72,30 @@ export interface WholeKitchenPriceLine extends PriceLineCommon {
   readonly descriptionKey?: string | undefined;
 }
 
-/** An extra the design earns rather than chooses: the two sink extras (ADR 0070 decision 4). The same
- *  book-data-rendered shape as a tier line (ADR 0062: no copy in a component) and no `tierId`, since no
- *  control selects it. `quantity` is a count of sinks. A quantity of zero is not a line: it would render
- *  *inclus* and tell a customer a rack they are not getting is included. */
+/** The uplift a 700 mm depth adds to the cabinets that get deeper: one line, published only when the design is built
+ *  at 700 and at least one manufacturer-supplied cabinet deepens. Its amount is `0`
+ *  when the book states 0 %, which a surface renders *inclus*. Quantity 1, as the whole-kitchen lines. */
+export interface DepthPriceLine extends PriceLineCommon {
+  readonly kind: "depth";
+  /** The depth the design is built at, so the surface names it ("Adâncime 700 mm") without knowing it. */
+  readonly depthMm: number;
+  /** The depth rule's percentage this line was priced with, stored beside the amount so a reader of a stored snapshot can
+   *  word the uplift without the live book (ADR 0154 decision 8). */
+  readonly deepCabinetPercent: number;
+}
+
+/** An extra the design earns rather than chooses: the two sink extras (ADR 0070 decision 4) and each accessory the
+ *  dashboard created (ADR 0177 A-19). The same book-data-rendered shape as a tier line (ADR 0062: no copy in a
+ *  component) and no `tierId`, since no control selects it. `quantity` is a count of sinks for a sink extra and of
+ *  placements for a linked accessory. A quantity of zero is not a line: it would render *inclus* and tell a customer a
+ *  rack they are not getting is included. */
 export interface AccessoryPriceLine extends PriceLineCommon {
   readonly kind: "accessory";
-  /** Which of the book's named accessory rules produced this line: not the rule id, as `tierId` is not
-   *  `ruleId` on a tier line. */
+  /** Which accessory produced this line: a built-in's field name or a linked accessory's id, not the rule id, as
+   *  `tierId` is not `ruleId` on a tier line. */
   readonly accessoryId: string;
   readonly name: string;
+  /** Empty for a created accessory authored without one. */
   readonly description: string;
   readonly nameKey?: string | undefined;
   readonly descriptionKey?: string | undefined;
@@ -82,6 +104,7 @@ export interface AccessoryPriceLine extends PriceLineCommon {
 export type PriceLine =
   | CabinetPriceLine
   | WholeKitchenPriceLine
+  | DepthPriceLine
   | AccessoryPriceLine;
 
 /** A priced design. Derived on every read and stored nowhere (§12: never store a total), so
@@ -101,7 +124,7 @@ export interface PricedDesign {
    *  appended rather than interleaved so every "hardware then material" assertion holds
    *  (ADR 0092 decision 11). */
   readonly lines: readonly PriceLine[];
-  /** The exact sum of every line, in minor units. Presentation rounds; this does not. */
+  /** The exact sum of every line, in minor units: the lines are what was rounded, so nothing rounds the total. */
   readonly totalMinor: number;
   /** The placements reaching past the end of their wall, derived from the design being priced through
    *  `findOverflowingPlacementIds` (ADR 0069 decision 5c), so a surface marks the bodies the scene
@@ -127,15 +150,24 @@ export type PricingFailureCode =
   | "NO_RULE_FOR_BODY"
   /** A rule carries a formula shape this build does not know. */
   | "UNKNOWN_FORMULA_SHAPE"
-  /** A selection, or a book's own default, names a tier the book does not hold. */
+  /** A fixed-size row is built wider than every size the book lists for it. Never priced at zero and never at
+   *  the nearest listed size (ADR 0177 A-7). */
+  | "NO_PRICE_FOR_SIZE"
+  /** A book's own default names a tier the book does not hold (a book fault), reached by a design that chose no tier in
+   *  that group. A chosen tier the book lacks is `REPLACEMENT_REQUIRED`, never this. */
   | "UNKNOWN_TIER"
-  /** The row a body is priced as declares no usable door-leaf count, so the door step cannot be taken
-   *  (`describePricedBody`). Raised on the door-step path alone, never on a hardware quantity: a body
-   *  whose mechanisms cannot be counted raises `UNDECLARED_FRONT_POPULATION`. */
+  /** The design names an item to replace: one availability switches off (a material, a hardware class, a colour or a
+   *  handle, chosen or the book's own fallback tier; ADR 0062 Amendment 3), or a chosen tier the book no longer holds.
+   *  Carries every such item. The kitchen has no price until each is replaced: a figure at the default tier would be a
+   *  different kitchen's. */
+  | "REPLACEMENT_REQUIRED"
+  /** The row a body is priced as declares no usable door-leaf count at the body's width (`describePricedBody`).
+   *  Raised on that path alone, never on a hardware quantity: a body whose mechanisms cannot be counted, or whose
+   *  leaves an anchored door shape cannot count, raises `UNDECLARED_FRONT_POPULATION`. */
   | "UNDECLARED_HANDLE_COUNT"
-  /** A catalogue entry declares no usable front population, so its hinges, drawers and push-to-open
-   *  latches cannot be counted (ADR 0092 decision 1). Never read as zero mechanisms: that would price a
-   *  whole kitchen's hardware at nothing. */
+  /** A catalogue entry declares no usable front population, or a lift-up one the adapter builds no width for (more
+   *  than one leaf per band), so its hinges, drawers, push runners and push-to-open latches cannot be counted (ADR 0092
+   *  decision 1). Never read as zero mechanisms: that would price a whole kitchen's hardware at nothing. */
   | "UNDECLARED_FRONT_POPULATION"
   /** A placement's own frame height leaves a `one-band-under-frame` row no band a door could be hung
    *  in, so its leaves, and the hinges counted over them, cannot be read (`UnbuildableDoorBandError`,
@@ -150,13 +182,34 @@ export type PricingFailureCode =
 
 /** Why pricing refused, naming the id it could not resolve where there is one. `detail` is English
  *  developer text, not copy. */
-export interface PricingFailure {
-  readonly code: PricingFailureCode;
+export type PricingFailure =
+  | ReplacementRequiredFailure
+  | OrdinaryPricingFailure;
+
+interface PricingFailureCommon {
   readonly detail: string;
   /** The placement this refusal is about, where one is. */
   readonly placementId?: string;
   /** The catalogue or book id this refusal is about, where one is. */
   readonly id?: string;
+}
+
+/** Every code but the one that is about a set of items. */
+export type OrdinaryPricingFailureCode = Exclude<
+  PricingFailureCode,
+  "REPLACEMENT_REQUIRED"
+>;
+
+/** Every refusal that is about one id or one placement. */
+export interface OrdinaryPricingFailure extends PricingFailureCommon {
+  readonly code: OrdinaryPricingFailureCode;
+}
+
+/** The refusal that is about a set of items. `items` is every item to replace the design names, once each, in one order
+ *  (`distinctItemsInOrder`): the rows the replacement sheet is built from, never a subset. */
+export interface ReplacementRequiredFailure extends PricingFailureCommon {
+  readonly code: "REPLACEMENT_REQUIRED";
+  readonly items: readonly ItemRef[];
 }
 
 /**

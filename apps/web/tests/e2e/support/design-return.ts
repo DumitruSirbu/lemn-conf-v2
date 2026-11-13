@@ -30,14 +30,16 @@ export async function makeAnotherDesignFromStepOne(page: Page): Promise<void> {
   await expectEditorReady(page);
 }
 
-/** The reads of the design's API since `mark`, a position in the recording. */
+/** The reads of the design itself since `mark`, a position in the recording: `GET /api/designs/{id}` and nothing
+ *  beneath it, so the price notice's own read (`/price-notice`) is not counted as a read of the design. */
 export function readsOfTheDesignSince(
   requests: readonly RecordedRequest[],
   mark: number,
   designId: string,
 ): readonly RecordedRequest[] {
+  const designPath = `/api/designs/${designId}`;
   return toTheDesignApi(requests.slice(mark), designId).filter(
-    (request) => request.method === "GET",
+    (request) => request.method === "GET" && request.pathname === designPath,
   );
 }
 
@@ -101,6 +103,8 @@ export async function chooseAnotherMaterialAndSave(
     material.locator('input[type="radio"]:not(:checked)').last(),
   );
   await press(page, page.getByTestId("global-settings-apply"));
+  // A stamped kitchen (R4b3) holds a whole-kitchen colour, so a material change asks to give it up first.
+  await press(page, page.getByTestId("global-settings-confirm"));
   await expect(page.getByTestId("global-settings-surface")).toHaveCount(0);
   return (await saved).status();
 }

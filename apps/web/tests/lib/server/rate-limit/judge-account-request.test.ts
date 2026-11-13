@@ -32,7 +32,11 @@ import {
   STAFF_KITCHEN_OPEN_BY_ACCOUNT_POLICY,
   STAFF_KITCHENS_LIST_BY_ACCOUNT_POLICY,
   STAFF_NOTE_BY_ACCOUNT_POLICY,
+  STAFF_PRICE_DRAFT_BY_ACCOUNT_POLICY,
+  STAFF_PRICE_USAGE_BY_ACCOUNT_POLICY,
+  STAFF_PRICES_READ_BY_ACCOUNT_POLICY,
   STAFF_STATUS_BY_ACCOUNT_POLICY,
+  STAFF_SEEN_BY_ACCOUNT_POLICY,
   STAFF_UNHIDE_BY_ACCOUNT_POLICY,
   type LimitPolicy,
 } from "@/lib/server/rate-limit/limit-policy";
@@ -287,6 +291,34 @@ describe("the subject stage: an address's or an account's own buckets", () => {
         { purpose: "staff-unhide", headers: HEADERS, accountId: ACCOUNT_ID },
         [STAFF_UNHIDE_BY_ACCOUNT_POLICY],
       ],
+      [
+        { purpose: "staff-seen", headers: HEADERS, accountId: ACCOUNT_ID },
+        [STAFF_SEEN_BY_ACCOUNT_POLICY],
+      ],
+      [
+        {
+          purpose: "staff-prices-read",
+          headers: HEADERS,
+          accountId: ACCOUNT_ID,
+        },
+        [STAFF_PRICES_READ_BY_ACCOUNT_POLICY],
+      ],
+      [
+        {
+          purpose: "staff-price-draft",
+          headers: HEADERS,
+          accountId: ACCOUNT_ID,
+        },
+        [STAFF_PRICE_DRAFT_BY_ACCOUNT_POLICY],
+      ],
+      [
+        {
+          purpose: "staff-price-usage",
+          headers: HEADERS,
+          accountId: ACCOUNT_ID,
+        },
+        [STAFF_PRICE_USAGE_BY_ACCOUNT_POLICY],
+      ],
     ];
 
   it.each(SUBJECT_TABLE)(
@@ -492,6 +524,10 @@ describe("what a judgement writes down", () => {
     ["staff-note", "staff-note"],
     ["staff-status", "staff-status"],
     ["staff-unhide", "staff-unhide"],
+    ["staff-seen", "staff-seen"],
+    ["staff-prices-read", "staff-prices"],
+    ["staff-price-draft", "staff-price-draft"],
+    ["staff-price-usage", "staff-price-usage"],
   ] as const)("names the flow of %s as %s", async (purpose, event) => {
     const console_ = captureConsole();
     limiterLedger.refusing.set(
@@ -510,6 +546,10 @@ describe("what a judgement writes down", () => {
         "staff-note": STAFF_NOTE_BY_ACCOUNT_POLICY,
         "staff-status": STAFF_STATUS_BY_ACCOUNT_POLICY,
         "staff-unhide": STAFF_UNHIDE_BY_ACCOUNT_POLICY,
+        "staff-seen": STAFF_SEEN_BY_ACCOUNT_POLICY,
+        "staff-prices-read": STAFF_PRICES_READ_BY_ACCOUNT_POLICY,
+        "staff-price-draft": STAFF_PRICE_DRAFT_BY_ACCOUNT_POLICY,
+        "staff-price-usage": STAFF_PRICE_USAGE_BY_ACCOUNT_POLICY,
       }[purpose].name,
       5,
     );

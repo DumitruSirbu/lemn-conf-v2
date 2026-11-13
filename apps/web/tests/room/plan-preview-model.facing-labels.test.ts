@@ -77,6 +77,9 @@ const DESKTOP_BOX = {
 } as const;
 
 const SAMPLES = 600;
+/** Pinned so the arrangement floor below is met by the same draws every run: with a random seed the phone's
+ *  "inside" arrangement was met only 6 times in 600 at the lowest of 300 seeds sampled, under the floor of 8. */
+const SWEEP_SEED = 20_260_929;
 /** The floor per arm: a sweep that only ever met the arrangement nobody changed certifies nothing. */
 const FLOOR_PER_ARRANGEMENT = 8;
 
@@ -245,7 +248,7 @@ describe.each(ARMS)("facing labels — $name", (arm) => {
             `${arrangement}: B ${JSON.stringify(b)} against C ${JSON.stringify(c)} in ${JSON.stringify(box)}`,
           ).toBe(false);
         }),
-        { numRuns: SAMPLES },
+        { numRuns: SAMPLES, seed: SWEEP_SEED },
       );
 
       for (const arrangement of arm.mustMeet) {

@@ -19,6 +19,7 @@
 import {
   APPROVED_ROOM_POLICY,
   isShapeBuildable,
+  type NewKitchenSettings,
   type RoomPolicy,
   type RoomShape,
 } from "@lemnaria/configurator-domain";
@@ -78,12 +79,18 @@ const LINEAR_CHIP_CONTROL_SELECTOR =
 export interface RoomScreenProps {
   /** The policy the cards are offered against; the CTA reads it rather than spelling a shape's letter. */
   readonly policy?: RoomPolicy;
+  /** The six settings a kitchen created from this screen starts with, as of the page's load (A-9). They go to the
+   *  generated kitchen and to the copy of a preset; a saved kitchen never reads them. Absent: the reference kitchen's. */
+  readonly newKitchenSettings?: NewKitchenSettings;
 }
 
 /** One source for the pill and the sentence it announces, so they cannot disagree about the step. */
 const STEP_ONE_OF_FOUR = { step: 1, totalSteps: 4 } as const;
 
-export function RoomScreen({ policy = APPROVED_ROOM_POLICY }: RoomScreenProps) {
+export function RoomScreen({
+  policy = APPROVED_ROOM_POLICY,
+  newKitchenSettings,
+}: RoomScreenProps) {
   const liveQuery = queryFromSearchParams(useSearchParams());
   const liveState = parseRoomUrlState(liveQuery, policy);
   const shapeInTheUrl = roomShapeInState(liveState);
@@ -91,12 +98,12 @@ export function RoomScreen({ policy = APPROVED_ROOM_POLICY }: RoomScreenProps) {
   // client state, not a URL sub-state: a new query key is stripped by the settle, a new path segment
   // 404s under the proxy allow-list, and an addressable composition URL would re-run generation on
   // every reload and mint a second design.
-  const generation = useGeneration();
+  const generation = useGeneration(newKitchenSettings);
   // The presets read for the room continued from live until composition is on screen or the customer leaves (see
   // ADR 0139), and so does the copy of one the customer chose: every way out of Step 1's presets ends all three, so
   // they go through this one `leave`.
   const presets = usePresets();
-  const presetCopy = usePresetCopy();
+  const presetCopy = usePresetCopy(newKitchenSettings);
   const { leave: leaveGeneration } = generation;
   const { clear: clearPresets } = presets;
   const { reset: resetPresetCopy } = presetCopy;

@@ -2,6 +2,7 @@
 
 Status: Accepted (decided; **implementation deliberately deferred by the owner, no wave, no schedule**)
 Date: 2026-09-07
+Deferral lifted: 2026-10-25 — see the Amendment at the end of this record
 Type: Decision
 Milestone: None — recorded against `docs/BACKLOG.md` entry 54 and M6-AUD-006; owned by the manufacturer price dashboard when it happens
 
@@ -54,7 +55,7 @@ The owner's words are *"a setting that you can change from the dashboard"*. So i
 price book as **data** —
 [ADR 0062](0062-a-manufacturer-price-dashboard-comes-after-m8-and-shapes-seams-now.md) seam 1, one
 module names a book — and
-[ADR 0072](0072-the-price-book-is-data-and-its-shapes-are-code.md)'s split holds: the multiplier's
+[ADR 0072](0072-price-book-versioning-is-deferred-to-the-manufacturer-dashboard.md)'s split holds: the multiplier's
 *existence and arithmetic* are code, its *value* is data. A hardcoded 1.15 would satisfy the
 behaviour and violate the ownership, which is the half that would have to be undone later.
 
@@ -145,3 +146,67 @@ notes for a future wave, not a plan for one.
   is until the coefficient ships with it.
 - **M6 is unaffected.** This was already outside M6 on the owner's instruction of 2026-09-06 and it
   remains so.
+
+## Amendment — 2026-10-25: the deferral is lifted; depth 700 is priced now
+
+**Evidence tier: owner ruling 2026-10-25, coordinator-relayed.** The owner chose option "a"
+(un-postpone) and accepted the proposal below. Decisions 1-5 stand as written; this amendment
+supersedes only the title's "and it is deferred", decision 6 (*Deferred. No wave, no milestone, no
+schedule.*) and the consequence "No code changes as a result of this record". The deferral is not
+erased: it was the owner's ruling of 2026-09-07 and it held until now.
+
+**The shape is unchanged.** One percentage, its value held as data, edited on the dashboard and
+published (decisions 1 and 3). Nothing is a constant in the tree.
+
+**Where it applies.**
+
+- To **every manufacturer-supplied cabinet that measures deeper** at 700 than at 600 (its priced-as row's finished depth,
+  `buildKitchenLBodyCatalog(700)` against `(600)`): base, tall, hob, sink, the base corners **and every wall-band row and
+  wall corner** (330 → 400, `worktop-depth.ts:29-32`). **Owner ruling 2026-10-26: "Surcharge every deeper cabinet."** The
+  earlier "not to wall cabinets (320 deep at both settings)" was wrong about the code and is superseded.
+- **Not** to customer-supplied rows, **not** to a row that does not deepen (`fridge-free`, 742 at both), and **not** to
+  hardware or accessories.
+- It is applied **at the cabinet's real width**.
+- It **multiplies with the material percentage** (ADR 0092 Amendment of 2026-10-25), for example
+  1 500 × 1.15 × 1.35. The 1.15 and 1.35 are illustrative.
+
+**What the customer sees.** The depth uplift is its own line, **"Adâncime 700 mm"**, not folded into
+a cabinet's amount.
+
+**Where it is edited.** In a **"Price rules for all cabinets"** card at the top of the Dulapuri
+screen. It does **not** go on Setări implicite, which only chooses what a new kitchen starts with, and
+it does **not** go on Materiale.
+
+**Decision 5 now binds a shipping change.** The customer copy `globalSettings.depthNote`, which says
+depth does not change the estimate (`apps/web/src/messages/ro.json:324`, `ru.json:324`), must change in
+the same change that ships the coefficient, and not before.
+
+**Still not an approved number.** The working figure of about 15% (decision 2) is not approved. The
+dashboard's value is the manufacturer's to enter; a sample book must not present 1.15 as theirs.
+
+**Still open, and now on the critical path.** The rounding seam in *What whoever picks this up needs
+to know* is unchanged and unsettled. [ADR 0175](0175-a-cabinet-is-priced-by-an-anchor-at-its-default-width-plus-steps-widths-and-heights-round-up-to-50-mm-and-prices-round-to-10-lei.md)
+decision 5 records which amount is rounded as an open seam for the architect. The parser bound
+`MAX_PRICE_COEFFICIENT_MINOR` must be re-derived, as that section says.
+
+**Effect on the backlog.** Entry 54 stays open and is superseded in part by backlog 283, which carries
+the pricing-engine work. Entry 54's "do not plan a wave" no longer holds; nothing is scheduled by this
+amendment, and the dashboard still comes after M8 (ADR 0062).
+
+## Amendment — 2026-10-26: the timing, the rounding seam, the real-width reading and a line number
+
+**Evidence tier: doc-quoted from `docs/milestones/M10-price-dashboard.md` §4 (S-7, S-10, S-11, S-22) and §5; the line
+number in S-22 is the plan's source reading, not re-read by the scribe. Nothing is built.**
+
+- **Timing.** "The dashboard still comes after M8" is superseded by
+  [ADR 0176](0176-the-manufacturer-price-dashboard-is-milestone-m10-and-starts-now.md): M10 starts now.
+- **The rounding seam is settled** by [ADR 0177](0177-the-m10-pricing-seams-rounding-round-up-percentages-deepening-fixed-size-rows-linked-accessories-and-the-lift-mechanism.md)
+  A-1, which reverses "the query is the one place this wave forbids rounding" at one named seam. The parser bound
+  `MAX_PRICE_COEFFICIENT_MINOR` is **re-derived, not widened** (A-5).
+- **"Applied at the cabinet's real width"** is read as the cabinet's own width, not the anchor width: the percentage
+  multiplies the cabinet's **priced amount**, which already reflects round-up (A-1).
+- **"Where it applies"** is keyed on a **measured** catalogue fact, not on `depthFollowsSetting()` (which answers `true` for
+  the wall corner returns), with a parity test over every row (A-6).
+- **Line drift.** `globalSettings.depthNote` is at line **325** in `ro.json` and `ru.json`, not 324 (the plan's source
+  reading). Decision 5 still binds: the copy and the depth term ship together (M10 merge point MP-3).
+- The ~15 % figure remains a placeholder and is not approved.

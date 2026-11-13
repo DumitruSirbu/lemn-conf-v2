@@ -103,6 +103,7 @@ function panelFor(
     // would render a decor list over an MDF kitchen and prove nothing about the wave.
     material: materialOfDesign(state.design),
     meta: describeSelection({
+      kitchenSettings: {},
       records: state.records,
       voids: state.voids,
       catalog: state.catalog,

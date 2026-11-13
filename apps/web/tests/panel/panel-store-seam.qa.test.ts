@@ -20,6 +20,7 @@ import {
   cornerDirectionOf,
   describeSelection,
   KITCHEN_L_DESIGN,
+  kitchenHandleSettingsOf,
   offersFor,
   widthOptionsFor,
   widthStepsFor,
@@ -89,7 +90,13 @@ function panelFromStore(state: ConfiguratorState): PanelView {
     direction: cornerDirectionOf(state.design.room),
     material: PAL_KITCHEN,
     meta: selection
-      ? describeSelection({ records, voids, catalog, target: selection })
+      ? describeSelection({
+          kitchenSettings: kitchenHandleSettingsOf(state.design.settings),
+          records,
+          voids,
+          catalog,
+          target: selection,
+        })
       : undefined,
     offers: selection
       ? offersFor({
@@ -267,7 +274,7 @@ describe("the panel over the store's own state", () => {
     expect(
       handle.chips.filter((chip) => chip.isActive).map((chip) => chip.value),
     ).toEqual(["black"]);
-    expect(handle.note).toBeUndefined();
+    expect(handle.follow.isActive).toBe(false);
   });
 
   // §10's loop: pick a row in a slot and the inserted body becomes the selection, so the panel that

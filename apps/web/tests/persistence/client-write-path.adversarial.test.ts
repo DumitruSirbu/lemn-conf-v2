@@ -294,7 +294,12 @@ describe("no interaction blocks on a write", () => {
       false,
     );
     expect(store.getState().selection?.kind).toBe("void");
+
+    // The held mint and the write after it finish inside this test, so no request of this store can be recorded by a
+    // later one.
     releaseHeld();
+    await vi.advanceTimersByTimeAsync(MIN_SAVE_INTERVAL_MS * 2);
+    expect(store.getState().saveStatus).toBe("idle");
   });
 
   it("reports 'saving' while the write is in flight and 'idle' only after it lands", async () => {

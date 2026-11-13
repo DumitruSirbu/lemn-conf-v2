@@ -5,6 +5,11 @@ import {
 } from "@lemnaria/configurator-domain";
 import type { Design, StaffKitchenQuery } from "@lemnaria/configurator-domain";
 
+import type { DesignRevision } from "./design-revision.js";
+import {
+  isChangedAfterSeen,
+  revisionUnlessAhead,
+} from "./fake-dashboard-support.js";
 import type { StaffAuditAccountRef } from "./staff-audit-store.js";
 import {
   NOTES_READ_LIMIT,
@@ -20,6 +25,7 @@ import type {
   StaffKitchenPage,
   StaffKitchenReader,
   StaffKitchenReading,
+  StaffKitchenSentTotal,
   StaffKitchenStatus,
   StaffListedKitchen,
 } from "./staff-kitchen-reader.js";
@@ -44,15 +50,39 @@ export interface PlantedStaffKitchen {
   readonly updatedAt: Date;
   readonly isHidden: boolean;
   readonly isDeletedByClient: boolean;
+  /** `designs.revision`; `"1"`, where every design starts (`0004`), when a test does not say. */
+  readonly revision?: DesignRevision;
 }
 
-/** A row of `contact_submissions`, with the columns the application role cannot read left out. */
+/**
+ * A row of `contact_submissions`, with the columns the application role cannot read left out: it may read
+ * `design_revision` and, since `0026`, `priced`, of which the reader takes the total and the currency.
+ */
 export interface PlantedStaffRequest {
   readonly clientRequestId: string;
   readonly designId: string;
   readonly reference: string;
   readonly createdAt: Date;
+  /** The design revision the request was sent at. Absent: no revision, so with no seen mark the kitchen is not changed.
+  /** */
+  readonly designRevision?: DesignRevision;
+  /** The total stored in the snapshot. Absent or `null`: the request stored no snapshot, as an intent request. */
+  readonly pricedTotal?: StaffKitchenSentTotal | null;
 }
+
+/** What the reader needs of the seen marks: `FakeKitchenChangeStore` holds them. */
+export interface SeenRevisionSource {
+  heldSeenRevision(designId: string): DesignRevision | undefined;
+  /** When the mark held for the design was last raised. */
+  heldSeenAt(designId: string): Date | undefined;
+}
+
+export interface FakeStaffKitchenReaderOptions {
+  /** The seen marks to judge "changed after seen" against. Absent: nothing was ever seen. */
+  readonly seen?: SeenRevisionSource;
+}
+
+const FIRST_REVISION: DesignRevision = "1";
 
 /** A row of `contact_submission_views`. */
 export interface PlantedStaffSentCopy {
@@ -97,6 +127,11 @@ export class FakeStaffKitchenReader implements StaffKitchenReader {
   private readonly sentCopies: PlantedStaffSentCopy[] = [];
   private readonly statuses = new Map<string, PlantedStaffStatus>();
   private readonly notes: PlantedStaffNote[] = [];
+  private readonly seen: SeenRevisionSource | undefined;
+
+  constructor({ seen }: FakeStaffKitchenReaderOptions = {}) {
+    this.seen = seen;
+  }
 
   plantAccount(account: PlantedStaffAccount): void {
     this.accounts.set(account.id, account);
@@ -136,6 +171,10 @@ export class FakeStaffKitchenReader implements StaffKitchenReader {
     }
   }
 
+  countChanged(): Promise<number> {
+    return Promise.resolve(this.changedCountOfAllKitchens());
+  }
+
   readOne(designId: string): Promise<StaffKitchenReading> {
     const kitchen = this.kitchens.get(designId);
     if (
@@ -151,10 +190,11 @@ export class FakeStaffKitchenReader implements StaffKitchenReader {
   private pageOf(query: StaffKitchenQuery): StaffKitchenPage {
     const matching = [...this.kitchens.values()]
       .filter((kitchen) => this.isMatching(kitchen, query))
-      .sort(byOrderOf(query.segment));
+      .sort(this.byChangedFirstThenOrderOf(query.segment));
     const offset = staffKitchenOffsetOf(query.page);
     return {
       total: matching.length,
+      changedCount: this.changedCountOfAllKitchens(),
       page: query.page,
       pageSize: STAFF_KITCHEN_PAGE_SIZE,
       kitchens: matching
@@ -163,16 +203,50 @@ export class FakeStaffKitchenReader implements StaffKitchenReader {
     };
   }
 
+  private changedCountOfAllKitchens(): number {
+    return [...this.kitchens.values()].filter((kitchen) =>
+      this.isChangedAfterSeen(kitchen),
+    ).length;
+  }
+
   private isMatching(
     kitchen: PlantedStaffKitchen,
-    { segment, status, search }: StaffKitchenQuery,
+    { segment, status, search, onlyChanged }: StaffKitchenQuery,
   ): boolean {
     const account = this.accountOf(kitchen);
     return (
       !kitchen.isDeletedByClient &&
       isInSegment(kitchen, segment) &&
       (status === null || this.storedStatusOf(kitchen) === status) &&
-      (search === null || isFoundBy(search, account))
+      (search === null || isFoundBy(search, account)) &&
+      (onlyChanged !== true || this.isChangedAfterSeen(kitchen))
+    );
+  }
+
+  /** The kitchens staff have not seen at their current revision first, then the segment's own order. */
+  private byChangedFirstThenOrderOf(
+    segment: StaffKitchenQuery["segment"],
+  ): (left: PlantedStaffKitchen, right: PlantedStaffKitchen) => number {
+    const inSegmentOrder = byOrderOf(segment);
+    return (left, right) => {
+      const byChange =
+        Number(this.isChangedAfterSeen(right)) -
+        Number(this.isChangedAfterSeen(left));
+      return byChange !== 0 ? byChange : inSegmentOrder(left, right);
+    };
+  }
+
+  /** Not deleted by its client, sent, and not at the revision staff last saw (or the one it was sent at). */
+  private isChangedAfterSeen(kitchen: PlantedStaffKitchen): boolean {
+    return (
+      !kitchen.isDeletedByClient &&
+      isChangedAfterSeen({
+        isSent: kitchen.sentAt !== null,
+        revision: kitchen.revision ?? FIRST_REVISION,
+        seenRevision: this.seen?.heldSeenRevision(kitchen.id),
+        latestSubmissionRevision: this.latestRequestOf(kitchen.id)
+          ?.designRevision,
+      })
     );
   }
 
@@ -191,7 +265,18 @@ export class FakeStaffKitchenReader implements StaffKitchenReader {
         isSent,
         storedStatus: this.statuses.get(kitchen.id)?.status ?? null,
       }),
+      isChangedSinceSeen: this.isChangedAfterSeen(kitchen),
+      seenAt: this.seenAtOf(kitchen),
     };
+  }
+
+  /** The mark's instant, unless the mark is above the kitchen's own revision, which is judged as no mark. */
+  private seenAtOf(kitchen: PlantedStaffKitchen): Date | null {
+    const held = this.seen?.heldSeenRevision(kitchen.id);
+    const counts =
+      revisionUnlessAhead(held, kitchen.revision ?? FIRST_REVISION) !==
+      undefined;
+    return counts ? (this.seen?.heldSeenAt(kitchen.id) ?? null) : null;
   }
 
   private detailOf(kitchen: PlantedStaffKitchen): StaffKitchenDetail {
@@ -200,6 +285,8 @@ export class FakeStaffKitchenReader implements StaffKitchenReader {
     return {
       id: kitchen.id,
       name: kitchen.name,
+      revision: kitchen.revision ?? FIRST_REVISION,
+      isChangedSinceSeen: this.isChangedAfterSeen(kitchen),
       design: kitchen.design,
       isSent,
       isHidden: kitchen.isHidden,
@@ -213,6 +300,7 @@ export class FakeStaffKitchenReader implements StaffKitchenReader {
               reference: latestRequest.reference,
               sentAt: latestRequest.createdAt,
             },
+      sentTotal: latestRequest?.pricedTotal ?? null,
       asSent: this.asSentOf(latestRequest),
       status: this.statusOf(kitchen.id, isSent),
       notes: this.notesOf(kitchen.id),

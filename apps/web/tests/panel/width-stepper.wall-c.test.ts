@@ -84,7 +84,7 @@ function stepperOf(id: string): WidthStepperSection | undefined {
     content: ro,
     direction: "left",
     material: PAL_KITCHEN,
-    meta: describeSelection({ ...WORLD, target }),
+    meta: describeSelection({ kitchenSettings: {}, ...WORLD, target }),
     offers: offersFor({
       ...WORLD,
       target,

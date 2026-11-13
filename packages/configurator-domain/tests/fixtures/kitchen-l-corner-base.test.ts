@@ -52,7 +52,11 @@ function cornerKindOf(id: string): string {
 }
 
 function metaFor(id: string) {
-  return describeSelection({ ...seeded(), target: { kind: "placement", id } });
+  return describeSelection({
+    kitchenSettings: {},
+    ...seeded(),
+    target: { kind: "placement", id },
+  });
 }
 
 describe("the base corner is a selectable placement (§11 row 16)", () => {

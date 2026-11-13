@@ -136,6 +136,9 @@
  * `configure.backConfirm.title` moved; `configure.backConfirm.body` is removed and replaced by `.bodyClient` and
  * `.bodyVisitor`, one of which the dialog shows by session. The new hashes were read off the failing manifest assertion's
  * diff. **No other hash moved.**
+ *
+ * **One removed, none moved, by M10 wave T2** — `content.static.globalSettings.depthNote`, the sentence that said depth
+ * does not change the price, retired once `globalSettings.depthNotePriced` replaced it on the settings sheet.
  */
 export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "catalog.base-3drawer.300":
@@ -382,6 +385,10 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "28082585f6db6d7fb99cacb52e34b6174a7bf805b57f2a6a0278446eef39d510",
   "content.globalSettings.applyRefused.material":
     "c71812f8c2c932aa12208871e09a1e692f8b2f4d22d24e105536c882ee6494ad",
+  "content.globalSettings.depthNotePriced.700-mm-0-percent":
+    "e02effc2057ff48b699e141fb68933063bdc81ad7a825a5017ef96d68bb4e58d",
+  "content.globalSettings.depthNotePriced.700-mm-15-percent":
+    "555c2e68c31da0fc921002a621aff39ac46c4cf77e46de93c40c96d1b9c213ef",
   "content.globalSettings.depthOption.600":
     "0bd37af88c9a52e783ad75a3d633f6376464c84d50ad5d0fa96f5c8ee58a380d",
   "content.globalSettings.depthOption.700":
@@ -452,10 +459,6 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "5ad6eb8cf5e7afa6ec32c30d2e592d74e290dd2d03df4bc5495387c16e10d40f",
   "content.panel.countForSlot.count-20":
     "56436812994246271997f1e52182ad64607d6b12428064b4826caecf352a9e11",
-  "content.panel.handleDefaultNote.push":
-    "b99a3fc0970fda9b8916562374706e389f69a9fa4aa1680d87048bf22c644838",
-  "content.panel.handleDefaultNote.steel":
-    "3b9a5b5570952cf09ca28b3f985617ec50067c17c61418d1e3efc87cd61626b1",
   "content.panel.headerMeta.wall-a-base-600x860":
     "efc4ee7681d724f2c43568de06c643f6b265c31616200f36dce1d389505ed12f",
   "content.panel.noOffersForBody.base":
@@ -490,6 +493,8 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "2bda1bc71d3b5108018893d4b2eb9fa6d59123071a376c0276e069bd6a618f1c",
   "content.price.amountWithCurrency.43_000":
     "3c5b36d09c775bdac0e8c214b4f280023b4354c7726adf067de0193759a00c00",
+  "content.priceBreakdown.depthLine.700-mm-15-percent":
+    "062401fec2dfb9f3a742a678f0dba5ca4fc4b1e66687eba038356b7dfab73469",
   "content.priceBreakdown.groupHeading.wall-a-base":
     "27f6f9677464002cbd9c9fb2e906fc090f38b0e6b6b056e3b0fbbda0123d22a3",
   "content.priceBreakdown.groupHeading.wall-a-column":
@@ -704,8 +709,6 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "ed9a12b4ab7d61f8bb77bcbab7b3cd7806471bb070a758e4fc610215400b0eab",
   "content.static.globalSettings.depthHeading":
     "a480381ded2d349e40b810313fdfb2deaec5f8e4b5463828973314f180700f94",
-  "content.static.globalSettings.depthNote":
-    "64b464167da556d87785dface711297b25948341a4c8408db9db464a371b0bce",
   "content.static.globalSettings.depthWarning":
     "0a5ca4d9a78dd5fc90ea1da9e6142580aa9c15cd3453a04c4e6d60898bddb6e6",
   "content.static.globalSettings.groupAnchors.hardware":
@@ -716,6 +719,10 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "6f5e8a6a2dbf05583c1bc68be44e1405667bad92cdb8a9e1df182ff15709999d",
   "content.static.globalSettings.groupHeadings.material":
     "d36aa6c8ddff85c23b6f9c811d994f569f9e0159f7a59d34cd9379bd901d7747",
+  "content.static.globalSettings.kitchenHandleHeading":
+    "58932572b253919e6db8d40033a01403bd6d9e54190cdfb2f46f687b9487d77b",
+  "content.static.globalSettings.kitchenHandleHint":
+    "49168c91972a58cba29da1fd581447f056d06d00a308484cb600ebcbe58bb0d9",
   "content.static.globalSettings.materialResetConfirm.back":
     "0f9df26137e3e1f8aab3b8d013985c00518281c7373f20899dc80aee62198cdf",
   "content.static.globalSettings.materialResetConfirm.confirm":
@@ -728,6 +735,8 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "18712dd7b2ebd6962c99b3b3299096fe0aa748111624a0c99212e0f175963d1b",
   "content.static.globalSettings.open":
     "55f2ecf1930c61cfb278ab7a31933dc339130211cd94d7ce5dd6a1b0709d1239",
+  "content.static.globalSettings.pricesUnavailable":
+    "8a6d98dda545f1155a66807085086c2597af283945a636d347e37f2d5c9cabee",
   "content.static.globalSettings.title":
     "764ab10b4b67fec2a04f3d04275276e381e2ac057e9080809bbaa317deecd371",
   "content.static.leadNotice.callbackLine":
@@ -822,6 +831,8 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "e7e6ad699ff3c5a2f296ed1100f2bbfc646101fba791ca9b610d4c2c5c52b733",
   "content.static.panel.finishTitle":
     "f3c777b0c0e9ea2db23447b207af7dec34a688711c3920092b40ba5e35a3b2ae",
+  "content.static.panel.handleFollowsKitchen":
+    "0dc8247e6c50de83366be30e824f2c08bd4003b5df88f9dbb7bc6d7045e6d88b",
   "content.static.panel.handleLabels.black":
     "cfaf92e3872b557705bd8e2b6bec49fccd9083045ee944631a9ac691a7dca8e5",
   "content.static.panel.handleLabels.push":
@@ -956,6 +967,8 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "9aa9916696d886789a6d08a608f0843b7518555429a3251106a64274dc481635",
   "content.static.priceBreakdown.close":
     "b7f0026982e780c33344834500464527854631c01f51039d2eb87853b8370c6d",
+  "content.static.priceBreakdown.depthLineScope":
+    "79dd601e7275781e671dfb70c59f4c944fe19a5aac273ce8e4224f024d35beec",
   "content.static.priceBreakdown.disclaimer":
     "4ed0dfac02e66a05154c4aee2ef2f3f3cbb9dd41977c6b33edb130c92fe24888",
   "content.static.priceBreakdown.included":
@@ -978,6 +991,8 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "5f912b909dc3b0a62c5e719fc374e323937098bddd80fd8d690d1323182a7cb1",
   "content.static.share.copy":
     "a35a3851d68320f92b07859891dabb14e750ef8b12af123ce0cafe4e532c9d20",
+  "content.static.replacementSheet.headerMaterialToChoose":
+    "e06bee50c020f7298f0ce90b62113efd21bc2f330e8cb592dfc6ad57b62282c1",
   "content.static.review.refusalReasons.BODIES_PAST_WALL":
     "1b6865c75b202076ee4b4ba7e5d4ab3d08765cb1956379c39c438559f06678ef",
   "content.static.review.refusalReasons.NO_CABINET":
@@ -1100,6 +1115,8 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "538ab545e753bb1ba790ecfbacefd4633a0424d016acd801ebcaf83bbcd050ba",
   "rejection.unknown-cabinet-depth":
     "6539446761c3ffd737a1d246bd752f1847c69da4f8914badcda054bf17cdd0bf",
+  "rejection.unknown-handle":
+    "ee02506c4bedf1b77878da875a28b04a77f94b777b1bdb2053c47abbaa5f90c6",
   "rejection.unknown-hardware-tier":
     "25a4bcbcca47736284e7410d37944605f6a56a920d914b118300f248e964c6dc",
   "rejection.unknown-material-tier":

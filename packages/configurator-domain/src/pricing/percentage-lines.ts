@@ -1,0 +1,180 @@
+// The percentage seam (ADR 0177 A-1). A cabinet's exact amount b passes three stages, each r10 (half-up to 1 000 bani):
+//   cabinet c = r10(b); material cm = r10(b × (100 + m) / 100); depth cmd = r10(b × (100 + m) × (100 + d) / 10 000).
+// Lines are the cabinet c and the sums of cm − c and cmd − cm. Integer arithmetic only: an inexact step throws
+// `InexactPriceArithmeticError`.
+import { MAX_PLACEMENTS } from "../design-bounds.js";
+import { cabinetDepthMmOf, type Design } from "../design.js";
+
+import { InexactPriceArithmeticError } from "./price-book.js";
+import {
+  MAX_DEEP_CABINET_PERCENT,
+  MAX_MATERIAL_PERCENT,
+  PERCENT_BASE,
+} from "./price-bounds.js";
+
+/** Ten lei in bani: the grain every line is rounded to. */
+export const TEN_LEI_MINOR = 1_000;
+
+/** The depth the deepening uplift applies at (ADR 0177 A-1: "a depth line exists if and only if the design's depth is
+ *  700"). A third declared depth is a new decision, so it is not read as "any depth above the default". */
+export const DEEP_CABINET_DEPTH_MM = 700;
+
+/**
+ * The most one cabinet's exact priced amount may be, in minor units (ADR 0177 A-5). Derived so that a cabinet's third
+ * stage, `b × (100 + m) × (100 + d)`, stays a safe integer for every placement of a design at the dearest material and
+ * depth: the sum over `MAX_PLACEMENTS` cabinets of that numerator is then exact by construction. Invents no business
+ * ceiling; it is far above any realistic cabinet price.
+ */
+export const MAX_CABINET_AMOUNT_MINOR = Math.floor(
+  Number.MAX_SAFE_INTEGER /
+    (MAX_PLACEMENTS *
+      (PERCENT_BASE + MAX_MATERIAL_PERCENT) *
+      (PERCENT_BASE + MAX_DEEP_CABINET_PERCENT)),
+);
+
+/** The two percentages a cabinet's amount is scaled by. `deepCabinetPercent` is `0` for a cabinet that does not
+ *  deepen, which is how a body that gets no deeper takes no uplift. */
+export interface CabinetPercentages {
+  readonly materialPercent: number;
+  readonly deepCabinetPercent: number;
+}
+
+/** One cabinet's amount at each of the three stages, every one a multiple of `TEN_LEI_MINOR`. */
+export interface CabinetStages {
+  /** `r10(b)`: the cabinet's own line. */
+  readonly cabinetMinor: number;
+  /** `r10(b × (100 + m) / 100)`: the cabinet in its material. */
+  readonly withMaterialMinor: number;
+  /** `r10(b × (100 + m) × (100 + d) / 10 000)`: the cabinet in its material at its depth. */
+  readonly withDepthMinor: number;
+}
+
+/**
+ * `numerator / denominator` rounded half-up to a multiple of 10 lei, in integers: the quotient is floored after adding
+ * half a ten-lei grain, so a value exactly between two multiples rounds towards +∞ (a tie at 1 500 bani gives 2 000,
+ * and at −1 500 gives −1 000). The denominator is a positive integer; the quotient is never formed as a fraction.
+ */
+export function roundHalfUpToTenLei(
+  numerator: number,
+  denominator = 1,
+): number {
+  requireWholeNumber(numerator, "the amount being rounded");
+  requireWholeNumber(denominator, "the denominator");
+  if (denominator < 1) {
+    throw new RangeError(
+      `A denominator is positive. Found: ${String(denominator)}.`,
+    );
+  }
+  const grain = checked(TEN_LEI_MINOR * denominator, "a ten-lei grain");
+  const shifted = checked(numerator + grain / 2, "an amount before rounding");
+  return checked(
+    floorDivide(shifted, grain) * TEN_LEI_MINOR,
+    "a rounded amount",
+  );
+}
+
+/** The three stages of one cabinet. `exactMinor` is `b`, the cabinet's exact priced amount. */
+export function percentageStagesOf(
+  exactMinor: number,
+  percentages: CabinetPercentages,
+): CabinetStages {
+  requireWholeNumber(percentages.materialPercent, "a material percentage");
+  requireWholeNumber(percentages.deepCabinetPercent, "a depth percentage");
+  const materialFactor = PERCENT_BASE + percentages.materialPercent;
+  const depthFactor = PERCENT_BASE + percentages.deepCabinetPercent;
+  const withMaterial = checked(
+    exactMinor * materialFactor,
+    "an amount in its material",
+  );
+  return {
+    cabinetMinor: roundHalfUpToTenLei(exactMinor),
+    withMaterialMinor: roundHalfUpToTenLei(withMaterial, PERCENT_BASE),
+    withDepthMinor: roundHalfUpToTenLei(
+      checked(
+        withMaterial * depthFactor,
+        "an amount in its material at its depth",
+      ),
+      PERCENT_BASE * PERCENT_BASE,
+    ),
+  };
+}
+
+/** One placement's exact amount, and whether it takes the depth uplift. */
+export interface CabinetToSplit {
+  readonly exactMinor: number;
+  readonly deepens: boolean;
+}
+
+/** A cabinet beside its own first-stage amount, so no caller pairs the two by position. */
+export interface SplitCabinet<TCabinet extends CabinetToSplit> {
+  readonly cabinet: TCabinet;
+  readonly cabinetMinor: number;
+}
+
+/** What the cabinets add up to, line by line. `cabinetMinors` follows the input order. */
+export interface PercentageSplit<
+  TCabinet extends CabinetToSplit = CabinetToSplit,
+> {
+  readonly cabinets: readonly SplitCabinet<TCabinet>[];
+  readonly cabinetMinors: readonly number[];
+  readonly materialLineMinor: number;
+  readonly depthLineMinor: number;
+}
+
+/** Every cabinet through the three stages, then the two lines as sums of differences. The cabinets, the material line
+ *  and the depth line add to the sum of the third stage, whatever the order of the cabinets. */
+export function splitCabinetsByPercentage<TCabinet extends CabinetToSplit>(
+  cabinets: readonly TCabinet[],
+  rates: CabinetPercentages,
+): PercentageSplit<TCabinet> {
+  const split: SplitCabinet<TCabinet>[] = [];
+  let materialLineMinor = 0;
+  let depthLineMinor = 0;
+  for (const cabinet of cabinets) {
+    const stages = percentageStagesOf(cabinet.exactMinor, {
+      materialPercent: rates.materialPercent,
+      deepCabinetPercent: cabinet.deepens ? rates.deepCabinetPercent : 0,
+    });
+    split.push({ cabinet, cabinetMinor: stages.cabinetMinor });
+    materialLineMinor = checked(
+      materialLineMinor + (stages.withMaterialMinor - stages.cabinetMinor),
+      "the material line",
+    );
+    depthLineMinor = checked(
+      depthLineMinor + (stages.withDepthMinor - stages.withMaterialMinor),
+      "the depth line",
+    );
+  }
+  return {
+    cabinets: split,
+    cabinetMinors: split.map(({ cabinetMinor }) => cabinetMinor),
+    materialLineMinor,
+    depthLineMinor,
+  };
+}
+
+/** Whether the design is built at the depth the deepening uplift applies at. */
+export function isBuiltAtDeepDepth(design: Design): boolean {
+  return cabinetDepthMmOf(design) === DEEP_CABINET_DEPTH_MM;
+}
+
+/** `floor(dividend / divisor)` for whole numbers of either sign, without a float quotient: the remainder is taken
+ *  first, so the division that follows is exact. */
+function floorDivide(dividend: number, divisor: number): number {
+  const remainder = ((dividend % divisor) + divisor) % divisor;
+  return (dividend - remainder) / divisor;
+}
+
+function requireWholeNumber(value: number, what: string): void {
+  if (Number.isSafeInteger(value)) return;
+  throw new InexactPriceArithmeticError({
+    describedAs: `${what} (which is not a whole number of minor units)`,
+    reached: value,
+  });
+}
+
+/** A step's result held to the exact-integer range, so no stage can lose a ban to the float it is computed in. */
+function checked(value: number, what: string): number {
+  if (Number.isSafeInteger(value)) return value;
+  throw new InexactPriceArithmeticError({ describedAs: what, reached: value });
+}

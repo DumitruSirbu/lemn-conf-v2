@@ -1,5 +1,5 @@
-// How many mechanisms a kitchen's hardware is priced by: hinges, drawers and push-to-open latches,
-// counted over a design's bodies from their front-population declarations.
+// How many mechanisms a kitchen's hardware is priced by: hinges, drawers, push runners, push-to-open latches
+// and lifts, counted over a design's bodies from their front-population declarations.
 //
 // Hardware is priced per mechanism, never per handle (ADR 0070 decision 1): a push-to-open body carries
 // hinges and runners and no handle, so a per-handle basis billed a whole push-to-open kitchen at zero.
@@ -15,28 +15,34 @@
 // Nothing here reads a mesh or a `kind`: every number comes from the placement's own catalogue entry
 // through `frontPopulationQueryFor`, so no height can be sourced from a definition's nominal.
 import {
+  doorLeafCount,
   doorLeafHeightsMm,
   drawerCount,
   frontPopulationQueryFor,
+  liftDoorWidthsMm,
   type DeclaresFronts,
+  type FrontPopulationQuery,
 } from "./front-population.js";
 import { isPushToOpen, type PushToOpenQuery } from "./push-to-open.js";
 import type { DisplayEntry } from "./queries/design-projection.js";
 import type { BodyCatalog } from "./void-engine.js";
 
-/** The three mechanisms ADR 0070 decision 1 names, and no fourth. A lift arm and a cargo pull-out are
- *  knowingly unpriced (ADR 0092 decision 8) rather than folded into a count that would make them look
- *  measured. */
+/** The mechanisms a kitchen's hardware is priced by: hinges, drawers, push runners, push-to-open latches and one lift
+ *  per lift-up door (ADR 0177 A-20). A cargo pull-out counts as one drawer (ADR 0092 decision 8). A drawer is counted
+ *  under `drawers` or under `pushRunners`, never both: on a push-to-open body it opens on a push runner, and it takes
+ *  no latch. */
 export interface HardwareMechanismCounts {
   readonly hinges: number;
   readonly drawers: number;
+  readonly pushRunners: number;
   readonly pushToOpen: number;
+  readonly lifts: number;
 }
 
 /** Two hinges carry an ordinary door leaf. */
 export const HINGES_PER_DOOR_LEAF = 2;
 
-/** A third hinge carries a leaf over the threshold below — the extra weight needs it. */
+/** A third hinge carries a leaf over either threshold below — the extra weight needs it. */
 export const HINGES_PER_TALL_DOOR_LEAF = 3;
 
 /** The height a third hinge starts at, a strict boundary: ADR 0070 says *taller than 900*, so a 900 mm
@@ -44,11 +50,18 @@ export const HINGES_PER_TALL_DOOR_LEAF = 3;
  *  notice. */
 export const TALL_DOOR_LEAF_THRESHOLD_MM = 900;
 
+/** The width a lift door's third hinge starts at, a strict boundary like the height one: a 500 mm lift door takes
+ *  two hinges and a 501 mm one three. It is not the door-count threshold, which is inclusive. For a lift door this
+ *  width rule replaces the height rule. see ADR 0177 A-20 */
+export const WIDE_LIFT_DOOR_THRESHOLD_MM = 500;
+
 /** What a design with no bodies carries: a real answer, not a refusal. */
 export const NO_HARDWARE_MECHANISMS: HardwareMechanismCounts = {
   hinges: 0,
   drawers: 0,
+  pushRunners: 0,
   pushToOpen: 0,
+  lifts: 0,
 };
 
 /**
@@ -74,7 +87,7 @@ export function countHardwareMechanisms(
   return totals;
 }
 
-/** The three counts one body contributes. Built through `frontPopulationQueryFor` so nobody can reach
+/** The counts one body contributes. Built through `frontPopulationQueryFor` so nobody can reach
  *  for a definition's nominal height: one `wall-cabinet` entry declares 700 while its placements are
  *  built at 400, 700 and 750. */
 function mechanismsOn(
@@ -83,16 +96,16 @@ function mechanismsOn(
 ): HardwareMechanismCounts {
   const declared = definition ?? DECLARES_NOTHING;
   const query = frontPopulationQueryFor({ body: entry, definition: declared });
-  const leafHeightsMm = doorLeafHeightsMm(query);
+  const liftDoorWidths = liftDoorWidthsMm(query);
+  const isPushOpen = isPushToOpen(pushToOpenQueryFor(entry, declared));
   const drawers = drawerCount(query);
 
   return {
-    hinges: countHinges(leafHeightsMm),
-    drawers,
-    pushToOpen: countPushToOpen(
-      pushToOpenQueryFor(entry, declared),
-      leafHeightsMm.length + drawers,
-    ),
+    hinges: countHingesOn(query, liftDoorWidths),
+    drawers: isPushOpen ? 0 : drawers,
+    pushRunners: isPushOpen ? drawers : 0,
+    pushToOpen: isPushOpen ? doorLeafCount(query) : 0,
+    lifts: liftDoorWidths.length,
   };
 }
 
@@ -111,10 +124,11 @@ interface DeclaresMechanismFacts extends DeclaresFronts {
  *  price. */
 const DECLARES_NOTHING: DeclaresMechanismFacts = {};
 
-/** The facts `isPushToOpen` reads: the floor and the recorded mode are the **placement's** (§6.5: two
- *  `base-sink-800`s can carry different handles), the permission is the **catalogue row's**. A row
- *  declaring no permission reads as permitting none, which decides nothing on any reachable path:
- *  `doorLeafHeightsMm` has already refused an uncatalogued body. */
+/** The facts `isPushToOpen` reads, through the one call the scene draws its bars by (`scene-sync.ts`), so billing and
+ *  scene cannot disagree: the floor and the recorded mode are the **placement's** (§6.5: two
+ *  `base-sink-800`s can carry different handles), the kitchen's handle is the **design's**, the permission is the
+ *  **catalogue row's**. A row declaring no permission reads as permitting none, which decides nothing on any
+ *  reachable path: `doorLeafHeightsMm` has already refused an uncatalogued body. */
 function pushToOpenQueryFor(
   entry: DisplayEntry,
   declared: DeclaresMechanismFacts,
@@ -122,18 +136,30 @@ function pushToOpenQueryFor(
   return {
     y0Mm: entry.y0Mm,
     recordedHandle: entry.handle,
+    kitchenSettings: entry.kitchenSettings,
     canHandle: declared.canHandle === true,
   };
 }
 
-/** Counted over `doorLeafHeightsMm`, one entry per leaf, never over `doorBandHeightsMm`: a pantry at
- *  600 mm answers `[1290, 1290, 790, 790]`, and applying the threshold to its two bands gives 45 hinges
- *  on the seeded kitchen against the correct 74. */
-function countHinges(leafHeightsMm: readonly number[]): number {
-  return leafHeightsMm.reduce(
-    (total, leafHeightMm) => total + hingesOnLeaf(leafHeightMm),
-    0,
-  );
+/** A lift door's hinges follow its width, every other leaf's its height (ADR 0177 A-20), so a body's hinges are
+ *  counted over one list or the other, never both. Heights are counted over `doorLeafHeightsMm`, one entry per
+ *  leaf, never over `doorBandHeightsMm`: a pantry at 600 mm answers `[1290, 1290, 790, 790]`, and applying the
+ *  threshold to its two bands gives 45 hinges on the seeded kitchen against the correct 74. */
+function countHingesOn(
+  query: FrontPopulationQuery,
+  liftDoorWidths: readonly number[],
+): number {
+  if (liftDoorWidths.length > 0) {
+    return sumOf(liftDoorWidths, hingesOnLiftDoor);
+  }
+  return sumOf(doorLeafHeightsMm(query), hingesOnLeaf);
+}
+
+function sumOf(
+  values: readonly number[],
+  measure: (value: number) => number,
+): number {
+  return values.reduce((total, value) => total + measure(value), 0);
 }
 
 function hingesOnLeaf(leafHeightMm: number): number {
@@ -142,14 +168,10 @@ function hingesOnLeaf(leafHeightMm: number): number {
     : HINGES_PER_DOOR_LEAF;
 }
 
-/** One latch per opening front on a push-to-open body, none elsewhere (ADR 0092 decision 3): per front,
- *  the denominator the hinge rule also uses. Whether the body is push-to-open is `isPushToOpen`'s
- *  answer; `scene-sync.ts` draws the bar by the same call. */
-function countPushToOpen(
-  front: PushToOpenQuery,
-  openingFronts: number,
-): number {
-  return isPushToOpen(front) ? openingFronts : 0;
+function hingesOnLiftDoor(doorWidthMm: number): number {
+  return doorWidthMm > WIDE_LIFT_DOOR_THRESHOLD_MM
+    ? HINGES_PER_TALL_DOOR_LEAF
+    : HINGES_PER_DOOR_LEAF;
 }
 
 function addCounts(
@@ -159,6 +181,8 @@ function addCounts(
   return {
     hinges: left.hinges + right.hinges,
     drawers: left.drawers + right.drawers,
+    pushRunners: left.pushRunners + right.pushRunners,
     pushToOpen: left.pushToOpen + right.pushToOpen,
+    lifts: left.lifts + right.lifts,
   };
 }

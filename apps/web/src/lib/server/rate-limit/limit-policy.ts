@@ -94,6 +94,14 @@ export const READS_PER_BLOCK_FIGURE = 600;
 export const PRESET_READS_PER_BLOCK_FIGURE = 1200;
 
 /**
+ * PROVISIONAL, the engineer's figure and not the owner's: 3,600 an hour for each network block, for the menu counter's
+ * poll. One tab asks once a minute, so 3,600 is six times what ten staff tabs behind one network need. The poll has its
+ * own bucket so a timer cannot spend the 600 of `READS_PER_BLOCK_FIGURE` that pages and the design reads share. The
+ * owner's answer changes this constant and no code.
+ */
+export const STAFF_CHANGED_COUNT_PER_BLOCK_FIGURE = 3600;
+
+/**
  * PROVISIONAL until the owner answers Q47: 100 browser reports of a policy violation an hour for each network block
  * (ADR 0161 decision 2). One page with a broken add-on sends a few; 100 is enough to learn that something is wrong and
  * small enough that a flood costs little. While no network source is named the one shared bucket holds all visitors'
@@ -213,6 +221,26 @@ export const STAFF_AUDIT_PAGE_PER_ACCOUNT_HOUR_FIGURE = 300;
 export const STAFF_NOTE_PER_ACCOUNT_HOUR_FIGURE = 120;
 export const STAFF_STATUS_PER_ACCOUNT_HOUR_FIGURE = 120;
 export const STAFF_UNHIDE_PER_ACCOUNT_DAY_FIGURE = 60;
+/**
+ * PROVISIONAL: how many seen marks one staff account may write in an hour. A page marks one kitchen seen each time it
+ * opens, so the figure equals the opening bucket's (600), and like every account write it **fails closed**. The owner's
+ * answer changes this constant and no code; see ADR 0178 A-12.
+ */
+export const STAFF_SEEN_PER_ACCOUNT_HOUR_FIGURE = 600;
+/**
+ * PROVISIONAL: how many times one administrator may read the price dashboard's state in an hour, and how many draft
+ * writes (a change, a revert, a bulk action) the same account may make. Each read is audited and serves the whole active
+ * book, so it **fails closed** like the audit page; 300 matches it. A person editing prices makes a write per field, so
+ * 600 an hour is one every 6 seconds. The owner's answer changes these constants and no code; see ADR 0178 (the M10 record, ruling R2-Q5).
+ */
+export const STAFF_PRICES_READ_PER_ACCOUNT_HOUR_FIGURE = 300;
+export const STAFF_PRICE_DRAFT_PER_ACCOUNT_HOUR_FIGURE = 600;
+/**
+ * PROVISIONAL: how many usage questions one administrator may ask in an hour. A question names up to 50 items and walks
+ * every stored design once (`neon-kitchen-usage-reader.ts`), so the bucket **fails closed**; 120 is a fixed UTC hour's allowance, which a burst may spend at once.
+ * The owner's answer changes this constant and no code; see ADR 0178.
+ */
+export const STAFF_PRICE_USAGE_PER_ACCOUNT_HOUR_FIGURE = 120;
 /** How many kitchens an account may copy in a UTC day, on top of the mint's own per-network bucket (a copy is a mint,
  *  ADR 0147's intent). */
 export const DESIGN_DUPLICATE_PER_ACCOUNT_DAY_FIGURE = 20;
@@ -276,6 +304,14 @@ export const PRESET_READ_POLICY = policyOf("preset-read-by-block", {
   figure: PRESET_READS_PER_BLOCK_FIGURE,
   window: utcMinutes(READ_WINDOW_MINUTES),
 });
+
+export const STAFF_CHANGED_COUNT_POLICY = policyOf(
+  "staff-changed-count-by-block",
+  {
+    figure: STAFF_CHANGED_COUNT_PER_BLOCK_FIGURE,
+    window: utcMinutes(READ_WINDOW_MINUTES),
+  },
+);
 
 export const CSP_REPORT_POLICY = policyOf("csp-report-by-block", {
   figure: CSP_REPORTS_PER_BLOCK_FIGURE,
@@ -537,6 +573,34 @@ export const STAFF_UNHIDE_BY_ACCOUNT_POLICY = policyOf(
   },
 );
 
+export const STAFF_SEEN_BY_ACCOUNT_POLICY = policyOf("staff-seen-by-account", {
+  figure: STAFF_SEEN_PER_ACCOUNT_HOUR_FIGURE,
+  window: utcMinutes(ACCOUNT_HOUR_MINUTES),
+});
+export const STAFF_PRICES_READ_BY_ACCOUNT_POLICY = policyOf(
+  "staff-prices-read-by-account",
+  {
+    figure: STAFF_PRICES_READ_PER_ACCOUNT_HOUR_FIGURE,
+    window: utcMinutes(ACCOUNT_HOUR_MINUTES),
+  },
+);
+
+export const STAFF_PRICE_DRAFT_BY_ACCOUNT_POLICY = policyOf(
+  "staff-price-draft-by-account",
+  {
+    figure: STAFF_PRICE_DRAFT_PER_ACCOUNT_HOUR_FIGURE,
+    window: utcMinutes(ACCOUNT_HOUR_MINUTES),
+  },
+);
+
+export const STAFF_PRICE_USAGE_BY_ACCOUNT_POLICY = policyOf(
+  "staff-price-usage-by-account",
+  {
+    figure: STAFF_PRICE_USAGE_PER_ACCOUNT_HOUR_FIGURE,
+    window: utcMinutes(ACCOUNT_HOUR_MINUTES),
+  },
+);
+
 export const ACCOUNT_EXPORT_BY_ACCOUNT_POLICY = policyOf(
   "account-export-by-account",
   {
@@ -579,6 +643,7 @@ export type PolicyPurpose =
   | "preset-creation"
   | "read"
   | "preset-read"
+  | "staff-changed-count"
   | "csp-report"
   | "contact-every-by-block"
   | "contact-new-by-block-hour"
@@ -610,7 +675,11 @@ export type PolicyPurpose =
   | "staff-audit-page-by-account"
   | "staff-note-by-account"
   | "staff-status-by-account"
-  | "staff-unhide-by-account";
+  | "staff-unhide-by-account"
+  | "staff-seen-by-account"
+  | "staff-prices-read-by-account"
+  | "staff-price-draft-by-account"
+  | "staff-price-usage-by-account";
 
 interface Twins {
   readonly production: LimitPolicy;
@@ -637,6 +706,10 @@ const TWINS_OF_PURPOSE: Readonly<Record<PolicyPurpose, Twins>> = {
   },
   read: { production: READ_POLICY, e2e: READ_POLICY },
   "preset-read": { production: PRESET_READ_POLICY, e2e: PRESET_READ_POLICY },
+  "staff-changed-count": {
+    production: STAFF_CHANGED_COUNT_POLICY,
+    e2e: STAFF_CHANGED_COUNT_POLICY,
+  },
   "csp-report": { production: CSP_REPORT_POLICY, e2e: CSP_REPORT_POLICY },
   "contact-every-by-block": {
     production: CONTACT_EVERY_BY_BLOCK_POLICY,
@@ -723,6 +796,16 @@ const TWINS_OF_PURPOSE: Readonly<Record<PolicyPurpose, Twins>> = {
   "staff-note-by-account": sameInProduction(STAFF_NOTE_BY_ACCOUNT_POLICY),
   "staff-status-by-account": sameInProduction(STAFF_STATUS_BY_ACCOUNT_POLICY),
   "staff-unhide-by-account": sameInProduction(STAFF_UNHIDE_BY_ACCOUNT_POLICY),
+  "staff-seen-by-account": sameInProduction(STAFF_SEEN_BY_ACCOUNT_POLICY),
+  "staff-prices-read-by-account": sameInProduction(
+    STAFF_PRICES_READ_BY_ACCOUNT_POLICY,
+  ),
+  "staff-price-draft-by-account": sameInProduction(
+    STAFF_PRICE_DRAFT_BY_ACCOUNT_POLICY,
+  ),
+  "staff-price-usage-by-account": sameInProduction(
+    STAFF_PRICE_USAGE_BY_ACCOUNT_POLICY,
+  ),
 };
 
 /** The twins of a purpose that has no e2e figure of its own: the production policy answers in both. */

@@ -21,6 +21,10 @@ const FAKE_SECRET =
 const A_NETWORK = "192.0.2.88";
 const REPORT_STORED_AT_THE_DEADLINE_MS = RATE_LIMIT_DEADLINE_MS;
 
+/** Every sampled run imports a fresh route, so a sweep takes 2 to 6 s alone and past the default limit in a full parallel
+ *  suite, and a timed-out sweep keeps running into the next test. */
+const SWEEP_TIMEOUT_MS = 120_000;
+
 type Route = typeof import("../../../../src/app/api/csp-reports/route").POST;
 
 function aReport(overrides: Record<string, unknown> = {}): string {
@@ -318,60 +322,70 @@ describe("whatever a store does, the browser is told the same thing (criterion 1
     },
   );
 
-  it("never leaves an unhandled rejection behind, whichever way the store ends", async () => {
-    const unhandled = vi.fn();
-    process.on("unhandledRejection", unhandled);
-    try {
-      for (const [, behaviour] of BEHAVIOURS) {
-        recordConsole();
-        theStoreDoes(behaviour);
-        await (
-          await freshRoute()
-        )(reportRequest());
-        vi.restoreAllMocks();
-      }
-      await new Promise((resolve) => setImmediate(resolve));
-    } finally {
-      process.off("unhandledRejection", unhandled);
-    }
-
-    expect(unhandled).not.toHaveBeenCalled();
-  });
-
-  it("reveals nothing a failure carried: no store argument, line or answer holds a planted text, over arbitrary failures", async () => {
-    await fc.assert(
-      fc.asyncProperty(
-        fc.stringMatching(/^[A-Za-z0-9]{10,24}$/),
-        fc.constantFrom("reject", "throw", "reject-object", "throw-object"),
-        async (secret, how) => {
-          const planted = `Zq7Fail${secret}`;
-          const calls = recordConsole();
-          theStoreDoes(() => {
-            const error = Object.assign(
-              new Error(`postgres://owner:${planted}@db.example/neondb`),
-              { detail: planted, code: planted },
-            );
-            if (how === "reject") return Promise.reject(error);
-            if (how === "reject-object") return Promise.reject({ planted });
-            if (how === "throw") throw error;
-            throw { planted };
-          });
-
-          const response = await (await freshRoute())(reportRequest());
-
-          expect(response.status).toBe(204);
-          expect(JSON.stringify(calls)).not.toContain(planted);
-          expect(await response.text()).not.toContain(planted);
-          expect(JSON.stringify([...response.headers])).not.toContain(planted);
-          expect(unstoredLinesIn(calls)).toEqual([
-            { event: "csp-report-unstored", cause: "store-failed" },
-          ]);
+  it(
+    "never leaves an unhandled rejection behind, whichever way the store ends",
+    async () => {
+      const unhandled = vi.fn();
+      process.on("unhandledRejection", unhandled);
+      try {
+        for (const [, behaviour] of BEHAVIOURS) {
+          recordConsole();
+          theStoreDoes(behaviour);
+          await (
+            await freshRoute()
+          )(reportRequest());
           vi.restoreAllMocks();
-        },
-      ),
-      { numRuns: 40 },
-    );
-  });
+        }
+        await new Promise((resolve) => setImmediate(resolve));
+      } finally {
+        process.off("unhandledRejection", unhandled);
+      }
+
+      expect(unhandled).not.toHaveBeenCalled();
+    },
+    SWEEP_TIMEOUT_MS,
+  );
+
+  it(
+    "reveals nothing a failure carried: no store argument, line or answer holds a planted text, over arbitrary failures",
+    async () => {
+      await fc.assert(
+        fc.asyncProperty(
+          fc.stringMatching(/^[A-Za-z0-9]{10,24}$/),
+          fc.constantFrom("reject", "throw", "reject-object", "throw-object"),
+          async (secret, how) => {
+            const planted = `Zq7Fail${secret}`;
+            const calls = recordConsole();
+            theStoreDoes(() => {
+              const error = Object.assign(
+                new Error(`postgres://owner:${planted}@db.example/neondb`),
+                { detail: planted, code: planted },
+              );
+              if (how === "reject") return Promise.reject(error);
+              if (how === "reject-object") return Promise.reject({ planted });
+              if (how === "throw") throw error;
+              throw { planted };
+            });
+
+            const response = await (await freshRoute())(reportRequest());
+
+            expect(response.status).toBe(204);
+            expect(JSON.stringify(calls)).not.toContain(planted);
+            expect(await response.text()).not.toContain(planted);
+            expect(JSON.stringify([...response.headers])).not.toContain(
+              planted,
+            );
+            expect(unstoredLinesIn(calls)).toEqual([
+              { event: "csp-report-unstored", cause: "store-failed" },
+            ]);
+            vi.restoreAllMocks();
+          },
+        ),
+        { numRuns: 40 },
+      );
+    },
+    SWEEP_TIMEOUT_MS,
+  );
 
   it("writes the unstored line once for each cause in one process, whatever order the causes arrive in", async () => {
     const calls = recordConsole();
@@ -461,161 +475,173 @@ describe("a burst of reports (criterion 9)", () => {
 });
 
 describe("nothing a request carries but the reduction reaches a store or a line (criterion 11)", () => {
-  it("holds for a planted value in every dropped field and header, over every line and the answer as well as the store's argument", async () => {
-    await fc.assert(
-      fc.asyncProperty(
-        fc.stringMatching(/^[A-Za-z0-9]{12,24}$/),
-        async (suffix) => {
-          const planted = `Zq7${suffix}`;
-          const calls = recordConsole();
-          const store = theStoreDoes(() => Promise.resolve());
-          const body = aReport({
-            "document-uri": `https://shop.test/ro/d/${planted}/review?q=${planted}#${planted}`,
-            "source-file": `https://shop.test/_next/static/chunks/a.js?v=${planted}`,
-            "blocked-uri": `https://user:${planted}@evil.example/${planted}?${planted}#${planted}`,
-            referrer: `https://elsewhere.example/${planted}`,
-            "script-sample": planted,
-            "original-policy": `script-src 'nonce-${planted}'`,
-            "effective-directive": `script-src-elem ${planted}`,
-            [`unknown-${planted}`]: planted,
-            "line-number": 7,
-          });
+  it(
+    "holds for a planted value in every dropped field and header, over every line and the answer as well as the store's argument",
+    async () => {
+      await fc.assert(
+        fc.asyncProperty(
+          fc.stringMatching(/^[A-Za-z0-9]{12,24}$/),
+          async (suffix) => {
+            const planted = `Zq7${suffix}`;
+            const calls = recordConsole();
+            const store = theStoreDoes(() => Promise.resolve());
+            const body = aReport({
+              "document-uri": `https://shop.test/ro/d/${planted}/review?q=${planted}#${planted}`,
+              "source-file": `https://shop.test/_next/static/chunks/a.js?v=${planted}`,
+              "blocked-uri": `https://user:${planted}@evil.example/${planted}?${planted}#${planted}`,
+              referrer: `https://elsewhere.example/${planted}`,
+              "script-sample": planted,
+              "original-policy": `script-src 'nonce-${planted}'`,
+              "effective-directive": `script-src-elem ${planted}`,
+              [`unknown-${planted}`]: planted,
+              "line-number": 7,
+            });
 
-          const response = await (
-            await freshRoute()
-          )(
-            reportRequest(body, {
-              cookie: `__Host-visitor=${planted}`,
-              "user-agent": `Agent/${planted}`,
-              origin: `https://${planted}.example`,
-              referer: `https://${planted}.example/`,
-              "x-forwarded-for": "198.51.100.23",
-            }),
-          );
+            const response = await (
+              await freshRoute()
+            )(
+              reportRequest(body, {
+                cookie: `__Host-visitor=${planted}`,
+                "user-agent": `Agent/${planted}`,
+                origin: `https://${planted}.example`,
+                referer: `https://${planted}.example/`,
+                "x-forwarded-for": "198.51.100.23",
+              }),
+            );
 
-          expect(response.status).toBe(204);
-          expect(store).toHaveBeenCalledTimes(1);
-          const everything = JSON.stringify([
-            store.mock.calls,
-            calls,
-            [...response.headers],
-          ]);
-          expect(everything).not.toContain(planted);
-          expect(everything).not.toContain("198.51.100.23");
-          vi.restoreAllMocks();
-        },
-      ),
-      { numRuns: 40 },
-    );
-  });
-
-  it("stores a row whose keys are exactly the reduction's and the mark, for any accepted body", async () => {
-    await fc.assert(
-      fc.asyncProperty(
-        fc.dictionary(
-          fc.string({ maxLength: 12 }),
-          fc.jsonValue({ maxDepth: 2 }),
-          { maxKeys: 8 },
+            expect(response.status).toBe(204);
+            expect(store).toHaveBeenCalledTimes(1);
+            const everything = JSON.stringify([
+              store.mock.calls,
+              calls,
+              [...response.headers],
+            ]);
+            expect(everything).not.toContain(planted);
+            expect(everything).not.toContain("198.51.100.23");
+            vi.restoreAllMocks();
+          },
         ),
-        async (extraFields) => {
-          recordConsole();
-          const store = theStoreDoes(() => Promise.resolve());
+        { numRuns: 40 },
+      );
+    },
+    SWEEP_TIMEOUT_MS,
+  );
 
-          const response = await (
-            await freshRoute()
-          )(reportRequest(aReport(extraFields)));
+  it(
+    "stores a row whose keys are exactly the reduction's and the mark, for any accepted body",
+    async () => {
+      await fc.assert(
+        fc.asyncProperty(
+          fc.dictionary(
+            fc.string({ maxLength: 12 }),
+            fc.jsonValue({ maxDepth: 2 }),
+            { maxKeys: 8 },
+          ),
+          async (extraFields) => {
+            recordConsole();
+            const store = theStoreDoes(() => Promise.resolve());
 
-          if (response.status !== 204) {
-            expect(store).not.toHaveBeenCalled();
-            return;
-          }
-          for (const [row] of store.mock.calls) {
-            expect(
-              Object.keys(row).filter(
-                (key) =>
-                  ![
-                    "directive",
-                    "blocked",
-                    "source",
-                    "line",
-                    "column",
-                    "page",
-                    "locale",
-                    "origin",
-                    "disposition",
-                    "status",
-                    "writerMark",
-                  ].includes(key),
-              ),
-            ).toEqual([]);
-            expect(
-              Object.values(row).filter((value) => value === null),
-            ).toEqual([]);
-          }
-          vi.restoreAllMocks();
-        },
-      ),
-      { numRuns: 60 },
-    );
-  });
+            const response = await (
+              await freshRoute()
+            )(reportRequest(aReport(extraFields)));
+
+            if (response.status !== 204) {
+              expect(store).not.toHaveBeenCalled();
+              return;
+            }
+            for (const [row] of store.mock.calls) {
+              expect(
+                Object.keys(row).filter(
+                  (key) =>
+                    ![
+                      "directive",
+                      "blocked",
+                      "source",
+                      "line",
+                      "column",
+                      "page",
+                      "locale",
+                      "origin",
+                      "disposition",
+                      "status",
+                      "writerMark",
+                    ].includes(key),
+                ),
+              ).toEqual([]);
+              expect(
+                Object.values(row).filter((value) => value === null),
+              ).toEqual([]);
+            }
+            vi.restoreAllMocks();
+          },
+        ),
+        { numRuns: 60 },
+      );
+    },
+    SWEEP_TIMEOUT_MS,
+  );
 });
 
 describe("a refusal stores nothing and writes no unstored line (criterion 8)", () => {
-  it("holds for every media type, body and header combination the route refuses, sampled widely", async () => {
-    await fc.assert(
-      fc.asyncProperty(
-        fc.constantFrom(
-          "text/plain",
-          "application/json",
-          "application/csp-reportx",
-          "application/reports+json",
-          "",
-          "application/csp-report;",
-          "  APPLICATION/CSP-REPORT ; charset=utf-8",
-        ),
-        fc.oneof(
-          fc.string({ maxLength: 40 }),
+  it(
+    "holds for every media type, body and header combination the route refuses, sampled widely",
+    async () => {
+      await fc.assert(
+        fc.asyncProperty(
           fc.constantFrom(
-            "{}",
-            "null",
-            "[]",
-            '{"csp-report":[]}',
-            '{"csp-report":null}',
-            "x".repeat(8193),
+            "text/plain",
+            "application/json",
+            "application/csp-reportx",
+            "application/reports+json",
+            "",
+            "application/csp-report;",
+            "  APPLICATION/CSP-REPORT ; charset=utf-8",
           ),
+          fc.oneof(
+            fc.string({ maxLength: 40 }),
+            fc.constantFrom(
+              "{}",
+              "null",
+              "[]",
+              '{"csp-report":[]}',
+              '{"csp-report":null}',
+              "x".repeat(8193),
+            ),
+          ),
+          async (contentType, body) => {
+            const calls = recordConsole();
+            const store = theStoreDoes(() => Promise.resolve());
+
+            const response = await (
+              await freshRoute()
+            )(
+              new Request(`https://shop.test${CSP_REPORT_PATH}`, {
+                method: "POST",
+                headers: {
+                  "content-type": contentType,
+                  "x-forwarded-for": A_NETWORK,
+                },
+                body,
+              }),
+            );
+
+            if (response.status === 204) {
+              expect(store).toHaveBeenCalledTimes(1);
+            } else {
+              expect(store).not.toHaveBeenCalled();
+              expect(unstoredLinesIn(calls)).toEqual([]);
+              expect(
+                calls.filter((call) => call.text.includes("csp-violation")),
+              ).toEqual([]);
+            }
+            vi.restoreAllMocks();
+          },
         ),
-        async (contentType, body) => {
-          const calls = recordConsole();
-          const store = theStoreDoes(() => Promise.resolve());
-
-          const response = await (
-            await freshRoute()
-          )(
-            new Request(`https://shop.test${CSP_REPORT_PATH}`, {
-              method: "POST",
-              headers: {
-                "content-type": contentType,
-                "x-forwarded-for": A_NETWORK,
-              },
-              body,
-            }),
-          );
-
-          if (response.status === 204) {
-            expect(store).toHaveBeenCalledTimes(1);
-          } else {
-            expect(store).not.toHaveBeenCalled();
-            expect(unstoredLinesIn(calls)).toEqual([]);
-            expect(
-              calls.filter((call) => call.text.includes("csp-violation")),
-            ).toEqual([]);
-          }
-          vi.restoreAllMocks();
-        },
-      ),
-      { numRuns: 120 },
-    );
-  });
+        { numRuns: 120 },
+      );
+    },
+    SWEEP_TIMEOUT_MS,
+  );
 });
 
 describe("a secret that cannot make the mark (criterion 13)", () => {

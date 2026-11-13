@@ -30,6 +30,7 @@ const seeded = () => createWorld(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG);
 
 function metaFor(world: ReturnType<typeof seeded>, id: string) {
   const meta = describeSelection({
+    kitchenSettings: {},
     ...world,
     target: { kind: "placement", id },
   });

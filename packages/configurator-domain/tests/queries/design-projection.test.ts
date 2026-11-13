@@ -112,6 +112,7 @@ describe("compareDisplayOrder — wall rank (ADR 0132 decision 1)", () => {
       y0Mm: 0,
       widthMm: 600,
       heightMm: 700,
+      kitchenSettings: {},
     };
   }
 

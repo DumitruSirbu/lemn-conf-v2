@@ -119,3 +119,20 @@ neither term applied to it.
 - Wave **6G** cannot answer its leaf-counting question alone, and neither can this decision.
 - M8's review summary and any snapshot verification inherit whatever shapes exist; nothing here
   changes the pricing-version equality rule.
+
+## Note — 2026-10-25: both terms survive as dashboard fields
+
+The door-leaf step and the height term remain, expressed as the "+ lei per extra door leaf" and
+"± lei per 50 mm of height" fields of the anchor-and-steps model in
+[ADR 0175](0175-a-cabinet-is-priced-by-an-anchor-at-its-default-width-plus-steps-widths-and-heights-round-up-to-50-mm-and-prices-round-to-10-lei.md).
+The door field covers the door panel only; hinges are counted under hardware. Height is still an
+additive input, not an area. Whether the door count follows the actual or the rounded width is open
+(ADR 0175, *Open*).
+
+## Note — 2026-10-26: the door count follows the actual built width
+
+**Evidence tier: owner answer of 2026-10-26, coordinator-relayed (OQ-6: "count the doors as it really has"; words as
+relayed); doc-quoted from `docs/milestones/M10-price-dashboard.md` §4 (S-8) and §5 (A-3). Nothing is built.** The open
+question in the note above is ruled: the door step counts leaves at the **actual** width, not the width rounded up to 50 mm.
+The carcass door step and the hardware hinge count therefore count leaves the same way, as this decision requires.
+Recorded in [ADR 0177](0177-the-m10-pricing-seams-rounding-round-up-percentages-deepening-fixed-size-rows-linked-accessories-and-the-lift-mechanism.md) A-3.

@@ -1,0 +1,19 @@
+<svg viewBox="0 0 220 350" xmlns="http://www.w3.org/2000/svg" role="img">
+  <title>Base range cabinet with cooktop and oven</title>
+<g transform="translate(0,40)"><rect x="0" y="25" width="220" height="260" fill="#ffffff" stroke="#1c1814" stroke-width="11.5"></rect>
+  <rect x="10" y="4" width="200" height="26" rx="4" fill="#9a9a9a" stroke="#1c1814" stroke-width="11.5"></rect>
+  <circle cx="34" cy="17" r="7" fill="none" stroke="#1c1814" stroke-width="7.4"></circle>
+  <circle cx="186" cy="17" r="7" fill="none" stroke="#1c1814" stroke-width="7.4"></circle>
+  <circle cx="90" cy="17" r="5" fill="none" stroke="#1c1814" stroke-width="7.4"></circle>
+  <circle cx="130" cy="17" r="5" fill="none" stroke="#1c1814" stroke-width="7.4"></circle>
+  <rect x="10" y="31" width="200" height="26" fill="#dcdcdc" stroke="#1c1814" stroke-width="7.4"></rect>
+  <circle cx="30" cy="44" r="7" fill="none" stroke="#1c1814" stroke-width="6.3"></circle>
+  <circle cx="190" cy="44" r="7" fill="none" stroke="#1c1814" stroke-width="6.3"></circle>
+  <rect x="80" y="37" width="60" height="14" fill="none" stroke="#1c1814" stroke-width="6.3"></rect><rect x="10" y="65" width="200" height="190" fill="#ffffff" stroke="#1c1814" stroke-width="11.5"></rect>
+  <rect x="22" y="79" width="176" height="150" fill="#eef3f5" stroke="#1c1814" stroke-width="7.4"></rect>
+  <line x1="22" y1="154" x2="198" y2="154" stroke="#1c1814" stroke-width="3.2"></line>
+  <rect x="10" y="253" width="200" height="18" fill="#ffffff" stroke="#1c1814" stroke-width="7.4"></rect><rect x="0" y="285" width="220" height="25" fill="#ffffff" stroke="#1c1814" stroke-width="11.5"></rect>
+  <g clip-path="none"><line x1="6" y1="310" x2="31" y2="285" stroke="#c7c7c7" stroke-width="3.2"></line><line x1="20" y1="310" x2="45" y2="285" stroke="#c7c7c7" stroke-width="3.2"></line><line x1="34" y1="310" x2="59" y2="285" stroke="#c7c7c7" stroke-width="3.2"></line><line x1="48" y1="310" x2="73" y2="285" stroke="#c7c7c7" stroke-width="3.2"></line><line x1="62" y1="310" x2="87" y2="285" stroke="#c7c7c7" stroke-width="3.2"></line><line x1="76" y1="310" x2="101" y2="285" stroke="#c7c7c7" stroke-width="3.2"></line><line x1="90" y1="310" x2="115" y2="285" stroke="#c7c7c7" stroke-width="3.2"></line><line x1="104" y1="310" x2="129" y2="285" stroke="#c7c7c7" stroke-width="3.2"></line><line x1="118" y1="310" x2="143" y2="285" stroke="#c7c7c7" stroke-width="3.2"></line><line x1="132" y1="310" x2="157" y2="285" stroke="#c7c7c7" stroke-width="3.2"></line><line x1="146" y1="310" x2="171" y2="285" stroke="#c7c7c7" stroke-width="3.2"></line><line x1="160" y1="310" x2="185" y2="285" stroke="#c7c7c7" stroke-width="3.2"></line><line x1="174" y1="310" x2="199" y2="285" stroke="#c7c7c7" stroke-width="3.2"></line><line x1="188" y1="310" x2="213" y2="285" stroke="#c7c7c7" stroke-width="3.2"></line><line x1="202" y1="310" x2="214" y2="285" stroke="#c7c7c7" stroke-width="3.2"></line></g>
+  <line x1="0" y1="285" x2="220" y2="285" stroke="#1c1814" stroke-width="5.8"></line><rect x="-4" y="0" width="228" height="25" fill="#e3d3b8" stroke="#1c1814" stroke-width="11.5"></rect>
+  <line x1="-4" y1="0" x2="224" y2="0" stroke="#1c1814" stroke-width="5.8"></line></g>
+</svg>

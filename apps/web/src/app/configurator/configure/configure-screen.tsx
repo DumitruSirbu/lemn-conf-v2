@@ -2,7 +2,7 @@
 
 import { cameraPresetsForRoom } from "@lemnaria/three-adapter";
 import dynamic from "next/dynamic";
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 
 import {
   AccountControl,
@@ -14,6 +14,14 @@ import { EditorPanel } from "@/panel/editor-panel";
 import { FlaggedTotalWarning } from "@/price/flagged-total-warning";
 import { PriceBar } from "@/price/price-bar";
 import { PriceBreakdown } from "@/price/price-breakdown";
+import { PriceNoticeBanner } from "@/price/price-notice-banner";
+import {
+  ReplacementConfirmation,
+  ReplacementSheet,
+  useReplacementSheet,
+} from "@/price/replacement-sheet";
+import { SentKitchenNote } from "@/price/sent-kitchen-note";
+import { usePriceNotice } from "@/price/use-price-notice";
 import { usePanelView } from "@/panel/use-panel-view";
 import { WebGLUnavailable } from "@/components/webgl-unavailable";
 import { Link } from "@/i18n/navigation";
@@ -83,6 +91,13 @@ export function ConfigureScreen({
   const backConfirmation = useBackConfirmation();
   const sessionExpiry = useSessionExpiry();
   const savePreset = useSaveAsPresetControl(variant === "owner");
+  // The one reader of the price notice's `GET`; the share view never asks (it mounts this screen with `variant="shared"`).
+  const priceNotice = usePriceNotice({ isOwner: variant === "owner" });
+  // The forced-replacement sheet (C4A-D). It opens only where the notice hook's `GET` runs, so the share view and a page
+  // that cannot write get no sheet, no pending bar and no disabled control: they refuse the price as they always did.
+  const replacementSheet = useReplacementSheet(priceNotice);
+  // Where focus lands when the sheet closes and the control that had it before is gone.
+  const reviewCtaRef = useRef<HTMLAnchorElement>(null);
   const backGuard = useBackGuard({
     isOwner: variant === "owner",
     isLinkQuestionOpen: backConfirmation.isAsking,
@@ -237,6 +252,23 @@ export function ConfigureScreen({
               2026-09-09 (ADR 0104 decision 8b), which took it out of the top bar so the header keeps
               frame D2A's shape on a flagged design as well as a seeded one. */}
           <div className={styles.sceneFooter}>
+            {/* Frame C1: first in the stack, so the card stands above everything the stack holds and the
+                price bar below it stays in view. A region with nothing in it takes no height. */}
+            <PriceNoticeBanner
+              banner={
+                replacementSheet.isPending ? undefined : priceNotice.banner
+              }
+              onAcknowledge={priceNotice.acknowledge}
+            />
+            {/* Frame C4C: the sheet's confirmation, with C1's prices sentence merged in. C1 itself is never drawn while
+                the sheet is up, or after it: the merged sentence says it. */}
+            <ReplacementConfirmation
+              lines={replacementSheet.confirmationLines}
+              onElapsed={replacementSheet.dismissConfirmation}
+            />
+            {/* Frames C5A / C5AD: a kitchen already sent says so, softly, above the price. `isSent` is the one
+                `GET`'s answer, which the share view never asks, so the note is never drawn there. */}
+            <SentKitchenNote isSent={priceNotice.isSent} />
             {/* The owner's ruling of 2026-10-17: *Salvează ca preset* at the bottom of the editor, on the
                 right, in every environment the server allows it in (ADR 0112 Amendment A). It is first in
                 the stack, so it rides above the hint, the flagged total and the warning band and shares
@@ -270,7 +302,13 @@ export function ConfigureScreen({
           happens to open near it. */}
       <div className={styles.priceRow}>
         <div className={styles.priceColumn}>
-          <PriceBar />
+          <PriceBar
+            pendingReplacementPrompt={
+              replacementSheet.isPending
+                ? replacementSheet.priceLine
+                : undefined
+            }
+          />
           <PriceBreakdown />
         </div>
       </div>
@@ -290,9 +328,12 @@ export function ConfigureScreen({
           >
             {content.configure.backAction}
           </Link>
-          {typeof designId === "string" ? (
+          {/* Frames C4A / C4B / C4D's "Continuă" is this control (the frames' bar and CTA are one element, this screen's
+              are two): it cannot be followed while a replacement is owed, since there is no price to review. */}
+          {typeof designId === "string" && !replacementSheet.isPending ? (
             // Not prefetched: the review's page runs the owned lookup, which a visible link must not.
             <Link
+              ref={reviewCtaRef}
               className={styles.reviewCta}
               data-testid="review-cta"
               href={reviewHref(designId)}
@@ -301,12 +342,25 @@ export function ConfigureScreen({
               {content.configure.reviewCta}
             </Link>
           ) : (
-            <span className={styles.reviewCta} data-testid="review-cta">
+            <span
+              className={styles.reviewCta}
+              data-testid="review-cta"
+              {...(replacementSheet.isPending
+                ? { role: "link", "aria-disabled": true }
+                : {})}
+            >
               {content.configure.reviewCta}
             </span>
           )}
         </div>
       )}
+      {/* A direct child of the screen, before the questions below it: the back confirmation asked from the sheet's ‹
+          mounts after the sheet and so stands above it. */}
+      <ReplacementSheet
+        sheet={replacementSheet}
+        leave={{ href: roomHref, onClick: backConfirmation.ask }}
+        returnFocusRef={reviewCtaRef}
+      />
       {backConfirmation.isAsking && (
         <BackConfirmation roomHref={roomHref} onStay={backConfirmation.stay} />
       )}

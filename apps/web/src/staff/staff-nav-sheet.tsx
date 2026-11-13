@@ -8,6 +8,11 @@ import { trapTab, useModalFocus } from "@/components/use-modal-focus";
 import { useAccountControlCopy, useStaffShellCopy } from "@/i18n/use-content";
 
 import styles from "./staff.module.css";
+import {
+  SheetGroup,
+  SheetLinkRow,
+  type StaffNavGroup,
+} from "./staff-nav-group";
 
 // The phone's "Meniu": a sheet holding who is signed in, the role, the pages and the ways out.
 // It is modal: focus lands on the sheet and stays in it, Escape and the scrim close it, and focus goes back to the
@@ -17,17 +22,10 @@ import styles from "./staff.module.css";
 // pages': the screen owns it and leaves for the start of the configurator once the server has ended the
 // session, so no staff page stays on screen with clients' data after it.
 
-export interface StaffNavItem {
-  readonly key: string;
-  readonly href: string;
-  readonly label: string;
-  readonly isCurrent: boolean;
-}
-
 export interface StaffNavSheetProps {
   readonly email: string;
   readonly roleName: string;
-  readonly items: readonly StaffNavItem[];
+  readonly groups: readonly StaffNavGroup[];
   readonly profileHref: string;
   /** This device's sign-out, owned by the screen: the sheet can be dismissed while the request is out, and the leave
    *  that follows must outlive it. */
@@ -41,7 +39,7 @@ export interface StaffNavSheetProps {
 export function StaffNavSheet({
   email,
   roleName,
-  items,
+  groups,
   profileHref,
   signOutHere,
   onClose,
@@ -87,15 +85,10 @@ export function StaffNavSheet({
         <p className={styles.sheetRole}>
           {copy.roleLabel} <strong>{roleName}</strong>
         </p>
-        {items.length === 0 ? null : (
-          <nav className={accountStyles.menuRows} aria-label={copy.areaName}>
-            {items.map((item) => (
-              <SheetLinkRow
-                key={item.key}
-                href={item.href}
-                label={item.label}
-                isCurrent={item.isCurrent}
-              />
+        {groups.length === 0 ? null : (
+          <nav className={styles.sheetNav} aria-label={copy.areaName}>
+            {groups.map((group) => (
+              <SheetGroup key={group.key} group={group} />
             ))}
           </nav>
         )}
@@ -132,27 +125,6 @@ export function StaffNavSheet({
         </div>
       </div>
     </div>
-  );
-}
-
-function SheetLinkRow({
-  href,
-  label,
-  isCurrent,
-}: {
-  readonly href: string;
-  readonly label: string;
-  readonly isCurrent: boolean;
-}) {
-  return (
-    <a
-      className={accountStyles.menuRow}
-      href={href}
-      aria-current={isCurrent ? "page" : undefined}
-    >
-      {label}
-      <span className={accountStyles.menuRowMark} aria-hidden="true" />
-    </a>
   );
 }
 

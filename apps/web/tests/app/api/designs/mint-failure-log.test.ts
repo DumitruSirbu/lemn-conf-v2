@@ -10,6 +10,8 @@ import type {
 import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { SEEDED_MINT_DESIGN } from "../../../support/seeded-mint-design";
+
 /**
  * `POST /api/designs` had no `try`/`catch` at all, so a driver failure on **mint** — the operation
  * the 2026-09-07 outage was failing on — reached Next as an unlabelled 500 with a digest and nothing
@@ -204,7 +206,7 @@ describe("POST /api/designs, when the driver answers", () => {
 
     expect(response.status).toBe(201);
     expect(await response.json()).toEqual({ id: "design-0", revision: "1" });
-    expect(fake.minted).toEqual(KITCHEN_L_DESIGN);
+    expect(fake.minted).toEqual(SEEDED_MINT_DESIGN);
     expect(errorSpy).not.toHaveBeenCalled();
     expect(warnSpy).not.toHaveBeenCalled();
   });
@@ -231,7 +233,7 @@ describe("POST /api/designs, when the driver answers", () => {
     const response = await POST(hostile);
 
     expect(response.status).toBe(201);
-    expect(fake.minted).toEqual(KITCHEN_L_DESIGN);
+    expect(fake.minted).toEqual(SEEDED_MINT_DESIGN);
     expect(fake.minted?.presetId).toBe(KITCHEN_L_DESIGN.presetId);
     expect(fake.minted?.room).toEqual(KITCHEN_L_DESIGN.room);
   });

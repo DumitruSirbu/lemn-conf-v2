@@ -1,10 +1,11 @@
 // One refusal at a time, the first the customer can act on: a body past its wall, whatever pricing answered;
 // then nothing Lemnaria sells; then a price that cannot be computed.
 //
-// Every unpriced kitchen here is one `priceDesign` itself refuses, for six of its reasons: two the design can
-// carry (a tier the book does not offer, a hanging cabinet too low to hang a door on) and four that are the
-// book's (another version, another currency, no rule for a body, a formula this build cannot read). No result
-// is injected. "Nothing sold" is built from the supplier each priced line publishes, on every swept kitchen.
+// Every unpriced kitchen here is one `priceDesign` itself refuses, for seven of its reasons: two the design can
+// carry (a chosen tier the book no longer holds, which is a replacement since M10 Q3a, and a hanging cabinet too low to
+// hang a door on) and five that are the book's (another version, another currency, no rule for a body, a formula this
+// build cannot read, a fallback tier it does not hold). The review answers every one the same way, whatever the code:
+// the order of refusals does not read it, so the row keeps its place and its code moves. No result is injected. "Nothing sold" is built from the supplier each priced line publishes, on every swept kitchen.
 import {
   buildKitchenLBodyCatalog,
   cabinetDepthMmOf,
@@ -42,6 +43,8 @@ import {
   variedKitchensOf,
   type VariedArm,
 } from "../support/varied-kitchens";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
+import { NOTHING_DISABLED } from "../support/availability";
 
 const KITCHEN_FLOOR_PER_ARM = 80;
 const OVERFLOWING_FLOOR_PER_ARM = 400;
@@ -70,6 +73,8 @@ function priceUnder(design: Design, terms: PricingTerms): PricedKitchen {
       catalog,
       book: terms.book,
       pricingVersion: terms.pricingVersion,
+      deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
       selections: design.settings,
     }),
     groups: projectDesignForDisplay(design, catalog),
@@ -107,7 +112,7 @@ interface Unpriceable {
 const UNPRICEABLE: readonly Unpriceable[] = [
   {
     name: "a material tier the book does not offer",
-    code: "UNKNOWN_TIER",
+    code: "REPLACEMENT_REQUIRED",
     price: (design) =>
       priceAndProject({
         ...design,
@@ -145,6 +150,27 @@ const UNPRICEABLE: readonly Unpriceable[] = [
         ...SHIPPED_TERMS,
         book: { ...SAMPLE_PRICE_BOOK, cabinetRules: [] },
       }),
+  },
+  {
+    name: "a book whose own fallback tier it does not hold",
+    code: "UNKNOWN_TIER",
+    price: (design) =>
+      priceUnder(
+        {
+          ...design,
+          settings: { ...design.settings, hardwareTierId: undefined },
+        },
+        {
+          ...SHIPPED_TERMS,
+          book: {
+            ...SAMPLE_PRICE_BOOK,
+            hardware: {
+              ...SAMPLE_PRICE_BOOK.hardware,
+              defaultTierId: "hardware.retired",
+            },
+          },
+        },
+      ),
   },
   {
     name: "a book whose formulas this build cannot read",
@@ -455,11 +481,16 @@ describe.each(VARIED_ARMS)("over varied $name kitchens", (arm) => {
   });
 });
 
+function amountOf(key: string): number {
+  return key === "perPushRunnerMinor" ? 1 : 0;
+}
+
 function isAmountKey(key: string): boolean {
   return key.endsWith("Minor");
 }
 
-/** The same book with every amount it states set to nothing, its suppliers untouched. */
+/** The same book with every amount it states set to nothing, its suppliers untouched, except the push-runner rate, which
+ *  a book may not state as zero: it is one bani, which rounds away on any kitchen's few push-to-open drawers. */
 function withEveryAmountZero<T>(value: T): T {
   if (Array.isArray(value)) return value.map(withEveryAmountZero) as T;
   if (value === null || typeof value !== "object") return value;
@@ -467,7 +498,7 @@ function withEveryAmountZero<T>(value: T): T {
     Object.entries(value).map(([key, inner]) => [
       key,
       isAmountKey(key) && typeof inner === "number"
-        ? 0
+        ? amountOf(key)
         : withEveryAmountZero(inner as unknown),
     ]),
   ) as T;

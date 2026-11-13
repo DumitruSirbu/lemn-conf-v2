@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 
 import { isValidElement } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /** `connection()` reads Next's request store and throws without one, so a direct call to the route
  *  needs the request it declares it is waiting for. Mocked to resolve: what the call is *for* — the
@@ -10,6 +10,13 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("next/server", async (importOriginal) => ({
   ...(await importOriginal<typeof import("next/server")>()),
   connection: vi.fn(() => Promise.resolve()),
+}));
+
+/** The customer read of the saved defaults is the page's one input (R4b3): mocked, so what the page does with its answer
+ *  is measured and the read itself is `new-kitchen-defaults`'s own tests. */
+const readNewKitchenDefaults = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/server/price-dashboard/new-kitchen-defaults", () => ({
+  readNewKitchenDefaults,
 }));
 
 import { RoomScreen } from "@/room/room-screen";
@@ -42,9 +49,23 @@ function codeOf(source: string): string {
   return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 }
 
+const READ_SETTINGS = {
+  materialTierId: "material.painted-mdf",
+  hardwareTierId: "hardware.premium",
+  cabinetDepthMm: 700,
+  finish: { kind: "free-colour", value: "#336699" },
+  handle: "black",
+  topRowHandle: "steel",
+} as const;
+
+beforeEach(() => {
+  readNewKitchenDefaults.mockReset();
+  readNewKitchenDefaults.mockResolvedValue(READ_SETTINGS);
+});
+
 describe("localized room route placeholder", () => {
   it.each(["ro", "ru"] as const)(
-    "renders the room screen and hands it nothing for %s",
+    "renders the room screen and hands it the six new-kitchen settings alone for %s",
     async (locale) => {
       const page = await RoomPage({ params: Promise.resolve({ locale }) });
       if (!isValidElement(page))
@@ -56,14 +77,31 @@ describe("localized room route placeholder", () => {
       // (defect D5). The markers moved onto the screen, which derives them from `useSearchParams`,
       // and the route has no reading of the URL left to disagree with.
       expect(page.type).toBe(RoomScreen);
-      expect(page.props).toEqual({});
+      expect(page.props).toEqual({ newKitchenSettings: READ_SETTINGS });
     },
   );
+
+  it("hands the screen the fixed fallbacks the read gives when the dashboard's data cannot be read", async () => {
+    const fallbacks = {
+      cabinetDepthMm: 600,
+      finish: { kind: "palette-entry", entryId: "pal.alb" },
+      handle: "steel",
+      topRowHandle: "push",
+    };
+    readNewKitchenDefaults.mockResolvedValue(fallbacks);
+
+    const page = await RoomPage({ params: Promise.resolve({ locale: "ro" }) });
+
+    if (!isValidElement(page))
+      throw new Error("Room route returned no element");
+    expect(page.props).toEqual({ newKitchenSettings: fallbacks });
+  });
 
   it("refuses an unsupported locale before it waits for a request", async () => {
     await expect(
       RoomPage({ params: Promise.resolve({ locale: "en" }) }),
     ).rejects.toMatchObject({ digest: "NEXT_HTTP_ERROR_FALLBACK;404" });
+    expect(readNewKitchenDefaults).not.toHaveBeenCalled();
   });
 
   it("stays a server-only shell that awaits the params and a connection, and parses nothing", () => {

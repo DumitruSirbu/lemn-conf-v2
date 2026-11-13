@@ -164,5 +164,11 @@ export function isExactValueSwitch(branches: readonly string[]): boolean {
  *  `claimDialog.claimedTitle` and `accountKitchens.count`. Commit de0aa867 (Lot 1, wave L13b.1) raised it from 7 to 8 for
  *  the first of them; it was not raised for the other three, and the walk itself counts 11 in both catalogues. The staff
  *  list added three: `staffKitchens.countSent`, `countDrafts` and `countAll`; the staff notes added two:
- *  `staffNotes.count` and `staffNotes.truncated`; the audit page added one: `staffAudit.detailRows`. */
-export const PLURAL_NODES_PER_CATALOGUE = 17;
+ *  `staffNotes.count` and `staffNotes.truncated`; the audit page added one: `staffAudit.detailRows`. The M10 copy (wave T1)
+ *  added twenty-seven: twenty-three in `priceDashboard`, three in `staffChanges` and one in `replacementSheet`. The
+ *  audit log's dashboard details (wave U5) added one: `staffAuditDetail.detailChanges`. The block on deleting a used accessory
+ *  added one: `priceDashboard.lifecycle.deleteBlockedAccessoryBody`. The dialogs' words for a switched-off accessory added
+ *  one: `priceDashboard.lifecycle.usedByAccessory`. The staff menu's counter of changed kitchens (wave K4b)
+ *  added one: `priceDashboard.nav.changedKitchens`. The digest's line about kitchens left for the next e-mail (wave K4)
+ *  added one: `staffChanges.digest.moreWaiting`. */
+export const PLURAL_NODES_PER_CATALOGUE = 49;

@@ -182,6 +182,8 @@ are not a reading of the prose; they are recoverable from the numbers alone.
 **Count.** One per **door leaf** and one per **drawer**. Per front, not per body and not per band — a
 push latch is fitted to each front that opens, which is the same denominator the hinge rule uses.
 
+*Amended 2026-11-03: drawers take no latch and a runner is priced instead; see the amendment at the end of this record.*
+
 ~~…on a placement whose `handle` is `"push"` and only there. The handle mode is per placement
 (`DisplayEntry.handle`, §6.5), so the count is read there and not from the catalogue.~~
 
@@ -1162,3 +1164,83 @@ alternative is a negative badge, which the mockups' *de la +9 000* has no form f
 **6T-a's wave section is written directly into `docs/milestones/done/M6-price-and-global-settings.md`**
 rather than pasted from here, because this amendment landed after 6T's section was already in that
 file. The row above is the only thing this record contributes to the table.
+
+## Amendment — 2026-10-25: a material is a percentage on cabinet prices, not a flat amount per kitchen
+
+**Evidence tier: owner ruling 2026-10-25, coordinator-relayed.** The decisions above stand. This
+supersedes the claim, in *Decision* 12's recommendation and in its restatement under the 6W wave plan (line 1138), that
+*"a material tier is one flat per-kitchen amount"*. Today that amount is `wholeKitchenMinor` on
+`MaterialTier` (`packages/configurator-domain/src/pricing/price-book.ts:200-203`).
+
+**The ruling.** A material becomes **a percentage on cabinet prices**.
+
+- **PAL is the 0% reference** and is not editable. Illustrative values: MDF +30-35%, veneer +70%.
+- It applies to **cabinet prices only**: not to hardware, not to accessories.
+- The customer still sees **one "Material · <name>" line**.
+
+**Why.** The flat amount charged a 2 m kitchen and a 6 m kitchen the same; a percentage scales with the
+kitchen. It replaces `wholeKitchenMinor`.
+
+**What it touches.**
+[ADR 0071](0071-material-carries-price-colour-carries-a-different-control-per-material.md) decision 1
+(only material carries price) is unchanged in meaning; the amount it carries changes shape. The
+anchor price is "in PAL" ([ADR 0175](0175-a-cabinet-is-priced-by-an-anchor-at-its-default-width-plus-steps-widths-and-heights-round-up-to-50-mm-and-prices-round-to-10-lei.md)
+decision 2), which is why PAL is the reference. The material percentage multiplies with the depth
+percentage ([ADR 0100](0100-depth-is-priced-by-a-dashboard-editable-multiplier-on-the-600-mm-base-and-it-is-deferred.md)
+Amendment of 2026-10-25).
+
+**The material group's "keeps throwing" rule needs a re-read, not an assumption.** Decision 12's
+recommendation kept the material group throwing on a default that is not the cheapest tier. With
+percentages, "cheapest" is the lowest percentage, and PAL at 0% is the default. Whether the rule
+survives unchanged is the implementing wave's to settle against a negative percentage; it is not
+decided here.
+
+**A percentage is not an exact count of bani.** It is non-integer arithmetic against a book whose every
+coefficient is an exact integer (`usableCoefficientOf`, `price-book.ts:512-520`). Where it rounds is the
+open rounding seam in ADR 0175 decision 5 and is not settled here.
+
+## Amendment — 2026-10-26: the lift mechanism is priced; a lift door counts 2 hinges, or 3 above 500 mm; the keeps-throwing rule is settled
+
+**Evidence tier: owner answer of 2026-10-26, coordinator-relayed (words as relayed, not a verbatim transcript);
+doc-quoted from `docs/milestones/M10-price-dashboard.md` §4 (S-5, S-13) and §5 (A-8, A-20). Nothing is built.** Decisions
+above stand as written; this names what it supersedes.
+
+- **Decision 8, `wall-lift`: superseded in part.** Decision 8 priced `wall-lift` as an ordinary hinged leaf at 2 hinges
+  and left its lift arm "not priced at all". The owner (OQ-5): "you need to add pricing for lift up mechanisms, and every
+  lift up have at least two hinges. But if the door is wide, I think more than 500, let's say, there should be already
+  three hinges. So everything should be priced." A **fourth per-tier rate** (`perLiftMinor`) and a fourth count are
+  added; each lift-up door counts one lift and 2 hinges, or 3 when the door is wider than 500 mm. Decision 8's "Its band
+  is `one-band-under-frame`, so it can never exceed 894 mm and never takes a third hinge" no longer holds for a lift door:
+  the width rule replaces the height rule. The "fourth mechanism kind" row of the rejected-alternatives table (line 804)
+  is superseded. The boundary is built strict (`> 500`); **OQ-5a**, 500 mm inclusive or not, is an open owner flag.
+  Amendment C's quantifier for Hettich below Standard gains a lift term derived from the declared rates. Record:
+  [ADR 0177](0177-the-m10-pricing-seams-rounding-round-up-percentages-deepening-fixed-size-rows-linked-accessories-and-the-lift-mechanism.md)
+  A-20. The cargo pull-out part of decision 8 (priced as one drawer, understatement recorded) is **unchanged**.
+- **Decision 12 and the 2026-10-25 Amendment's "keeps throwing" question: settled (S-5).** With material percentages
+  whole and ≥ 0 and PAL fixed at 0 %, the material group's refuse rule stays a genuine book fault, **provided** the D9
+  new-kitchen default never reaches the delta baseline ([ADR 0177](0177-the-m10-pricing-seams-rounding-round-up-percentages-deepening-fixed-size-rows-linked-accessories-and-the-lift-mechanism.md)
+  A-8; [ADR 0178](0178-the-m10-dashboard-storage-lifecycle-defaults-notice-seen-and-digest.md) A-9). The rounding seam
+  that Amendment left open is ADR 0177 A-1.
+- No amount is approved by this amendment; the lift rate is a placeholder (plan OQ-12).
+
+## Amendment — 2026-11-03: a push-to-open latch is per door leaf, a push-to-open drawer bills a push-runner rate
+
+**Evidence tier: owner answers of 2026-11-03, coordinator-relayed (a relay, not a verbatim transcript), doc-quoted from
+`docs/milestones/M10-price-dashboard.md` §6.3 (OQ-18, OQ-28) and §6.4 (OQ-28a, OQ-28b, OQ-28c). Built in the same change
+as this amendment.** Decision 3's *Count* sentence (*"One per door leaf and one per drawer"*) stands as written above and
+is superseded in part by this amendment.
+
+- **OQ-18, owner answer as recorded in §6.3:** "Push-to-open closes by a magnet on the cabinet's edge; every other front
+  closes on its hinges. One latch per door leaf, lift doors included. Drawers take none: they open on push runners."
+  The latch count is therefore door leaves only, lift doors included, and `countPushToOpen` stops counting drawers.
+- **OQ-28, owner answer as recorded in §6.3:** "Yes, a separate price." A drawer on a push-to-open body opens on a push
+  runner, billed at a new per-tier rate, `perPushRunnerMinor`.
+- **OQ-28a, coordinator's reading, awaiting the owner:** the push-runner rate is billed **instead of** the ordinary
+  drawer rate, not in addition to it, because the push runner replaces the ordinary one.
+- **OQ-28b, coordinator's decision, awaiting the owner:** `perPushRunnerMinor` is refused at 0, since every push-to-open
+  drawer has a runner and the "0 means the class lacks it" convention does not fit.
+- **Amendment C's quantifier gains a push-runner term.** The below-Standard witness in decision 12 is derived from the
+  declared rates, so it now includes the push-runner rate and is not restated here.
+- **The seeded default kitchen's hardware totals do not move** (OQ-28c): its 16 push fronts are top-row door leaves, and
+  only push-to-open drawers change price.
+- **The drafted push-runner rates are placeholders**, as the lift rates are; the owner sets real ones in the dashboard.

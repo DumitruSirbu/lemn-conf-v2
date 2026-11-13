@@ -5,10 +5,11 @@ import {
   deriveSlotBand,
   FLOOR_SLOT_MAX_Y0_M,
   isBandAccepted,
-  isPushOpenByDefault,
   normaliseBand,
-  TOP_ROW_Y0_M,
 } from "../src/bands.js";
+
+/** §6.5's module line in metres, written out: the slot at it is a wall slot, never a `top` one. */
+const MODULE_LINE_Y0_M = 2.2;
 
 describe("normaliseBand", () => {
   // ADR 0011 Gap C: the seeded `top` entries are refused from every opening in the product,
@@ -42,7 +43,7 @@ describe("deriveSlotBand", () => {
   });
 
   it("never yields top", () => {
-    expect(deriveSlotBand({ y0: TOP_ROW_Y0_M, h: 0.4 })).toBe("wall");
+    expect(deriveSlotBand({ y0: MODULE_LINE_Y0_M, h: 0.4 })).toBe("wall");
   });
 });
 
@@ -60,12 +61,5 @@ describe("isBandAccepted", () => {
     expect(isBandAccepted("column", "wall")).toBe(true);
     expect(isBandAccepted("wall", "column")).toBe(true);
     expect(isBandAccepted("base", "column")).toBe(true);
-  });
-});
-
-describe("isPushOpenByDefault", () => {
-  it("switches at the top-row module line, not below it", () => {
-    expect(isPushOpenByDefault(TOP_ROW_Y0_M)).toBe(true);
-    expect(isPushOpenByDefault(TOP_ROW_Y0_M - 0.001)).toBe(false);
   });
 });

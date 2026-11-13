@@ -21,10 +21,13 @@ import type {
   PaletteEntryId,
   PasswordRefusalCode,
   PresetNameFacts,
+  PricingFailureCode,
   RejectionDetail,
   RequestStatusRefusalCode,
   StaffAuditAction,
 } from "@lemnaria/configurator-domain";
+
+import { resolveDashboardAuditDetailCopy } from "./staff-audit-dashboard-copy";
 
 export type ContentTranslator = _Translator<Messages>;
 
@@ -574,6 +577,8 @@ export function resolveRejection(
       return translate("rejection.UNKNOWN_MATERIAL_TIER");
     case "UNKNOWN_HARDWARE_TIER":
       return translate("rejection.UNKNOWN_HARDWARE_TIER");
+    case "UNKNOWN_HANDLE":
+      return translate("rejection.UNKNOWN_HANDLE");
     case "UNKNOWN_CABINET_DEPTH":
       return translate("rejection.UNKNOWN_CABINET_DEPTH");
     default:
@@ -1503,6 +1508,23 @@ export function resolveStaffAuditCopy(translate: ContentTranslator) {
     "kitchen-unhidden": translate("staffAudit.actionKitchenUnhidden"),
     "kitchens-listed": translate("staffAudit.actionKitchensListed"),
     "audit-viewed": translate("staffAudit.actionAuditViewed"),
+    "price-draft-changed": translate("staffAudit.actionPriceDraftChanged"),
+    "price-draft-reverted": translate("staffAudit.actionPriceDraftReverted"),
+    "price-bulk-changed": translate("staffAudit.actionPriceBulkChanged"),
+    "price-published": translate("staffAudit.actionPricePublished"),
+    "price-restored-to-draft": translate(
+      "staffAudit.actionPriceRestoredToDraft",
+    ),
+    "catalogue-item-active-changed": translate(
+      "staffAudit.actionCatalogueItemActiveChanged",
+    ),
+    "kitchen-defaults-saved": translate(
+      "staffAudit.actionKitchenDefaultsSaved",
+    ),
+    "kitchen-seen": translate("staffAudit.actionKitchenSeen"),
+    "price-catalogue-viewed": translate(
+      "staffAudit.actionPriceCatalogueViewed",
+    ),
   };
   const rows = (count: number) => translate("staffAudit.detailRows", { count });
   return {
@@ -1529,6 +1551,7 @@ export function resolveStaffAuditCopy(translate: ContentTranslator) {
     },
     actionLabels: new Map<string, string>(Object.entries(actionLabels)),
     unknownAction: translate("staffAudit.actionUnknown"),
+    dashboard: resolveDashboardAuditDetailCopy(translate),
     details: {
       statusChanged: (change: { from: string; to: string }) =>
         translate("staffAudit.detailStatusChanged", change),
@@ -1631,6 +1654,118 @@ export function resolveStaffKitchenCopy(translate: ContentTranslator) {
 }
 
 export type StaffKitchenCopy = ReturnType<typeof resolveStaffKitchenCopy>;
+
+/** What staff are told when the kitchen as it stands cannot be priced: the pricing's own code, never a zero. Every code
+ *  has its sentence, so a code the domain adds does not compile until it is worded. */
+function resolveEstimateRefusals(
+  translate: ContentTranslator,
+): Readonly<Record<PricingFailureCode, string>> {
+  const unavailable = translate("staffChanges.estimateRefusedUnavailable");
+  const notPriceable = translate("staffChanges.estimateRefusedNotPriceable");
+  // The same code answers a body the price list does not hold, a document this build cannot read and a depth its
+  // catalogue cannot build: the sentence is true of all three.
+  const unreadable = translate("staffChanges.estimateRefusedUnreadable");
+  return {
+    INVALID_PRICE_BOOK: unavailable,
+    PRICING_VERSION_MISMATCH: unavailable,
+    INVALID_AMOUNT: unavailable,
+    UNKNOWN_BODY: unreadable,
+    NO_RULE_FOR_BODY: notPriceable,
+    UNKNOWN_FORMULA_SHAPE: notPriceable,
+    NO_PRICE_FOR_SIZE: notPriceable,
+    UNKNOWN_TIER: notPriceable,
+    UNDECLARED_HANDLE_COUNT: notPriceable,
+    UNDECLARED_FRONT_POPULATION: notPriceable,
+    UNBUILDABLE_DOOR_BAND: notPriceable,
+    REPLACEMENT_REQUIRED: translate("staffChanges.estimateRefusedReplacement"),
+  };
+}
+
+/** The staff view of a kitchen the client changed after it was seen (frames D10A to D10C): the mark on the list, the
+ *  filter, the kitchen page's version switch and its two estimates. The digest's words are the e-mail's own. */
+export function resolveStaffChangesCopy(translate: ContentTranslator) {
+  return {
+    badge: translate("staffChanges.badge"),
+    filter: translate("staffChanges.filter"),
+    toolbarCount: (count: number) =>
+      translate("staffChanges.toolbarCount", { count }),
+    noChanged: {
+      title: translate("staffChanges.noChangedTitle"),
+      body: translate("staffChanges.noChangedBody"),
+      showAll: translate("staffChanges.showAllKitchens"),
+    },
+    sub: {
+      sentModified: (details: { email: string; date: string; when: string }) =>
+        translate("staffChanges.subSentModified", details),
+      sentNoAccountModified: (details: { date: string; when: string }) =>
+        translate("staffChanges.subSentNoAccountModified", details),
+    },
+    seenAndChangedAgain: (details: { seen: string; changed: string }) =>
+      translate("staffChanges.seenAndChangedAgain", details),
+    markedSeen: translate("staffChanges.markedSeen"),
+    changedWhileOpen: translate("staffChanges.changedWhileOpen"),
+    markSeenFailed: translate("staffChanges.markSeenFailed"),
+    version: {
+      label: translate("staffChanges.versionLabel"),
+      sent: (date: string) => translate("staffChanges.versionSent", { date }),
+      current: (when: string) =>
+        translate("staffChanges.versionCurrent", { when }),
+    },
+    cabinets: {
+      tableLabel: translate("staffChanges.tableLabel"),
+      columnBody: translate("staffChanges.columnBody"),
+      columnSize: translate("staffChanges.columnSize"),
+      size: (size: string) => translate("staffChanges.sizeValue", { size }),
+      differs: translate("staffChanges.rowDiffers"),
+      added: translate("staffChanges.rowAdded"),
+      removed: translate("staffChanges.rowRemoved"),
+      wasInSent: (value: string) =>
+        translate("staffChanges.rowWasInSent", { value }),
+      unavailable: translate("staffChanges.cabinetsUnavailable"),
+      highlightNote: translate("staffChanges.highlightNote"),
+    },
+    estimate: {
+      sent: translate("staffChanges.estimateSent"),
+      current: translate("staffChanges.estimateCurrent"),
+      sentMissing: translate("staffChanges.estimateSentMissing"),
+      empty: translate("staffChanges.estimateEmpty"),
+      refusals: resolveEstimateRefusals(translate),
+    },
+  };
+}
+
+export type StaffChangesCopy = ReturnType<typeof resolveStaffChangesCopy>;
+
+/** The words of the daily e-mail to the shop about kitchens the client changed after staff saw them (frame D10D). */
+export function resolveStaffChangeDigestCopy(translate: ContentTranslator) {
+  const stoppingStatusWords = {
+    "offer-sent": translate("staffKitchens.statusOfferSent"),
+    closed: translate("staffKitchens.statusClosed"),
+  };
+  return {
+    title: (count: number) => translate("staffChanges.digest.title", { count }),
+    intro: translate("staffChanges.digest.intro"),
+    tableLabel: translate("staffChanges.digest.tableLabel"),
+    unnamedKitchen: translate("staffKitchens.unnamedKitchen"),
+    rowSent: (date: string) =>
+      translate("staffChanges.digest.rowSent", { date }),
+    rowModified: (when: string) =>
+      translate("staffChanges.digest.rowModified", { when }),
+    open: translate("staffChanges.digest.open"),
+    moreWaiting: (count: number) =>
+      translate("staffChanges.digest.moreWaiting", { count }),
+    footer: (days: number) =>
+      translate("staffChanges.digest.footer", {
+        days,
+        offerSentStatus: stoppingStatusWords["offer-sent"],
+        closedStatus: stoppingStatusWords.closed,
+      }),
+  };
+}
+
+export type StaffChangeDigestCopy = ReturnType<
+  typeof resolveStaffChangeDigestCopy
+>;
 
 /** The notes of one client's kitchen: the list, the field that adds one and the words of its answers. The sentences of a
  *  refused text are the shared field errors', found by the code. */
@@ -2006,6 +2141,25 @@ export type SessionExpiredSheetCopy = ReturnType<
   typeof resolveSessionExpiredSheetCopy
 >;
 
+/** C1, the calm notice a saved kitchen's owner is shown after the prices moved or an accessory was taken out of the
+ *  kitchen (ADR 0178 A-11). `accessoryRemoved` takes the accessory's own name, already in the person's words. */
+export function resolvePriceNoticeCopy(translate: ContentTranslator) {
+  return {
+    body: translate("customerPriceNotice.body"),
+    acknowledge: translate("customerPriceNotice.acknowledge"),
+    accessoryRemoved: (name: string) =>
+      translate("replacementSheet.accessoryRemoved", { name }),
+  };
+}
+
+/** C5A, the closable note above the price of a kitchen already sent (ADR 0062 Amendment 5, point 3). */
+export function resolveSentKitchenNoteCopy(translate: ContentTranslator) {
+  return {
+    body: translate("sentKitchenNote.body"),
+    close: translate("sentKitchenNote.close"),
+  };
+}
+
 /** The card Step 1 shows once to a visitor who has just left an edited editor. It says the kitchen is kept in this
  *  browser and can be attached to an account, and never that it is saved in one (plan M8B Lot 2 section 14.2, U15-5). */
 export function resolveVisitorAccountCardCopy(translate: ContentTranslator) {
@@ -2305,8 +2459,7 @@ export function resolveContent(translate: ContentTranslator) {
         black: translate("panel.handleLabels.black"),
         push: translate("panel.handleLabels.push"),
       },
-      handleDefaultNote: (label: string) =>
-        translate("panel.handleDefaultNote", { label }),
+      handleFollowsKitchen: translate("panel.handleFollowsKitchen"),
       widthTitle: translate("panel.widthTitle"),
       widthValue: (widthMm: number) =>
         translate("panel.widthValue", { widthMm }),
@@ -2355,6 +2508,14 @@ export function resolveContent(translate: ContentTranslator) {
       },
       included: translate("priceBreakdown.included"),
       notIncluded: translate("priceBreakdown.notIncluded"),
+      /** `percent` is the published depth rule's whole percentage: the leaf states no figure of its own (ADR 0100
+       *  decision 5). The leaf's plain `{percent}` is typed as text, so the number is read here. */
+      depthLine: (cabinetDepthMm: number, percent: number) =>
+        translate("priceBreakdown.depthLine", {
+          cabinetDepthMm,
+          percent: String(percent),
+        }),
+      depthLineScope: translate("priceBreakdown.depthLineScope"),
     },
     review: {
       title: translate("review.title"),
@@ -2408,6 +2569,8 @@ export function resolveContent(translate: ContentTranslator) {
           openLabel: translate("globalSettings.open"),
           settings: settings.join(translate("globalSettings.pillNameJoin")),
         }),
+      kitchenHandleHeading: translate("globalSettings.kitchenHandleHeading"),
+      kitchenHandleHint: translate("globalSettings.kitchenHandleHint"),
       colourHeading: translate("globalSettings.colourHeading"),
       colourNote: translate("globalSettings.colourNote"),
       colourWarning: translate("globalSettings.colourWarning"),
@@ -2415,7 +2578,14 @@ export function resolveContent(translate: ContentTranslator) {
       depthOption: (cabinetDepthMm: number) =>
         translate("globalSettings.depthOption", { cabinetDepthMm }),
       depthWarning: translate("globalSettings.depthWarning"),
-      depthNote: translate("globalSettings.depthNote"),
+      /** A whole-kitchen group's one line when no book can be read. Carries no figure. */
+      pricesUnavailable: translate("globalSettings.pricesUnavailable"),
+      /** A zero `percent` reads as "the depth does not change the price", not as a surcharge of 0 %. */
+      depthNotePriced: (cabinetDepthMm: number, percent: number) =>
+        translate("globalSettings.depthNotePriced", {
+          cabinetDepthMm,
+          percent,
+        }),
       apply: translate("globalSettings.apply"),
       cancel: translate("globalSettings.cancel"),
       materialResetConfirm: {
@@ -2593,6 +2763,13 @@ export function resolveContent(translate: ContentTranslator) {
       noReply: translate("leadNotice.noReply"),
       preheader: (parts: NoticePreheaderParts) =>
         resolveNoticePreheader(translate, parts),
+    },
+    /** Only the leaf the settings pill reads while a material is owed: the sheet's own copy is resolved by its
+     *  model. The path is the catalogue's, so the leaf is one string, never two. */
+    replacementSheet: {
+      headerMaterialToChoose: translate(
+        "replacementSheet.headerMaterialToChoose",
+      ),
     },
   };
 }

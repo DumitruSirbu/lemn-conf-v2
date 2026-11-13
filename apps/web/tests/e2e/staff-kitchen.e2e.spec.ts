@@ -17,6 +17,7 @@ import {
   type StaffWorld,
 } from "./support/staff-world";
 import {
+  expectKitchensLinkLabelled,
   noteField,
   openStaffKitchen,
   pageScrollsSideways,
@@ -83,9 +84,9 @@ test("the 'Meniu' sheet holds the operator's one page, the profile and both ways
   const sheet = page.getByTestId("staff-menu-sheet");
   await expect(sheet).toContainText(world.operator.email);
   await expect(sheet).toContainText(romanian("staffShell.roleOperator"));
-  await expect(sheet.getByRole("navigation").getByRole("link")).toHaveText([
-    romanian("staffShell.navKitchens"),
-  ]);
+  const navLinks = sheet.getByRole("navigation").getByRole("link");
+  await expect(navLinks).toHaveCount(1);
+  await expectKitchensLinkLabelled(navLinks.first());
   await expect(sheet).not.toContainText(romanian("staffShell.navAudit"));
   await shootForReview(page, "mobile-kitchen-menu");
 });

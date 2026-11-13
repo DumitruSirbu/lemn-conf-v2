@@ -17,6 +17,8 @@ import { priceDesign } from "../../src/pricing/price-design.js";
 import type { PricedDesign } from "../../src/pricing/price-lines.js";
 import { SAMPLE_PRICE_BOOK } from "../../src/pricing/sample-price-book.js";
 import { projectDesignForDisplay } from "../../src/queries/design-projection.js";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows.js";
+import { NOTHING_DISABLED } from "../support/availability.js";
 
 const BOOK = SAMPLE_PRICE_BOOK;
 const CATALOG = KITCHEN_L_BODY_CATALOG;
@@ -35,6 +37,11 @@ const ADR_0070_TOTALS_LEI = {
 } as const;
 
 const BANI_PER_LEU = 100;
+
+/** A hardware amount as its line carries it: rounded half up to ten lei (ADR 0177 A-1). Restated, as an oracle must not
+ *  import the rounding it checks. */
+const tenLeiOf = (exactMinor: number): number =>
+  Math.round(exactMinor / 1_000) * 1_000;
 
 /** Standard's hinge column is rounded by the owner: 74 hinges at 17.60 lei is 1 302.40, written as 1 300. A per-tier
  *  tolerance rather than a blanket one, which would hide a rate that is simply wrong. */
@@ -56,6 +63,8 @@ function tierOf(tierId: string): HardwareTier {
  *  customer is shown. */
 function hardwareLineAt(tierId: string) {
   const result = priceDesign({
+    deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
     design: KITCHEN_L_DESIGN,
     catalog: CATALOG,
     book: BOOK,
@@ -72,8 +81,16 @@ function hardwareLineAt(tierId: string) {
   return line;
 }
 
-/** The three counts, pinned as numbers: product facts answerable without any amount (ADR 0092 Amendment C). */
-const SEEDED_MECHANISM_COUNTS = { hinges: 74, drawers: 5, pushToOpen: 16 };
+/** The counts, pinned as numbers: product facts answerable without any amount (ADR 0092 Amendment C). The seeded
+ *  kitchen stands no lift-up door and no drawer on a push-to-open body, so its lift and push-runner counts are zero and
+ *  its hardware line carries neither term. */
+const SEEDED_MECHANISM_COUNTS = {
+  hinges: 74,
+  drawers: 5,
+  pushRunners: 0,
+  pushToOpen: 16,
+  lifts: 0,
+};
 
 describe("the sample rates reconcile to ADR 0070's totals table", () => {
   it.each(Object.keys(ADR_0070_TOTALS_LEI))(
@@ -106,9 +123,11 @@ describe("the sample rates reconcile to ADR 0070's totals table", () => {
 
       expect(line.quantity).toBe(1);
       expect(line.unitAmountMinor).toBe(
-        hingesAndDrawersMinor +
-          SEEDED_MECHANISM_COUNTS.pushToOpen *
-            tierOf(tierId).perPushToOpenMinor,
+        tenLeiOf(
+          hingesAndDrawersMinor +
+            SEEDED_MECHANISM_COUNTS.pushToOpen *
+              tierOf(tierId).perPushToOpenMinor,
+        ),
       );
       expect(line.amountMinor).toBe(line.quantity * line.unitAmountMinor);
     },
@@ -120,9 +139,11 @@ describe("the sample rates reconcile to ADR 0070's totals table", () => {
     const defaultTier = tierOf(BOOK.hardware.defaultTierId);
 
     expect(hardwareLineAt(BOOK.hardware.defaultTierId).amountMinor).toBe(
-      130_240 +
-        320_000 +
-        SEEDED_MECHANISM_COUNTS.pushToOpen * defaultTier.perPushToOpenMinor,
+      tenLeiOf(
+        130_240 +
+          320_000 +
+          SEEDED_MECHANISM_COUNTS.pushToOpen * defaultTier.perPushToOpenMinor,
+      ),
     );
     // A deliberate Romanian literal: a negative claim about the book's own authored prose (ADR 0106 decision 2 keeps it
     // required), which can only be spelled. It lives inside a regex because a diacritic scanner reading only quoted and
@@ -135,6 +156,8 @@ describe("the sample rates reconcile to ADR 0070's totals table", () => {
 /** The hardware amount `priceDesign` publishes for any design at any tier. */
 function hardwareAmountOf(design: Design, tierId: string): number {
   const result = priceDesign({
+    deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
     design,
     catalog: CATALOG,
     book: BOOK,
@@ -171,11 +194,12 @@ describe("a push-to-open kitchen's hardware is not zero", () => {
     ),
   };
 
-  /** Every opening front except two: `base-corner-x-900`'s leaf and `wall-corner-return-570`'s declare
-   *  `canHandle: false` and stand below the top row, so no recorded mode reaches them. */
-  const PUSH_FRONTS_WHEN_PERMITTED = 39;
+  /** Every door leaf except two: `base-corner-x-900`'s leaf and `wall-corner-return-570`'s declare
+   *  `canHandle: false` and stand below the top row, so no recorded mode reaches them. The kitchen's drawers take no
+   *  latch: each is a push runner. */
+  const PUSH_DOOR_LEAVES_WHEN_PERMITTED = 34;
 
-  it("counts a latch on every front the customer can choose one for", () => {
+  it("counts a latch on every door leaf the customer can choose one for, and a push runner on every drawer", () => {
     expect(
       countHardwareMechanisms(
         projectDesignForDisplay(PUSH_WHEREVER_PERMITTED, CATALOG).flatMap(
@@ -185,19 +209,24 @@ describe("a push-to-open kitchen's hardware is not zero", () => {
       ),
     ).toEqual({
       ...SEEDED_MECHANISM_COUNTS,
-      pushToOpen: PUSH_FRONTS_WHEN_PERMITTED,
+      drawers: 0,
+      pushRunners: SEEDED_MECHANISM_COUNTS.drawers,
+      pushToOpen: PUSH_DOOR_LEAVES_WHEN_PERMITTED,
     });
   });
 
   it.each(EVERY_TIER_ID)(
-    "bills %s the latches on top of the hinges and drawers it already carries",
+    "bills %s the latches on top of the hinges, and its drawers at the push-runner rate in place of the drawer rate",
     (tierId) => {
       const amount = hardwareAmountOf(PUSH_WHEREVER_PERMITTED, tierId);
 
+      const tier = tierOf(tierId);
       expect(amount).toBe(
-        hardwareLineAt(tierId).amountMinor +
-          tierOf(tierId).perPushToOpenMinor *
-            (PUSH_FRONTS_WHEN_PERMITTED - SEEDED_MECHANISM_COUNTS.pushToOpen),
+        tenLeiOf(
+          tier.perHingeMinor * SEEDED_MECHANISM_COUNTS.hinges +
+            tier.perPushRunnerMinor * SEEDED_MECHANISM_COUNTS.drawers +
+            tier.perPushToOpenMinor * PUSH_DOOR_LEAVES_WHEN_PERMITTED,
+        ),
       );
       expect(amount).toBeGreaterThan(0);
     },
@@ -238,14 +267,93 @@ describe("a recorded push on a body that permits no mode is billed no latch", ()
         ).flatMap((group) => group.entries),
         CATALOG,
       ),
-    ).toEqual({ hinges: 2, drawers: 0, pushToOpen: 0 });
+    ).toEqual({
+      hinges: 2,
+      drawers: 0,
+      pushRunners: 0,
+      pushToOpen: 0,
+      lifts: 0,
+    });
   });
 
   it.each(EVERY_TIER_ID)("bills %s for the hinges alone", (tierId) => {
     expect(hardwareAmountOf(RECORDED_PUSH_ON_A_VISIBLE_BAR, tierId)).toBe(
-      2 * tierOf(tierId).perHingeMinor,
+      tenLeiOf(2 * tierOf(tierId).perHingeMinor),
     );
   });
+});
+
+/** A 600 mm lift door is wider than 500 mm, so it carries the three hinges. */
+const HINGES_ON_A_WIDE_LIFT_DOOR = 3;
+
+function designOf(placements: Design["placements"]): Design {
+  return { ...KITCHEN_L_DESIGN, placements };
+}
+
+function liftDoorPlacement(): Design["placements"][number] {
+  return {
+    id: "lift",
+    wall: "A",
+    alongMm: 1300,
+    y0Mm: 1500,
+    body: { buildId: "wall-lift", widthMm: 600, heightMm: 700 },
+  };
+}
+
+function threeDrawerBasePlacement(index: number): Design["placements"][number] {
+  return {
+    id: `drawers-${String(index)}`,
+    wall: "A",
+    alongMm: 2000 + 600 * index,
+    y0Mm: 0,
+    body: { buildId: "base-3drawer", widthMm: 600, heightMm: 820 },
+  };
+}
+
+/** Hettich's rates read against the default tier's, so every coefficient of the inversion quantifier comes from the
+ *  book. */
+function hettichAgainstStandard() {
+  const standard = tierOf(BOOK.hardware.defaultTierId);
+  const hettich = tierOf("hardware.soft-close");
+  return {
+    hingeSurchargeMinor: hettich.perHingeMinor - standard.perHingeMinor,
+    pushSurchargeMinor:
+      hettich.perPushToOpenMinor - standard.perPushToOpenMinor,
+    liftSurchargeMinor: hettich.perLiftMinor - standard.perLiftMinor,
+    pushRunnerSurchargeMinor:
+      hettich.perPushRunnerMinor - standard.perPushRunnerMinor,
+    drawerSavingMinor: standard.perDrawerMinor - hettich.perDrawerMinor,
+  };
+}
+
+function surchargeOf(
+  rates: ReturnType<typeof hettichAgainstStandard>,
+  counts: ReturnType<typeof countHardwareMechanisms>,
+): number {
+  return (
+    rates.hingeSurchargeMinor * counts.hinges +
+    rates.pushSurchargeMinor * counts.pushToOpen +
+    rates.pushRunnerSurchargeMinor * counts.pushRunners +
+    rates.liftSurchargeMinor * counts.lifts
+  );
+}
+
+/** The hardware line over every count, on a design the seeded kitchen does not hold: one lift-up door, so the lift
+ *  term is the only one a three-rate line would miss. */
+describe("a lift-up door's hardware line carries the lift term", () => {
+  it.each(EVERY_TIER_ID)(
+    "bills %s the hinges of a wide lift door and one lift, rounded once",
+    (tierId) => {
+      const tier = tierOf(tierId);
+      const design = designOf([liftDoorPlacement()]);
+
+      expect(hardwareAmountOf(design, tierId)).toBe(
+        tenLeiOf(
+          HINGES_ON_A_WIDE_LIFT_DOOR * tier.perHingeMinor + tier.perLiftMinor,
+        ),
+      );
+    },
+  );
 });
 
 /**
@@ -254,33 +362,71 @@ describe("a recorded push on a body that permits no mode is billed no latch", ()
  * supplier source (ADR 0092 Amendment C).
  */
 describe("the tier rates relate to each other in ways the book itself decides", () => {
-  /** Hettich prices below Standard exactly when a design's drawer saving outweighs both its hinge and latch surcharges
-   *  (ADR 0092 decision 12, Amendment C); the two-term form is false once the seeded kitchen carries latches. Every
-   *  coefficient is read from the book, so replacing the drafted push figures keeps the derivation valid. */
-  it("inverts only where the drawer saving outweighs the hinge and latch surcharges", () => {
-    const standard = tierOf("hardware.standard");
-    const hettich = tierOf("hardware.soft-close");
-    const hingeSurchargeMinor = hettich.perHingeMinor - standard.perHingeMinor;
-    const pushSurchargeMinor =
-      hettich.perPushToOpenMinor - standard.perPushToOpenMinor;
-    const drawerSavingMinor = standard.perDrawerMinor - hettich.perDrawerMinor;
+  /** Hettich prices below Standard exactly when a design's drawer saving outweighs its hinge, latch and lift surcharges
+   *  (ADR 0092 decision 12, Amendment C, and ADR 0177 A-20 for the lift term). Every coefficient is read from the book,
+   *  so replacing the drafted push or lift figures keeps the derivation valid. */
+  it("inverts only where the drawer saving outweighs the hinge, latch and lift surcharges", () => {
+    const rates = hettichAgainstStandard();
 
     // Hettich costs more per hinge and less per drawer, which makes an inversion possible: the precondition, not the
-    // conclusion. The latch surcharge's sign is deliberately not asserted: the push rates are drafted placeholders
-    // (ADR 0092 Amendment C) and the inequality below is sign-agnostic in that term.
-    expect(hingeSurchargeMinor).toBeGreaterThan(0);
-    expect(drawerSavingMinor).toBeGreaterThan(0);
+    // conclusion. The latch and lift surcharges' signs are deliberately not asserted: those rates are drafted
+    // placeholders and the inequality below is sign-agnostic in them.
+    expect(rates.hingeSurchargeMinor).toBeGreaterThan(0);
+    expect(rates.drawerSavingMinor).toBeGreaterThan(0);
 
     const seeded = countHardwareMechanisms(SEEDED_ENTRIES, CATALOG);
-    const surchargeMinor =
-      hingeSurchargeMinor * seeded.hinges +
-      pushSurchargeMinor * seeded.pushToOpen;
 
-    expect(drawerSavingMinor * seeded.drawers).toBeLessThan(surchargeMinor);
+    expect(rates.drawerSavingMinor * seeded.drawers).toBeLessThan(
+      surchargeOf(rates, seeded),
+    );
     expect(
       hardwareAmountOf(KITCHEN_L_DESIGN, "hardware.soft-close"),
     ).toBeGreaterThan(
       hardwareAmountOf(KITCHEN_L_DESIGN, BOOK.hardware.defaultTierId),
+    );
+  });
+
+  /** The lift term decides: a design whose drawers outweigh the hinges of a wall-lift but not the hinges plus its lift
+   *  prices Hettich below Standard on the three-term form and above it on the four-term one, and the shipped query
+   *  follows the four. The drawer count is derived from the two surcharges, so no figure is restated here. */
+  it("lets the lift surcharge decide the inversion of a design with a lift-up door", () => {
+    const rates = hettichAgainstStandard();
+    const twoTerm = rates.hingeSurchargeMinor * HINGES_ON_A_WIDE_LIFT_DOOR;
+    const withLift = twoTerm + rates.liftSurchargeMinor;
+    const threeDrawerBases =
+      Math.ceil(twoTerm / (3 * rates.drawerSavingMinor)) + 1;
+    const counts = {
+      hinges: HINGES_ON_A_WIDE_LIFT_DOOR,
+      drawers: 3 * threeDrawerBases,
+      pushRunners: 0,
+      pushToOpen: 0,
+      lifts: 1,
+    };
+    // Past both a grain either side of the boundary, so rounding to ten lei cannot move the verdict.
+    const GRAIN_MINOR = 1_000;
+    expect(rates.drawerSavingMinor * counts.drawers).toBeGreaterThan(
+      twoTerm + GRAIN_MINOR,
+    );
+    expect(rates.drawerSavingMinor * counts.drawers).toBeLessThan(
+      withLift - GRAIN_MINOR,
+    );
+    const design = designOf([
+      liftDoorPlacement(),
+      ...Array.from({ length: threeDrawerBases }, (_, index) =>
+        threeDrawerBasePlacement(index),
+      ),
+    ]);
+
+    expect(
+      countHardwareMechanisms(
+        projectDesignForDisplay(design, CATALOG).flatMap(
+          (group) => group.entries,
+        ),
+        CATALOG,
+      ),
+    ).toEqual(counts);
+    expect(hardwareAmountOf(design, "hardware.soft-close")).toBeGreaterThan(
+      hardwareAmountOf(design, BOOK.hardware.defaultTierId),
     );
   });
 
@@ -301,6 +447,8 @@ describe("the tier rates relate to each other in ways the book itself decides", 
     };
     const hardwareAmountAt = (tierId: string): number => {
       const result = priceDesign({
+        deepeningRows: MEASURED_DEEPENING_ROWS,
+        availability: NOTHING_DISABLED,
         design,
         catalog: CATALOG,
         book: BOOK,
@@ -325,11 +473,20 @@ describe("the tier rates relate to each other in ways the book itself decides", 
         ),
         CATALOG,
       ),
-    ).toEqual({ hinges: 0, drawers: 3, pushToOpen: 0 });
+    ).toEqual({
+      hinges: 0,
+      drawers: 3,
+      pushRunners: 0,
+      pushToOpen: 0,
+      lifts: 0,
+    });
     expect(
       hardwareAmountAt("hardware.soft-close") -
         hardwareAmountAt(BOOK.hardware.defaultTierId),
-    ).toBe(-4_200);
+    ).toBe(
+      tenLeiOf(3 * tierOf("hardware.soft-close").perDrawerMinor) -
+        tenLeiOf(3 * tierOf(BOOK.hardware.defaultTierId).perDrawerMinor),
+    );
   });
 });
 
@@ -353,6 +510,8 @@ describe("the seeded kitchen's whole hardware-and-extras figure, per tier", () =
 
   function pricedAt(tierId: string): PricedDesign {
     const result = priceDesign({
+      deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
       design: KITCHEN_L_DESIGN,
       catalog: CATALOG,
       book: BOOK,
@@ -380,10 +539,11 @@ describe("the seeded kitchen's whole hardware-and-extras figure, per tier", () =
 
       // The default material tier costs nothing, so what this sums is exactly the three terms.
       expect(unplacedAmountAt(tierId)).toBe(
-        hingesAndDrawers +
-          SINK_EXTRAS_MINOR +
-          SEEDED_MECHANISM_COUNTS.pushToOpen *
-            tierOf(tierId).perPushToOpenMinor,
+        tenLeiOf(
+          hingesAndDrawers +
+            SEEDED_MECHANISM_COUNTS.pushToOpen *
+              tierOf(tierId).perPushToOpenMinor,
+        ) + SINK_EXTRAS_MINOR,
       );
     },
   );

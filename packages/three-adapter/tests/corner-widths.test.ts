@@ -23,6 +23,10 @@ import {
   worldBox,
 } from "./support/structure.js";
 
+// A run builds a kit and a corner at one width: up to 0.55 s a property under the parallel package run. The unit gate
+// runs every package at once on a slower runner, so this is sized at 10x that and not left at the 5 s default.
+const CORNER_WIDTH_PROPERTY_TIMEOUT_MS = 30_000;
+
 const REFERENCE_X_WIDTH_MM = 900;
 // 320 → 330 (ADR 0135): the reference reach less the run's carcass front, 900 − 570.
 const REFERENCE_RETURN_WIDTH_MM = 330;
@@ -236,6 +240,7 @@ describe("the sized corner base legs", () => {
       expect(placedDoor.min.x - placedReturn.max.x).toBeGreaterThan(0.029);
       expect(placedReturnTop.min.z).toBeCloseTo(placedXTop.max.z, 6);
     },
+    CORNER_WIDTH_PROPERTY_TIMEOUT_MS,
   );
 });
 
@@ -285,6 +290,7 @@ describe("the sized wall and top corner returns", () => {
     (depthMm, band, widthMm) => {
       expectUpperReturnWidth(depthMm, band.buildId, band.heightM, widthMm);
     },
+    CORNER_WIDTH_PROPERTY_TIMEOUT_MS,
   );
 });
 

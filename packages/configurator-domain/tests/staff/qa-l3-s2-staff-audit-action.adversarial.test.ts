@@ -6,6 +6,7 @@
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
+import { DASHBOARD_AUDIT_ACTIONS } from "../../src/staff/dashboard-audit-action.js";
 import {
   INITIAL_REQUEST_STATUS,
   REQUEST_STATUSES,
@@ -31,6 +32,7 @@ const HAS_DETAIL: readonly string[] = [
   "status-changed",
   "kitchens-listed",
   "audit-viewed",
+  ...DASHBOARD_AUDIT_ACTIONS,
 ];
 
 function detailOf(entry: StaffAuditEntry): object {

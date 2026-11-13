@@ -5,7 +5,8 @@
 
 /**
  * The ledger cannot be introduced by a migration file (a table creating the record of its own creation), so the runner
- * creates it on every run, inside the same transaction and after the advisory lock. `if not exists` makes that safe on
+ * creates it on every run that takes the lock (a run that finds every file recorded does not; ADR 0042 Amendment A),
+ * inside the same transaction and after the advisory lock. `if not exists` makes that safe on
  * a database where migrations already ran, and the lock keeps two runners from racing (a concurrent `create table if
  * not exists` can fail under a race). It lives in TypeScript, not a `.sql` file, because the build copies only
  * `src/migrations` into `dist` (ADR 0013).

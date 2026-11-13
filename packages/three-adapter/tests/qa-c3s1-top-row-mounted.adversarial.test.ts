@@ -32,6 +32,11 @@ import {
 } from "./support/headless-canvas.js";
 import { required } from "./support/required.js";
 
+// The first test pays for the cold build of the generated rooms: 1.3 s under the parallel package run (0.4 s alone).
+// The unit gate runs every package at once on a slower runner, so this is sized at 10x that and not left at the 5 s
+// default.
+const FIRST_ROOM_BUILD_TIMEOUT_MS = 30_000;
+
 const OCCURRED_AT = "2026-10-01T10:00:00.000Z";
 const SHALLOW_MM = 600;
 const DEEP_MM = 700;
@@ -256,12 +261,16 @@ function mm(metres: number): number {
 }
 
 describe("the generated top row, as drawn", () => {
-  it("is drawn in every room, at all three depth states", () => {
-    const counts = allScenes().map((scene) => topsOf(scene).length);
+  it(
+    "is drawn in every room, at all three depth states",
+    () => {
+      const counts = allScenes().map((scene) => topsOf(scene).length);
 
-    expect(counts).toHaveLength(3 * ROOMS.length);
-    expect(Math.min(...counts)).toBeGreaterThan(0);
-  });
+      expect(counts).toHaveLength(3 * ROOMS.length);
+      expect(Math.min(...counts)).toBeGreaterThan(0);
+    },
+    FIRST_ROOM_BUILD_TIMEOUT_MS,
+  );
 
   it("fills 2200 to 2600 exactly, over the whole of the upper beneath it and no wider", () => {
     const wrong = everyTop().flatMap(([scene, top]) => {

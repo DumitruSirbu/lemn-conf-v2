@@ -4,6 +4,20 @@ import {
   ownValueOf,
 } from "../contact/input-checks.js";
 
+import {
+  isAbsent,
+  isPositiveSafeInteger,
+  refused,
+  type StaffAuditRefusal,
+  type StaffAuditRefusalCode,
+} from "./audit-refusal.js";
+import {
+  DASHBOARD_AUDIT_ACTIONS,
+  DASHBOARD_AUDIT_ACTION_NAMES_DESIGN,
+  isDashboardAuditAction,
+  readDashboardAuditEntry,
+  type DashboardAuditEntry,
+} from "./dashboard-audit-action.js";
 import { isRequestStatus, type RequestStatus } from "./request-status.js";
 import {
   STAFF_KITCHEN_PAGE_SIZE,
@@ -15,13 +29,20 @@ import {
 // the database (ADR 0172 D10). A detail holds codes only, so an address, a name or a note's text has no field
 // to be written into.
 
-export const STAFF_AUDIT_ACTIONS = Object.freeze([
+const KITCHEN_AUDIT_ACTIONS = Object.freeze([
   "kitchen-opened",
   "note-added",
   "status-changed",
   "kitchen-unhidden",
   "kitchens-listed",
   "audit-viewed",
+] as const);
+type KitchenAuditAction = (typeof KITCHEN_AUDIT_ACTIONS)[number];
+
+/** The kitchen actions, then the price dashboard's. */
+export const STAFF_AUDIT_ACTIONS = Object.freeze([
+  ...KITCHEN_AUDIT_ACTIONS,
+  ...DASHBOARD_AUDIT_ACTIONS,
 ] as const);
 export type StaffAuditAction = (typeof STAFF_AUDIT_ACTIONS)[number];
 
@@ -40,6 +61,8 @@ export interface KitchensListedDetail {
   /** Rows on the page, 0 to the page size. */
   readonly rowCount: number;
   readonly hasSearch: boolean;
+  /** Optional: a row without it reads as not filtered. */
+  readonly onlyChanged?: boolean;
 }
 
 /** Rows the audit page shows at most. The persistence package keeps its own page size, which must equal this. */
@@ -56,7 +79,7 @@ export interface AuditViewedDetail {
   readonly hasDateFilter: boolean;
 }
 
-interface StaffAuditDetailByAction {
+interface KitchenAuditDetailByAction {
   readonly "kitchen-opened": null;
   readonly "note-added": null;
   readonly "status-changed": StatusChangedDetail;
@@ -65,18 +88,20 @@ interface StaffAuditDetailByAction {
   readonly "audit-viewed": AuditViewedDetail;
 }
 
-export type StaffAuditEntry = {
-  readonly [Action in StaffAuditAction]: {
+type KitchenAuditEntry = {
+  readonly [Action in KitchenAuditAction]: {
     readonly action: Action;
-    readonly detail: StaffAuditDetailByAction[Action];
+    readonly detail: KitchenAuditDetailByAction[Action];
   };
-}[StaffAuditAction];
+}[KitchenAuditAction];
 
-export type StaffAuditRefusalCode = "UNKNOWN_ACTION" | "INVALID_DETAIL";
+export type StaffAuditEntry = KitchenAuditEntry | DashboardAuditEntry;
+
+export type { StaffAuditRefusalCode };
 
 export type StaffAuditEntryReading =
   | { readonly ok: true; readonly entry: StaffAuditEntry }
-  | { readonly ok: false; readonly code: StaffAuditRefusalCode };
+  | StaffAuditRefusal;
 
 const STATUS_CHANGE_KEYS = Object.freeze(["from", "to"]);
 const KITCHENS_LISTED_KEYS = Object.freeze([
@@ -85,6 +110,7 @@ const KITCHENS_LISTED_KEYS = Object.freeze([
   "page",
   "rowCount",
   "hasSearch",
+  "onlyChanged",
 ]);
 
 const AUDIT_VIEWED_KEYS = Object.freeze([
@@ -105,13 +131,14 @@ export const STAFF_AUDIT_ACTION_NAMES_DESIGN: Readonly<
   "kitchen-unhidden": true,
   "kitchens-listed": false,
   "audit-viewed": false,
+  ...DASHBOARD_AUDIT_ACTION_NAMES_DESIGN,
 });
 
 export function auditActionNamesDesign(action: StaffAuditAction): boolean {
   return STAFF_AUDIT_ACTION_NAMES_DESIGN[action];
 }
 
-/** A row names a design exactly when its action does: the two list views name none, every other action names one. */
+/** A row names a design exactly when its action does (`STAFF_AUDIT_ACTION_NAMES_DESIGN`). */
 export function auditActionAcceptsDesignId(
   action: StaffAuditAction,
   designId: string | null,
@@ -123,12 +150,19 @@ export function isStaffAuditAction(value: unknown): value is StaffAuditAction {
   return STAFF_AUDIT_ACTIONS.some((action) => action === value);
 }
 
+function isKitchenAuditAction(value: unknown): value is KitchenAuditAction {
+  return KITCHEN_AUDIT_ACTIONS.some((action) => action === value);
+}
+
 /** An action and its detail as one entry: what a store may write, and what it may read back from a row. */
 export function readStaffAuditEntry(
   action: unknown,
   detail: unknown,
 ): StaffAuditEntryReading {
-  if (!isStaffAuditAction(action)) return refused("UNKNOWN_ACTION");
+  if (isDashboardAuditAction(action)) {
+    return readDashboardAuditEntry(action, detail);
+  }
+  if (!isKitchenAuditAction(action)) return refused("UNKNOWN_ACTION");
   switch (action) {
     case "status-changed":
       return readStatusChangedEntry(detail);
@@ -167,12 +201,15 @@ function readKitchensListedEntry(detail: unknown): StaffAuditEntryReading {
   const page = ownValueOf(detail, "page");
   const rowCount = ownValueOf(detail, "rowCount");
   const hasSearch = ownValueOf(detail, "hasSearch");
+  const isOnlyChangedNamed = Object.hasOwn(detail, "onlyChanged");
+  const onlyChanged = ownValueOf(detail, "onlyChanged");
   if (
     !isStaffKitchenSegment(segment) ||
     !(status === null || isRequestStatus(status)) ||
     !isPositiveSafeInteger(page) ||
     !isRowCountUpTo(rowCount, STAFF_KITCHEN_PAGE_SIZE) ||
-    typeof hasSearch !== "boolean"
+    typeof hasSearch !== "boolean" ||
+    !isBooleanWhereNamed(isOnlyChangedNamed, onlyChanged)
   ) {
     return refused("INVALID_DETAIL");
   }
@@ -180,9 +217,21 @@ function readKitchensListedEntry(detail: unknown): StaffAuditEntryReading {
     ok: true,
     entry: {
       action: "kitchens-listed",
-      detail: Object.freeze({ segment, status, page, rowCount, hasSearch }),
+      detail: Object.freeze({
+        segment,
+        status,
+        page,
+        rowCount,
+        hasSearch,
+        ...(typeof onlyChanged === "boolean" ? { onlyChanged } : {}),
+      }),
     },
   };
+}
+
+/** A member that may be left out but, once named, is a boolean: a named `undefined` is a wrong detail, not an absent one. */
+function isBooleanWhereNamed(isNamed: boolean, value: unknown): boolean {
+  return !isNamed || typeof value === "boolean";
 }
 
 function readAuditViewedEntry(detail: unknown): StaffAuditEntryReading {
@@ -218,10 +267,6 @@ function readAuditViewedEntry(detail: unknown): StaffAuditEntryReading {
   };
 }
 
-function isPositiveSafeInteger(value: unknown): value is number {
-  return typeof value === "number" && Number.isSafeInteger(value) && value >= 1;
-}
-
 function isRowCountUpTo(value: unknown, pageSize: number): value is number {
   return (
     typeof value === "number" &&
@@ -229,12 +274,4 @@ function isRowCountUpTo(value: unknown, pageSize: number): value is number {
     value >= 0 &&
     value <= pageSize
   );
-}
-
-function isAbsent(detail: unknown): boolean {
-  return detail === null || detail === undefined;
-}
-
-function refused(code: StaffAuditRefusalCode): StaffAuditEntryReading {
-  return { ok: false, code };
 }

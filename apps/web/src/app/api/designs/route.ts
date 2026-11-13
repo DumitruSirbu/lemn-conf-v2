@@ -1,4 +1,8 @@
-import { KITCHEN_L_DESIGN } from "@lemnaria/configurator-domain";
+import {
+  KITCHEN_L_DESIGN,
+  stampedDesignOf,
+  type Design,
+} from "@lemnaria/configurator-domain";
 import { NextResponse, type NextRequest } from "next/server";
 
 import { accountIdToOwnNewDesign } from "@/lib/server/account/design-owner";
@@ -15,6 +19,7 @@ import {
   mintLimitReachedResponse,
   mintUnavailableResponse,
 } from "@/lib/server/rate-limit/rate-limited-response";
+import { readNewKitchenDefaults } from "@/lib/server/price-dashboard/new-kitchen-defaults";
 import { getRepository } from "@/lib/server/repository";
 import { resolveVisitorForMint, setVisitorCookie } from "@/lib/server/visitor";
 import { mintWriteToken, setWriteTokenCookie } from "@/lib/server/write-token";
@@ -73,6 +78,14 @@ function crossSiteMintRefusedResponse(): NextResponse {
   );
 }
 
+/**
+ * The seeded L-kitchen stamped with the new-kitchen defaults, at the fixture's depth: only the browser can move a depth.
+ * Read after the guard and the limiter, so a refused mint reads nothing.
+ */
+async function seededKitchen(): Promise<Design> {
+  return stampedDesignOf(KITCHEN_L_DESIGN, await readNewKitchenDefaults());
+}
+
 /** Mints the first design row and the credential that authorises writing to it (ADR 0019 decision 1): the creating
  *  browser is the only party that ever holds the token. The design's own link opens only in the browser that owns
  *  the visitor cookie (ADR 0114 Amendment H2); a read-only view is a separate share link (Amendment C). The seeded
@@ -87,7 +100,7 @@ async function mintDesignRow(request: NextRequest): Promise<NextResponse> {
   const visitor = resolveVisitorForMint(request);
   const accountId = await accountIdToOwnNewDesign(request.cookies);
   const { id, revision } = await getRepository().mint({
-    design: KITCHEN_L_DESIGN,
+    design: await seededKitchen(),
     writeTokenHash: writeToken.hash,
     visitor: visitor.mintVisitor,
     ...(accountId === undefined ? {} : { accountId }),

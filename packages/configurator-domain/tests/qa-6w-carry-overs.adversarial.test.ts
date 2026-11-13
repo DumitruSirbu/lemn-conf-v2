@@ -32,6 +32,8 @@ import { validateDesignForCatalog } from "../src/validate-design.js";
 import type { DisplayEntry } from "../src/queries/design-projection.js";
 import type { BodyCatalog, BodyDefinition } from "../src/void-engine.js";
 import type { Handle } from "../src/design.js";
+import { MEASURED_DEEPENING_ROWS } from "./support/deepening-rows.js";
+import { NOTHING_DISABLED } from "./support/availability.js";
 
 const CATALOG = KITCHEN_L_BODY_CATALOG;
 
@@ -64,6 +66,7 @@ function pushToOpenWith(input: {
   readonly canHandle: unknown;
 }): boolean {
   return isPushToOpen({
+    kitchenSettings: {},
     y0Mm: input.y0Mm,
     recordedHandle: input.recordedHandle,
     canHandle: input.canHandle as boolean,
@@ -124,6 +127,7 @@ describe("the price and the scene reach one answer for a row the port typed loos
     readonly handle: Handle | undefined;
   }): DisplayEntry {
     return {
+      kitchenSettings: {},
       placementId: "p-under-test",
       buildId: "under-test",
       label: kindLabel("under_test"),
@@ -356,6 +360,8 @@ describe("the door band refusal is reachable from exactly the rows the code name
       catalog: CATALOG,
       book: SAMPLE_PRICE_BOOK,
       pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
+      deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
     });
 
     expect(result.ok).toBe(false);

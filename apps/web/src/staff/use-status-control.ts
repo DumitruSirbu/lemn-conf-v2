@@ -215,10 +215,10 @@ function isStaleKitchen(feedback: StatusFeedback): boolean {
   );
 }
 
-function withStatusSaved(
-  kitchen: StaffKitchenWire,
+function withStatusSaved<Kitchen extends StaffKitchenWire>(
+  kitchen: Kitchen,
   saved: StaffStatusSavedWire,
-): StaffKitchenWire {
+): Kitchen {
   return {
     ...kitchen,
     status: {

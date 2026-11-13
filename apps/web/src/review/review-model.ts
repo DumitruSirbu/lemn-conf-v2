@@ -9,6 +9,7 @@
 // design's, or `describeReview` throws.
 import {
   cornerDirectionOf,
+  countDisplayedBodies,
   findOverflowingPlacementIds,
   holdsNothingLemnariaSupplies,
   judgeSubmissionEligibility,
@@ -28,6 +29,7 @@ import {
   describeBreakdownRows,
   describePlacementLabel,
   describePlacementName,
+  type BreakdownDepthLine,
   type BreakdownGroup,
   type BreakdownRow,
 } from "@/price/price-breakdown-model";
@@ -46,9 +48,10 @@ export interface ReviewSettingsRow {
 
 /**
  * What a body's row says under the frame's two lines: its name without the width, then the facts that follow it, in
- * order. The width always; the body's own finish and its handle exactly when it carries one (ADR 0099: a body on the
- * kitchen's colour names none). The row's `label` stays the breakdown's, the name and the width together, which is
- * what a refusal calls the body, so the two lines state what the label says and more.
+ * order. The width always; the body's own finish exactly when it carries one (ADR 0099: a body on the kitchen's colour
+ * names none); and the handle it wears (`DisplayEntry.wornHandle`: its own, else the kitchen's, else the slot's, as
+ * the price resolves it) exactly when it wears one. The row's `label` stays the breakdown's, the name and the width
+ * together, which is what a refusal calls the body, so the two lines state what the label says and more.
  */
 export interface ReviewRowDetail {
   readonly name: string;
@@ -102,6 +105,10 @@ export interface AvailableReview {
   /** The two lines of each body's row, by placement id: the breakdown's rows are not touched. */
   readonly rowDetails: Readonly<Record<string, ReviewRowDetail>>;
   readonly wholeKitchenRows: readonly BreakdownRow[];
+  /** The depth line the total counts, worded from the priced (or stored) line: present exactly when the priced design
+   *  carries one. `listWholeKitchenRows` lists it among the whole-kitchen rows, after `depthLineAfterKey`. */
+  readonly depthLine?: BreakdownDepthLine;
+  readonly depthLineAfterKey?: string;
   readonly notIncluded: ReviewNotIncludedSlot;
   readonly disclaimer: ReviewDisclaimer;
   readonly figure: PriceFigure;
@@ -115,7 +122,12 @@ export type ReviewView = UnavailableReview | AvailableReview;
 export type ReviewSection =
   | Exclude<
       keyof AvailableReview,
-      "kind" | "overflowWarning" | "submit" | "rowDetails"
+      | "kind"
+      | "overflowWarning"
+      | "submit"
+      | "rowDetails"
+      | "depthLine"
+      | "depthLineAfterKey"
     >
   | "overflowWarning"
   | "refusal"
@@ -162,7 +174,8 @@ export class MissingWholeKitchenTierError extends Error {
 export class MissingRowDetailError extends Error {
   constructor(placementId: string) {
     super(
-      `The review holds no row detail for placement "${placementId}"; its rows and details are built from one projection`,
+      `The review holds no row detail for placement "${placementId}"; ` +
+        "its rows and details are built from one projection",
     );
     this.name = "MissingRowDetailError";
   }
@@ -227,12 +240,13 @@ function describeAvailableReview(
     kind: "available",
     title: content.review.title,
     roomLine: content.reviewRoomLine(
-      describeRoomLine(design, countBodies(groups)),
+      describeRoomLine(design, countDisplayedBodies(groups)),
     ),
     settingsRow: describeSettingsRow(priced, content),
     groups: rows.groups,
     rowDetails: describeRowDetails(groups, content),
     wholeKitchenRows: rows.wholeKitchenRows,
+    ...rows.depth,
     notIncluded: describeNotIncludedSlot(content),
     disclaimer: describeDisclaimer(content),
     figure: describeStartingPrice({
@@ -282,14 +296,15 @@ function describeRowDetail(
       ...(entry.finish === undefined
         ? []
         : [describeFinish(entry.finish, content)]),
-      ...(entry.handle === undefined
+      ...(entry.wornHandle === undefined
         ? []
-        : [content.panel.handleLabels[entry.handle]]),
+        : [content.panel.handleLabels[entry.wornHandle]]),
     ],
   };
 }
 
-/** A palette finish by its approved name; a free colour has no name, so by its value, as the settings pill speaks it. */
+/** A palette finish by its approved name; a free colour has no name, so by its value, as the settings pill speaks
+ *  it. */
 function describeFinish(finish: Finish, content: Content): string {
   return finish.kind === "palette-entry"
     ? content.finishName(finish.entryId)
@@ -407,10 +422,6 @@ function describeDisclaimer(content: Content): ReviewDisclaimer {
     rounding: content.review.roundedUpNote,
     notice: content.priceBreakdown.note,
   };
-}
-
-function countBodies(groups: readonly DisplayGroup[]): number {
-  return groups.reduce((count, group) => count + group.entries.length, 0);
 }
 
 function describeRoomLine(design: Design, bodyCount: number): ReviewRoomLine {

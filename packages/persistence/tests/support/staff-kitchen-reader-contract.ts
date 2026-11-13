@@ -1,4 +1,7 @@
-import { KITCHEN_L_DESIGN } from "@lemnaria/configurator-domain";
+import {
+  KITCHEN_L_DESIGN,
+  STAFF_KITCHEN_PAGE_SIZE,
+} from "@lemnaria/configurator-domain";
 import type {
   Design,
   RequestStatus,
@@ -50,6 +53,13 @@ export interface RequestSpec {
   readonly designId: string;
   readonly createdAt: Date;
   readonly clientRequestId?: string;
+  /** The design revision the request was sent at; `"1"`, where every design starts, when absent. */
+  readonly designRevision?: string;
+  /** The total in the request's snapshot. Absent: the snapshot stored totals nothing it names (`{}`). */
+  readonly pricedTotal?: {
+    readonly totalMinor: number;
+    readonly currency: "MDL";
+  };
 }
 
 export interface SentCopySpec {
@@ -116,6 +126,17 @@ export interface KitchenWorld {
   }): Promise<void>;
   /** Removes the account's row, as an erasure would, leaving every row that names it. */
   removeAccount(accountId: string): Promise<void>;
+  /**
+   * The kitchen's client saves it once more: the revision it now has, as text. A new kitchen is at revision `"1"`. No
+   * test does arithmetic on a revision; the fake counts and the live database moves its own column.
+   */
+  saveKitchen(designId: string): Promise<string>;
+  /** A staff member opens the kitchen, which records the revision the page displayed as seen (A-12). */
+  markSeen(designId: string, displayedRevision: string): Promise<void>;
+  /** Writes the kitchen's seen row around the store, as a holder of the application credential could: any revision. */
+  plantSeenMark(designId: string, revision: string): Promise<void>;
+  /** The revision `steps` saves after `revision`, asked of the database in the live world, so no test does arithmetic. */
+  aRevisionAfter(revision: string, steps: number): Promise<string>;
 }
 
 export const CURRENT_DESIGN: Design = KITCHEN_L_DESIGN;
@@ -1448,6 +1469,614 @@ export function describeStaffKitchenReaderContract(
       });
 
       expect((await foundKitchen(world, hidden)).notes).toHaveLength(1);
+    });
+  });
+
+  describeChangedAfterSeen(suiteName, newWorld);
+  describeTheChangedCount(suiteName, newWorld);
+  describeTheTotalSent(suiteName, newWorld);
+}
+
+/** A sent kitchen of the world's client, with the request it was sent by at revision 1: not changed. */
+async function aSentKitchen(
+  world: KitchenWorld,
+  client: ClientAccount,
+  sentAt: Date,
+): Promise<string> {
+  const kitchen = await world.aKitchen({
+    client,
+    sentAt,
+    updatedAt: sentAt,
+  });
+  await world.aRequest({ designId: kitchen, createdAt: sentAt });
+  return kitchen;
+}
+
+function describeChangedAfterSeen(
+  suiteName: string,
+  newWorld: () => Promise<KitchenWorld>,
+): void {
+  describe(`${suiteName}: changed after seen (ADR 0178 A-12)`, () => {
+    it("shows a sent kitchen as not changed at the revision it was sent at, and as changed once it is saved again, on the list and on the page", async () => {
+      const world = await newWorld();
+      const client = await world.aClient();
+      const kitchen = await aSentKitchen(world, client, at(world.nextEra(), 1));
+      const scope = queryOf({ search: world.marker });
+
+      const before = listedOf(await world.reader.listPage(scope), kitchen);
+      const detailBefore = await foundKitchen(world, kitchen);
+      const saved = await world.saveKitchen(kitchen);
+      const after = listedOf(await world.reader.listPage(scope), kitchen);
+      const detailAfter = await foundKitchen(world, kitchen);
+
+      expect([
+        before.isChangedSinceSeen,
+        detailBefore.isChangedSinceSeen,
+      ]).toEqual([false, false]);
+      expect([
+        after.isChangedSinceSeen,
+        detailAfter.isChangedSinceSeen,
+      ]).toEqual([true, true]);
+      expect(detailBefore.revision).toBe("1");
+      expect(detailAfter.revision).toBe(saved);
+      expect(saved).not.toBe("1");
+    });
+
+    it("takes the revision of the kitchen's latest request as the one staff last saw until they open it: a kitchen sent again at its current revision is not changed", async () => {
+      const world = await newWorld();
+      const client = await world.aClient();
+      const era = world.nextEra();
+      const kitchen = await aSentKitchen(world, client, at(era, 1));
+      const saved = await world.saveKitchen(kitchen);
+      await world.aRequest({
+        designId: kitchen,
+        createdAt: at(era, 5),
+        designRevision: saved,
+      });
+      const scope = queryOf({ search: world.marker });
+
+      const sentAgain = listedOf(await world.reader.listPage(scope), kitchen);
+      await world.saveKitchen(kitchen);
+      const savedAfter = listedOf(await world.reader.listPage(scope), kitchen);
+
+      expect(sentAgain.isChangedSinceSeen).toBe(false);
+      expect(savedAfter.isChangedSinceSeen).toBe(true);
+    });
+
+    it("stops showing it changed once staff open the revision displayed, shows it again after the next save, and leaves a stale mark's older revision to the newer", async () => {
+      const world = await newWorld();
+      const client = await world.aClient();
+      const kitchen = await aSentKitchen(world, client, at(world.nextEra(), 1));
+      const scope = queryOf({ search: world.marker });
+      const isChanged = async () =>
+        listedOf(await world.reader.listPage(scope), kitchen)
+          .isChangedSinceSeen;
+      const second = await world.saveKitchen(kitchen);
+
+      await world.markSeen(kitchen, second);
+      const afterOpening = await isChanged();
+      const third = await world.saveKitchen(kitchen);
+      const afterNextSave = await isChanged();
+      await world.markSeen(kitchen, "1");
+      const afterStaleMark = await isChanged();
+      const detailAfterStaleMark = await foundKitchen(world, kitchen);
+
+      expect([
+        afterOpening,
+        afterNextSave,
+        afterStaleMark,
+        detailAfterStaleMark.isChangedSinceSeen,
+      ]).toEqual([false, true, true, true]);
+      // The page displays the kitchen's own revision, not the one staff last saw: it is what the next mark sends back.
+      expect(detailAfterStaleMark.revision).toBe(third);
+    });
+
+    it("takes the greater of the mark and the latest request's revision as the one staff last saw: a first mark below the revision the kitchen was sent at does not make it changed", async () => {
+      const world = await newWorld();
+      const client = await world.aClient();
+      const era = world.nextEra();
+      const kitchen = await aSentKitchen(world, client, at(era, 1));
+      await world.saveKitchen(kitchen);
+      const third = await world.saveKitchen(kitchen);
+      await world.aRequest({
+        designId: kitchen,
+        createdAt: at(era, 5),
+        designRevision: third,
+      });
+      const scope = queryOf({ search: world.marker });
+
+      await world.markSeen(kitchen, "1");
+
+      const listed = listedOf(await world.reader.listPage(scope), kitchen);
+      const detail = await foundKitchen(world, kitchen);
+      const onlyChanged = await world.reader.listPage({
+        ...scope,
+        onlyChanged: true,
+      });
+      expect([listed.isChangedSinceSeen, detail.isChangedSinceSeen]).toEqual([
+        false,
+        false,
+      ]);
+      expect(idsOf(onlyChanged)).toEqual([]);
+    });
+
+    it("ignores a seen row written above the kitchen's revision, which the store never writes, and reads one at it as a real mark", async () => {
+      const world = await newWorld();
+      const client = await world.aClient();
+      const kitchen = await aSentKitchen(world, client, at(world.nextEra(), 1));
+      const scope = queryOf({ search: world.marker });
+      const isChanged = async () => ({
+        listed: listedOf(await world.reader.listPage(scope), kitchen)
+          .isChangedSinceSeen,
+        detail: (await foundKitchen(world, kitchen)).isChangedSinceSeen,
+      });
+
+      await world.plantSeenMark(kitchen, await world.aRevisionAfter("1", 1));
+      const aheadOfTheKitchen = await isChanged();
+      await world.plantSeenMark(kitchen, "1");
+      const atTheKitchen = await isChanged();
+      await world.saveKitchen(kitchen);
+      const afterTheNextSave = await isChanged();
+
+      expect(aheadOfTheKitchen).toEqual({ listed: false, detail: false });
+      expect(atTheKitchen).toEqual({ listed: false, detail: false });
+      expect(afterTheNextSave).toEqual({ listed: true, detail: true });
+    });
+
+    it("tells when staff last saw a kitchen: nothing before a mark, an instant once one counts, the same instant after an older mark, and nothing for a mark above the kitchen's revision", async () => {
+      const world = await newWorld();
+      const client = await world.aClient();
+      const kitchen = await aSentKitchen(world, client, at(world.nextEra(), 1));
+      const ahead = await aSentKitchen(world, client, at(world.nextEra(), 2));
+      const scope = queryOf({ search: world.marker });
+      const seenAt = async (designId: string) =>
+        listedOf(await world.reader.listPage(scope), designId).seenAt;
+      const second = await world.saveKitchen(kitchen);
+
+      const beforeAnyMark = await seenAt(kitchen);
+      await world.markSeen(kitchen, second);
+      const afterTheMark = await seenAt(kitchen);
+      await world.markSeen(kitchen, "1");
+      const afterAnOlderMark = await seenAt(kitchen);
+      await world.plantSeenMark(ahead, await world.aRevisionAfter("1", 1));
+      const aboveTheRevision = await seenAt(ahead);
+
+      expect(beforeAnyMark).toBeNull();
+      expect(afterTheMark).toBeInstanceOf(Date);
+      expect(afterAnOlderMark?.getTime()).toBe(afterTheMark?.getTime());
+      expect(aboveTheRevision).toBeNull();
+    });
+
+    it("never shows a draft an account holds as changed, however often it is saved or opened", async () => {
+      const world = await newWorld();
+      const client = await world.aClient();
+      const draft = await world.aKitchen({
+        client,
+        updatedAt: at(world.nextEra(), 1),
+      });
+      const scope = queryOf({ search: world.marker, segment: "drafts" });
+      await world.saveKitchen(draft);
+      await world.saveKitchen(draft);
+      await world.markSeen(draft, "1");
+      await world.saveKitchen(draft);
+
+      const listed = listedOf(await world.reader.listPage(scope), draft);
+      const detail = await foundKitchen(world, draft);
+
+      expect([listed.isChangedSinceSeen, detail.isChangedSinceSeen]).toEqual([
+        false,
+        false,
+      ]);
+    });
+
+    it("lists the changed kitchens alone when asked, under the sent and the all segments, and counts them whatever the query narrows to", async () => {
+      const world = await newWorld();
+      const client = await world.aClient();
+      const era = world.nextEra();
+      const changedNewer = await aSentKitchen(world, client, at(era, 5));
+      const unchanged = await aSentKitchen(world, client, at(era, 9));
+      const changedOlder = await aSentKitchen(world, client, at(era, 1));
+      await world.saveKitchen(changedNewer);
+      await world.saveKitchen(changedOlder);
+      const scope = { search: world.marker };
+
+      const onlyChangedInSent = await world.reader.listPage(
+        queryOf({ ...scope, onlyChanged: true }),
+      );
+      const onlyChangedInAll = await world.reader.listPage(
+        queryOf({ ...scope, segment: "all", onlyChanged: true }),
+      );
+      const everything = await world.reader.listPage(queryOf(scope));
+
+      expect(idsOf(onlyChangedInSent)).toEqual([changedNewer, changedOlder]);
+      expect(idsOf(onlyChangedInAll)).toEqual([changedNewer, changedOlder]);
+      expect(onlyChangedInSent.total).toBe(2);
+      expect(
+        onlyChangedInSent.kitchens.every((row) => row.isChangedSinceSeen),
+      ).toBe(true);
+      expect(idsOf(everything)).toContain(unchanged);
+      for (const page of [onlyChangedInSent, onlyChangedInAll, everything]) {
+        expect(page.changedCount).toBeGreaterThanOrEqual(2);
+      }
+    });
+
+    it("counts, in one snapshot with the page, exactly the kitchens that asking for the changed ones alone returns, over all its pages, however many other kitchens its client deleted or never sent", async () => {
+      const world = await newWorld();
+      const client = await world.aClient();
+      const era = world.nextEra();
+      const kitchen = await aSentKitchen(world, client, at(era, 1));
+      await world.saveKitchen(kitchen);
+      const deleted = await world.aKitchen({
+        client,
+        sentAt: at(era, 2),
+        updatedAt: at(era, 2),
+        isDeletedByClient: true,
+      });
+      await world.aRequest({ designId: deleted, createdAt: at(era, 2) });
+      await world.saveKitchen(deleted);
+      const draft = await world.aKitchen({ client, updatedAt: at(era, 3) });
+      await world.saveKitchen(draft);
+
+      for (const segment of ["sent", "all"] as const) {
+        const page = await world.reader.listPage(
+          queryOf({ segment, onlyChanged: true }),
+        );
+        expect(page.changedCount, segment).toBe(page.total);
+        expect(page.total, segment).toBeGreaterThanOrEqual(1);
+      }
+    });
+
+    it("counts the changed kitchens even when the query matches none of them: the count is the menu's and not the search's", async () => {
+      const world = await newWorld();
+      const client = await world.aClient();
+      const kitchen = await aSentKitchen(world, client, at(world.nextEra(), 1));
+      await world.saveKitchen(kitchen);
+
+      const page = await world.reader.listPage(
+        queryOf({ search: `${world.marker}-no-such-client` }),
+      );
+
+      expect(page.total).toBe(0);
+      expect(page.kitchens).toEqual([]);
+      expect(page.changedCount).toBeGreaterThanOrEqual(1);
+    });
+
+    it("puts the changed kitchens first, then each group in the segment's own order, and keeps that order across pages", async () => {
+      const world = await newWorld();
+      const client = await world.aClient();
+      const era = world.nextEra();
+      const unchangedNewest = await aSentKitchen(world, client, at(era, 9));
+      const changedMiddle = await aSentKitchen(world, client, at(era, 5));
+      const unchangedOldest = await aSentKitchen(world, client, at(era, 1));
+      const changedOldest = await aSentKitchen(world, client, at(era, 2));
+      await world.saveKitchen(changedMiddle);
+      await world.saveKitchen(changedOldest);
+
+      const page = await world.reader.listPage(
+        queryOf({ search: world.marker }),
+      );
+
+      expect(idsOf(page)).toEqual([
+        changedMiddle,
+        changedOldest,
+        unchangedNewest,
+        unchangedOldest,
+      ]);
+    });
+
+    it("brings a changed kitchen onto the first page ahead of a full page of newer unchanged ones: the order decides which rows a page holds, not only how they sit", async () => {
+      const world = await newWorld();
+      const client = await world.aClient();
+      const era = world.nextEra();
+      const changedOldest = await aSentKitchen(world, client, at(era, 1));
+      await world.saveKitchen(changedOldest);
+      const newer: string[] = [];
+      for (let minute = 2; minute <= 21; minute += 1) {
+        newer.push(await aSentKitchen(world, client, at(era, minute)));
+      }
+      const scope = queryOf({ search: world.marker });
+
+      const first = await world.reader.listPage(scope);
+      const second = await world.reader.listPage({ ...scope, page: 2 });
+
+      expect(first.kitchens).toHaveLength(20);
+      expect(first.total).toBe(21);
+      expect(idsOf(first)[0]).toBe(changedOldest);
+      expect(idsOf(second)).toEqual([newer[0]]);
+    });
+
+    it("counts neither a kitchen its client deleted nor a draft, and lists neither under the changed kitchens", async () => {
+      const world = await newWorld();
+      const client = await world.aClient();
+      const era = world.nextEra();
+      const deleted = await world.aKitchen({
+        client,
+        sentAt: at(era, 1),
+        updatedAt: at(era, 1),
+        isDeletedByClient: true,
+      });
+      await world.aRequest({ designId: deleted, createdAt: at(era, 1) });
+      const draft = await world.aKitchen({ client, updatedAt: at(era, 2) });
+      await world.saveKitchen(deleted);
+      await world.saveKitchen(draft);
+
+      for (const segment of ["sent", "drafts", "all"] as const) {
+        const page = await world.reader.listPage(
+          queryOf({ segment, search: world.marker, onlyChanged: true }),
+        );
+        expect(page.kitchens, segment).toEqual([]);
+        expect(page.total, segment).toBe(0);
+      }
+    });
+
+    it("counts the changed kitchens without a page, as the list's count of any query is, and over all the pages that asking for the changed ones alone returns", async () => {
+      const world = await newWorld();
+      const client = await world.aClient();
+      const era = world.nextEra();
+      const changed = await aSentKitchen(world, client, at(era, 1));
+      await aSentKitchen(world, client, at(era, 2));
+      await world.saveKitchen(changed);
+
+      const counted = await world.reader.countChanged();
+      const unfiltered = await world.reader.listPage(queryOf());
+      const narrowed = await world.reader.listPage(
+        queryOf({ search: `${world.marker}-no-such-client` }),
+      );
+      const changedAlone = await world.reader.listPage(
+        queryOf({ onlyChanged: true }),
+      );
+
+      expect(counted).toBe(unfiltered.changedCount);
+      expect(counted).toBe(narrowed.changedCount);
+      expect(counted).toBe(changedAlone.total);
+      expect(counted).toBeGreaterThanOrEqual(1);
+    });
+
+    it("moves the count with a save and with a mark of the displayed revision, and counts neither a deleted kitchen nor a draft", async () => {
+      const world = await newWorld();
+      const client = await world.aClient();
+      const era = world.nextEra();
+      const kitchen = await aSentKitchen(world, client, at(era, 1));
+      const deleted = await world.aKitchen({
+        client,
+        sentAt: at(era, 2),
+        updatedAt: at(era, 2),
+        isDeletedByClient: true,
+      });
+      await world.aRequest({ designId: deleted, createdAt: at(era, 2) });
+      const draft = await world.aKitchen({ client, updatedAt: at(era, 3) });
+      const baseline = await world.reader.countChanged();
+
+      const saved = await world.saveKitchen(kitchen);
+      const afterSave = await world.reader.countChanged();
+      await world.markSeen(kitchen, saved);
+      const afterMark = await world.reader.countChanged();
+      await world.saveKitchen(deleted);
+      await world.saveKitchen(draft);
+      const afterOthers = await world.reader.countChanged();
+
+      expect([afterSave, afterMark, afterOthers]).toEqual([
+        baseline + 1,
+        baseline,
+        baseline,
+      ]);
+    });
+
+    it("refuses a flag that is not a boolean before any statement", async () => {
+      const world = await newWorld();
+
+      const failure = await failureOf(
+        world.reader.listPage({
+          ...queryOf(),
+          onlyChanged: "true" as never,
+        }),
+      );
+
+      expect(failure.failure).toBe("invalid-query");
+    });
+  });
+}
+
+/**
+ * The poll's count states the list's judgement without a page, so each scenario that moves a kitchen between changed and
+ * not is asked of both. The database is shared, so a count is read against the count before the world's own rows.
+ */
+function describeTheChangedCount(
+  suiteName: string,
+  newWorld: () => Promise<KitchenWorld>,
+): void {
+  describe(`${suiteName}: the changed count`, () => {
+    async function countsAgree(world: KitchenWorld): Promise<number> {
+      const counted = await world.reader.countChanged();
+      const listed = await world.reader.listPage(queryOf());
+      expect(counted).toBe(listed.changedCount);
+      return counted;
+    }
+
+    it("counts every changed kitchen over a page's worth, not only the first page's", async () => {
+      const world = await newWorld();
+      const client = await world.aClient();
+      const era = world.nextEra();
+      const baseline = await world.reader.countChanged();
+      const changedKitchens = STAFF_KITCHEN_PAGE_SIZE + 1;
+      for (let minute = 1; minute <= changedKitchens; minute += 1) {
+        const kitchen = await aSentKitchen(world, client, at(era, minute));
+        await world.saveKitchen(kitchen);
+      }
+
+      const counted = await world.reader.countChanged();
+      const changedAlone = await world.reader.listPage(
+        queryOf({ search: world.marker, onlyChanged: true }),
+      );
+
+      expect(counted - baseline).toBe(changedKitchens);
+      expect(changedAlone.total).toBe(changedKitchens);
+      expect(changedAlone.kitchens).toHaveLength(STAFF_KITCHEN_PAGE_SIZE);
+    });
+
+    it("takes the latest request's revision as seen when it is above a first mark, and leaves the count where it was", async () => {
+      const world = await newWorld();
+      const client = await world.aClient();
+      const era = world.nextEra();
+      const baseline = await world.reader.countChanged();
+      const kitchen = await aSentKitchen(world, client, at(era, 1));
+      await world.saveKitchen(kitchen);
+      const third = await world.saveKitchen(kitchen);
+      await world.aRequest({
+        designId: kitchen,
+        createdAt: at(era, 5),
+        designRevision: third,
+      });
+
+      const beforeAnyMark = await countsAgree(world);
+      await world.markSeen(kitchen, "1");
+      const afterAStaleFirstMark = await countsAgree(world);
+
+      expect([beforeAnyMark, afterAStaleFirstMark]).toEqual([
+        baseline,
+        baseline,
+      ]);
+    });
+
+    it("judges by the newest of a kitchen's requests alone, not by an older one sent at a lower revision", async () => {
+      const world = await newWorld();
+      const client = await world.aClient();
+      const era = world.nextEra();
+      const baseline = await world.reader.countChanged();
+      const kitchen = await aSentKitchen(world, client, at(era, 1));
+      const second = await world.saveKitchen(kitchen);
+      await world.aRequest({
+        designId: kitchen,
+        createdAt: at(era, 2),
+        designRevision: second,
+      });
+
+      const unchanged = await countsAgree(world);
+      await world.saveKitchen(kitchen);
+      const changed = await countsAgree(world);
+
+      expect([unchanged, changed]).toEqual([baseline, baseline + 1]);
+    });
+
+    it("never lets a stale mark raise the count after a newer one cleared it", async () => {
+      const world = await newWorld();
+      const client = await world.aClient();
+      const baseline = await world.reader.countChanged();
+      const kitchen = await aSentKitchen(world, client, at(world.nextEra(), 1));
+      await world.saveKitchen(kitchen);
+      const current = await world.saveKitchen(kitchen);
+      const changed = await countsAgree(world);
+
+      await world.markSeen(kitchen, current);
+      const cleared = await countsAgree(world);
+      await world.markSeen(kitchen, "1");
+      const afterTheStaleMark = await countsAgree(world);
+
+      expect([changed, cleared, afterTheStaleMark]).toEqual([
+        baseline + 1,
+        baseline,
+        baseline,
+      ]);
+    });
+
+    it("does not count a seen row written above the kitchen's revision, and counts the kitchen once it is saved past a mark at it", async () => {
+      const world = await newWorld();
+      const client = await world.aClient();
+      const baseline = await world.reader.countChanged();
+      const kitchen = await aSentKitchen(world, client, at(world.nextEra(), 1));
+
+      await world.plantSeenMark(kitchen, await world.aRevisionAfter("1", 1));
+      const aheadOfTheKitchen = await countsAgree(world);
+      await world.plantSeenMark(kitchen, "1");
+      await world.saveKitchen(kitchen);
+      const afterTheNextSave = await countsAgree(world);
+
+      expect([aheadOfTheKitchen, afterTheNextSave]).toEqual([
+        baseline,
+        baseline + 1,
+      ]);
+    });
+
+    it("counts a changed kitchen its client hid, as the list does", async () => {
+      const world = await newWorld();
+      const client = await world.aClient();
+      const baseline = await world.reader.countChanged();
+      const sentAt = at(world.nextEra(), 1);
+      const hidden = await world.aKitchen({
+        client,
+        sentAt,
+        updatedAt: sentAt,
+        isHidden: true,
+      });
+      await world.aRequest({ designId: hidden, createdAt: sentAt });
+      await world.saveKitchen(hidden);
+
+      const counted = await countsAgree(world);
+
+      expect(counted).toBe(baseline + 1);
+    });
+  });
+}
+
+function describeTheTotalSent(
+  suiteName: string,
+  newWorld: () => Promise<KitchenWorld>,
+): void {
+  describe(`${suiteName}: the total a request was sent at`, () => {
+    it("is the stored total and currency of the newest request, never summed and never priced again, and null where the request stored none", async () => {
+      const world = await newWorld();
+      const client = await world.aClient();
+      const era = world.nextEra();
+      const priced = await world.aKitchen({
+        client,
+        sentAt: at(era, 1),
+        updatedAt: at(era, 1),
+      });
+      const unpriced = await world.aKitchen({
+        client,
+        sentAt: at(era, 2),
+        updatedAt: at(era, 2),
+      });
+      const never = await world.aKitchen({ client, updatedAt: at(era, 3) });
+      await world.aRequest({
+        designId: priced,
+        createdAt: at(era, 1),
+        pricedTotal: { totalMinor: 100_000, currency: "MDL" },
+      });
+      await world.aRequest({
+        designId: priced,
+        createdAt: at(era, 5),
+        pricedTotal: { totalMinor: 123_450, currency: "MDL" },
+      });
+      await world.aRequest({ designId: unpriced, createdAt: at(era, 2) });
+
+      expect((await foundKitchen(world, priced)).sentTotal).toEqual({
+        totalMinor: 123_450,
+        currency: "MDL",
+      });
+      expect((await foundKitchen(world, unpriced)).sentTotal).toBeNull();
+      expect((await foundKitchen(world, never)).sentTotal).toBeNull();
+    });
+
+    it("is zero for a snapshot that totals nothing, which is a total and not an absence", async () => {
+      const world = await newWorld();
+      const client = await world.aClient();
+      const era = world.nextEra();
+      const kitchen = await world.aKitchen({
+        client,
+        sentAt: at(era, 1),
+        updatedAt: at(era, 1),
+      });
+      await world.aRequest({
+        designId: kitchen,
+        createdAt: at(era, 1),
+        pricedTotal: { totalMinor: 0, currency: "MDL" },
+      });
+
+      expect((await foundKitchen(world, kitchen)).sentTotal).toEqual({
+        totalMinor: 0,
+        currency: "MDL",
+      });
     });
   });
 }

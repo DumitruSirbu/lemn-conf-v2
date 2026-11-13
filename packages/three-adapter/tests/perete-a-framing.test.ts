@@ -42,6 +42,11 @@ import {
   SEEDED_ROOM,
 } from "./support/approved-rooms.js";
 
+// A run builds the kitchen and projects the panel for one room: 1.0 s under the parallel package run (0.3 s alone). The
+// unit gate runs every package at once on a slower runner, so this is sized at 10x that and not left at the 5 s
+// default.
+const PANEL_PROPERTY_TIMEOUT_MS = 30_000;
+
 /** The mobile gate's **viewport**. Not 789: that is the canvas under the chrome, which is what
  *  `stage.test.ts` measures the tappable row in. They are different quantities and reconciling them
  *  by editing one is how the evidence gets lost. */
@@ -94,6 +99,7 @@ describe("the panel's visibility band, which every property here depends on", ()
     (room) => {
       expect(panelUnderPereteA(room).isVisible).toBe(true);
     },
+    PANEL_PROPERTY_TIMEOUT_MS,
   );
 });
 

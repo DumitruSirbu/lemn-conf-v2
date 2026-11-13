@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 
 import { useContent } from "@/i18n/use-content";
 
@@ -26,10 +26,22 @@ const PRICE_BAR_METRICS = {
  * and whether it is flagged are `describePriceBar`'s, and the amount is
  * `describeStartingPrice`'s — no component rounds, formats or prefixes a price.
  */
-export function PriceBar() {
+export function PriceBar({
+  pendingReplacementPrompt,
+}: {
+  /** Set only while the replacement sheet is owed a choice (frames C4A / C4B / C4D): the words that stand where the
+   *  figure would, "Prețul apare după ce alegi". The screen decides it, from the gate the sheet itself opens under. It is
+   *  never inferred here from a pricing failure: the share view and a page that cannot write refuse the same price and
+   *  draw no bar at all, exactly as before the sheet existed. */
+  readonly pendingReplacementPrompt?: string | undefined;
+}) {
   const content = useContent();
   const pricing = usePricedDesign();
   const view = describePriceBar({ pricing, content });
+
+  if (pendingReplacementPrompt !== undefined) {
+    return <PendingReplacementBar prompt={pendingReplacementPrompt} />;
+  }
 
   // A pricing failure renders no figure: not a zero, not a stale one, not a dash that reads as free.
   if (view.kind === "unpriced") return null;
@@ -79,6 +91,31 @@ export function PriceBar() {
           bar grow on a flagged design. It is rendered once, by `price/flagged-total-warning.tsx`,
           from this same model. Nothing about the rule changed: the flag still travels with the total
           (decision 6), and the surface it travels to is the scene on both shells. */}
+    </div>
+  );
+}
+
+/** Frames C4A / C4B / C4D: the bar keeps its reserved height and says when the price comes. No figure, anywhere. */
+function PendingReplacementBar({ prompt }: { readonly prompt: string }) {
+  // The live region is in the page empty and the words come after, because a region that appears together with its text
+  // is announced late or not at all.
+  const [announced, setAnnounced] = useState("");
+  useEffect(() => {
+    setAnnounced(prompt);
+  }, [prompt]);
+  return (
+    <div
+      className={styles.bar}
+      style={PRICE_BAR_METRICS}
+      data-testid="price-bar"
+    >
+      <p
+        className={styles.emptyPrompt}
+        aria-live="polite"
+        data-testid="price-bar-replacement-pending"
+      >
+        {announced}
+      </p>
     </div>
   );
 }

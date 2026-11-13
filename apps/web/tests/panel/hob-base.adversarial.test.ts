@@ -63,7 +63,7 @@ function replaceSectionAt(
   world: ReturnType<typeof worldFrom>,
   target: CommandTarget,
 ): ReplaceSection {
-  const meta = describeSelection({ ...world, target });
+  const meta = describeSelection({ kitchenSettings: {}, ...world, target });
   const panel = describePanel({
     content: ro,
     material: PAL_KITCHEN,
@@ -224,6 +224,7 @@ describe("the panel over the shipped hob cabinet", () => {
         content: ro,
         material: PAL_KITCHEN,
         meta: describeSelection({
+          kitchenSettings: {},
           ...worldFrom(withHobCabinetBuiltAs(buildId)),
           target,
         }),

@@ -11,16 +11,33 @@ import {
 
 import { useReloadOnPageRestore } from "@/account/use-claim";
 import type { AppLocale } from "@/i18n/routing";
-import { useStaffKitchenCopy, useStaffKitchensCopy } from "@/i18n/use-content";
-
-import { FailedKitchens } from "./staff-kitchens-states";
-import type { StaffKitchenWire } from "./staff-kitchens-wire-contract";
-import { ClientProfile } from "./staff-kitchen-client";
+import { formatRelativeAge } from "@/account/kitchens/relative-age";
+import type { StaffChangesCopy } from "@/i18n/content";
 import {
+  useStaffChangesCopy,
+  useStaffKitchenCopy,
+  useStaffKitchensCopy,
+} from "@/i18n/use-content";
+
+import { KitchenEstimates } from "./kitchen-estimates";
+import { SeenNotice } from "./kitchen-seen-notice";
+import type { KitchenVersion } from "./kitchen-version-rows";
+import {
+  KitchenVersionCabinets,
+  KitchenVersionSwitch,
+  VersionedKitchenView,
+} from "./kitchen-version-switch";
+import { FailedKitchens } from "./staff-kitchens-states";
+import type { StaffKitchenOpenedWire } from "./staff-kitchens-wire-contract";
+import { ClientProfile } from "./staff-kitchen-client";
+import { dayOf, shopRelativeAgeOf } from "./staff-kitchen-dates";
+import {
+  modifiedSubLineOf,
   shownDesignOf,
   sentAtOf,
   subLineOf,
   titleOf,
+  versionsOf,
 } from "./staff-kitchen-facts";
 import { RequestLine, RequestStatusCard } from "./staff-kitchen-request";
 import {
@@ -29,7 +46,7 @@ import {
   KitchenNotAvailable,
   LoadingKitchen,
 } from "./staff-kitchen-states";
-import { StaffKitchenSummary, StaffKitchenView } from "./staff-kitchen-view";
+import { StaffKitchenSummary } from "./staff-kitchen-view";
 import { StaffNotes } from "./staff-notes";
 import {
   StaffForbiddenScreen,
@@ -44,6 +61,7 @@ import {
   type StaffKitchenState,
 } from "./use-staff-kitchen";
 import type { KitchenEditing } from "./use-one-write-at-a-time";
+import { useMarkSeen } from "./use-mark-seen";
 import { useUnhide } from "./use-unhide";
 
 // One client's kitchen (frames S3A to S3C, S3H and S3I; the desktop frames are the same page in three columns). Three
@@ -179,40 +197,76 @@ function ReadyKitchen({
   editing,
 }: {
   readonly locale: AppLocale;
-  readonly kitchen: StaffKitchenWire;
+  readonly kitchen: StaffKitchenOpenedWire;
   readonly editing: KitchenEditing;
 }) {
   const copy = useStaffKitchenCopy();
   const lists = useStaffKitchensCopy();
+  const changes = useStaffChangesCopy();
   const [readAtMs] = useState(Date.now);
+  const [chosenVersion, setChosenVersion] = useState<KitchenVersion>(
+    wire.changedAfterSeen ? "current" : "sent",
+  );
   const titleRef = useRef<HTMLHeadingElement>(null);
   const unhide = useUnhide(wire.kitchen.id, editing);
+  const seenMark = useMarkSeen({
+    designId: wire.kitchen.id,
+    displayedRevision: wire.displayedRevision,
+    isChangedAfterSeen: wire.changedAfterSeen,
+  });
   const { kitchen } = wire;
-  const shown = shownDesignOf(kitchen);
+  const { asSent, design } = kitchen;
+  const versions = useMemo(
+    () => versionsOf({ asSent, design }),
+    [asSent, design],
+  );
+  const shown = shownDesignOf(kitchen, chosenVersion);
+  const shownVersion: KitchenVersion =
+    shown?.source === "current" ? "current" : "sent";
+  const versionLabels = versionLabelsOf({
+    hasVersions: versions !== undefined,
+    kitchen,
+    changes,
+    locale,
+    readAtMs,
+  });
+  const modifiedSub = wire.changedAfterSeen
+    ? modifiedSubLineOf({ changes, wire, locale, readAtMs })
+    : undefined;
   return (
     <>
       <KitchenHeader
         locale={locale}
         title={titleOf(kitchen, shown, lists)}
-        sub={subLineOf({ copy, wire, locale, readAtMs })}
+        sub={modifiedSub ?? subLineOf({ copy, wire, locale, readAtMs })}
         titleRef={titleRef}
       />
       {kitchen.isHidden ? (
         <HiddenBanner unhide={unhide} returnFocusFallbackRef={titleRef} />
       ) : null}
       <UnhideAnnouncement announcement={unhide.announcement} />
+      <SeenNotice mark={seenMark} />
       <div className={styles.columns}>
         <div className={styles.viewCell}>
+          {versionLabels === undefined ? null : (
+            <KitchenVersionSwitch
+              shown={shownVersion}
+              onChoose={setChosenVersion}
+              labels={versionLabels}
+            />
+          )}
           {shown === undefined ? (
             <CannotShowNotice />
           ) : (
-            <StaffKitchenView
-              key={kitchen.id}
+            <VersionedKitchenView
               design={shown.design}
               isCurrentVariantOfSent={
                 shown.source === "current" && wire.request !== null
               }
             />
+          )}
+          {versions === undefined || versionLabels === undefined ? null : (
+            <KitchenVersionCabinets versions={versions} shown={shownVersion} />
           )}
         </div>
         <div className={styles.contactColumn}>
@@ -225,6 +279,7 @@ function ReadyKitchen({
             titleRef={titleRef}
           />
           <RequestLine locale={locale} request={wire.request} />
+          {wire.request === null ? null : <KitchenEstimates estimates={wire} />}
           <ClientProfile client={wire.client} />
           <p className={styles.caption}>{copy.accessLogged}</p>
         </div>
@@ -238,6 +293,18 @@ function ReadyKitchen({
                   : copy.summary.titleCurrent
               }
               noValue={lists.noValue}
+              omitsPrice={wire.request !== null}
+              {...(versions === undefined
+                ? {}
+                : {
+                    comparison: {
+                      design:
+                        shownVersion === "current"
+                          ? versions.sent
+                          : versions.current,
+                      isShownCurrent: shownVersion === "current",
+                    },
+                  })}
             />
           )}
         </div>
@@ -251,4 +318,30 @@ function ReadyKitchen({
       </div>
     </>
   );
+}
+
+/** The words of the version switch, once both copies can be read and the kitchen has a sent day to name the first by. */
+function versionLabelsOf({
+  hasVersions,
+  kitchen,
+  changes,
+  locale,
+  readAtMs,
+}: {
+  readonly hasVersions: boolean;
+  readonly kitchen: StaffKitchenOpenedWire["kitchen"];
+  readonly changes: StaffChangesCopy;
+  readonly locale: AppLocale;
+  readonly readAtMs: number;
+}): Readonly<Record<KitchenVersion, string>> | undefined {
+  const sentAt = sentAtOf(kitchen);
+  if (!hasVersions || sentAt === null) return undefined;
+  const modifiedAge = shopRelativeAgeOf(
+    Date.parse(kitchen.updatedAt),
+    readAtMs,
+  );
+  return {
+    sent: changes.version.sent(dayOf(sentAt, locale)),
+    current: changes.version.current(formatRelativeAge(locale, modifiedAge)),
+  };
 }

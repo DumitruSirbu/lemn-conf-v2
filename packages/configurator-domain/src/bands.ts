@@ -17,10 +17,6 @@ export const COLUMN_SLOT_MIN_HEIGHT_M = 1.9;
 /** §5.2: a slot starting below this stands on the floor and targets `base`. */
 export const FLOOR_SLOT_MAX_Y0_M = 0.2;
 
-/** §6.5 / §11 row 13: a body placed at or above this module line ships push-to-open by default,
- *  with its handles built and hidden. Decided by the slot, not by the body's catalogue band. */
-export const TOP_ROW_Y0_M = 2.2;
-
 const NORMALISED_BANDS: Readonly<Record<Band, NormalisedBand>> = {
   base: "base",
   wall: "wall",
@@ -53,10 +49,4 @@ export function isBandAccepted(
 ): boolean {
   if (bodyBand === "column" || slotBand === "column") return true;
   return bodyBand === slotBand;
-}
-
-/** §6.5: no recorded handle mode plus a top-row slot means push-to-open. The handles are still
- *  built and hidden, so `canHandle` stays true and the customer can turn them back on. */
-export function isPushOpenByDefault(y0M: number): boolean {
-  return y0M >= TOP_ROW_Y0_M;
 }

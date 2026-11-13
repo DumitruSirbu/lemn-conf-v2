@@ -1,4 +1,5 @@
 import {
+  formatRelativeAge,
   relativeAgeByCalendar,
   type RelativeAge,
 } from "@/account/kitchens/relative-age";
@@ -31,6 +32,30 @@ export function dayAndTimeOf(instant: string, locale: AppLocale): string {
     hourCycle: "h23",
     timeZone: SHOP_TIME_ZONE,
   }).format(new Date(instant));
+}
+
+/** The day as the frames write it for a recent event, "ieri, 10:05": today and yesterday by their words on the shop's wall,
+ *  any earlier day by its date, then the minute on the shop's clock. */
+export function recentDayAndTimeOf(
+  instant: string,
+  nowMs: number,
+  locale: AppLocale,
+): string {
+  // An instant after the moment the page was read (the server's clock ahead of the browser's) is written as that moment, so
+  // a day boundary between the two never prints a date beside words that say "now".
+  const instantMs = Math.min(Date.parse(instant), nowMs);
+  const daysAgo = shopDayNumberOf(nowMs) - shopDayNumberOf(instantMs);
+  const isRecent = daysAgo === 0 || daysAgo === 1;
+  const day = isRecent
+    ? formatRelativeAge(locale, { value: -daysAgo, unit: "day" })
+    : dayOf(new Date(instantMs).toISOString(), locale);
+  const time = new Intl.DateTimeFormat(locale, {
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+    timeZone: SHOP_TIME_ZONE,
+  }).format(instantMs);
+  return `${day}, ${time}`;
 }
 
 /** The shop's calendar day as a count of days, so the difference of two is the days between their dates on the wall. */
