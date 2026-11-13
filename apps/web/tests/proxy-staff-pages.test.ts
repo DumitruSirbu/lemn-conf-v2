@@ -40,6 +40,10 @@ describe.each(routing.locales)("the staff pages in locale %s", (locale) => {
     ["the presets page", `/${locale}/staff/presets`],
     ["the audit log", `/${locale}/staff/audit`],
     ["one client's kitchen", `/${locale}/staff/kitchens/${KITCHEN_ID}`],
+    [
+      "one client's kitchen in 3D",
+      `/${locale}/staff/kitchens/${KITCHEN_ID}/3d`,
+    ],
   ])("%s is never indexed and never cached", (_label, path) => {
     const response = respondTo(path);
 
@@ -70,6 +74,14 @@ describe.each(routing.locales)("the staff pages in locale %s", (locale) => {
       "a kitchen with a trailing slash",
       `/${locale}/staff/kitchens/${KITCHEN_ID}/`,
     ],
+    [
+      "a kitchen in 3D with a query",
+      `/${locale}/staff/kitchens/${KITCHEN_ID}/3d?version=current`,
+    ],
+    [
+      "a kitchen in 3D with a trailing slash",
+      `/${locale}/staff/kitchens/${KITCHEN_ID}/3d/`,
+    ],
   ])("still gets the headers %s", (_label, path) => {
     expect(isMarkedAsStaffPage(path)).toBe(true);
   });
@@ -87,6 +99,25 @@ describe("what is not a staff page", () => {
     ["a page with a longer path", "/ro/staff/team/12"],
     ["the audit log with a longer path", "/ro/staff/audit/12"],
     ["a kitchen with a longer path", `/ro/staff/kitchens/${KITCHEN_ID}/extra`],
+    [
+      "a kitchen with another fifth segment",
+      `/ro/staff/kitchens/${KITCHEN_ID}/edit`,
+    ],
+    [
+      "a kitchen's 3D view in another case",
+      `/ro/staff/kitchens/${KITCHEN_ID}/3D`,
+    ],
+    [
+      "a kitchen's 3D view with a longer path",
+      `/ro/staff/kitchens/${KITCHEN_ID}/3d/x`,
+    ],
+    ["a 3D view of the list", "/ro/staff/kitchens/3d/3d/3d"],
+    ["a 3D view under another page", `/ro/staff/audit/${KITCHEN_ID}/3d`],
+    ["a 3D view with no locale", `/staff/kitchens/${KITCHEN_ID}/3d`],
+    [
+      "a 3D view with an escaped segment",
+      `/ro/staff/kitchens/${KITCHEN_ID}/%33d`,
+    ],
     ["a page with no locale", "/staff/kitchens"],
     ["a kitchen with no locale", `/staff/kitchens/${KITCHEN_ID}`],
     ["a locale the site does not serve", "/xx/staff/kitchens"],
@@ -139,6 +170,7 @@ describe("the interceptor's matcher and the staff kitchen's address", () => {
     routing.locales.flatMap((locale) => [
       [`/${locale}/staff/kitchens`],
       [`/${locale}/staff/kitchens/${KITCHEN_ID}`],
+      [`/${locale}/staff/kitchens/${KITCHEN_ID}/3d`],
       [`/${locale}/staff/audit`],
     ]),
   )("hands %s to the interceptor", (path) => {

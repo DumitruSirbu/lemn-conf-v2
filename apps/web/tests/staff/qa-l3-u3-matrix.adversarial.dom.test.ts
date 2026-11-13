@@ -292,7 +292,9 @@ describe.each(LOCALES)(
         const page = requireIn(container, PAGE);
 
         expect(allIn(container, "h1")).toHaveLength(1);
-        expect(allIn(page, "a")).toHaveLength(1);
+        expect(
+          allIn(page, "a:not([data-testid='staff-kitchen-open-3d'])"),
+        ).toHaveLength(1);
         expect(page.textContent).toContain(words.accessLogged);
         expect(canvases.editorMounts).toBe(0);
         expect(

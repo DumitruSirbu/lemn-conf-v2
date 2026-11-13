@@ -29,6 +29,7 @@ import {
 } from "./kitchen-version-switch";
 import { FailedKitchens } from "./staff-kitchens-states";
 import type { StaffKitchenOpenedWire } from "./staff-kitchens-wire-contract";
+import { OpenIn3dLink } from "./staff-kitchen-3d-link";
 import { ClientProfile } from "./staff-kitchen-client";
 import { dayOf, shopRelativeAgeOf } from "./staff-kitchen-dates";
 import {
@@ -248,6 +249,14 @@ function ReadyKitchen({
       <SeenNotice mark={seenMark} />
       <div className={styles.columns}>
         <div className={styles.viewCell}>
+          {/* A page with no version switch has one readable copy, so the link names none. */}
+          {shown === undefined ? null : (
+            <OpenIn3dLink
+              locale={locale}
+              kitchenId={kitchen.id}
+              version={versionLabels === undefined ? undefined : shownVersion}
+            />
+          )}
           {versionLabels === undefined ? null : (
             <KitchenVersionSwitch
               shown={shownVersion}

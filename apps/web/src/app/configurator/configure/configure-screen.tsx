@@ -39,7 +39,7 @@ import { useConfiguratorStore } from "@/store/configurator-store";
 
 import styles from "./configure.module.css";
 import { BackConfirmation, BackConfirmationDialog } from "./back-confirmation";
-import { LocaleMenu } from "./locale-menu";
+import { LocaleMenu, type LocaleMenuQuery } from "./locale-menu";
 import {
   SaveAsPresetButton,
   SaveAsPresetDialog,
@@ -71,8 +71,11 @@ export type ConfigureScreenVariant = "owner" | "shared";
 
 export function ConfigureScreen({
   variant = "owner",
+  localeQuery,
 }: {
   variant?: ConfigureScreenVariant;
+  /** The query the language menu keeps across a switch; absent, it keeps the path alone. */
+  localeQuery?: LocaleMenuQuery | undefined;
 }) {
   const content = useContent();
   const room = useConfiguratorStore((state) => state.design.room);
@@ -213,7 +216,7 @@ export function ConfigureScreen({
           `/d/{id}` stays `/d/{id}` and the configure step stays the configure step; and next-intl's
           `Link` navigates client-side, so the store — a module singleton — is never torn down and
           the design in it survives the switch whether or not it has been saved yet. */}
-      <LocaleMenu />
+      <LocaleMenu query={localeQuery} />
       {/* On mobile this is the positioning context for the bottom sheet; on desktop it is the row
           the 420 px rail takes its space from. Which of the two happens is decided entirely in
           CSS — see `editor-panel.module.css`. */}

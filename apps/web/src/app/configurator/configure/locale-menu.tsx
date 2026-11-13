@@ -27,7 +27,14 @@ import styles from "./configure.module.css";
 /** Closed, or the index the open menu is holding focus at. */
 type MenuState = number | "closed";
 
-export function LocaleMenu() {
+/** The address's query, kept across a language switch; absent, a choice's href is the locale-free path alone. */
+export type LocaleMenuQuery = Readonly<Record<string, string>>;
+
+export function LocaleMenu({
+  query,
+}: {
+  readonly query?: LocaleMenuQuery | undefined;
+}) {
   const content = useContent();
   const menu = useLocaleMenu();
   const listId = useId();
@@ -136,7 +143,11 @@ export function LocaleMenu() {
               {/* `lang` so the endonym is pronounced in its own language; `aria-current`, not the
                   flag, marks the language already showing. */}
               <Link
-                href={menu.pathname}
+                href={
+                  query === undefined
+                    ? menu.pathname
+                    : { pathname: menu.pathname, query }
+                }
                 locale={choice.locale}
                 lang={choice.locale}
                 className={

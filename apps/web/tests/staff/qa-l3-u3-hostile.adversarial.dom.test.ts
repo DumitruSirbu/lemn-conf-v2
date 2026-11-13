@@ -229,7 +229,9 @@ describe.each(LOCALES)(
       expect(
         allIn(harness.container(), "a[href^='tel:' i], a[href^='mailto:' i]"),
       ).toHaveLength(0);
-      expect(allIn(page, "a")).toHaveLength(1);
+      expect(
+        allIn(page, "a:not([data-testid='staff-kitchen-open-3d'])"),
+      ).toHaveLength(1);
       expect(allIn(page, "button")).not.toHaveLength(0);
     });
   },

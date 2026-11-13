@@ -46,10 +46,11 @@ const ACCOUNT_SIGNED_IN_PAGES: readonly string[] = [
   "delete",
 ];
 
-/** The staff area, `/{locale}/staff/{page}` and `/{locale}/staff/kitchens/{id}`. Every page holds clients' data, so each
- *  gets the account pages' headers; none loads a third-party script, frame or image. */
+/** The staff area, `/{locale}/staff/{page}`, `/{locale}/staff/kitchens/{id}` and `/{locale}/staff/kitchens/{id}/3d`. Every
+ *  page holds clients' data, so each gets the account pages' headers; none loads a third-party script, frame or image. */
 const STAFF_FAMILY_SEGMENT = "staff";
 const STAFF_KITCHENS_PAGE = "kitchens";
+const STAFF_KITCHEN_3D_SEGMENT = "3d";
 const STAFF_SIGNED_IN_PAGES: readonly string[] = [
   STAFF_KITCHENS_PAGE,
   "team",
@@ -331,8 +332,8 @@ function isAccountPath(pathname: string): boolean {
 }
 
 /** A staff page: a real locale, then `staff/{page}` for a page named above, `staff/kitchens/{id}` with a non-empty id,
- *  or a page of the price dashboard's family. A path written any other way (no locale, a case variant, an escaped
- *  segment, a longer path) is not one. */
+ *  `staff/kitchens/{id}/3d`, or a page of the price dashboard's family. A path written any other way (no locale, a case
+ *  variant, an escaped segment, a longer path, another fifth segment) is not one. */
 function isStaffPath(pathname: string): boolean {
   const segments = pathname.split("/").filter(Boolean);
   const [locale, family, page] = segments;
@@ -341,8 +342,16 @@ function isStaffPath(pathname: string): boolean {
   }
   if (page === STAFF_CATALOG_SEGMENT) return isStaffCatalogPath(segments);
   if (page === undefined || !STAFF_SIGNED_IN_PAGES.includes(page)) return false;
-  const isKitchenWithId = page === STAFF_KITCHENS_PAGE && segments.length === 4;
-  return segments.length === 3 || isKitchenWithId;
+  return segments.length === 3 || isStaffKitchenPath(segments);
+}
+
+/** `kitchens/{id}` or `kitchens/{id}/3d`, the locale, the family and the page already checked. */
+function isStaffKitchenPath(segments: readonly string[]): boolean {
+  if (segments[2] !== STAFF_KITCHENS_PAGE) return false;
+  return (
+    segments.length === 4 ||
+    (segments.length === 5 && segments[4] === STAFF_KITCHEN_3D_SEGMENT)
+  );
 }
 
 /** `catalog/{section}` or `catalog/{section}/{id}`, the locale and the family already checked. */

@@ -3,6 +3,8 @@
 import { useTranslations } from "next-intl";
 import { useCallback, useRef, useState, type ReactNode } from "react";
 
+import type { KitchenViewed3dVersion } from "@lemnaria/configurator-domain";
+
 import { OutcomeHero } from "@/account/account-form-parts";
 import { startPathOf } from "@/account/account-shell";
 import { AccountControl } from "@/account/session/account-control";
@@ -27,7 +29,12 @@ import {
   useStaffNavigation,
   useStaffPageLabels,
 } from "./staff-navigation-groups";
-import { staffPathOf, type StaffAreaPage, type StaffPage } from "./staff-paths";
+import {
+  staffKitchen3dPathOf,
+  staffPathOf,
+  type StaffAreaPage,
+  type StaffPage,
+} from "./staff-paths";
 import { useStaffSessionExpiry } from "./staff-session-expiry";
 import { StaffSessionSheet } from "./staff-session-sheet";
 import { useChangedKitchenCount } from "./use-changed-kitchen-count";
@@ -68,6 +75,9 @@ export interface StaffShellProps {
   /** The kitchen the "kitchens" page shows, so the language links lead to that kitchen and not to the list. Used only if
    *  it is shaped like a design id. */
   readonly kitchenId?: string;
+  /** Present when the frame stands around a kitchen's 3D view: the language links then lead to that view, carrying the
+   *  copy it was opened on, and not to the kitchen's page. Needs `kitchenId`. */
+  readonly kitchen3d?: { readonly version: KitchenViewed3dVersion | undefined };
   readonly context: StaffShellContext;
   readonly children: ReactNode;
 }
@@ -78,6 +88,7 @@ export function StaffShell({
   locale,
   page,
   kitchenId,
+  kitchen3d,
   context,
   children,
 }: StaffShellProps) {
@@ -140,7 +151,12 @@ export function StaffShell({
             <LocaleLink
               key={other}
               locale={other}
-              href={staffPathOf(other, page, kitchenId)}
+              href={languageLinkOf({
+                locale: other,
+                page,
+                kitchenId,
+                kitchen3d,
+              })}
             />
           ))}
         </nav>
@@ -272,4 +288,25 @@ export function StaffForbiddenScreen(props: Omit<StaffShellProps, "children">) {
       </div>
     </StaffShell>
   );
+}
+
+function languageLinkOf({
+  locale,
+  page,
+  kitchenId,
+  kitchen3d,
+}: {
+  readonly locale: AppLocale;
+  readonly page: StaffAreaPage;
+  readonly kitchenId: string | undefined;
+  readonly kitchen3d: StaffShellProps["kitchen3d"];
+}): string {
+  if (kitchen3d === undefined || kitchenId === undefined) {
+    return staffPathOf(locale, page, kitchenId);
+  }
+  return staffKitchen3dPathOf({
+    locale,
+    kitchenId,
+    version: kitchen3d.version,
+  });
 }
