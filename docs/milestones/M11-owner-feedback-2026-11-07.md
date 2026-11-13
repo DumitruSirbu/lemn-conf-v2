@@ -790,3 +790,78 @@ ADRs 0179, 0180 and 0181 are **Accepted** (2026-11-13), each with a dated *Accep
 - **A retry by a different confirmed client fills that client's own blanks**, using values they sent. Logic and
   security reviews judged this acceptable; it departs from ADR 0179 d2's premise that "the first try is the one that
   filled".
+
+## 12. W2b QA rulings, 2026-11-13 [coordinator]
+
+W2b's adversarial QA found five defects. The coordinator ruled on each:
+
+1. **W2b-8 is amended.** The form reads the profile once for each distinct confirmed account per mount, not once per
+   mount. This lets a second confirmed client on the same tab see the line that names their account (ADR 0179 d5,
+   security F3/L3) before the server fills their blanks.
+2. **A restore whose session read fails** withdraws the values the profile filled in, and the line. It keeps what the
+   customer typed and keeps the request id.
+3. **A send made while the session is still unknown** gets a new request id if the first definite session answer
+   cannot be shown to be the same account.
+4. **A profile that arrives while a send is in flight or unanswered is ignored**, so the unanswered send's projection
+   and id never change.
+5. **A profile value that is only whitespace counts as blank.**
+
+Accepted gaps, pinned by QA tests:
+- a sign-out and sign-in in a side-by-side window, while this tab stays visible, is not detected;
+- a resend triggered by the connection returning can race a session read that is still out.
+
+## 13. W2b review round and the owner's e-mail-check ruling, 2026-11-13
+
+**Owner ruling (answered in chat, relayed).** The form sends the account e-mail its line showed. The server fills the
+profile only when that e-mail equals the signed-in session's e-mail. If no line was shown, no e-mail is sent and nothing
+is filled. This closes the cross-account paths that §12 accepted as gaps (the side-by-side window, the `online` resend
+race) and the W2b security review's L1, L2 and I1. W2a's committed server fill (`99f641e7`) changes accordingly.
+
+Implementation constraints:
+- The e-mail is an optional body member.
+- It is excluded from the request's payload digest, so a retry of the same request stays the same request.
+- It is compared case-insensitively against the session account's e-mail.
+- A mismatch or absence is a silent no-fill, never a refusal.
+
+**Coordinator rulings on the W2b reviews:**
+- **B1 (logic, blocker).** A withdrawal must not strand the failure screen (5B, ADR 0160 d2). Values that a send has
+  carried are the request's values: no withdrawal touches them while a send holds a reusable id. With the e-mail
+  check, keeping them cannot fill another account.
+- **S1.** A pending restore is remembered until a definite session answer arrives, so the withdrawal on a failed
+  restore read is not lost when `visibilitychange` follows `pageshow`.
+- **S2.** The comment's reason is corrected.
+- **N1.** Line emptiness for locality is decided the way the server reads text (format characters stripped).
+- **N2.** Accepted: a stored whitespace-only profile value cannot be produced by the app.
+- **Security I2.** On a back-forward restore, the profile-filled values are withdrawn at once, unless a send holds them
+  (B1). They are refilled after a matching read.
+- **Security I3.** After a send succeeds, the hook stops following the session.
+- **Clean-code.**
+  - The copy moves to `contact.fillNotice`.
+  - The pure mappers move out of the hook.
+  - The cached "profile read failed" state is named.
+  - QA's "DEFECT" test titles are renamed to the property each now protects.
+  - The duplicated fake-fetch response building is shared.
+  - The session endpoint constant is shared.
+
+## 14. Security re-read of the e-mail check, 2026-11-13 [coordinator rulings]
+
+The re-read found that the server side holds: no client can fill another account's profile, and the address is never
+stored, logged or mailed. The client side did not keep the amendment's promise (M1). The rulings below keep the owner's
+intent, which is that one account's details never fill another account's profile.
+
+- **M1 (Medium).** The claim follows the account the values were entered under, not the account shown at send time.
+  - On a definite change to a different account, the request id is reset first, and the previous account's
+    profile-filled values are then withdrawn. They are not adopted. B1's adoption applies only to the `unknown`/restore
+    path, where no other account is known.
+  - Values the customer typed under the previous account are kept. The form is marked "entered under another
+    account", and it sends no `profileAccountEmail` until the customer edits a field. Test
+    `profile-prefill.dom.test.ts:610` is inverted accordingly.
+- **L1 (Low).** While a send holds the id, the withdrawal of profile-filled values is deferred rather than turned into
+  adoption. The pending withdrawal is applied when the hold ends: the id is reset or spent, or a definite answer
+  arrives for another account or a visitor.
+- **L2 (Low).** A malformed `profileAccountEmail` (not a string, or over 254 characters) is ignored as a claim, never
+  refused. ADR 0179 Amendment A's "never a refusal" then holds without exception.
+- **Follow-up to M1 (coordinator, 2026-11-13).** A definite account switch can empty a field the request needs while
+  the failure screen (5B) shows. When it does, 5B gives way to the form, and focus goes to the first empty required
+  field. ADR 0160 d2's promise that "nothing is asked again" was made to the previous account, so it does not carry
+  over to a different person. Retry from 5B is never a dead press.

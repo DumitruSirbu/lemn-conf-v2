@@ -3484,3 +3484,21 @@ Applies to a material, a hardware class and an accessory. **Ruled:** deleting st
 ## 308. The account pages' header stays operable while a dialog or the profile menu is open — RECORDED 2026-11-13 (M11 W1); OWNER RULED: FIX LATER
 
 **Observed (source-verified, review of W1).** `AccountShell` draws its `<header>` (back link, profile icon, language chip) as a sibling of `<main>`, not inside it (`apps/web/src/account/account-shell.tsx`). The modal behaviour (`use-modal-focus.ts`) makes only `<main>`'s children inert. So while the profile menu or any kitchen dialog is open on "Bucătăriile mele", the header stays clickable and reachable by Tab. The kitchen dialogs already behaved this way before M11; W1's profile menu inherits it. **Owner ruling, 2026-11-13:** record it and fix it later, for all account dialogs together. **Cost of deciding:** either move the header into `<main>` (it changes every account page's DOM) or extend the inert set to the header. **Owner:** unassigned.
+
+## 309. A cross-site popup can spend a staff member's kitchen-opening budget — RECORDED 2026-11-13 (M11 W3b security review); LOW
+
+**Observed (source-verified, security review of W3b).** The staff kitchen pages (`/{locale}/staff/kitchens/{id}`, and
+from M11 W3b its `/3d` view) fetch their audited endpoint from the page's own JS. That fetch is same-origin, so the
+endpoint's cross-site guard does not fire. The session cookie is `SameSite=Lax`, and no `Cross-Origin-Opener-Policy` is
+set (`apps/web/src/lib/security-headers.ts`, `next.config.ts`).
+
+**How it is abused.** A site that gets one click from a signed-in staff member can keep a popup handle and navigate it
+repeatedly. Each navigation spends the shared `staff-kitchen-open-by-account` bucket (600/h). The bucket fails closed,
+so the staff member is locked out of opening kitchens for up to an hour. With real ids the site can also add genuine
+view rows to the audit log. No data leaves.
+
+**Mitigation options.**
+- (a) Add `Cross-Origin-Opener-Policy: same-origin` to the account/staff page headers.
+- (b) Defer the fetch behind a button when the page load's `Sec-Fetch-Site` is `cross-site`.
+
+**Owner:** unassigned. It applies to the detail page that shipped before M11.

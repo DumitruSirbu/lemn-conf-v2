@@ -225,6 +225,23 @@ its stray designs. Production grants for `0023`-`0029`: owner-run, unverified. P
 - **Not verified:** the grants `0012`/`0017` as the application role on preview and production (owner R3).
 - **Next:** W2b (prefill, plus the form line naming the account; reset the request id when the session changes) and W3b (staff 3D page, proxy fifth-segment rule, link) are being implemented now. Then W4a-c (thumbnails). W1c optional. W5 owner-held. Deferred to the milestone test audit: the developer/QA test overlap in W1 and W3a.
 
+**2026-11-13, latest (M11: W2b and W3b committed) [coordinator; gates run by the coordinator on the final tree].** W2b
+`ea4b2a96`: the contact form prefills from a confirmed client's profile, plus the owner's e-mail check (ADR 0179
+Amendment A). The form sends the e-mail its line showed, and the W2a server fill runs only when that e-mail matches the
+session. This closes the cross-account paths. W3b `ceacdaed`: the staff 3D page and the "Deschide în 3D" link.
+- **QA:** red twice on W2b (5 defects, then the reviews' B1/S1), once on W3b (a language link). All fixed.
+- **Reviews:** the logic, clean-code and security reviews found no open blocker. The security re-read of the e-mail
+  check found M1/L1/L2, ruled in plan §14. Backlog 309 (no COOP on staff pages) was recorded.
+- **Visual pass:** W2b and W3b passed by hand at 390 and 1440, ro/ru.
+- **e2e:** the W3b e2e spec passed 5/5 on a production build, twice (developer's run).
+- **Coordinator's gates** on the final tree, before the commits: the domain build, and `tsc` for domain, persistence
+  and web, all exit 0. Web eslint exit 0. `apps/web` vitest 1270 files / 31578 tests passed, exit 0. Domain vitest
+  470 / 13770 passed, exit 0.
+- **Not done:** `pnpm ci:local` not run; nothing pushed. Not run in a browser: the W2b Playwright legs, a real
+  back-forward restore, the failure screen.
+- **Next:** W4a–c (thumbnails), W1c optional, W5 owner-held (the Claude Design round trip), then the milestone close
+  (the test audit including the deferred test overlap, `ci:local`, push, PR).
+
 ## 2. Phase table
 
 Read column: **No** = do not open. A row marked **UNCLEAR** would be a contradiction inside the history, left
