@@ -64,3 +64,28 @@ fixed later, in a wave that follows `docs/WORKFLOW.md`. Evidence tier of every e
 - **Open question [inference]:** which existing read-only entry point to reuse (the share-link viewer or a
   staff-only route), and whether it needs its own access rule and audit-log entry, since the page already
   records "Accesul este înregistrat în jurnal".
+
+## Owner rulings, 2026-11-13 [owner, answered through AskUserQuestion]
+
+- **Item 3:** capture on save, store it. The browser renders a small image when the kitchen saves and the server
+  stores it (new storage, so an ADR and a migration first; the add-only resource rule applies). A kitchen saved
+  before this exists keeps the placeholder until its next save.
+- **Item 4:** fill blanks only. Prefill name, phone and city from the profile; on submit save only the fields the
+  profile lacks, never overwrite. The preferred-contact choice is **not** profile data.
+- **Item 5.1:** a staff-only read-only route, behind the staff gate, writing an audit row as the detail page does.
+  No share link is minted.
+- **Item 1** is built as asked even if mockup frame A9A lacks the icon; the departure gets a dated note in
+  `docs/design/README.md`.
+- Work runs on branch `fix/owner-feedback-2026-11-07`, cut from `main` after M10's merge (`12266a02`).
+
+## Owner rulings, 2026-11-13, second round [owner, answered through AskUserQuestion]
+
+These answer the M11 plan's questions Q1 to Q3 (`docs/milestones/M11-owner-feedback-2026-11-07.md`), plus one W1 residual.
+
+- **Q1, consent (item 4):** yes. A signed-in customer's contact form says, in one line, that any missing details
+  are saved to their profile.
+- **Q2, a phone the customer removed (item 4):** refill it. Fill-blanks is plain: an empty profile field is filled
+  from the request, even one the customer emptied on purpose. No "removed" mark and no migration.
+- **Q3, copy:** new Romanian and Russian copy for M11 is pre-approved as drafted, as Lot 2's was (O28b).
+- **W1 residual, header live behind the profile menu:** record it in the backlog and fix it later, together with
+  the account page's other dialogs, which already behave the same way. Not fixed in W1.
