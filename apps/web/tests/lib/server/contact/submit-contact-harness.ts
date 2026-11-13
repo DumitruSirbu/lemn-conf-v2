@@ -84,6 +84,22 @@ export function requestOf(
   return merged;
 }
 
+/** The address of the account the fill tests sign in. */
+export const SUBMITTER_EMAIL = "submitter@example.invalid";
+
+/** A request as a signed-in form sends it, naming the account its profile line showed. */
+export function bodyNamingTheSubmitter(
+  overrides: Record<string, unknown> = {},
+): string {
+  return bodyOf({ profileAccountEmail: SUBMITTER_EMAIL, ...overrides });
+}
+
+export function callbackBodyNamingTheSubmitter(
+  overrides: Record<string, unknown> = {},
+): string {
+  return callbackBodyOf({ profileAccountEmail: SUBMITTER_EMAIL, ...overrides });
+}
+
 export function callbackBodyOf(
   overrides: Record<string, unknown> = {},
 ): string {

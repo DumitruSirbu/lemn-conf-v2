@@ -14,8 +14,10 @@ import {
 import {
   NAME_MARKER,
   aHarness,
+  bodyNamingTheSubmitter,
   bodyOf,
-  callbackBodyOf,
+  callbackBodyNamingTheSubmitter,
+  SUBMITTER_EMAIL,
   wireOf,
   type Harness,
   type HarnessOptions,
@@ -174,7 +176,7 @@ describe("a confirmed client's request, stored", () => {
   it("fills the blank name, address and phone pair from the request, in the entered and normal forms", async () => {
     const scenario = await aScenario();
 
-    const answer = await scenario.harness.submit(bodyOf());
+    const answer = await scenario.harness.submit(bodyNamingTheSubmitter());
 
     expect(answer.status).toBe(200);
     expect(profileOf(scenario)).toEqual({
@@ -188,7 +190,7 @@ describe("a confirmed client's request, stored", () => {
   it("keeps a name the profile already holds and fills the other blanks", async () => {
     const scenario = await aScenario({ profile: { name: "Held Name" } });
 
-    await scenario.harness.submit(bodyOf());
+    await scenario.harness.submit(bodyNamingTheSubmitter());
 
     expect(profileOf(scenario)).toEqual({
       name: "Held Name",
@@ -202,7 +204,7 @@ describe("a confirmed client's request, stored", () => {
     const scenario = await aScenario();
 
     await scenario.harness.submit(
-      bodyOf({
+      bodyNamingTheSubmitter({
         contact: {
           name: NAME_MARKER,
           phone: SUBMITTED_PHONE,
@@ -221,7 +223,9 @@ describe("a confirmed client's request, stored", () => {
   it("fills from a callback request too, which names no design", async () => {
     const scenario = await aScenario();
 
-    const answer = await scenario.harness.submit(callbackBodyOf());
+    const answer = await scenario.harness.submit(
+      callbackBodyNamingTheSubmitter(),
+    );
 
     expect(answer.status).toBe(200);
     expect(profileOf(scenario)?.name).toBe(NAME_MARKER);
@@ -235,7 +239,7 @@ describe("a confirmed client's request, stored", () => {
       design: KITCHEN_L_DESIGN,
     });
 
-    await scenario.harness.submit(bodyOf());
+    await scenario.harness.submit(bodyNamingTheSubmitter());
 
     expect(scenario.fills.asked.map(({ accountId }) => accountId)).toEqual([
       scenario.accountId,
@@ -245,7 +249,7 @@ describe("a confirmed client's request, stored", () => {
   it("reads the session and fills after the record and the sent mark, before the notice goes out", async () => {
     const scenario = await aScenario();
 
-    await scenario.harness.submit(bodyOf());
+    await scenario.harness.submit(bodyNamingTheSubmitter());
 
     expect(scenario.harness.calls).toEqual([
       "judge:every",
@@ -271,7 +275,7 @@ describe("a session that does not hold design.edit.own writes nothing", () => {
   ] as const)("%s", async (_label, who) => {
     const scenario = await aScenario(who);
 
-    const answer = await scenario.harness.submit(bodyOf());
+    const answer = await scenario.harness.submit(bodyNamingTheSubmitter());
 
     expect(answer.status).toBe(200);
     expect(scenario.fills.asked).toEqual([]);
@@ -283,7 +287,7 @@ describe("a session that does not hold design.edit.own writes nothing", () => {
       readSession: () => Promise.resolve({ kind: "anonymous" }),
     });
 
-    await scenario.harness.submit(bodyOf());
+    await scenario.harness.submit(bodyNamingTheSubmitter());
 
     expect(scenario.fills.asked).toEqual([]);
     expect(profileOf(scenario)).toEqual(NOTHING_HELD);
@@ -306,16 +310,22 @@ describe("no refusal and no conflict fills the profile", () => {
   it("the honeypot", async () => {
     await expectNoFillAfter(
       await aScenario(),
-      bodyOf({ honeypot: "http://spam.example" }),
+      bodyNamingTheSubmitter({ honeypot: "http://spam.example" }),
     );
   });
 
   it("the time", async () => {
-    await expectNoFillAfter(await aScenario(), bodyOf({ elapsedMs: 10 }));
+    await expectNoFillAfter(
+      await aScenario(),
+      bodyNamingTheSubmitter({ elapsedMs: 10 }),
+    );
   });
 
   it("a body the schema refuses", async () => {
-    await expectNoFillAfter(await aScenario(), bodyOf({ locale: "xx" }));
+    await expectNoFillAfter(
+      await aScenario(),
+      bodyNamingTheSubmitter({ locale: "xx" }),
+    );
   });
 
   it("a design the owned load refuses", async () => {
@@ -326,7 +336,7 @@ describe("no refusal and no conflict fills the profile", () => {
             Promise.resolve({ kind: "refused", reason: "unavailable" }),
         },
       }),
-      bodyOf(),
+      bodyNamingTheSubmitter(),
     );
   });
 
@@ -341,7 +351,7 @@ describe("no refusal and no conflict fills the profile", () => {
           }),
         },
       }),
-      bodyOf(),
+      bodyNamingTheSubmitter(),
     );
   });
 
@@ -356,15 +366,15 @@ describe("no refusal and no conflict fills the profile", () => {
           }),
         },
       }),
-      bodyOf(),
+      bodyNamingTheSubmitter(),
     );
   });
 
   it("a stored id sent again with another payload, which fills nothing the second time", async () => {
     const scenario = await aScenario();
-    await scenario.harness.submit(bodyOf());
+    await scenario.harness.submit(bodyNamingTheSubmitter());
     scenario.fills.asked.length = 0;
-    const changed = bodyOf({
+    const changed = bodyNamingTheSubmitter({
       contact: {
         name: "Someone Else",
         phone: "069 999 888",
@@ -388,10 +398,12 @@ describe("a retry of a stored request", () => {
     const scenario = await aScenario({
       harness: { outcomes: [NOT_NOTIFIED] },
     });
-    expect((await scenario.harness.submit(bodyOf())).status).toBe(502);
+    expect(
+      (await scenario.harness.submit(bodyNamingTheSubmitter())).status,
+    ).toBe(502);
     const afterFirst = profileOf(scenario);
 
-    const retried = await scenario.harness.submit(bodyOf());
+    const retried = await scenario.harness.submit(bodyNamingTheSubmitter());
 
     expect(retried.status).toBe(200);
     expect(scenario.fills.asked).toHaveLength(2);
@@ -407,10 +419,10 @@ describe("a retry of a stored request", () => {
           ? Promise.reject(new Error(SENTINEL))
           : real.fillProfileBlanks(blanks),
     });
-    await scenario.harness.submit(bodyOf());
+    await scenario.harness.submit(bodyNamingTheSubmitter());
     expect(profileOf(scenario)).toEqual(NOTHING_HELD);
 
-    await scenario.harness.submit(bodyOf());
+    await scenario.harness.submit(bodyNamingTheSubmitter());
 
     expect(profileOf(scenario)?.name).toBe(NAME_MARKER);
   });
@@ -430,10 +442,10 @@ describe("a retry of a stored request", () => {
             : Promise.resolve({ kind: "refused", reason: "unavailable" }),
       },
     });
-    await scenario.harness.submit(bodyOf());
+    await scenario.harness.submit(bodyNamingTheSubmitter());
     scenario.fills.asked.length = 0;
 
-    const retried = await scenario.harness.submit(bodyOf());
+    const retried = await scenario.harness.submit(bodyNamingTheSubmitter());
 
     expect(retried.status).toBeGreaterThanOrEqual(400);
     expect(scenario.fills.asked).toEqual([]);
@@ -441,10 +453,10 @@ describe("a retry of a stored request", () => {
 
   it("does not fill when its notice already went out", async () => {
     const scenario = await aScenario();
-    await scenario.harness.submit(bodyOf());
+    await scenario.harness.submit(bodyNamingTheSubmitter());
     scenario.fills.asked.length = 0;
 
-    const again = await scenario.harness.submit(bodyOf());
+    const again = await scenario.harness.submit(bodyNamingTheSubmitter());
 
     expect(again.status).toBe(200);
     expect(scenario.fills.asked).toEqual([]);
@@ -462,7 +474,7 @@ describe("the answer is the one the request would have had without the fill", ()
     const wires = (
       await Promise.all(
         [signedIn, visitor, broken].map(async ({ harness }) =>
-          wireOf(await harness.submit(bodyOf())),
+          wireOf(await harness.submit(bodyNamingTheSubmitter())),
         ),
       )
     ).map((wire) => wire.replace(/LM-[0-9A-Z]+/, REFERENCE_PLACEHOLDER));
@@ -473,9 +485,102 @@ describe("the answer is the one the request would have had without the fill", ()
   it("sets no cookie, whoever sends it", async () => {
     const scenario = await aScenario();
 
-    const answer = await scenario.harness.submit(bodyOf());
+    const answer = await scenario.harness.submit(bodyNamingTheSubmitter());
 
     expect(answer.headers.get("set-cookie")).toBeNull();
+  });
+});
+
+describe("a fill happens only when the request names the session's own address (ADR 0179 d5)", () => {
+  const ANOTHER_ACCOUNT_EMAIL = "someone.else@example.invalid";
+
+  it.each([
+    ["the session's address", SUBMITTER_EMAIL],
+    ["the session's address in capitals", SUBMITTER_EMAIL.toUpperCase()],
+  ])("fills when the request names %s", async (_what, named) => {
+    const scenario = await aScenario();
+
+    await scenario.harness.submit(bodyOf({ profileAccountEmail: named }));
+
+    expect(profileOf(scenario)?.name).toBe(NAME_MARKER);
+  });
+
+  it.each([
+    ["names no address", {}],
+    [
+      "names another account's address",
+      { profileAccountEmail: ANOTHER_ACCOUNT_EMAIL },
+    ],
+    ["names an empty address", { profileAccountEmail: "" }],
+    [
+      "names the address with a space after it",
+      { profileAccountEmail: `${SUBMITTER_EMAIL} ` },
+    ],
+  ] as const)("fills nothing when the request %s", async (_what, overrides) => {
+    const scenario = await aScenario();
+
+    const answer = await scenario.harness.submit(bodyOf(overrides));
+
+    expect(answer.status).toBe(200);
+    expect(scenario.fills.asked).toEqual([]);
+    expect(profileOf(scenario)).toEqual(NOTHING_HELD);
+  });
+
+  it.each([
+    ["a number", 5],
+    ["null", null],
+    ["text past the e-mail bound", "a".repeat(255)],
+  ] as const)(
+    "answers as sent, and fills nothing, when the claim is %s",
+    async (_what, claim) => {
+      const scenario = await aScenario();
+
+      const answer = await scenario.harness.submit(
+        bodyOf({ profileAccountEmail: claim }),
+      );
+
+      expect(answer.status).toBe(200);
+      expect(profileOf(scenario)).toEqual(NOTHING_HELD);
+    },
+  );
+
+  it("fills nothing for A's typed data sent under B's session, though it names A", async () => {
+    const accountB = await aScenario();
+    const namesA = bodyOf({ profileAccountEmail: ANOTHER_ACCOUNT_EMAIL });
+
+    const answer = await accountB.harness.submit(namesA);
+
+    expect(answer.status).toBe(200);
+    expect(profileOf(accountB)).toEqual(NOTHING_HELD);
+  });
+
+  it("answers with the same bytes whether it fills, does not match or names nothing", async () => {
+    const bodies = [
+      bodyOf({ profileAccountEmail: SUBMITTER_EMAIL }),
+      bodyOf({ profileAccountEmail: ANOTHER_ACCOUNT_EMAIL }),
+      bodyOf(),
+    ];
+
+    const wires = (
+      await Promise.all(
+        bodies.map(async (body) =>
+          wireOf(await (await aScenario()).harness.submit(body)),
+        ),
+      )
+    ).map((wire) => wire.replace(/LM-[0-9A-Z]+/, REFERENCE_PLACEHOLDER));
+
+    expect(wires).toEqual([SENT_WIRE, SENT_WIRE, SENT_WIRE]);
+  });
+
+  it("is not a conflict when a retry names the address and the first send did not", async () => {
+    const scenario = await aScenario();
+    await scenario.harness.submit(bodyOf());
+
+    const withAddress = await scenario.harness.submit(
+      bodyOf({ profileAccountEmail: SUBMITTER_EMAIL }),
+    );
+
+    expect(withAddress.status).toBe(200);
   });
 });
 
@@ -485,7 +590,7 @@ describe("a fill that fails is a line from a closed list and never an answer", (
       fill: () => Promise.reject(new Error(SENTINEL)),
     });
 
-    const answer = await scenario.harness.submit(bodyOf());
+    const answer = await scenario.harness.submit(bodyNamingTheSubmitter());
 
     expect(answer.status).toBe(200);
     const body = (await answer.json()) as { reference: string };
@@ -500,7 +605,7 @@ describe("a fill that fails is a line from a closed list and never an answer", (
       fill: () => Promise.reject(new Error(SENTINEL)),
     });
 
-    await scenario.harness.submit(bodyOf());
+    await scenario.harness.submit(bodyNamingTheSubmitter());
 
     expect(JSON.stringify(consoleCallsOf(consoleSpies))).not.toContain(
       SENTINEL,
@@ -514,7 +619,7 @@ describe("a fill that fails is a line from a closed list and never an answer", (
       },
     });
 
-    const answer = await scenario.harness.submit(bodyOf());
+    const answer = await scenario.harness.submit(bodyNamingTheSubmitter());
 
     expect(answer.status).toBe(200);
     expect(JSON.stringify(consoleCallsOf(consoleSpies))).not.toContain(
@@ -527,7 +632,7 @@ describe("a fill that fails is a line from a closed list and never an answer", (
       readSession: () => Promise.reject(new Error(SENTINEL)),
     });
 
-    const answer = await scenario.harness.submit(bodyOf());
+    const answer = await scenario.harness.submit(bodyNamingTheSubmitter());
 
     expect(answer.status).toBe(200);
     expect(linesOfEvent(FILL_EVENT)).toHaveLength(1);
@@ -545,7 +650,7 @@ describe(`a fill that hangs is bounded at ${String(PROFILE_FILL_DEADLINE_MS)} ms
   ): Promise<{ answered: () => Response | undefined }> {
     vi.useFakeTimers();
     let answered: Response | undefined;
-    void scenario.harness.submit(bodyOf()).then((answer) => {
+    void scenario.harness.submit(bodyNamingTheSubmitter()).then((answer) => {
       answered = answer;
     });
     await vi.advanceTimersByTimeAsync(PROFILE_FILL_DEADLINE_MS - 1);
@@ -584,7 +689,7 @@ describe(`a fill that hangs is bounded at ${String(PROFILE_FILL_DEADLINE_MS)} ms
     vi.useFakeTimers();
     const scenario = await aScenario();
 
-    const answer = await scenario.harness.submit(bodyOf());
+    const answer = await scenario.harness.submit(bodyNamingTheSubmitter());
 
     expect(answer.status).toBe(200);
     expect(vi.getTimerCount()).toBe(0);

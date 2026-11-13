@@ -17,8 +17,8 @@ import {
 import { signedInAs } from "../../../support/staff-world";
 import {
   NAME_MARKER,
-  bodyOf,
-  callbackBodyOf,
+  bodyNamingTheSubmitter,
+  callbackBodyNamingTheSubmitter,
   wireOf,
 } from "../../../lib/server/contact/submit-contact-harness";
 
@@ -135,7 +135,10 @@ describe("a request sent with a session cookie", () => {
   it("fills a confirmed client's blanks from the stored request", async () => {
     const { account, cookie } = await aConfirmedClientCookie();
 
-    const answer = await post(bodyOf(), cookie);
+    const answer = await post(
+      bodyNamingTheSubmitter({ profileAccountEmail: account.email }),
+      cookie,
+    );
 
     expect(answer.status).toBe(200);
     expect(profileOf(account)).toEqual({
@@ -149,7 +152,10 @@ describe("a request sent with a session cookie", () => {
   it("fills the client's profile from a callback too", async () => {
     const { account, cookie } = await aConfirmedClientCookie();
 
-    await post(callbackBodyOf(), cookie);
+    await post(
+      callbackBodyNamingTheSubmitter({ profileAccountEmail: account.email }),
+      cookie,
+    );
 
     expect(profileOf(account)?.name).toBe(SUBMITTED.name);
   });
@@ -161,7 +167,7 @@ describe("a request sent with a session cookie", () => {
   ] as const)("writes nothing for %s", async (_label, caller) => {
     const { account, session } = await signedInAs(caller);
 
-    const answer = await post(bodyOf(), session.cookie);
+    const answer = await post(bodyNamingTheSubmitter(), session.cookie);
 
     expect(answer.status).toBe(200);
     expect(fillsAsked()).toBe(0);
@@ -172,7 +178,7 @@ describe("a request sent with a session cookie", () => {
     const { account, session } = await signedInAs({ role: "client" });
     await world.sessions.revokeAllForAccount(account.id);
 
-    const answer = await post(bodyOf(), session.cookie);
+    const answer = await post(bodyNamingTheSubmitter(), session.cookie);
 
     expect(answer.status).toBe(200);
     expect(fillsAsked()).toBe(0);
@@ -180,7 +186,10 @@ describe("a request sent with a session cookie", () => {
   });
 
   it("writes nothing for a cookie that names no session", async () => {
-    const answer = await post(bodyOf(), cookieOfValue("z".repeat(43)));
+    const answer = await post(
+      bodyNamingTheSubmitter(),
+      cookieOfValue("z".repeat(43)),
+    );
 
     expect(answer.status).toBe(200);
     expect(fillsAsked()).toBe(0);
@@ -190,7 +199,7 @@ describe("a request sent with a session cookie", () => {
     const { account, cookie } = await aConfirmedClientCookie();
     world.failOn("sessions.findLive");
 
-    const answer = await post(bodyOf(), cookie);
+    const answer = await post(bodyNamingTheSubmitter(), cookie);
 
     expect(answer.status).toBe(200);
     expect(fillsAsked()).toBe(0);
@@ -203,7 +212,10 @@ describe("a request sent with a session cookie", () => {
       email: "neighbour@example.test",
     });
 
-    await post(bodyOf(), cookie);
+    await post(
+      bodyNamingTheSubmitter({ profileAccountEmail: account.email }),
+      cookie,
+    );
 
     expect(profileOf(account)?.name).toBe(SUBMITTED.name);
     expect(profileOf(neighbour)).toEqual(NOTHING_HELD);
@@ -212,7 +224,7 @@ describe("a request sent with a session cookie", () => {
   it("only reads the session: it is never touched", async () => {
     const { cookie } = await aConfirmedClientCookie();
 
-    await post(bodyOf(), cookie);
+    await post(bodyNamingTheSubmitter(), cookie);
 
     expect(world.calls).toContain("sessions.findLive");
     expect(world.calls).not.toContain("sessions.touch");
@@ -230,7 +242,7 @@ describe("the answer does not depend on the session", () => {
   ]);
 
   async function wireWithCookie(cookie: string | undefined): Promise<string> {
-    const answer = await post(bodyOf(), cookie);
+    const answer = await post(bodyNamingTheSubmitter(), cookie);
     expect(answer.headers.get("set-cookie")).toBeNull();
     return (await wireOf(answer)).replace(
       REFERENCE_PATTERN,
@@ -262,10 +274,13 @@ describe("the answer does not depend on the session", () => {
   });
 
   it("is not a 5xx when the fill throws, and the thrown message reaches no line", async () => {
-    const { cookie } = await aConfirmedClientCookie();
+    const { account, cookie } = await aConfirmedClientCookie();
     world.failOn("accounts.fillProfileBlanks");
 
-    const answer = await post(bodyOf(), cookie);
+    const answer = await post(
+      bodyNamingTheSubmitter({ profileAccountEmail: account.email }),
+      cookie,
+    );
 
     expect(answer.status).toBe(200);
     expect(consoleLines).toContain("contact-profile-fill-failed");
@@ -275,8 +290,16 @@ describe("the answer does not depend on the session", () => {
 
 describe("no refusal of the route fills the profile", () => {
   it.each([
-    ["a cross-site request", { "sec-fetch-site": "cross-site" }, bodyOf()],
-    ["another content type", { "content-type": "text/plain" }, bodyOf()],
+    [
+      "a cross-site request",
+      { "sec-fetch-site": "cross-site" },
+      bodyNamingTheSubmitter(),
+    ],
+    [
+      "another content type",
+      { "content-type": "text/plain" },
+      bodyNamingTheSubmitter(),
+    ],
     ["a body past its bound", {}, "a".repeat(9 * 1024)],
     ["a body that does not parse", {}, "{{{ not json"],
   ] as const)("%s", async (_label, headers, body) => {

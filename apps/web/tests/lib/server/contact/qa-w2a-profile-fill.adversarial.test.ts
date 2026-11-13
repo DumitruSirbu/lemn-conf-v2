@@ -22,8 +22,8 @@ import {
 import {
   NAME_MARKER,
   aHarness,
-  bodyOf,
-  callbackBodyOf,
+  bodyNamingTheSubmitter,
+  callbackBodyNamingTheSubmitter,
   wireOf,
   type Harness,
   type HarnessOptions,
@@ -166,34 +166,39 @@ describe("a refusal answers a confirmed client exactly as it answers a visitor, 
     string,
     number,
   ][] = [
-    ["the honeypot", {}, bodyOf({ honeypot: "http://spam.example" }), 400],
-    ["the time", {}, bodyOf({ elapsedMs: 10 }), 400],
-    ["a schema refusal", {}, bodyOf({ locale: "xx" }), 400],
+    [
+      "the honeypot",
+      {},
+      bodyNamingTheSubmitter({ honeypot: "http://spam.example" }),
+      400,
+    ],
+    ["the time", {}, bodyNamingTheSubmitter({ elapsedMs: 10 }), 400],
+    ["a schema refusal", {}, bodyNamingTheSubmitter({ locale: "xx" }), 400],
     [
       "a design the owned load refuses (CONTACT_DESIGN_NOT_CURRENT)",
       {
         loadOwned: () =>
           Promise.resolve({ kind: "refused", reason: "unavailable" }),
       },
-      bodyOf(),
+      bodyNamingTheSubmitter(),
       409,
     ],
     [
       "an unusable sender (503 before a reference)",
       { createSender: () => ({ kind: "unavailable", variables: [] }) },
-      bodyOf(),
+      bodyNamingTheSubmitter(),
       503,
     ],
     [
       "an unusable digest secret (503 before a reference)",
       { digester: { status: "unavailable", variable: "DIGEST_SECRET" } },
-      bodyOf(),
+      bodyNamingTheSubmitter(),
       503,
     ],
     [
       "a notice that cannot be made (503 before a reference)",
       { noticeContent: { leadNotice: null } as never },
-      bodyOf(),
+      bodyNamingTheSubmitter(),
       503,
     ],
   ];
@@ -222,7 +227,7 @@ describe("a refusal answers a confirmed client exactly as it answers a visitor, 
     scenario.asAClient();
     scenario.harness.recorded.mockResolvedValue([1_000_000]);
 
-    const answer = await scenario.harness.submit(bodyOf());
+    const answer = await scenario.harness.submit(bodyNamingTheSubmitter());
 
     expect(answer.status).toBe(429);
     expectNothingFilled(scenario);
@@ -236,19 +241,23 @@ describe("a refusal answers a confirmed client exactly as it answers a visitor, 
       request += 1
     ) {
       await scenario.harness.submit(
-        callbackBodyOf({
+        callbackBodyNamingTheSubmitter({
           clientRequestId: `req_00000000000000${String(request).padStart(2, "0")}`,
         }),
       );
     }
     const refusedAsVisitor = await scenario.harness.submit(
-      callbackBodyOf({ clientRequestId: "req_eeeeeeeeeeeeeeee" }),
+      callbackBodyNamingTheSubmitter({
+        clientRequestId: "req_eeeeeeeeeeeeeeee",
+      }),
     );
     scenario.asAClient();
     const readsBefore = scenario.sessionReads.count;
 
     const refusedAsClient = await scenario.harness.submit(
-      callbackBodyOf({ clientRequestId: "req_ffffffffffffffff" }),
+      callbackBodyNamingTheSubmitter({
+        clientRequestId: "req_ffffffffffffffff",
+      }),
     );
 
     expect(refusedAsClient.status).toBe(429);
@@ -260,18 +269,18 @@ describe("a refusal answers a confirmed client exactly as it answers a visitor, 
 
   it("a retry refused by the tries bucket (429), after the first try stored the request", async () => {
     const scenario = await aScenario({ outcomes: [NOT_NOTIFIED] });
-    await scenario.harness.submit(bodyOf());
+    await scenario.harness.submit(bodyNamingTheSubmitter());
     for (
       let attempt = 0;
       attempt <= CONTACT_TRIES_PER_REQUEST_HOUR_FIGURE;
       attempt += 1
     ) {
-      await scenario.harness.submit(bodyOf());
+      await scenario.harness.submit(bodyNamingTheSubmitter());
     }
     scenario.asAClient();
     const readsBefore = scenario.sessionReads.count;
 
-    const refused = await scenario.harness.submit(bodyOf());
+    const refused = await scenario.harness.submit(bodyNamingTheSubmitter());
 
     expect(refused.status).toBe(429);
     expectNothingFilled(scenario, readsBefore);
@@ -279,8 +288,8 @@ describe("a refusal answers a confirmed client exactly as it answers a visitor, 
 
   it("a stored id sent with other contents (409 CONTACT_REQUEST_CONFLICT) answers a client as a visitor", async () => {
     const scenario = await aScenario();
-    await scenario.harness.submit(bodyOf());
-    const changed = bodyOf({
+    await scenario.harness.submit(bodyNamingTheSubmitter());
+    const changed = bodyNamingTheSubmitter({
       contact: {
         name: "Someone Else",
         phone: "069 999 888",
@@ -310,7 +319,7 @@ describe("a confirmed client's callback with no locality writes no address", () 
     scenario.asAClient();
 
     await scenario.harness.submit(
-      callbackBodyOf({
+      callbackBodyNamingTheSubmitter({
         contact: {
           name: NAME_MARKER,
           phone: "069 000 111",
@@ -346,7 +355,7 @@ describe("a request whose twin landed first (the record answers stored and alrea
     });
     scenario.asAClient();
 
-    const answer = await scenario.harness.submit(bodyOf());
+    const answer = await scenario.harness.submit(bodyNamingTheSubmitter());
 
     expect(answer.status).toBe(200);
     expect(scenario.harness.sender.sent).toHaveLength(0);
@@ -358,14 +367,16 @@ describe("a request whose twin landed first (the record answers stored and alrea
 describe("a retry fills the profile of the session that retries, never another's", () => {
   async function aStoredUnnotifiedRequest(): Promise<Scenario> {
     const scenario = await aScenario({ outcomes: [NOT_NOTIFIED] });
-    expect((await scenario.harness.submit(bodyOf())).status).toBe(502);
+    expect(
+      (await scenario.harness.submit(bodyNamingTheSubmitter())).status,
+    ).toBe(502);
     return scenario;
   }
 
   it("an anonymous retry fills nothing and answers as sent", async () => {
     const scenario = await aStoredUnnotifiedRequest();
 
-    const retried = await scenario.harness.submit(bodyOf());
+    const retried = await scenario.harness.submit(bodyNamingTheSubmitter());
 
     expect(retried.status).toBe(200);
     expect(scenario.fills).toEqual([]);
@@ -375,7 +386,7 @@ describe("a retry fills the profile of the session that retries, never another's
     const scenario = await aStoredUnnotifiedRequest();
     scenario.who.session = clientSessionOf(scenario.accountId, "operator");
 
-    await scenario.harness.submit(bodyOf());
+    await scenario.harness.submit(bodyNamingTheSubmitter());
 
     expect(scenario.fills).toEqual([]);
     expect(profileOf(scenario)).toEqual(NOTHING_HELD);
@@ -394,7 +405,7 @@ describe("a retry fills the profile of the session that retries, never another's
     if (other.kind !== "created") throw new Error("the address was taken");
     scenario.who.session = clientSessionOf(other.accountId);
 
-    await scenario.harness.submit(bodyOf());
+    await scenario.harness.submit(bodyNamingTheSubmitter());
 
     expect(scenario.fills.map(({ accountId }) => accountId)).toEqual([
       other.accountId,
@@ -417,7 +428,7 @@ describe("both best-effort steps hang", () => {
       new Promise(() => undefined);
     vi.useFakeTimers();
     let answered: Response | undefined;
-    void scenario.harness.submit(bodyOf()).then((answer) => {
+    void scenario.harness.submit(bodyNamingTheSubmitter()).then((answer) => {
       answered = answer;
     });
 
@@ -471,7 +482,7 @@ describe("a thrown value is never read, whatever it is", () => {
         // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- the case under test is a store that rejects with a non-Error
         Promise.reject(thrown);
 
-      const answer = await scenario.harness.submit(bodyOf());
+      const answer = await scenario.harness.submit(bodyNamingTheSubmitter());
 
       expect(answer.status).toBe(200);
       const [line, ...rest] = linesOfEvent(FILL_EVENT);
@@ -494,7 +505,7 @@ describe("a thrown value is never read, whatever it is", () => {
         }),
       );
 
-    await scenario.harness.submit(bodyOf());
+    await scenario.harness.submit(bodyNamingTheSubmitter());
 
     expect(linesOfEvent(FILL_EVENT)).toEqual([
       expect.objectContaining({ cause: "store-failed" }),
@@ -512,7 +523,7 @@ describe("a thrown value is never read, whatever it is", () => {
       // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- the case under test is a store that rejects with a non-Error
       Promise.reject(thrown);
 
-    const answer = await scenario.harness.submit(bodyOf());
+    const answer = await scenario.harness.submit(bodyNamingTheSubmitter());
 
     expect(answer.status).toBe(200);
     expect(linesOfEvent(FILL_EVENT)).toEqual([
@@ -526,7 +537,7 @@ describe("a thrown value is never read, whatever it is", () => {
     scenario.harness.accounts.fillProfileBlanks = () =>
       Promise.reject(new Error("anything"));
 
-    await scenario.harness.submit(bodyOf());
+    await scenario.harness.submit(bodyNamingTheSubmitter());
 
     const everything = JSON.stringify(consoleCallsOf(consoleSpies));
     for (const submitted of [
@@ -557,7 +568,7 @@ describe("a hung fill after the deadline cannot change what the customer was tol
         }, 1500);
       });
     let answered: Response | undefined;
-    void scenario.harness.submit(bodyOf()).then((answer) => {
+    void scenario.harness.submit(bodyNamingTheSubmitter()).then((answer) => {
       answered = answer;
     });
 

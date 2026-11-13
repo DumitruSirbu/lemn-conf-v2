@@ -34,7 +34,8 @@ export interface ProfileFillPorts {
 /**
  * A stored request fills the blanks of the profile of the session that sent it, and only a session holding
  * `design.edit.own` (a confirmed client's): a visitor, a staff member, an administrator and an unconfirmed account
- * write nothing. The account is the session's, never the request's or the design's. A failure or a wait past
+ * write nothing. The account is the session's, never the request's or the design's, and only when the request names
+ * that account's address as the one the form's line showed. A failure or a wait past
  * `PROFILE_FILL_DEADLINE_MS` is one line with a cause from a closed list and never an answer: the row exists, and the
  * fill is idempotent, so a retry may repair it.
  */
@@ -55,15 +56,28 @@ export async function fillSubmittersProfileBlanks(
 
 async function fillWhenAConfirmedClient(
   { readSession, profiles }: ProfileFillPorts,
-  { contact }: ContactSubmissionRequest,
+  { contact, profileAccountEmail }: ContactSubmissionRequest,
 ): Promise<void> {
   const session = await readSession();
   if (session.kind !== "signed-in") return;
   if (!isCapabilityHeld(session, "design.edit.own")) return;
+  if (!namesTheAccountOf(profileAccountEmail, session)) return;
   await profiles.fillProfileBlanks({
     accountId: session.accountId,
     fill: profileFillOf(contact),
   });
+}
+
+/** The form showed its line for this very account: the address it names is the session's, in any case. Absent or another
+ *  account's is a silent no-fill, so a request typed under one session and sent under another fills nothing. */
+function namesTheAccountOf(
+  claimedEmail: string | undefined,
+  session: Extract<CurrentSession, { readonly kind: "signed-in" }>,
+): boolean {
+  return (
+    claimedEmail !== undefined &&
+    claimedEmail.toLowerCase() === session.email.toLowerCase()
+  );
 }
 
 /** Which cause on the closed list a thrown value became; its message, name and cause are never read. */

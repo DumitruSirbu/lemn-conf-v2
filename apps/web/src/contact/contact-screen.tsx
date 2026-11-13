@@ -28,7 +28,7 @@ import {
 import { AlreadySentView } from "./already-sent-view";
 import { ContactDesignCard } from "./contact-design-card";
 import { ContactForm } from "./contact-form";
-import type { ContactFormValues } from "./contact-form-model";
+import type { ContactFormValues, ProfileAccount } from "./contact-form-model";
 import { isSendOff } from "./contact-outcome";
 import {
   contactPageViewOf,
@@ -46,6 +46,7 @@ import {
   type ContactSubmission,
   type ContactTarget,
 } from "./use-contact-submission";
+import { useProfilePrefill } from "./use-profile-prefill";
 
 export interface ContactScreenProps {
   readonly designId: DesignId;
@@ -147,20 +148,24 @@ export function CallbackContactScreen({
 interface ContactPageProps {
   readonly target: ContactTarget;
   readonly backLink: ReactNode;
-  /** What stands under the bar, given the form's memory. */
-  readonly children: (submission: ContactSubmission) => ReactNode;
+  /** What stands under the bar, given the form's memory and the account its profile fills, once that is known. */
+  readonly children: (
+    submission: ContactSubmission,
+    profileAccount: ProfileAccount | undefined,
+  ) => ReactNode;
 }
 
 /** The one place the form's memory is mounted: a second instance would be a second form with its own copy of what was
- *  typed, and a hidden twin would be a form that could still be sent. */
+ *  typed, and a hidden twin would be a form that could still be sent. The profile fills it from here too, once. */
 function ContactPage({ target, backLink, children }: ContactPageProps) {
   const locale = useServedLocale();
   const submission = useContactSubmission({ target, locale });
+  const profileAccount = useProfilePrefill(submission);
 
   return (
     <main className={styles.screen}>
       <TopBar backLink={backLink} />
-      {children(submission)}
+      {children(submission, profileAccount)}
     </main>
   );
 }
@@ -171,8 +176,12 @@ function DesignContactPage({ designId }: { readonly designId: DesignId }) {
       target={DESIGN_TARGET}
       backLink={<ReviewBackLink designId={designId} />}
     >
-      {(submission) => (
-        <DesignContactBody designId={designId} submission={submission} />
+      {(submission, profileAccount) => (
+        <DesignContactBody
+          designId={designId}
+          submission={submission}
+          profileAccount={profileAccount}
+        />
       )}
     </ContactPage>
   );
@@ -181,9 +190,11 @@ function DesignContactPage({ designId }: { readonly designId: DesignId }) {
 function DesignContactBody({
   designId,
   submission,
+  profileAccount,
 }: {
   readonly designId: DesignId;
   readonly submission: ContactSubmission;
+  readonly profileAccount: ProfileAccount | undefined;
 }) {
   const content = useContent();
   const review = useReview();
@@ -196,6 +207,7 @@ function DesignContactBody({
   return (
     <FormOrResult
       submission={submission}
+      profileAccount={profileAccount}
       sendingLine={content.contact.sendingLine}
       intro={{
         heading: content.contact.heading,
@@ -230,9 +242,10 @@ function CallbackContactPage() {
   const content = useContent();
   return (
     <ContactPage target={CALLBACK_TARGET} backLink={<StartBackLink />}>
-      {(submission) => (
+      {(submission, profileAccount) => (
         <FormOrResult
           submission={submission}
+          profileAccount={profileAccount}
           sendingLine={content.contact.sendingLineNoDesign}
           intro={{
             heading: content.contact.headingNoDesign,
@@ -258,6 +271,7 @@ function CallbackContactPage() {
 
 interface FormOrResultProps {
   readonly submission: ContactSubmission;
+  readonly profileAccount: ProfileAccount | undefined;
   readonly sendingLine: string;
   readonly intro: { readonly heading: string; readonly subheading: string };
   /** Mounted in place of the form, and only once the request is answered *sent*. */
@@ -277,6 +291,7 @@ interface FormOrResultProps {
  */
 function FormOrResult({
   submission,
+  profileAccount,
   sendingLine,
   intro,
   whenSent,
@@ -304,6 +319,7 @@ function FormOrResult({
   return (
     <ContactForm
       submission={submission}
+      profileAccount={profileAccount}
       sendingLine={sendingLine}
       reviewLink={reviewLink}
       editorLink={editorLink}

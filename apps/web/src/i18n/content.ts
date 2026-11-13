@@ -1596,6 +1596,7 @@ export type StaffAuditCopy = ReturnType<typeof resolveStaffAuditCopy>;
 export function resolveStaffKitchenCopy(translate: ContentTranslator) {
   return {
     title: translate("staffKitchen.title"),
+    open3d: translate("staffKitchen.open3d"),
     loading: translate("staffKitchen.loading"),
     loadingSub: translate("staffKitchen.loadingSub"),
     view: {
@@ -2665,6 +2666,8 @@ export function resolveContent(translate: ContentTranslator) {
       // Q7 (b): a slot. The sentence and its marker are provisional until the owner supplies the privacy text.
       consent: translate("contact.consent"),
       consentProvisionalMarker: translate("contact.consentProvisionalMarker"),
+      // ADR 0179 d5: a signed-in client's one line, naming the account that missing details are saved to.
+      fillNotice: (email: string) => translate("contact.fillNotice", { email }),
       callToAction: translate("contact.callToAction"),
       sending: translate("contact.sending"),
       sendingLine: translate("contact.sendingLine"),

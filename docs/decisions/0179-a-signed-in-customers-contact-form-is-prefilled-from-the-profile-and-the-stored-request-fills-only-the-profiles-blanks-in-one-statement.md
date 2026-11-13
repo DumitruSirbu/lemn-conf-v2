@@ -206,3 +206,22 @@ F1 (gate on `design.edit.own`, client check from `/api/account/session`; d1, d2)
 D11 paragraph; the notice statement; d5), F3 (the notice line names the account's e-mail; d5), F4 (the deadline, no
 fill on conflict, the retry cases, the closed-list log; d2), F5 (no profile read or refused event for visitors; d1).
 The owner rulings of all three rounds are folded in. The security read found no exploitable design flaw [sec, relayed].
+
+## Amendment A — 2026-11-13: the fill requires the e-mail the form showed [owner ruling, relayed by the coordinator]
+
+**Decision.** The contact form sends the account e-mail that its line showed (d5) as an optional body member. The server
+fills the profile's blanks (d2) only when that member is present and equals the signed-in session account's e-mail,
+compared case-insensitively. If the member is absent or does not match, nothing is filled. This is never a refusal: the
+customer's answer is identical in every case. The member is left out of the request's payload digest, so a retry of
+the same request stays the same request.
+
+**Why.** The W2b reviews found paths by which one person's typed details could be filled into another account signed
+in on the same device, with no line naming that account. Examples: a back-forward restore whose session read fails,
+followed by the connection returning; a sign-in switch in a side-by-side window; a switch between the session read
+and the profile read. Plan §12 had accepted two of these as gaps. Binding the fill to the account the customer was
+actually shown closes all of them, and makes d5's line a true precondition of the fill rather than a best-effort
+notice.
+
+**Consequence.** If the line could not be shown (the profile read failed, or the session read was unknown), no fill
+happens. This narrows d2, and W2a-8's "the answer never changes" still holds. Detail and the review rulings: M11 plan
+§13.

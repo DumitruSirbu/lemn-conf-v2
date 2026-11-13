@@ -80,14 +80,6 @@ export function mountContactScreen(options: ScreenOptions = {}): MountedScreen {
   };
 }
 
-/** What the page sent to the contact endpoint, as parsed JSON, and every other request it made. */
-export interface RecordedTraffic {
-  readonly contactBodies: Record<string, unknown>[];
-  readonly otherUrls: string[];
-  /** Answers the oldest request still out, as the server would; a request not answered stays outstanding. */
-  readonly answerOldest: (answer: ServerAnswer) => Promise<void>;
-}
-
 export type ServerAnswer =
   | {
       readonly status: number;
@@ -95,6 +87,47 @@ export type ServerAnswer =
       readonly headers?: Record<string, string>;
     }
   | "network-failure";
+
+/** What the account's two read routes answer. They are answered at once and kept out of the queue the test answers
+ *  from, so a read made on mount never takes the place of the send a test is waiting to answer. */
+export interface AccountScript {
+  session: ServerAnswer;
+  profile: ServerAnswer;
+}
+
+export const SESSION_URL = "/api/account/session";
+export const PROFILE_URL = "/api/account/profile";
+
+const ANONYMOUS_SESSION: ServerAnswer = {
+  status: 200,
+  body: { state: "anonymous" },
+};
+const NO_PROFILE_FOR_VISITOR: ServerAnswer = {
+  status: 401,
+  body: { status: "unauthenticated" },
+};
+
+export function signedInSession(
+  email: string,
+  capabilities: readonly string[],
+): ServerAnswer {
+  return {
+    status: 200,
+    body: { state: "signed-in", email, capabilities },
+  };
+}
+
+/** What the page sent to the contact endpoint, as parsed JSON, and every other request it made. */
+export interface RecordedTraffic {
+  readonly contactBodies: Record<string, unknown>[];
+  readonly otherUrls: string[];
+  /** The account routes read, in order. */
+  readonly accountReads: string[];
+  /** What the account routes answer from now on. */
+  readonly account: AccountScript;
+  /** Answers the oldest request still out, as the server would; a request not answered stays outstanding. */
+  readonly answerOldest: (answer: ServerAnswer) => Promise<void>;
+}
 
 interface Pending {
   readonly resolve: (response: Response) => void;
@@ -108,13 +141,28 @@ function nextMacrotask(): Promise<void> {
   });
 }
 
+/** Lets the reads the page made on mount, and the state they set, settle. */
+export async function settleAccountReads(): Promise<void> {
+  await act(async () => {
+    await nextMacrotask();
+  });
+}
+
 /** A `fetch` that records, and answers only when the test says: a request stays outstanding, as it does while the
  *  server is working. */
-export function recordTraffic(): RecordedTraffic {
+export function recordTraffic(
+  account: Partial<AccountScript> = {},
+): RecordedTraffic {
   const pending: Pending[] = [];
   const traffic: RecordedTraffic = {
     contactBodies: [],
     otherUrls: [],
+    accountReads: [],
+    account: {
+      session: ANONYMOUS_SESSION,
+      profile: NO_PROFILE_FOR_VISITOR,
+      ...account,
+    },
     answerOldest: async (answer) => {
       const oldest = pending.shift();
       if (oldest === undefined) throw new Error("no request is outstanding");
@@ -123,13 +171,11 @@ export function recordTraffic(): RecordedTraffic {
           oldest.reject(new TypeError("Failed to fetch"));
         } else {
           oldest.resolve(
-            new Response(JSON.stringify(answer.body), {
-              status: answer.status,
-              headers: {
-                "content-type": "application/json",
-                ...answer.headers,
-              },
-            }),
+            responseOf(
+              answer.status,
+              JSON.stringify(answer.body),
+              answer.headers,
+            ),
           );
         }
         await nextMacrotask();
@@ -137,6 +183,12 @@ export function recordTraffic(): RecordedTraffic {
     },
   };
   vi.stubGlobal("fetch", (url: string, init?: RequestInit) => {
+    if (url === SESSION_URL || url === PROFILE_URL) {
+      traffic.accountReads.push(url);
+      return answerNow(
+        url === SESSION_URL ? traffic.account.session : traffic.account.profile,
+      );
+    }
     if (
       url === CONTACT_SUBMISSIONS_ENDPOINT &&
       typeof init?.body === "string"
@@ -152,6 +204,27 @@ export function recordTraffic(): RecordedTraffic {
     });
   });
   return traffic;
+}
+
+function answerNow(answer: ServerAnswer): Promise<Response> {
+  if (answer === "network-failure") {
+    return Promise.reject(new TypeError("Failed to fetch"));
+  }
+  return Promise.resolve(
+    responseOf(answer.status, JSON.stringify(answer.body), answer.headers),
+  );
+}
+
+/** A response as the routes send one: JSON by its declared type, whatever the text is. */
+export function responseOf(
+  status: number,
+  text: string,
+  headers: Record<string, string> = {},
+): Response {
+  return new Response(text, {
+    status,
+    headers: { "content-type": "application/json", ...headers },
+  });
 }
 
 type ElementKind<T extends HTMLElement> = abstract new (

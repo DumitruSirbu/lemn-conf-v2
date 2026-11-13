@@ -72,6 +72,7 @@ import {
   elementIn,
   MESSAGES,
   mountContactScreen,
+  recordTraffic,
   type MountedScreen,
   type ScreenLocale,
 } from "./contact-screen-harness";
@@ -121,6 +122,7 @@ beforeEach(() => {
   webgl.state = "supported";
   submissionHook.calls = 0;
   consoleError = vi.spyOn(console, "error");
+  recordTraffic();
 });
 
 afterEach(() => {

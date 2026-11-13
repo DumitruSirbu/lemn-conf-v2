@@ -83,10 +83,15 @@ function holdAnUnsavedEditOfThisDesign(): void {
 beforeEach(() => {
   webgl.state = "probing";
   consoleError = vi.spyOn(console, "error");
+  // The form reads who is signed in on mount; a visitor's answer keeps that read out of the console.
+  vi.stubGlobal("fetch", () =>
+    Promise.resolve(Response.json({ state: "anonymous" })),
+  );
 });
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe("hydrating the contact page of a sent kitchen", () => {

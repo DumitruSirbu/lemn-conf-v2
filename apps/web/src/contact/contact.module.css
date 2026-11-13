@@ -379,6 +379,12 @@
   color: var(--ink);
 }
 
+.profileFillLine {
+  composes: sentence;
+  color: var(--ink-muted);
+  overflow-wrap: anywhere;
+}
+
 .refusal {
   composes: sentence;
   padding-inline-start: 10px;

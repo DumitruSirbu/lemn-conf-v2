@@ -13,7 +13,7 @@ import { NO_REFERRER_POLICY } from "../send-account-request";
 // Only a definite answer is kept. A request that failed shows as anonymous, which grants less, but is asked again by the
 // next control to mount: a flaky network must not leave a signed-in person looking signed out until they reload.
 
-const SESSION_ENDPOINT = "/api/account/session";
+export const SESSION_ENDPOINT = "/api/account/session";
 
 /** The capability only a client holds (ADR 0172 D7): a session without it is staff's. */
 const CLIENT_CAPABILITY: Capability = "design.read.own";

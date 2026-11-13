@@ -14,8 +14,8 @@ import {
 } from "../../../support/account-world";
 import { signedInAs } from "../../../support/staff-world";
 import {
-  bodyOf,
-  callbackBodyOf,
+  bodyNamingTheSubmitter,
+  callbackBodyNamingTheSubmitter,
   wireOf,
 } from "../../../lib/server/contact/submit-contact-harness";
 
@@ -153,7 +153,10 @@ describe("a session that is no longer live fills nothing and the answer is the v
     const { account, session } = await signedInAs({ role: "client" });
     world.advance(THIRTY_ONE_DAYS_MS);
 
-    const answer = await post({ body: bodyOf() }, session.cookie);
+    const answer = await post(
+      { body: bodyNamingTheSubmitter() },
+      session.cookie,
+    );
 
     expect(answer.status).toBe(200);
     expect(callsOf("accounts.fillProfileBlanks")).toEqual([]);
@@ -168,7 +171,10 @@ describe("a session that is no longer live fills nothing and the answer is the v
       passwordHash: `$argon2id$v=19$m=19456,t=2,p=1$${"C".repeat(22)}$${"D".repeat(43)}`,
     });
 
-    const answer = await post({ body: bodyOf() }, session.cookie);
+    const answer = await post(
+      { body: bodyNamingTheSubmitter() },
+      session.cookie,
+    );
 
     expect(answer.status).toBe(200);
     expect(callsOf("accounts.fillProfileBlanks")).toEqual([]);
@@ -181,7 +187,12 @@ describe("what a request does with the session and the accounts, exactly (W2a-9,
     const { account, session } = await signedInAs({ role: "client" });
     world.calls.length = 0;
 
-    const answer = await post({ body: bodyOf() }, session.cookie);
+    const answer = await post(
+      {
+        body: bodyNamingTheSubmitter({ profileAccountEmail: account.email }),
+      },
+      session.cookie,
+    );
 
     expect(answer.status).toBe(200);
     expect(callsOf("sessions.")).toEqual(["sessions.findLive"]);
@@ -191,10 +202,17 @@ describe("what a request does with the session and the accounts, exactly (W2a-9,
   });
 
   it("a callback by a confirmed client does the same and nothing more", async () => {
-    const { session } = await signedInAs({ role: "client" });
+    const { account, session } = await signedInAs({ role: "client" });
     world.calls.length = 0;
 
-    await post({ body: callbackBodyOf() }, session.cookie);
+    await post(
+      {
+        body: callbackBodyNamingTheSubmitter({
+          profileAccountEmail: account.email,
+        }),
+      },
+      session.cookie,
+    );
 
     expect(callsOf("sessions.")).toEqual(["sessions.findLive"]);
     expect(callsOf("accounts.")).toEqual(["accounts.fillProfileBlanks"]);
@@ -212,7 +230,7 @@ describe("the account store is reached only by a stored request of a confirmed c
         ? undefined
         : (await signedInAs(caller)).session.cookie;
 
-    const answer = await post({ body: bodyOf() }, cookie);
+    const answer = await post({ body: bodyNamingTheSubmitter() }, cookie);
 
     expect(answer.status).toBe(200);
     expect(fakes.accountStoreAsked).toBe(0);
@@ -220,9 +238,14 @@ describe("the account store is reached only by a stored request of a confirmed c
 
   it("a confirmed client whose account store cannot be made is still answered as sent, with a closed-list line and nothing the failure said", async () => {
     fakes.accountStoreThrows = true;
-    const { session } = await signedInAs({ role: "client" });
+    const { account, session } = await signedInAs({ role: "client" });
 
-    const answer = await post({ body: bodyOf() }, session.cookie);
+    const answer = await post(
+      {
+        body: bodyNamingTheSubmitter({ profileAccountEmail: account.email }),
+      },
+      session.cookie,
+    );
 
     expect(answer.status).toBe(200);
     expect(((await answer.json()) as { status: string }).status).toBe("sent");
@@ -237,23 +260,33 @@ describe("every refusal answers a confirmed client's cookie as it answers no coo
   const REFUSALS: readonly [string, Sent, number][] = [
     [
       "a cross-site request",
-      { body: bodyOf(), headers: { "sec-fetch-site": "cross-site" } },
+      {
+        body: bodyNamingTheSubmitter(),
+        headers: { "sec-fetch-site": "cross-site" },
+      },
       403,
     ],
     [
       "another content type",
-      { body: bodyOf(), headers: { "content-type": "text/plain" } },
+      {
+        body: bodyNamingTheSubmitter(),
+        headers: { "content-type": "text/plain" },
+      },
       415,
     ],
     ["a body past its bound", { body: BIG }, 413],
     ["a body that does not parse", { body: "{{{ not json" }, 400],
     [
       "the honeypot",
-      { body: bodyOf({ honeypot: "http://spam.example" }) },
+      { body: bodyNamingTheSubmitter({ honeypot: "http://spam.example" }) },
       400,
     ],
-    ["the time", { body: bodyOf({ elapsedMs: 10 }) }, 400],
-    ["a schema refusal", { body: bodyOf({ locale: "xx" }) }, 400],
+    ["the time", { body: bodyNamingTheSubmitter({ elapsedMs: 10 }) }, 400],
+    [
+      "a schema refusal",
+      { body: bodyNamingTheSubmitter({ locale: "xx" }) },
+      400,
+    ],
   ];
 
   it.each(REFUSALS)("%s", async (_label, sent, status) => {
@@ -278,8 +311,11 @@ describe("every refusal answers a confirmed client's cookie as it answers no coo
     const { account, session } = await signedInAs({ role: "client" });
     world.calls.length = 0;
 
-    const withCookie = await post({ body: bodyOf() }, session.cookie);
-    const withoutCookie = await post({ body: bodyOf() });
+    const withCookie = await post(
+      { body: bodyNamingTheSubmitter() },
+      session.cookie,
+    );
+    const withoutCookie = await post({ body: bodyNamingTheSubmitter() });
 
     expect(withCookie.status).toBe(409);
     expect(await normalisedWire(withCookie)).toBe(
@@ -294,8 +330,11 @@ describe("every refusal answers a confirmed client's cookie as it answers no coo
     const { account, session } = await signedInAs({ role: "client" });
     world.calls.length = 0;
 
-    const withCookie = await post({ body: bodyOf() }, session.cookie);
-    const withoutCookie = await post({ body: bodyOf() });
+    const withCookie = await post(
+      { body: bodyNamingTheSubmitter() },
+      session.cookie,
+    );
+    const withoutCookie = await post({ body: bodyNamingTheSubmitter() });
 
     expect(withCookie.status).toBe(503);
     expect(await normalisedWire(withCookie)).toBe(
@@ -310,8 +349,11 @@ describe("every refusal answers a confirmed client's cookie as it answers no coo
     const { account, session } = await signedInAs({ role: "client" });
     world.calls.length = 0;
 
-    const withCookie = await post({ body: bodyOf() }, session.cookie);
-    const withoutCookie = await post({ body: bodyOf() });
+    const withCookie = await post(
+      { body: bodyNamingTheSubmitter() },
+      session.cookie,
+    );
+    const withoutCookie = await post({ body: bodyNamingTheSubmitter() });
 
     expect(withCookie.status).toBe(429);
     expect(await normalisedWire(withCookie)).toBe(

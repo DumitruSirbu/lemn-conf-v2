@@ -18,10 +18,12 @@ import { useContent } from "@/i18n/use-content";
 
 import {
   firstInvalidField,
+  shownProfileAccountEmail,
   type ContactFormField,
   type ContactFormState,
   type ContactFormValues,
   type ContactTextField,
+  type ProfileAccount,
 } from "./contact-form-model";
 import {
   ContactOutcome,
@@ -95,6 +97,8 @@ function createFieldRefs(): FieldRefs {
 
 export interface ContactFormProps {
   readonly submission: ContactSubmission;
+  /** The account whose profile the form was filled from, once read: the line says missing details are saved to it. */
+  readonly profileAccount: ProfileAccount | undefined;
   /** The line over the call to action while a request is out; it differs for a request with no design. */
   readonly sendingLine: string;
   /** The way to the review that fetches it, for the answers that send the customer there. */
@@ -107,6 +111,7 @@ export interface ContactFormProps {
 
 export function ContactForm({
   submission,
+  profileAccount,
   sendingLine,
   reviewLink,
   editorLink,
@@ -138,6 +143,7 @@ export function ContactForm({
       <div className={styles.body} inert={isSending} data-dimmed={isSending}>
         {children}
         <Fields form={shownForm} edit={edit} fieldRefs={fieldRefs} />
+        <ProfileFillLine account={profileAccount} form={form} />
       </div>
       <PinnedRegion
         submission={submission}
@@ -163,6 +169,25 @@ function useFocusRefusedField(
     const block = input.closest("[data-field-block]") ?? input;
     block.scrollIntoView({ block: "nearest" });
   }, [refusedPress, fieldRefs]);
+}
+
+/** One line, once the profile is known to have a blank this request would fill: it names the account by its address, so
+ *  a customer who shares the device sees whose profile the details go to, and the request names the same address. */
+function ProfileFillLine({
+  account,
+  form,
+}: {
+  readonly account: ProfileAccount | undefined;
+  readonly form: ContactFormState;
+}) {
+  const content = useContent();
+  const email = shownProfileAccountEmail(account, form);
+  if (email === undefined) return null;
+  return (
+    <p className={styles.profileFillLine} data-testid="contact-profile-fill">
+      {content.contact.fillNotice(email)}
+    </p>
+  );
 }
 
 interface FieldsProps {
