@@ -7,7 +7,9 @@ import { endonymOf } from "@/i18n/locale-endonyms";
 import { routing, type AppLocale } from "@/i18n/routing";
 import { useAccountShellCopy } from "@/i18n/use-content";
 
+import { accountPathOf, startPathOf, type AccountPage } from "./account-paths";
 import styles from "./account.module.css";
+import { AccountControl } from "./session/account-control";
 import { useToastClearance } from "./use-toast-clearance";
 
 // The frame of every account page: the phone's header and the desktop's card, and the pieces a page lays out inside it.
@@ -16,26 +18,7 @@ import { useToastClearance } from "./use-toast-clearance";
 // policy and a nonce the new page's script does not hold. The site's shared start link, language menu and router link
 // are all soft navigations, so none is used here.
 
-/** The account pages that have a counterpart in the other language, as the path segment each is served under. */
-export type AccountPage =
-  | "register"
-  | "login"
-  | "forgot-password"
-  | "verify-email"
-  | "reset-password"
-  | "kitchens"
-  | "profile"
-  | "password"
-  | "export";
-
-export function accountPathOf(locale: AppLocale, page: AccountPage): string {
-  return `/${locale}/account/${page}`;
-}
-
-/** The start of the configurator in this language: where "back to the configurator" leads. */
-export function startPathOf(locale: AppLocale): string {
-  return `/${locale}`;
-}
+export { accountPathOf, startPathOf, type AccountPage };
 
 export interface AccountShellProps {
   readonly locale: AppLocale;
@@ -48,6 +31,9 @@ export interface AccountShellProps {
   /** A page of content that needs the desktop's width (the kitchens grid) takes the full-width frame instead of the
    *  440 px card. On a phone the two are the same. */
   readonly isWide?: boolean;
+  /** The signed-in person's profile icon and menu in the header, for a page that holds their data. Left out, the header
+   *  has no account control. */
+  readonly hasAccountControl?: boolean;
   readonly children: ReactNode;
 }
 
@@ -56,6 +42,7 @@ export function AccountShell({
   page,
   headerTitle,
   isWide = false,
+  hasAccountControl = false,
   children,
 }: AccountShellProps) {
   const copy = useAccountShellCopy();
@@ -75,6 +62,13 @@ export function AccountShell({
             <span className={styles.navTitle}>{headerTitle}</span>
           </>
         )}
+        {hasAccountControl ? (
+          <AccountControl
+            cellClassName={styles.navAccount ?? ""}
+            signInForm="icon"
+            afterSignOut="leave-for-start"
+          />
+        ) : null}
         {page === undefined ? null : (
           <nav className={styles.localeNav} aria-label={copy.localeMenu}>
             {otherLocalesThan(locale).map((other) => (

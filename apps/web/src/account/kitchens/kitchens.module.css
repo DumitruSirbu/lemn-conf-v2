@@ -405,6 +405,13 @@
   gap: 10px;
 }
 
+/* A zero basis keeps the acts on one line at phone width, where two 200 px bases would wrap; a long label wraps inside
+ * its button instead. The element selector outranks the dialog button's own single-class `flex`. */
+.shareActions > button {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
 .shareLinkBlock {
   display: flex;
   flex-direction: column;

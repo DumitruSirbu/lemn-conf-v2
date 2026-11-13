@@ -190,11 +190,13 @@ function ShareBody({
               {copy.share.stopped}
             </p>
           ) : null}
-          <ShareAction
-            label={copy.share.create}
-            buttonRef={primaryRef}
-            onPress={share.create}
-          />
+          <div className={styles.shareActions}>
+            <ShareAction
+              label={copy.share.create}
+              buttonRef={primaryRef}
+              onPress={share.create}
+            />
+          </div>
         </>
       );
     case "active":
@@ -219,12 +221,21 @@ function ShareBody({
     case "just-issued":
       return (
         <>
-          <IssuedLink share={share} path={state.path} primaryRef={primaryRef} />
-          <ShareAction
-            label={copy.share.stop}
-            tone="destructive"
-            onPress={onAskStop}
-          />
+          <IssuedLink share={share} path={state.path} />
+          <div className={styles.shareActions}>
+            <ShareAction
+              label={state.copied ? copy.share.copied : copy.share.copy}
+              buttonRef={primaryRef}
+              onPress={() => {
+                share.copy(state.path);
+              }}
+            />
+            <ShareAction
+              label={copy.share.stop}
+              tone="destructive"
+              onPress={onAskStop}
+            />
+          </div>
           <p className={styles.shareCaption}>{copy.share.shownOnce}</p>
         </>
       );
@@ -232,29 +243,28 @@ function ShareBody({
       return (
         <>
           <FormNotice tone="error">{copy.share.error}</FormNotice>
-          <ShareAction
-            label={kit.retry}
-            buttonRef={primaryRef}
-            onPress={share.retryFailedOperation}
-          />
+          <div className={styles.shareActions}>
+            <ShareAction
+              label={kit.retry}
+              buttonRef={primaryRef}
+              onPress={share.retryFailedOperation}
+            />
+          </div>
         </>
       );
   }
 }
 
-/** The link just made, in a field to select and a button to copy it. It is a read-only field and never an anchor, so
- *  nothing can prefetch it or record it in history. */
+/** The link just made, in a read-only field to select. It is never an anchor, so nothing can prefetch it or record it
+ *  in history. Its actions are the row below it: a button stretched inside this column would take its height. */
 function IssuedLink({
   share,
   path,
-  primaryRef,
 }: {
   readonly share: ShareLink;
   readonly path: string;
-  readonly primaryRef: RefObject<HTMLButtonElement | null>;
 }) {
   const copy = useAccountKitchensCopy();
-  const isCopied = share.state.kind === "just-issued" && share.state.copied;
   return (
     <div className={styles.shareLinkBlock}>
       <label className={styles.shareLinkLabel}>
@@ -268,13 +278,6 @@ function IssuedLink({
           onFocus={selectFieldContents}
         />
       </label>
-      <ShareAction
-        label={isCopied ? copy.share.copied : copy.share.copy}
-        buttonRef={primaryRef}
-        onPress={() => {
-          share.copy(path);
-        }}
-      />
     </div>
   );
 }

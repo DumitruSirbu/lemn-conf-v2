@@ -577,6 +577,17 @@
   margin-inline-start: auto;
 }
 
+/* The profile icon, where a page asks for it: it takes the free space, so the language chip stands beside it at the end. */
+.navAccount {
+  display: flex;
+  flex: 0 0 auto;
+  margin-inline-start: auto;
+}
+
+.navAccount + .localeNav {
+  margin-inline-start: 0;
+}
+
 .localeChip {
   display: flex;
   align-items: center;
