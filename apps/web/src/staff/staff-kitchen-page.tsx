@@ -249,14 +249,6 @@ function ReadyKitchen({
       <SeenNotice mark={seenMark} />
       <div className={styles.columns}>
         <div className={styles.viewCell}>
-          {/* A page with no version switch has one readable copy, so the link names none. */}
-          {shown === undefined ? null : (
-            <OpenIn3dLink
-              locale={locale}
-              kitchenId={kitchen.id}
-              version={versionLabels === undefined ? undefined : shownVersion}
-            />
-          )}
           {versionLabels === undefined ? null : (
             <KitchenVersionSwitch
               shown={shownVersion}
@@ -272,6 +264,15 @@ function ReadyKitchen({
               isCurrentVariantOfSent={
                 shown.source === "current" && wire.request !== null
               }
+            />
+          )}
+          {/* A page with no version switch has one readable copy, so the link names none. It sits under the
+          picture so the three columns start level. */}
+          {shown === undefined ? null : (
+            <OpenIn3dLink
+              locale={locale}
+              kitchenId={kitchen.id}
+              version={versionLabels === undefined ? undefined : shownVersion}
             />
           )}
           {versions === undefined || versionLabels === undefined ? null : (
