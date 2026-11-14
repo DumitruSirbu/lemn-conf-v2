@@ -3502,3 +3502,20 @@ view rows to the audit log. No data leaves.
 - (b) Defer the fetch behind a button when the page load's `Sec-Fetch-Site` is `cross-site`.
 
 **Owner:** unassigned. It applies to the detail page that shipped before M11.
+
+## 310. Two image-header readers: fold the preset's onto the domain's — RECORDED 2026-11-14 (M11 W4a clean-code review); LOW
+
+**Observed (relayed from the review; not re-read by the scribe).** `apps/web/src/lib/server/preset/thumbnail-check.ts` and
+`packages/configurator-domain/src/design/image-header.ts` both read image headers. A fix to one does not reach the other.
+The preset reader has no animation check.
+
+**To do.** Fold the preset path onto the domain reader. **Open question for the owner or coordinator:** may the preset
+path refuse an animated PNG (it accepts one today, by inference from the missing check)? Schedule before W4b adds a third
+consumer, if practical. **Owner:** unassigned.
+
+## 311. Account erasure must remove design thumbnails — RECORDED 2026-11-14 (M11 W4a security review)
+
+**Obligation.** Account erasure is deferred (ADR 0172). When built, it must hard-delete **every** design of the account,
+including client-deleted and hidden ones, or delete `design_thumbnails` rows explicitly. Migration `0030`'s foreign key is
+`on delete cascade` from `designs (id)`, so a hard delete removes the row. Its test must assert that **no thumbnail row
+remains** for the account. **Owner:** the account-erasure wave (not scheduled).

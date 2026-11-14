@@ -1,8 +1,13 @@
 # ADR 0181 — A kitchen card's thumbnail is captured in the editor after a save, stored in its own table for the current revision, and served privately to its owner
 
 Status: **Accepted** (2026-11-13), after the owner's rulings and the security read; see *Acceptance, 2026-11-13* at the
-end. Proposed the same day. Nothing is built; migration `0030` does not exist yet and will be **unapplied anywhere**
-when written.
+end. Proposed the same day. **Status of the build, 2026-11-14 [relayed from the coordinator; the scribe ran nothing]:**
+W4a (the table, migration `0030`, the store and the image check) is implemented and **uncommitted**, pending the review
+round's fixes ([M11 plan §15](../milestones/M11-owner-feedback-2026-11-07.md)); W4b and W4c are not built.
+**Update 2026-11-14 [coordinator-run, relayed]:** `0030` and its two grants are **applied on preview
+(`lemn-conf-v2-preview`) and production (`lemn-conf-v2`)**, and the privilege test as `app_designs` passed on each (55
+passed, 0 skipped); the record is in the `0030` section of the
+[runbook](../runbooks/applying-a-table-migration-and-its-application-role-grant.md).
 Date: 2026-11-13
 Type: Decision record (storage, data path, capture)
 Milestone: M11 — [`M11-owner-feedback-2026-11-07.md`](../milestones/M11-owner-feedback-2026-11-07.md), waves W4a, W4b, W4c
@@ -71,6 +76,11 @@ save path has **confirmed** a saved revision; and the design belongs to an accou
 answer). Nothing is captured on the review, contact, done, share, staff or room screens, and nothing for a visitor's
 design with no account. A capture never delays, blocks or fails a save. The comment at
 `scene-capture-registration.ts:48-51` is corrected in W4b to say what is true.
+
+*Note, 2026-11-14 (W4a review round, clean-code and security; relayed).* "A capture never delays, blocks or fails a save"
+refers to the **client trigger**: the editor's capture and upload never hold up the save. On the server, the upload's
+write statement takes a short `for share` lock on the design row, so a concurrent save of the same design may wait for
+that one statement's duration. Accepted.
 
 ### d2. Throttled, newest revision wins [inf, the ruling's unaddressed half]
 
@@ -192,6 +202,17 @@ it). Whatever hard-deletes a design row removes its picture through the cascade.
 - **ADR 0172 D9 and Amendment H O1 (2026-10-20)** — the save credential; autosave only. Used by d1, d2, d5.
 - **ADR 0020, ADR 0042 Amendment A (2026-11-12)** — a migration file is not an applied migration; the ledger. The
   migration and grant are owner steps on preview and production before W4c ships.
+  **Corrected 2026-11-14 (W4a review round):** "before W4c ships" was wrong. W4a's client delete (`markDeleted`, its
+  `removed` CTE) names `design_thumbnails`, so the migration and the `DELETE` grant are owed **before any push or merge
+  that contains W4a**: preview before the push, production before the merge. Without them every client kitchen delete
+  fails (the route answers unavailable; the transaction rolls back, no data is harmed). The push is a preview deploy and
+  the merge a production deploy through Vercel's Git integration (`.github/workflows/deploy.yml` header; preview deploys
+  and local development share the preview database, ADR 0054). [Source-verified by the developer in
+  `neon-account-kitchen-store.ts`; relayed. The Vercel project settings were not checked: inference.]
+  **Discharged 2026-11-14 [coordinator-run, relayed]:** `0030` and the two grants (`SELECT, INSERT, DELETE` and
+  `UPDATE (revision, image, image_type, captured_at)`) were applied on preview and then production, each followed by the
+  privilege test as `app_designs` (55 passed, 0 skipped on each). Nothing on `designs` changed. Both obligations above are
+  met; evidence in the runbook's "Recorded result, 2026-11-14".
 - **ADR 0156 (2026-10-10)** — writes fail closed, reads fail open; subjects come from two constructors. d5's and d6's
   buckets.
 - **ADR 0012** — the nightly export is a scoped select of `designs`; thumbnails are not in it, and a restored database

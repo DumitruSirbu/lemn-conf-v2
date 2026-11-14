@@ -739,8 +739,9 @@ Q2 refill, no mark and no migration; Q3 pre-approved as drafted. The third round
 - An ADR 0104 amendment for frame A9A's departure (W1a), pointing at the `docs/design/README.md` note.
 - ~~Index rows for ADRs 0179, 0180, 0181 in `docs/decisions/README.md`~~ — added 2026-11-13 with rows 0175 to 0178,
   which were missing.
-- The runbook section for `0030` and its grant; the owner applies both on preview, then production, before W4c ships
-  (ADR 0020).
+- The runbook section for `0030` and its grant; the owner applies both on preview, then production, **before any push
+  or merge that contains W4a** (preview before the push, production before the merge; ADR 0020). *Corrected 2026-11-14:
+  this said "before W4c ships"; W4a's client delete already names the table. See §15.*
 - The owner's check that the `0012` and `0017` grants hold on preview and production (R3).
 - `docs/STATUS.md`: the M11 row and *What to do next* (the security read is done; W2 to W4 are dispatchable).
 - ~~ADRs 0179 to 0181 move from Proposed to Accepted only after their security reads~~ — Accepted 2026-11-13 (§10).
@@ -865,3 +866,35 @@ intent, which is that one account's details never fill another account's profile
   the failure screen (5B) shows. When it does, 5B gives way to the form, and focus goes to the first empty required
   field. ADR 0160 d2's promise that "nothing is asked again" was made to the previous account, so it does not carry
   over to a different person. Retry from 5B is never a dead press.
+
+## 15. W4a QA and review round, 2026-11-14 [relayed from the QA and the reviewers; coordinator; the scribe ran nothing]
+
+W4a (ADR 0181: `design_thumbnails`, migration `0030`, the store, the image check) is implemented and **not committed**;
+fixes from this round are in progress.
+
+**QA defects, fixed:**
+- A gap in the fake store's composition (the fake did not compose as the real store does).
+- An unknown credential kind failed open; it now fails closed.
+
+**Review findings and rulings:**
+- **Clean-code.** A module-level hidden `Set` in the fake is replaced by an injected `hideThumbnailOf`.
+- **Security F3.** The store now calls `checkDesignThumbnail`, so the image check holds at the store, not only at a route.
+- **Lock.** The short `for share` lock may delay a concurrent save of the same design by the statement's duration.
+  Accepted. ADR 0181 d1's "never delays a save" refers to the client trigger; a note to that effect is added to d1.
+- **Image-header duplication.** The preset reader and the domain reader duplicate header parsing. Deferred to backlog 310.
+- **Erasure.** Account erasure must remove thumbnails of deleted and hidden designs too. Deferred to backlog 311.
+
+**Deploy dependency moved from W4c to W4a (correction).** W4a's `markDeleted` (`removed` CTE in
+`packages/persistence/src/neon-account-kitchen-store.ts`) names `design_thumbnails`. On any database without `0030` and
+its `DELETE` grant, every client kitchen delete fails (`42P01` or `42501`; the route answers unavailable; the transaction
+rolls back, no data harm). Pushing this branch creates a Vercel preview deploy; merging to `main` deploys production
+(inference: Vercel project settings not checked). So the migration and grant are owed on preview **before the push** and
+on production **before the merge**. ADR 0181's Sweep, §9 above and the `0030` runbook section are corrected.
+
+**Rollout done, 2026-11-14 [coordinator-run at the owner's instruction; relayed, the scribe ran nothing].** `0030` was
+applied on preview (`lemn-conf-v2-preview`) and production (`lemn-conf-v2`), each "29 already applied" before and level
+after; the test database was already at 30. The table matched on both (5 columns; c = 3, f = 1, p = 1; cascading FK to
+`designs`), `pg_default_acl` reached neither `app_designs` nor `PUBLIC`, pre-grant probes were all false, the two runbook
+grants were issued, and the post-grant probes read as specified. The privilege test as `app_designs` passed on each
+(55 passed, 0 skipped). Nothing on `designs` changed. The push hold is discharged; the record is in the runbook's `0030`
+section.

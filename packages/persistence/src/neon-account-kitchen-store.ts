@@ -62,7 +62,7 @@ type MarkVerdict = "marked" | "conflict" | "none";
  * `exportAll` reads, and also lists a hidden kitchen, which every other read leaves out. The statements write only
  * `name` (rename), the two marks, `design_share_links.revoked_at`, and a new row
  * (duplicate). None writes `document`, `revision`, `updated_at`, `write_token_hash`, `visitor_hash` or `account_id` of
- * an existing row, and none deletes.
+ * an existing row. Only `markDeleted` deletes, and only the deleted kitchen's `design_thumbnails` row.
  */
 export class NeonAccountKitchenStore implements AccountKitchenStore {
   private readonly sql;
@@ -329,9 +329,10 @@ export class NeonAccountKitchenStore implements AccountKitchenStore {
   }
 
   /**
-   * Deletes an unsent kitchen from its owner's list and revokes its active share link in one atomic step (see
-   * `markAndRevoke`). Only an unsent kitchen can be deleted; a sent one answers `sent`, to its owner only. The row
-   * stays: the application role holds no `DELETE`.
+   * Deletes an unsent kitchen from its owner's list, revokes its active share link and deletes its card thumbnail in one
+   * atomic step (see `markAndRevoke`). Only an unsent kitchen can be deleted; a sent one answers `sent`, to its owner
+   * only, and keeps its picture. The design row stays: the application role holds no `DELETE` on `designs`. Needs the
+   * `design_thumbnails` table and its `DELETE` grant (migration `0030`): without them every delete fails.
    */
   async markDeleted({
     accountId,
@@ -351,6 +352,10 @@ export class NeonAccountKitchenStore implements AccountKitchenStore {
           update design_share_links set revoked_at = now()
           where design_id in (select id from marked) and revoked_at is null
           returning token_hash
+        ), removed as (
+          delete from design_thumbnails
+          where design_id in (select id from marked)
+          returning design_id
         )
         select
           exists (select 1 from marked) as is_marked,

@@ -216,6 +216,8 @@ export * from "./preset/preset-name-facts.js";
 // Amendment A), and the text Postgres cannot hold.
 export * from "./preset/preset-limits.js";
 export * from "./preset/preset-name-rule.js";
+// The size, closed type list and header check of a kitchen card's thumbnail (ADR 0181 d3, d4).
+export * from "./design/thumbnail-limits.js";
 export { isUnstorableText } from "./unstorable-text.js";
 // Which presets a room is offered, each adapted to it once (ADR 0109 Amendments A2 to E). Named,
 // not `export *`: the world, the subtraction and the refill are internal to the one evaluation, so no second caller

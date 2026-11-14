@@ -340,6 +340,8 @@ status corrections, in one of these two files:
 | 307 | Persistence live files ~40% slower in three weeks; exclusive files are a serial floor | open.md — recorded 2026-11-12 |
 | 308 | Account header stays operable while a dialog or the profile menu is open | open.md — recorded 2026-11-13 (M11 W1); owner: fix later |
 | 309 | Cross-site popup can spend a staff member's kitchen-opening budget (no COOP) | open.md — recorded 2026-11-13 (M11 W3b security); low |
+| 310 | Two image-header readers (preset and domain): fold the preset's onto the domain's; animated-PNG question | open.md — recorded 2026-11-14 (M11 W4a clean-code review); low |
+| 311 | Account erasure must remove design thumbnails (hard-delete every design, or delete the rows); test asserts none remain | open.md — recorded 2026-11-14 (M11 W4a security review); obligation on the deferred erasure wave |
 
 *Notes at the 8J2, 8U and 8V close (2026-10-17) on existing entries:* 145 (facing-labels flaky again), 160 (closed), 232 (the non-live recipe does not hold) carry dated notes in `open.md`.
 
