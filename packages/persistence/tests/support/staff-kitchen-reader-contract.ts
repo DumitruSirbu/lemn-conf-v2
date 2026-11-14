@@ -987,7 +987,7 @@ export function describeStaffKitchenReaderContract(
   });
 
   describe(`${suiteName}: the latest request and the kitchen as sent`, () => {
-    it("shows the reference and the date of the newest request only", async () => {
+    it("shows the date of the newest request only, and no reference", async () => {
       const world = await newWorld();
       const client = await world.aClient();
       const era = world.nextEra();
@@ -996,14 +996,8 @@ export function describeStaffKitchenReaderContract(
         sentAt: at(era, 1),
         updatedAt: at(era, 1),
       });
-      const older = await world.aRequest({
-        designId: kitchen,
-        createdAt: at(era, 1),
-      });
-      const newer = await world.aRequest({
-        designId: kitchen,
-        createdAt: at(era, 5),
-      });
+      await world.aRequest({ designId: kitchen, createdAt: at(era, 1) });
+      await world.aRequest({ designId: kitchen, createdAt: at(era, 5) });
       await world.aRequest({
         designId: await world.aKitchen({ client, updatedAt: at(era, 9) }),
         createdAt: at(era, 9),
@@ -1011,11 +1005,8 @@ export function describeStaffKitchenReaderContract(
 
       const detail = await foundKitchen(world, kitchen);
 
-      expect(detail.request).toEqual({
-        reference: newer.reference,
-        sentAt: at(era, 5),
-      });
-      expect(detail.request?.reference).not.toBe(older.reference);
+      expect(detail.request).toEqual({ sentAt: at(era, 5) });
+      expect(Object.keys(detail.request ?? {})).toEqual(["sentAt"]);
     });
 
     it("breaks a tie between two requests of one time by request id, larger first", async () => {
@@ -1028,21 +1019,25 @@ export function describeStaffKitchenReaderContract(
         updatedAt: at(era, 1),
       });
       const instant = at(era, 3);
-      const smaller = await world.aRequest({
+      await world.aRequest({
         designId: kitchen,
         createdAt: instant,
         clientRequestId: `${world.idPrefix}AAAAAA`,
+        pricedTotal: { totalMinor: 100_000, currency: "MDL" },
       });
-      const larger = await world.aRequest({
+      await world.aRequest({
         designId: kitchen,
         createdAt: instant,
         clientRequestId: `${world.idPrefix}BBBBBB`,
+        pricedTotal: { totalMinor: 200_000, currency: "MDL" },
       });
 
       const detail = await foundKitchen(world, kitchen);
 
-      expect(detail.request?.reference).toBe(larger.reference);
-      expect(detail.request?.reference).not.toBe(smaller.reference);
+      expect(detail.sentTotal).toEqual({
+        totalMinor: 200_000,
+        currency: "MDL",
+      });
     });
 
     it("has no request for a kitchen nobody asked about", async () => {

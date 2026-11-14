@@ -294,11 +294,9 @@ function requestFrom(
   raw: unknown,
 ): { readonly value: StaffKitchenRequestWire | null } | undefined {
   if (raw === null) return { value: null };
-  const reference = ownValueOf(raw, "reference");
   const sentAt = ownValueOf(raw, "sentAt");
-  if (typeof reference !== "string" || reference === "") return undefined;
   if (!isInstant(sentAt)) return undefined;
-  return { value: { reference, sentAt } };
+  return { value: { sentAt } };
 }
 
 function statusFrom(

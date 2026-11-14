@@ -90,7 +90,7 @@ function detailWith(overrides: Partial<Detail>): Detail {
     sentAt: SENT,
     updatedAt: UPDATED,
     client: CLIENT,
-    request: { reference: "LEM-2026-0417", sentAt: SENT },
+    request: { sentAt: SENT },
     sentTotal: null,
     status: { value: "contacted", change: { by: STAFF, at: CHANGED } },
     notes,
@@ -139,10 +139,7 @@ describe.each(VARIANTS)("the route's answer for %s", (_, overrides) => {
     expect(kitchen?.request).toEqual(
       detail.request === null
         ? null
-        : {
-            reference: detail.request.reference,
-            sentAt: detail.request.sentAt.toISOString(),
-          },
+        : { sentAt: detail.request.sentAt.toISOString() },
     );
     expect(kitchen?.status).toEqual(
       detail.status === null

@@ -130,19 +130,71 @@
   min-width: 0;
 }
 
+.linkCell {
+  margin-top: 16px;
+}
+
+.linkAddress {
+  padding: 10px 12px;
+  margin: 0;
+  font: 400 13px/1.45 var(--font-ui);
+  color: var(--ink);
+  text-align: left;
+  overflow-wrap: anywhere;
+  user-select: all;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+.linkActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.linkCopy,
 .open3d {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   min-height: var(--touch-target);
-  margin-top: 8px;
+  padding: 0 16px;
   font: 700 14px/1 var(--font-ui);
-  color: var(--accent);
   text-decoration: none;
+  cursor: pointer;
+  border-radius: 10px;
 }
 
+.linkCopy {
+  color: var(--accent);
+  background: var(--surface);
+  border: 1.5px solid var(--accent);
+}
+
+.open3d {
+  color: var(--paper);
+  background: var(--accent);
+  border: 1.5px solid var(--accent);
+}
+
+.linkCopy:focus-visible,
 .open3d:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--accent-strong);
   outline-offset: 2px;
+}
+
+.linkOutcome {
+  margin: 0;
+  font: 700 12.5px/1.45 var(--font-ui);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.linkOutcome:not(:empty) {
+  margin-top: 6px;
 }
 
 .contactColumn {
@@ -338,14 +390,6 @@
 .factSub {
   font: 400 12px/1.35 var(--font-ui);
   color: var(--ink-muted);
-}
-
-.requestLine {
-  margin: 0;
-  font: 400 14px/1.45 var(--font-ui);
-  color: var(--ink);
-  overflow-wrap: anywhere;
-  unicode-bidi: isolate;
 }
 
 .hint {

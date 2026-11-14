@@ -477,10 +477,7 @@ function requestWireOf(
   request: StaffKitchenRequest | null,
 ): StaffKitchenRequestWire | null {
   if (request === null) return null;
-  return {
-    reference: request.reference,
-    sentAt: request.sentAt.toISOString(),
-  };
+  return { sentAt: request.sentAt.toISOString() };
 }
 
 function statusWireOf(

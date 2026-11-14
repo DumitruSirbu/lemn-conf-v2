@@ -415,10 +415,8 @@ describe("what the answer holds", () => {
       name: client.name,
       phone: client.phone,
     });
-    expect(body.request).toEqual({
-      reference: "LM-2026-0042",
-      sentAt: SENT_AT.toISOString(),
-    });
+    expect(body.request).toEqual({ sentAt: SENT_AT.toISOString() });
+    expect(JSON.stringify(body)).not.toContain("LM-2026-0042");
     expect(body.status).toEqual({
       value: "contacted",
       changedBy: { email: staff.account.email, name: "Operator Name" },

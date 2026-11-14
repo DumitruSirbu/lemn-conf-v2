@@ -90,7 +90,12 @@ test("a sent kitchen opens in three columns, with the request, the client, the t
   await expect(page.getByTestId("staff-notes-count")).toHaveText(
     romanian("staffNotes.count", { count: PLANTED_NOTES.length }),
   );
-  await expect(page.getByTestId("staff-kitchen-request")).toContainText("FX-");
+  await expect(page.getByTestId("staff-kitchen-request")).toContainText(
+    romanian("staffKitchen.requestContactNote"),
+  );
+  await expect(page.getByTestId("staff-kitchen-request")).not.toContainText(
+    "FX-",
+  );
   await expect(page.getByText(world.client.email).first()).toBeVisible();
   await expect(
     page.getByText(romanian("staffKitchen.accessLogged")),

@@ -281,12 +281,12 @@ describe.each(LOCALES)("the kitchen page in %s", (locale) => {
       expect(has("staff-kitchen-current-variant")).toBe(false);
     });
 
-    it("tells the request by its reference and its day and minute on the shop's clock, and where its contact is", () => {
+    it("tells where the request's contact is, and prints no reference for it", () => {
       const request = textOf("staff-kitchen-request");
 
       expect(request).toContain(words.requestTitle);
-      expect(request).toContain("LEM-2026-0417, 17.10.2026, 14:08");
       expect(request).toContain(words.requestContactNote);
+      expect(request).not.toContain("LEM-2026-0417");
     });
 
     it("shows a status nobody changed as new, with no last change", () => {
@@ -350,6 +350,7 @@ describe.each(LOCALES)("the kitchen page in %s", (locale) => {
       for (const button of allIn(page(), "button")) {
         const isKnown =
           button.closest('[role="group"]') !== null ||
+          button.closest('[data-testid="staff-kitchen-link"]') !== null ||
           button.closest('[data-testid="staff-status-control"]') !== null ||
           button.closest('[data-testid="staff-notes"]') !== null;
         expect(isKnown, button.outerHTML.slice(0, 80)).toBe(true);
@@ -583,7 +584,7 @@ describe.each(LOCALES)("the kitchen page in %s", (locale) => {
     it("keeps the client, the request and the status, and names the kitchen as it was named", () => {
       expect(requireIn(page(), "h1").textContent).toBe("Casa din Orhei");
       expect(textOf("staff-kitchen-profile")).toContain("ana.popescu@mail.md");
-      expect(textOf("staff-kitchen-request")).toContain("LEM-2026-0417");
+      expect(textOf("staff-kitchen-request")).toContain(words.requestTitle);
       expect(textOf("staff-kitchen-status")).toContain(lists.statusOfferSent);
     });
   });

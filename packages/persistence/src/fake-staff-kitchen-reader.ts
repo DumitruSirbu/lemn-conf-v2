@@ -296,10 +296,7 @@ export class FakeStaffKitchenReader implements StaffKitchenReader {
       request:
         latestRequest === undefined
           ? null
-          : {
-              reference: latestRequest.reference,
-              sentAt: latestRequest.createdAt,
-            },
+          : { sentAt: latestRequest.createdAt },
       sentTotal: latestRequest?.pricedTotal ?? null,
       asSent: this.asSentOf(latestRequest),
       status: this.statusOf(kitchen.id, isSent),

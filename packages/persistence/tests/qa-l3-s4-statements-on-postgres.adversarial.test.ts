@@ -712,7 +712,7 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
             isSent: detail.isSent,
             isHidden: detail.isHidden,
             client: detail.client,
-            request: detail.request?.reference ?? null,
+            hasRequest: detail.request !== null,
             status: detail.status?.value ?? null,
             changedBy: detail.status?.change?.by ?? null,
             notes: detail.notes.map((note) => note.text),
@@ -723,7 +723,7 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
           isSent: cell.isSent,
           isHidden: cell.isHidden,
           client: cell.owner === "live" ? clientOf(owner) : null,
-          request: cell.hasRequest ? cell.reference : null,
+          hasRequest: cell.hasRequest,
           status: shownStatusOf(cell),
           changedBy:
             shownStatusOf(cell) !== null && cell.stored !== "absent"

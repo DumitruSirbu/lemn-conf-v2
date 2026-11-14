@@ -122,7 +122,6 @@ function aKitchenRow(overrides: Record<string, unknown> = {}) {
     client_email: null,
     client_name: null,
     client_phone: null,
-    request_reference: null,
     request_ms: null,
     priced_total_minor: null,
     priced_currency: null,
@@ -521,6 +520,12 @@ describe("the statements for one kitchen", () => {
     }
   });
 
+  it("does not select the request's reference, which no screen shows", async () => {
+    const { kitchen } = await sentByFoundReadOne();
+
+    expect(normalised(kitchen)).not.toMatch(/\breference\b/);
+  });
+
   it("reads of the snapshot `priced` the total and the currency alone, as the two text members the statement names, and never the snapshot whole", async () => {
     const { kitchen } = await sentByFoundReadOne();
     const text = normalised(kitchen);
@@ -731,7 +736,7 @@ describe("a reply that is not what the statements name", () => {
     ["a kitchen without a boolean mark", [aKitchenRow({ is_hidden: null })]],
     [
       "a request time that is not milliseconds",
-      [aKitchenRow({ request_reference: "X", request_ms: "soon" })],
+      [aKitchenRow({ request_ms: "soon" })],
     ],
     [
       "a saved status with no one behind it",

@@ -213,7 +213,7 @@ describe.each(LOCALES)("the structure of the page in %s", (locale) => {
       await harness.mount({ locale });
     });
 
-    it("is the way back, the camera chips, the open-in-3D link under the picture, the status select and its button, then the note field and its button, in the order they are drawn, after the frame's own controls", () => {
+    it("is the way back, the camera chips, the copy button and the open-in-3D link of the link card under the picture, the status select and its button, then the note field and its button, in the order they are drawn, after the frame's own controls", () => {
       const container = harness.container();
       const page = requireIn(container, PAGE);
       const everything = allIn(container, FOCUSABLE);
@@ -221,6 +221,7 @@ describe.each(LOCALES)("the structure of the page in %s", (locale) => {
 
       expect(inPage.map((element) => element.tagName)).toEqual([
         "A",
+        "BUTTON",
         "BUTTON",
         "BUTTON",
         "BUTTON",
@@ -234,6 +235,9 @@ describe.each(LOCALES)("the structure of the page in %s", (locale) => {
         CATALOGUES[locale].staffShell.navKitchens,
       );
       expect(inPage[4]?.textContent).toBe(
+        CATALOGUES[locale].staffKitchen.linkCopy,
+      );
+      expect(inPage[5]?.textContent).toBe(
         CATALOGUES[locale].staffKitchen.open3d,
       );
       const [firstControl] = inPage;

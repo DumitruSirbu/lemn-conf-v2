@@ -71,7 +71,6 @@ export interface StaffKitchenListWire {
 }
 
 export interface StaffKitchenRequestWire {
-  readonly reference: string;
   readonly sentAt: string;
 }
 

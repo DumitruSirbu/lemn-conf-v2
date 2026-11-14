@@ -434,19 +434,8 @@ describe.each(LOCALES)(
       await drawEach(everyCombination(["none"]), (combination) => {
         expect(has("staff-kitchen-request")).toBe(combination.hasRequest);
         if (combination.hasRequest) {
-          expect(textOf("staff-kitchen-request")).toContain(
-            say("requestLine", {
-              reference: "LEM-2026-0417",
-              date: new Intl.DateTimeFormat(locale, {
-                day: "2-digit",
-                month: "2-digit",
-                year: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
-                hourCycle: "h23",
-                timeZone: "Europe/Chisinau",
-              }).format(new Date(SENT_AT)),
-            }),
+          expect(textOf("staff-kitchen-request")).not.toContain(
+            "LEM-2026-0417",
           );
           expect(textOf("staff-kitchen-request")).toContain(
             words.requestContactNote,
@@ -526,6 +515,7 @@ describe.each(LOCALES)(
           for (const button of allIn(page, "button")) {
             const isKnown =
               button.closest('[role="group"]') !== null ||
+              button.closest('[data-testid="staff-kitchen-link"]') !== null ||
               button.closest('[data-testid="staff-status-control"]') !== null ||
               button.closest("form") !== null ||
               button.closest('[data-testid="staff-kitchen-hidden-banner"]') !==

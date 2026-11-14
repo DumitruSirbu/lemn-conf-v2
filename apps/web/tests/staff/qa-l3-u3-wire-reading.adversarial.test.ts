@@ -113,11 +113,6 @@ describe("a required member of the wrong kind, at every depth, makes the whole k
     ["client.name", ["client", "name"], [undefined, 4, true, [], {}]],
     ["client.phone", ["client", "phone"], [undefined, 4, true, [], {}]],
     ["request", ["request"], [undefined, "r", 4, true, []]],
-    [
-      "request.reference",
-      ["request", "reference"],
-      [undefined, null, "", 4, true, [], {}],
-    ],
     ["request.sentAt", ["request", "sentAt"], NOT_AN_INSTANT],
     ["status", ["status"], [undefined, "contacted", 4, true, []]],
     ["status.value", ["status", "value"], [undefined, null, 4, true, [], {}]],
@@ -199,7 +194,7 @@ describe("only the two documents are softened", () => {
 
         expect(kitchen?.kitchen[member], JSON.stringify(wrong)).toBeNull();
         expect(kitchen?.client?.email).toBe("ana.popescu@mail.md");
-        expect(kitchen?.request?.reference).toBe("LEM-2026-0417");
+        expect(kitchen?.request?.sentAt).toEqual(expect.any(String));
         expect(kitchen?.status?.value).toBe("contacted");
       }
     },
@@ -313,7 +308,7 @@ describe("instants", () => {
     const kitchen = staffKitchenFrom(
       wireKitchen({
         kitchen: { sentAt: instant, updatedAt: instant },
-        request: { reference: "L", sentAt: instant },
+        request: { sentAt: instant },
         status: {
           value: "closed",
           changedBy: { email: null, name: null },
@@ -354,7 +349,7 @@ describe("instants the server does not write", () => {
     const carried = {
       sentAt: wireKitchen({ kitchen: { sentAt: instant } }),
       updatedAt: wireKitchen({ kitchen: { updatedAt: instant } }),
-      request: wireKitchen({ request: { reference: "L", sentAt: instant } }),
+      request: wireKitchen({ request: { sentAt: instant } }),
       changedAt: wireKitchen({
         status: {
           value: "closed",
@@ -571,10 +566,7 @@ describe("what is handed on is the contract's members and nothing the server add
       "name",
       "phone",
     ]);
-    expect(Object.keys(kitchen?.request ?? {}).sort()).toEqual([
-      "reference",
-      "sentAt",
-    ]);
+    expect(Object.keys(kitchen?.request ?? {}).sort()).toEqual(["sentAt"]);
     expect(Object.keys(kitchen?.status ?? {}).sort()).toEqual([
       "changedAt",
       "changedBy",
@@ -675,7 +667,6 @@ describe("any value at all", () => {
       ["client"],
       ["client", "email"],
       ["request"],
-      ["request", "reference"],
       ["status"],
       ["status", "value"],
       ["status", "changedBy"],
@@ -707,12 +698,21 @@ describe("any value at all", () => {
             kitchen.client === null || typeof kitchen.client.email === "string",
           ).toBe(true);
           expect(
-            kitchen.request === null || kitchen.request.reference !== "",
+            kitchen.request === null ||
+              Object.keys(kitchen.request).join() === "sentAt",
           ).toBe(true);
         },
       ),
       { numRuns: 600 },
     );
+  });
+
+  it("ignores a `reference` an older server still sends, and carries only the request's day", () => {
+    const kitchen = staffKitchenFrom(
+      wireKitchen({ request: { reference: "LEM-2026-0417", sentAt: MOMENT } }),
+    );
+
+    expect(kitchen?.request).toEqual({ sentAt: MOMENT });
   });
 
   it("reads a body whose strings are enormous without losing a character of them", () => {
@@ -722,12 +722,11 @@ describe("any value at all", () => {
       wireKitchen({
         kitchen: { name: huge },
         client: { email: huge, name: huge, phone: huge },
-        request: { reference: huge, sentAt: MOMENT },
+        request: { sentAt: MOMENT },
       }),
     );
 
     expect(kitchen?.kitchen.name?.length).toBe(huge.length);
     expect(kitchen?.client?.phone?.length).toBe(huge.length);
-    expect(kitchen?.request?.reference.length).toBe(huge.length);
   });
 });

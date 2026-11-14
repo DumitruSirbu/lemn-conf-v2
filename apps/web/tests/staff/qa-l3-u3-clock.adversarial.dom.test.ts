@@ -142,7 +142,7 @@ afterEach(() => {
 function wireAt(instant: string): Record<string, unknown> {
   return wireKitchen({
     kitchen: { sentAt: instant },
-    request: { reference: "LEM-1", sentAt: instant },
+    request: { sentAt: instant },
     status: wireChangedStatus("contacted"),
   });
 }
@@ -161,12 +161,12 @@ describe.each(LOCALES)("the dates of the page in %s", (locale) => {
     });
 
     it.each(WALL)(
-      "prints %s as the shop's wall: the request's minute, and the day under the title",
+      "prints %s as the shop's wall: the day under the title, and no date in the request card",
       async (_, instant, minute, day) => {
         harness.answers(() => ({
           body: wireKitchen({
             kitchen: { sentAt: instant },
-            request: { reference: "LEM-1", sentAt: instant },
+            request: { sentAt: instant },
           }),
         }));
 
@@ -174,9 +174,8 @@ describe.each(LOCALES)("the dates of the page in %s", (locale) => {
 
         const page = requireIn(harness.container(), PAGE);
         expect(
-          requireIn(page, '[data-testid="staff-kitchen-request"] p')
-            .textContent,
-        ).toContain(`LEM-1, ${minute}.`);
+          requireIn(page, '[data-testid="staff-kitchen-request"]').textContent,
+        ).not.toContain(minute);
         expect(requireIn(page, "header p").textContent).toContain(`· ${day}`);
       },
     );
@@ -229,12 +228,9 @@ describe.each(LOCALES)("the dates of the page in %s", (locale) => {
 
       await harness.mount({ locale });
 
-      expect(
-        requireIn(
-          harness.container(),
-          '[data-testid="staff-kitchen-request"] p',
-        ).textContent,
-      ).toContain(minute);
+      expect(requireIn(harness.container(), "header p").textContent).toContain(
+        `· ${minute.slice(0, minute.indexOf(","))}`,
+      );
       expect(allIn(harness.container(), "h1")).toHaveLength(1);
     });
   });

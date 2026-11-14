@@ -192,7 +192,7 @@ export function staffKitchenStatement<Statement>(
         8640000000000000
       ))::bigint::text as updated_ms,
       a.id as client_id, a.email as client_email, a.name as client_name, a.phone as client_phone,
-      latest.reference as request_reference, latest.created_ms as request_ms,
+      latest.created_ms as request_ms,
       latest.priced_total_minor, latest.priced_currency,
       sent_copy.schema_version as sent_schema_version, sent_copy.design_document as sent_document,
       s.status as stored_status, s.changed_by_account_id as changed_by_id,
@@ -204,7 +204,7 @@ export function staffKitchenStatement<Statement>(
     from designs d
     left join accounts a on a.id = d.account_id
     left join lateral (
-      select cs.reference, cs.client_request_id, cs.design_revision,
+      select cs.client_request_id, cs.design_revision,
         floor(least(
           greatest(extract(epoch from cs.created_at) * 1000, -8640000000000000),
           8640000000000000

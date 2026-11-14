@@ -90,7 +90,6 @@ function aKitchenRow(overrides: Record<string, unknown> = {}) {
     client_email: null,
     client_name: null,
     client_phone: null,
-    request_reference: null,
     request_ms: null,
     priced_total_minor: null,
     priced_currency: null,
@@ -266,7 +265,6 @@ const INTENDED_COLUMNS: Readonly<Record<string, readonly string[]>> = {
     "changed_at",
   ],
   contact_submissions: [
-    "reference",
     "client_request_id",
     "design_id",
     "design_revision",
@@ -321,6 +319,7 @@ const COLUMNS_THE_READER_NEVER_NAMES = [
   "email_verified_at",
   "password_changed_at",
   "privacy_notice_version",
+  "reference",
 ];
 
 describe("the tables and columns the three statements name", () => {
@@ -487,7 +486,6 @@ const SQL_WORDS_THE_STATEMENTS_USE = new Set([
   "client_name",
   "client_phone",
   "stored_status",
-  "request_reference",
   "request_ms",
   "priced_total_minor",
   "priced_currency",
@@ -912,7 +910,6 @@ describe("a row that holds more than the statement names", () => {
       aKitchenRow({
         ...client,
         ...extras,
-        request_reference: "REF-1",
         request_ms: "1790000000000",
       }),
     ]);

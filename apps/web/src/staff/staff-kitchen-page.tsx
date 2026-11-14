@@ -39,7 +39,7 @@ import {
   titleOf,
   versionsOf,
 } from "./staff-kitchen-facts";
-import { RequestLine, RequestStatusCard } from "./staff-kitchen-request";
+import { RequestCard, RequestStatusCard } from "./staff-kitchen-request";
 import { shownDesignOf } from "./shown-design";
 import {
   CannotShowNotice,
@@ -68,7 +68,7 @@ import { useUnhide } from "./use-unhide";
 // One client's kitchen (frames S3A to S3C, S3H and S3I; the desktop frames are the same page in three columns). Three
 // columns on a desktop: the kitchen and what it is made of; the status, the request, the client and the line that says the
 // access is logged; and the notes. A phone stacks them in that reading order, with the summary after the client. Every
-// string a client or a staff member typed (a name, an address, a phone, a reference, a note) is a React text child: nothing
+// string a client or a staff member typed (a name, an address, a phone, a note) is a React text child: nothing
 // here builds markup from one, and no address or phone is made a link.
 //
 // What staff write here (a note, a request status, making a hidden kitchen visible again) is the three components the page
@@ -288,7 +288,7 @@ function ReadyKitchen({
             editing={editing}
             titleRef={titleRef}
           />
-          <RequestLine locale={locale} request={wire.request} />
+          <RequestCard request={wire.request} />
           {wire.request === null ? null : <KitchenEstimates estimates={wire} />}
           <ClientProfile client={wire.client} />
           <p className={styles.caption}>{copy.accessLogged}</p>

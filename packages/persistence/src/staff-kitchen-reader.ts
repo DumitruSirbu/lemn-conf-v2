@@ -123,10 +123,9 @@ export interface StaffKitchenPage {
   readonly kitchens: readonly StaffListedKitchen[];
 }
 
-/** The latest request stored for the kitchen: its reference and the day it was stored, and nothing the client typed in
- *  it (the application role cannot read those columns, ADR 0153 d1). */
+/** The latest request stored for the kitchen: the day it was stored, and nothing the client typed in it (the
+ *  application role cannot read those columns, ADR 0153 d1). Its reference is not read: no screen shows it. */
 export interface StaffKitchenRequest {
-  readonly reference: string;
   readonly sentAt: Date;
 }
 

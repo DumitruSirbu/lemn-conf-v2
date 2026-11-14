@@ -1498,10 +1498,9 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     pageNumber: "Pagina {page, number, ::group-off}",
   },
   // Drafted, approved as drafted by the owner (O-L3-7, relayed 2026-10-20; ADR 0174 decision 5): the staff kitchen page
-  // (Lot 3 frames S3A, S3B, S3C, S3H and S3I). The words are the frames' own, bar the request line, which is the plan's C-L3-2
-  // wording under the owner's option (c) (the request's reference and date; its contact is in the shop's e-mail), the
-  // summary headings and "Varianta actuală", which tell which copy of the kitchen is on screen, and the texts of a kitchen
-  // whose document this build cannot read and of a browser without WebGL. The owner may reword later.
+  // (Lot 3 frames S3A, S3B, S3C, S3H and S3I). The words are the frames' own, bar the summary headings and
+  // "Varianta actuală", which tell which copy of the kitchen is on screen, and the texts of a kitchen whose document
+  // this build cannot read and of a browser without WebGL. The owner may reword later.
   staffKitchen: {
     title: "Bucătăria clientului",
     loading: "Se încarcă bucătăria",
@@ -1511,6 +1510,16 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     viewCurrent: "Varianta actuală",
     viewNoWebgl: "Vizualizarea 3D nu este disponibilă în acest browser.",
     open3d: "Deschide în 3D",
+    // Drafted, not approved (M12 W6a; ADR 0185 decision 1): the v3 mockup's link card, which ADR 0174 decision 5 does
+    // not cover. `linkCopied` and `linkCopyRefused` are the agent's own, no frame writes them.
+    linkTitle: "Link către bucătărie",
+    linkBadge: "Doar citire",
+    linkCopy: "Copiază linkul",
+    linkCopied: "Linkul a fost copiat.",
+    linkCopyRefused:
+      "Linkul nu a putut fi copiat. Selectează-l și copiază-l manual.",
+    linkNote:
+      "Se deschide într-o filă nouă, în 3D, fără comenzi de editare și fără „Cere oferta”.",
     subSent: "Trimisă de {email} · {date}",
     subSentNoAccount: "Trimisă fără cont · {date}",
     subDraft: "Ciornă a {email} · modificată {when}",
@@ -1532,7 +1541,6 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     statusLastChange: "Ultima schimbare: {name}, {when}",
     draftNoStatus: "Ciorna nu are cerere trimisă, deci nu are status.",
     requestTitle: "Cerere",
-    requestLine: "Cererea trimisă: {reference}, {date}.",
     requestContactNote:
       "Datele de contact din cerere sunt în e-mailul trimis magazinului.",
     profileTitle: "Contul clientului",

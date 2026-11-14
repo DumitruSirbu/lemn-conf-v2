@@ -65,8 +65,8 @@ const WHOLE_NUMBER_TEXT = /^(0|[1-9][0-9]*)$/;
  * `staff-kitchen-statements.ts`.
  *
  * A kitchen its client deleted is excluded by every statement; one it hid is not. The `contact_submissions` clause
- * names only the seven columns the application role may select (among them `reference`, `client_request_id`,
- * `design_id`, `design_revision` and `created_at`) and `priced`, the one column `0026`'s grant adds, of which it takes
+ * names only the seven columns the application role may select (the reader uses `client_request_id`, `design_id`,
+ * `design_revision` and `created_at`, and never `reference`) and `priced`, the one column `0026`'s grant adds, of which it takes
  * the total and the currency alone, never a column the client typed; `accounts` is read for its e-mail, name and phone
  * alone. Whether a kitchen changed after staff saw it is judged in SQL, and the revision stays opaque here.
  */
@@ -265,9 +265,8 @@ function requestFrom(
   row: Row,
   operation: StaffKitchenReaderOperation,
 ): StaffKitchenRequest | null {
-  const reference = optionalText(row["request_reference"], operation);
-  if (reference === null) return null;
-  return { reference, sentAt: requiredInstant(row["request_ms"], operation) };
+  const sentAt = optionalInstant(row["request_ms"], operation);
+  return sentAt === null ? null : { sentAt };
 }
 
 /** The revision as `designs.revision::text` prints it: a digit run that is a revision, and opaque from here on. */

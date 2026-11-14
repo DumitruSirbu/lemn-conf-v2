@@ -2,7 +2,7 @@
 //
 // What a client or a colleague typed, drawn by the staff kitchen page (wave L3-U3), in Romanian and Russian: markup, a script, a
 // right-to-left override, a joined emoji, message syntax, ten thousand characters, a line break and a NUL. Each lands in every
-// place the page prints a typed string (the title, the sender under it, the client's profile, the request's reference, the
+// place the page prints a typed string (the title, the sender under it, the client's profile, the
 // colleague who last changed the status). The promises: it is text and only text, it is printed exactly as typed (message
 // syntax is not interpreted a second time), and it adds no element, no attribute and no address to the page: the page of a
 // hostile kitchen has the shape of the page of a plain one.
@@ -195,17 +195,12 @@ describe.each(LOCALES)(
             date: "17.10.2026",
           }),
         );
-        expect(
-          withoutIsolates(
-            requireIn(page, '[data-testid="staff-kitchen-request"]')
-              .textContent,
-          ),
-        ).toContain(
-          say("requestLine", {
-            reference: typed,
-            date: when.format(new Date(SENT_AT)),
-          }),
+        // The wire above carries a stray `reference` as an older server would; the page has no place to print it.
+        const requestCard = withoutIsolates(
+          requireIn(page, '[data-testid="staff-kitchen-request"]').textContent,
         );
+        expect(requestCard).toContain(say("requestContactNote"));
+        expect(requestCard).not.toContain(typed);
         expect(
           withoutIsolates(
             requireIn(page, '[data-testid="staff-kitchen-last-change"]')

@@ -335,10 +335,7 @@ describe("the kitchen as it is read", () => {
       name: "Ana Popescu",
       phone: "078900555",
     });
-    expect(kitchen?.request).toEqual({
-      reference: "LEM-2026-0417",
-      sentAt: "2026-10-17T11:08:00.000Z",
-    });
+    expect(kitchen?.request).toEqual({ sentAt: "2026-10-17T11:08:00.000Z" });
     expect(kitchen?.status).toEqual({
       value: "contacted",
       changedBy: { email: "mihai.rusu@lemnaria.md", name: "Mihai Rusu" },
@@ -375,7 +372,7 @@ describe("the kitchen as it is read", () => {
     expect(kitchen?.kitchen.design).toBeNull();
     expect(kitchen?.kitchen.asSent).toEqual(WIRE_DESIGN);
     expect(kitchen?.client?.email).toBe("ana.popescu@mail.md");
-    expect(kitchen?.request?.reference).toBe("LEM-2026-0417");
+    expect(kitchen?.request?.sentAt).toBe("2026-10-17T11:08:00.000Z");
   });
 
   it("reads an as-sent copy it cannot read as nothing, not as the current document", () => {
@@ -420,14 +417,7 @@ describe("the kitchen as it is read", () => {
       "a client with no e-mail",
       { client: { email: 4, name: null, phone: null } },
     ],
-    [
-      "a request with no reference",
-      { request: { reference: "", sentAt: "2026-10-17T11:08:00.000Z" } },
-    ],
-    [
-      "a request dated nothing",
-      { request: { reference: "L", sentAt: "soon" } },
-    ],
+    ["a request dated nothing", { request: { sentAt: "soon" } }],
     ["a status that is not an object", { status: "new" }],
     [
       "a status with no word",

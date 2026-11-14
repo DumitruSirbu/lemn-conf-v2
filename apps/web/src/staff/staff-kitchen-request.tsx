@@ -107,25 +107,18 @@ function LastChange({
   );
 }
 
-/** The request's reference and date. Its contact is in the shop's e-mail, which the application cannot read back
- *  (ADR 0153 decision 1), so it is not shown and the line says where it is. */
-export function RequestLine({
-  locale,
+/** The request's card. Its contact is in the shop's e-mail, which the application cannot read back (ADR 0153
+ *  decision 1), so it is not shown and the card says where it is. The request's reference is not shown (nothing on
+ *  this page uses it) and its day is in the page's header line. */
+export function RequestCard({
   request,
 }: {
-  readonly locale: AppLocale;
   readonly request: StaffKitchenRequestWire | null;
 }) {
   const copy = useStaffKitchenCopy();
   if (request === null) return null;
   return (
     <Card title={copy.request.title} testId="staff-kitchen-request">
-      <p className={styles.requestLine}>
-        {copy.request.line({
-          reference: request.reference,
-          date: dayAndTimeOf(request.sentAt, locale),
-        })}
-      </p>
       <p className={styles.hint}>{copy.request.contactNote}</p>
     </Card>
   );

@@ -51,7 +51,7 @@ export function wireKitchen({
       name: "Ana Popescu",
       phone: "078900555",
     },
-    request: { reference: "LEM-2026-0417", sentAt: SENT_AT },
+    request: { sentAt: SENT_AT },
     status: { value: "new", changedBy: null, changedAt: null },
     notes: [],
     notesTruncated: false,

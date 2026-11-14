@@ -1597,6 +1597,14 @@ export function resolveStaffKitchenCopy(translate: ContentTranslator) {
   return {
     title: translate("staffKitchen.title"),
     open3d: translate("staffKitchen.open3d"),
+    link: {
+      title: translate("staffKitchen.linkTitle"),
+      badge: translate("staffKitchen.linkBadge"),
+      copy: translate("staffKitchen.linkCopy"),
+      copied: translate("staffKitchen.linkCopied"),
+      copyRefused: translate("staffKitchen.linkCopyRefused"),
+      note: translate("staffKitchen.linkNote"),
+    },
     loading: translate("staffKitchen.loading"),
     loadingSub: translate("staffKitchen.loadingSub"),
     view: {
@@ -1637,8 +1645,6 @@ export function resolveStaffKitchenCopy(translate: ContentTranslator) {
     draftNoStatus: translate("staffKitchen.draftNoStatus"),
     request: {
       title: translate("staffKitchen.requestTitle"),
-      line: (details: { reference: string; date: string }) =>
-        translate("staffKitchen.requestLine", details),
       contactNote: translate("staffKitchen.requestContactNote"),
     },
     profile: {

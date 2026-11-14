@@ -575,7 +575,7 @@ describe("what a client typed is not kept anywhere and not said anywhere", () =>
     const body = wireKitchen({
       kitchen: { name: SENTINEL },
       client: { email: `${SENTINEL}@x.md`, name: SENTINEL, phone: SENTINEL },
-      request: { reference: SENTINEL, sentAt: "2026-10-17T11:08:00.000Z" },
+      request: { sentAt: "2026-10-17T11:08:00.000Z" },
     });
     const answers: ServerAnswer[] = [
       { body },

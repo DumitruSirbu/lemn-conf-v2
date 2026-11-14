@@ -20,14 +20,8 @@ const COMPONENTS = [
 ] as const;
 const TOUCH_TARGET =
   /min-height:\s*(var\(--touch-target\)|(4[4-9]|[5-9]\d|\d{3,})px)/;
-/** Boxes that print a string somebody typed: a kitchen's name, an address, a phone, a reference, a colleague's name. */
-const TYPED_TEXT_CLASSES = [
-  "title",
-  "sub",
-  "factValue",
-  "requestLine",
-  "hint",
-] as const;
+/** Boxes that print a string somebody typed: a kitchen's name, an address, a phone, a colleague's name. */
+const TYPED_TEXT_CLASSES = ["title", "sub", "factValue", "hint"] as const;
 const GRID_CELL_CLASSES = [
   "page",
   "header",

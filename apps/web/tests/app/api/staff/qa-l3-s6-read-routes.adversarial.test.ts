@@ -1280,7 +1280,7 @@ describe("the wire contract's key sets against a hostile reader", () => {
     ]);
     expect(keysOf(body.client)).toEqual(["email", "name", "phone"]);
     expect(text).not.toContain(clientAccountId);
-    expect(keysOf(body.request)).toEqual(["reference", "sentAt"]);
+    expect(keysOf(body.request)).toEqual(["sentAt"]);
     expect(keysOf(body.status)).toEqual(["changedAt", "changedBy", "value"]);
     expect(keysOf(body.status?.changedBy)).toEqual(["email", "name"]);
     expect(body.status?.changedAt).toBe(SENT_AT.toISOString());

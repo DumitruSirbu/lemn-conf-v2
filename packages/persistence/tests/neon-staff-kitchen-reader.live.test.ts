@@ -359,7 +359,7 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
 
       const text = JSON.stringify([page, reading]);
       expect(text).toContain(client.email);
-      expect(text).toContain(request.reference);
+      expect(text).not.toContain(request.reference);
       for (const forbidden of [
         ADDRESS_MARKER,
         REQUEST_NAME_MARKER,

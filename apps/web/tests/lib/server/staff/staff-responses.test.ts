@@ -255,7 +255,10 @@ describe("the kitchen answer", () => {
       "updatedAt",
     ]);
     expect(keysOf(client)).toEqual(["email", "name", "phone"]);
-    expect(keysOf(request)).toEqual(["reference", "sentAt"]);
+    // The row this test hands in still carries a `reference`, as an older reader's would; nothing reads it, so the wire
+    // does not carry it.
+    expect(keysOf(request)).toEqual(["sentAt"]);
+    expect(request).not.toHaveProperty("reference");
     expect(keysOf(status)).toEqual(["changedAt", "changedBy", "value"]);
     expect(status.changedBy).toEqual({
       email: "staff@example.test",
