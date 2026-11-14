@@ -34,7 +34,7 @@ export interface HeldThumbnail {
 }
 
 interface HeldDesign {
-  revision: bigint;
+  revision: DesignRevision;
   readonly accountId: string | undefined;
   readonly writeTokenHash: string | undefined;
   isHidden: boolean;
@@ -55,7 +55,7 @@ export class FakeDesignThumbnailStore implements DesignThumbnailStore {
   /** Test setup: plants a design, replacing any with the same id. */
   seedDesign(design: SeededThumbnailDesign): void {
     this.designs.set(design.id, {
-      revision: BigInt(design.revision ?? "1"),
+      revision: design.revision ?? "1",
       accountId: design.accountId,
       writeTokenHash: design.writeTokenHash,
       isHidden: design.isHidden ?? false,
@@ -65,7 +65,7 @@ export class FakeDesignThumbnailStore implements DesignThumbnailStore {
 
   /** Test setup: a save moved the design to this revision. */
   setRevision(designId: string, revision: DesignRevision): void {
-    this.designOf(designId).revision = BigInt(revision);
+    this.designOf(designId).revision = revision;
   }
 
   /** Test setup: the client hid or deleted the design. */
@@ -117,8 +117,7 @@ export class FakeDesignThumbnailStore implements DesignThumbnailStore {
     }
     const design = this.authorisedDesign(designId, credential);
     if (design === undefined) return NONE;
-    if (design.revision !== BigInt(thumbnail.revision))
-      return { kind: "stale" };
+    if (design.revision !== thumbnail.revision) return { kind: "stale" };
     this.replaceIfNewer(designId, thumbnail);
     return { kind: "stored" };
   }
@@ -136,7 +135,8 @@ export class FakeDesignThumbnailStore implements DesignThumbnailStore {
   private replaceIfNewer(designId: string, thumbnail: ThumbnailToStore): void {
     const held = this.thumbnails.get(designId);
     const isNewer =
-      held === undefined || BigInt(held.revision) < BigInt(thumbnail.revision);
+      held === undefined ||
+      isGreaterRevision(thumbnail.revision, held.revision);
     if (!isNewer) return;
     this.thumbnails.set(
       designId,
@@ -202,4 +202,13 @@ function settle<Outcome>(compute: () => Outcome): Promise<Outcome> {
       failure instanceof Error ? failure : new Error("Unknown failure"),
     );
   }
+}
+
+/** A revision is a digit run with no leading zero, so the longer one is greater and equal lengths compare as text. */
+function isGreaterRevision(
+  revision: DesignRevision,
+  than: DesignRevision,
+): boolean {
+  if (revision.length !== than.length) return revision.length > than.length;
+  return revision > than;
 }

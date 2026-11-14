@@ -3,7 +3,7 @@
 // The structure the staff kitchen page offers to a screen reader and to a keyboard, in every state it can be in and in both
 // languages (wave L3-U3): one `main` (the staff frame's), one `h1` and headings that descend by one level, every id unique and
 // every reference to one resolved, every control named and none ahead of its turn in the tab order, nothing focusable under
-// `aria-hidden`, and the Tab order of a ready kitchen being the way back, the open-in-3D link and then the camera chips, in the order they are drawn.
+// `aria-hidden`, and the Tab order of a ready kitchen being the way back, the camera chips and then the open-in-3D link under the picture, in the order they are drawn.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import roMessages from "../../src/messages/ro.json";
@@ -213,7 +213,7 @@ describe.each(LOCALES)("the structure of the page in %s", (locale) => {
       await harness.mount({ locale });
     });
 
-    it("is the way back, the open-in-3D link, the camera chips, the status select and its button, then the note field and its button, in the order they are drawn, after the frame's own controls", () => {
+    it("is the way back, the camera chips, the open-in-3D link under the picture, the status select and its button, then the note field and its button, in the order they are drawn, after the frame's own controls", () => {
       const container = harness.container();
       const page = requireIn(container, PAGE);
       const everything = allIn(container, FOCUSABLE);
@@ -221,10 +221,10 @@ describe.each(LOCALES)("the structure of the page in %s", (locale) => {
 
       expect(inPage.map((element) => element.tagName)).toEqual([
         "A",
+        "BUTTON",
+        "BUTTON",
+        "BUTTON",
         "A",
-        "BUTTON",
-        "BUTTON",
-        "BUTTON",
         "SELECT",
         "BUTTON",
         "TEXTAREA",
@@ -233,7 +233,7 @@ describe.each(LOCALES)("the structure of the page in %s", (locale) => {
       expect(inPage[0]?.textContent).toBe(
         CATALOGUES[locale].staffShell.navKitchens,
       );
-      expect(inPage[1]?.textContent).toBe(
+      expect(inPage[4]?.textContent).toBe(
         CATALOGUES[locale].staffKitchen.open3d,
       );
       const [firstControl] = inPage;
