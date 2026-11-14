@@ -1,9 +1,13 @@
 // @vitest-environment happy-dom
 //
-// The signed-in menu of the configurator's account control offers "Zona personalului" to a session that lists the staff
-// capability and to nobody else (plan P-L3-9). The list is advisory: it decides what the header offers, and the server's
-// gate on each staff page decides who gets in. The entry leaves for another frame, so it is a plain anchor (a full load),
-// and it lives in the menu, never in the bar's cell, so the cell's width is the same for every signed-in session.
+// The signed-in menu of the configurator's account control offers "Panoul de administrare" to a session that lists the
+// staff capability and to nobody else (plan P-L3-9). The list is advisory: it decides what the header offers, and the
+// server's gate on each staff page decides who gets in. The entry leaves for another frame, so it is a plain anchor (a
+// full load), and it lives in the menu, never in the bar's cell, so the cell's width is the same for every signed-in
+// session. Where the entry sits and the divider before it: `account-control-staff-menu-order.adversarial.test.ts`.
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { ROLES } from "@lemnaria/configurator-domain";
 import {
   AppRouterContext,
@@ -24,6 +28,7 @@ import { StaffShell } from "@/staff/staff-shell";
 
 import roMessages from "../../../src/messages/ro.json";
 import ruMessages from "../../../src/messages/ru.json";
+import { declarationsFor } from "../../support/css-declarations";
 import { flushPromises } from "../../support/render-hook";
 import {
   allIn,
@@ -268,19 +273,40 @@ describe("the entry", () => {
     ).not.toBeUndefined();
   });
 
-  it("sits after the account's own links and before the ways out, in the order Tab walks", async () => {
-    const menu = await openedMenuFor(OPERATOR);
+  it("is named Panoul de administrare in Romanian and, drafted, Панель администрирования in Russian", async () => {
+    expect(
+      staffAreaEntryIn(await openedMenuFor(OPERATOR, "ro"))?.textContent,
+    ).toBe("Panoul de administrare");
+    screen?.unmount();
+    document.body.replaceChildren();
+    resetAccountSessionForTests();
 
-    const walked = allIn(menu, "a[href], button").map(
-      (item) => item.textContent,
+    expect(
+      staffAreaEntryIn(await openedMenuFor(OPERATOR, "ru"))?.textContent,
+    ).toBe("Панель администрирования");
+  });
+
+  it("leaves a client's rows without the divider, and their order unchanged", async () => {
+    const menu = await openedMenuFor(CLIENT);
+
+    const rows = requireIn(menu, '[class*="menuRows"]');
+    expect([...rows.children].every((row) => row.matches("a, button"))).toBe(
+      true,
     );
-    expect(walked).toEqual([
+    expect(
+      allIn(menu, "a[href], button").map((item) => item.textContent),
+    ).toEqual([
+      roMessages.accountControl.myKitchens,
       roMessages.accountControl.profile,
-      roMessages.accountControl.staffArea,
       roMessages.accountControl.signOutHere,
       roMessages.accountControl.signOutEverywhere,
       roMessages.accountControl.close,
     ]);
+  });
+
+  it("does not rename the staff frame's own name, which keeps the first wording", () => {
+    expect(roMessages.staffShell.areaName).toBe("Zona personalului");
+    expect(ruMessages.staffShell.areaName).toBe("Зона персонала");
   });
 
   it("is a plain link: it takes focus like any link and is not disabled while a sign-out waits", async () => {
@@ -444,5 +470,30 @@ describe("who the menu says is signed in (frame S1E)", () => {
       roMessages.accountControl.myKitchens,
     );
     expect(clientMenu.textContent).toContain(ADDRESS);
+  });
+});
+
+describe("the divider's stylesheet (reads the CSS text; no layout runs here)", () => {
+  const css = readFileSync(
+    join(import.meta.dirname, "../../../src/account/account.module.css"),
+    "utf8",
+  );
+
+  it("is the only rule at its boundary: the row above it gives up its own bottom border", () => {
+    // The helper takes the last class of a selector for its subject, so the `:has(+ …)` rule is read as text.
+    expect(css).toMatch(
+      /\.menuRow:has\(\+ \.menuDivider\)\s*\{\s*border-bottom:\s*0;\s*\}/,
+    );
+    expect(declarationsFor(css, "menuRow", "border-bottom")).toEqual([
+      expect.objectContaining({
+        selector: ".menuRow",
+        value: "1px solid var(--line-soft)",
+      }),
+    ]);
+    expect(
+      declarationsFor(css, "menuDivider", "border-bottom").filter(
+        ({ selector }) => selector === ".menuDivider",
+      ),
+    ).toEqual([expect.objectContaining({ value: "2px solid var(--line)" })]);
   });
 });

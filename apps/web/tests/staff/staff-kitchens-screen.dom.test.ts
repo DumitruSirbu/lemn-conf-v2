@@ -17,7 +17,7 @@ import { resetStaffSessionExpiryForTests } from "@/staff/staff-session-expiry";
 
 import roMessages from "../../src/messages/ro.json";
 import ruMessages from "../../src/messages/ru.json";
-import { valuesFor } from "../support/css-declarations";
+import { declarationsFor, valuesFor } from "../support/css-declarations";
 import { flushPromises } from "../support/render-hook";
 import {
   allIn,
@@ -871,6 +871,15 @@ describe("the filters", () => {
     },
   );
 
+  it("hangs the hint directly after the select in the select's own field, so it follows the select down", async () => {
+    chooseSegment(roMessages.staffKitchens.segmentDrafts);
+    await settle();
+
+    expect(statusSelect().nextElementSibling?.textContent).toBe(
+      roMessages.staffKitchens.statusOnlyForSent,
+    );
+  });
+
   it("drops the status when the segment changes: the select shows every status and the request carries none", async () => {
     act(() => {
       statusSelect().value = "contacted";
@@ -1123,6 +1132,81 @@ describe("the stylesheet source declares the targets a thumb must hit (reads the
     expect(valuesFor(css, "searchControl", "min-height")).toEqual(["48px"]);
     expect(valuesFor(css, "statusSelect", "min-height")).toEqual(["48px"]);
     expect(valuesFor(css, "moreButton", "min-height")).toEqual(["48px"]);
+  });
+
+  // W4.2 (M12 item 6): the hint is out of the flow, so it cannot lift the select above the search input's line, and the
+  // switch is centred on whatever row the wrap puts it on. A row that wraps must not push either off the controls' line.
+  const wideDeclarations = (name: string, property: string) =>
+    declarationsFor(css, name, property)
+      .filter(({ media }) => media.includes("900px"))
+      .map(({ selector, value }) => ({ selector, value }));
+
+  it("aligns the filter row's fields by their bottoms at 900 px, and nothing offsets the switch by a fixed amount", () => {
+    expect(wideDeclarations("filters", "align-items")).toEqual([
+      { selector: ".filters", value: "flex-end" },
+    ]);
+    expect(declarationsFor(css, "changedField", "margin-top")).toEqual([]);
+    expect(wideDeclarations("changedField", "min-height")).toEqual([
+      { selector: ".changedField", value: "48px" },
+    ]);
+  });
+
+  it("lets the search box and the select give way on small flex bases, and never shrinks the switch, so the three share a row", () => {
+    expect(wideDeclarations("searchField", "flex")).toEqual([
+      { selector: ".searchField", value: "1 1 200px" },
+    ]);
+    expect(wideDeclarations("searchField", "max-width")).toEqual([
+      { selector: ".searchField", value: "380px" },
+    ]);
+    expect(wideDeclarations("statusField", "flex")).toEqual([
+      { selector: ".statusField", value: "1 1 200px" },
+    ]);
+    expect(wideDeclarations("statusField", "max-width")).toEqual([
+      { selector: ".statusField", value: "240px" },
+    ]);
+    expect(wideDeclarations("changedField", "flex")).toEqual([
+      { selector: ".changedField", value: "none" },
+    ]);
+    expect(declarationsFor(css, "searchField", "width")).toEqual([]);
+    expect(declarationsFor(css, "statusField", "width")).toEqual([]);
+  });
+
+  it("gives the select and the search box the same 48 px, which the box's own input sits inside", () => {
+    expect(valuesFor(css, "statusSelect", "min-height")).toEqual(["48px"]);
+    expect(valuesFor(css, "searchControl", "min-height")).toEqual(["48px"]);
+  });
+
+  it("leaves the segments at their 96 px minimum, the 120 px of the wide layout would not leave the three fields a row", () => {
+    expect(
+      declarationsFor(css, "segmentFace", "min-width").map(
+        ({ value }) => value,
+      ),
+    ).toEqual(["96px"]);
+  });
+
+  it("hangs the hint 6 px under the select on one line without taking room in its field, from 900 px up", () => {
+    expect(wideDeclarations("statusField", "position")).toEqual([
+      { selector: ".statusField", value: "relative" },
+    ]);
+    expect(wideDeclarations("fieldHint", "white-space")).toEqual([
+      { selector: ".fieldHint", value: "nowrap" },
+    ]);
+    expect(wideDeclarations("fieldHint", "position")).toEqual([
+      { selector: ".fieldHint", value: "absolute" },
+    ]);
+    expect(wideDeclarations("fieldHint", "top")).toEqual([
+      { selector: ".fieldHint", value: "calc(100% + 6px)" },
+    ]);
+    expect(declarationsFor(css, "fieldHint", "position")).toHaveLength(1);
+  });
+
+  it("holds one line of the hint in the row gap and the bottom margin while the hint shows, so it overlaps nothing", () => {
+    expect(wideDeclarations("filters", "row-gap")).toEqual([
+      { selector: '.filters[data-status-hint="true"]', value: "24px" },
+    ]);
+    expect(wideDeclarations("filters", "margin-bottom")).toEqual([
+      { selector: '.filters[data-status-hint="true"]', value: "24px" },
+    ]);
   });
 
   it("clips a name to two lines by the stylesheet alone", () => {

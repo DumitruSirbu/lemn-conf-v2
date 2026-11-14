@@ -802,22 +802,48 @@
     font-size: 26px;
   }
 
+  /* Bottoms are aligned, so the controls share one line on any row the row wraps to, and the switch, centred in a 48 px
+   * box, sits on that line wherever it lands. The status hint is taken out of the flow (it would otherwise be what
+   * lifts the select above the search box) and hangs 6 px under the select on one line; while it shows, the row gap and
+   * the bottom margin hold that line (6 px + 16 px, rounded to 24 px), so it overlaps nothing on the next row or below
+   * the filters. */
   .filters {
     flex-flow: row wrap;
     gap: 16px 20px;
     align-items: flex-end;
   }
 
-  .segmentFace {
-    min-width: 120px;
+  .filters[data-status-hint="true"] {
+    row-gap: 24px;
+    margin-bottom: 24px;
   }
 
+  .changedField {
+    flex: none;
+    min-height: 48px;
+  }
+
+  .fieldHint {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    white-space: nowrap;
+  }
+
+  /* A wrapping row breaks on its items' flex bases, not on what they could shrink to. So the fields that can give way
+   * have small bases (the search box 200 px, the status select 200 px) and grow to 380 px and 240 px, and the switch
+   * never shrinks: search, select and switch share one row down to a 904 px content region (a 1280 px window beside the
+   * staff navigation) in Romanian. Russian's longer labels need about 960 px; below that the switch drops to its own
+   * row, and the hint's reservation above still protects it. */
   .searchField {
-    width: 380px;
+    flex: 1 1 200px;
+    max-width: 380px;
   }
 
   .statusField {
-    width: 240px;
+    position: relative;
+    flex: 1 1 200px;
+    max-width: 240px;
   }
 
   /* The frame's grid is 88 px, 1.5fr 1.5fr 1fr 1.1fr .95fr, 104 px 128 px 124 px. The fixed columns are trimmed to

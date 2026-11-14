@@ -492,9 +492,6 @@ function AccountMenu({
             <MenuLinkRow label={copy.myKitchens} href={kitchensHref} />
           )}
           <MenuLinkRow label={copy.profile} href={profileHref} />
-          {staffAreaHref === undefined ? null : (
-            <MenuLinkRow label={copy.staffArea} href={staffAreaHref} />
-          )}
           <MenuRow
             label={copy.signOutHere}
             isBusy={isSignOutBusy}
@@ -505,6 +502,12 @@ function AccountMenu({
             isBusy={isSignOutBusy}
             onPress={onSignOutEverywhere}
           />
+          {staffAreaHref === undefined ? null : (
+            <>
+              <span className={styles.menuDivider} aria-hidden="true" />
+              <MenuLinkRow label={copy.staffArea} href={staffAreaHref} />
+            </>
+          )}
         </div>
         <div className={styles.dialogActions}>
           <button

@@ -48,8 +48,13 @@ export type StaffKitchenFiltersProps = FilterFocusTargets &
   >;
 
 export function StaffKitchenFilters(props: StaffKitchenFiltersProps) {
+  const isStatusEnabled = props.filters.segment === "sent";
   return (
-    <div className={styles.filters}>
+    <div
+      className={styles.filters}
+      // The stylesheet reserves room for the hint that `StatusChoice` shows exactly while the select is disabled.
+      data-status-hint={isStatusEnabled ? undefined : "true"}
+    >
       <SegmentChoice
         segment={props.filters.segment}
         onChoose={props.chooseSegment}
@@ -57,7 +62,7 @@ export function StaffKitchenFilters(props: StaffKitchenFiltersProps) {
       <SearchBox {...props} />
       <StatusChoice
         selectRef={props.statusRef}
-        isEnabled={props.filters.segment === "sent"}
+        isEnabled={isStatusEnabled}
         status={props.filters.status}
         onChoose={props.chooseStatus}
       />

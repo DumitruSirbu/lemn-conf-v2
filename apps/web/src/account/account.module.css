@@ -1211,6 +1211,18 @@
   border-bottom: 1px solid var(--line-soft);
 }
 
+/* Sets the staff entry apart from the account's own rows: a heavier rule and a gap, drawn, never announced or focused.
+ * It is the only separator at that boundary, so the row above gives up its own soft rule. */
+.menuDivider {
+  display: block;
+  height: 12px;
+  border-bottom: 2px solid var(--line);
+}
+
+.menuRow:has(+ .menuDivider) {
+  border-bottom: 0;
+}
+
 .menuRow[aria-disabled="true"] {
   cursor: progress;
   opacity: 0.55;
