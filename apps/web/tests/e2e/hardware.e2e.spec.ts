@@ -33,7 +33,6 @@ import {
   activeRatesOf,
   boxOf,
   type Box,
-  activeSwitch,
   BLUM,
   cancelRatesButton,
   chipsOf,
@@ -68,6 +67,10 @@ import {
   editPageOf,
   type RateField,
 } from "./support/hardware-page";
+import {
+  availabilityAction,
+  availabilityBadge,
+} from "./support/item-availability-page";
 import {
   discardDraft,
   expectNoSidewaysScroll,
@@ -590,9 +593,11 @@ test.describe("the hardware screens on a phone, 390 x 844", () => {
         "priceDashboard.lifecycle.fixedDefaultCannotChange",
       );
 
-      const toggle = activeSwitch(page, words);
+      const toggle = availabilityAction(page);
       await expect(toggle).toHaveAttribute("aria-disabled", "true");
-      await expect(toggle).toHaveAttribute("aria-checked", "true");
+      await expect(availabilityBadge(page)).toHaveText(
+        romanian("priceDashboard.chips.active"),
+      );
       await expect(editPageOf(page).getByText(reason)).toHaveCount(2);
       await expect(deleteClassButton(page, words)).toHaveAttribute(
         "aria-disabled",
@@ -785,7 +790,7 @@ test.describe("the hardware screens on a phone, 390 x 844", () => {
       await expect(itemDialogOf(page)).toHaveCount(0);
 
       await openClass(page, HETTICH);
-      await expect(activeSwitch(page, words)).not.toHaveAttribute(
+      await expect(availabilityAction(page)).not.toHaveAttribute(
         "aria-disabled",
         "true",
       );
@@ -1139,7 +1144,7 @@ test.describe("the hardware screens on a phone, 390 x 844", () => {
       await openClass(page, HETTICH);
       const requests = collectDashboardRequests(page);
 
-      await activeSwitch(page, words).tap();
+      await availabilityAction(page).tap();
 
       const dialog = itemDialogOf(page);
       const text = plainText(await dialog.innerText());
@@ -1158,9 +1163,8 @@ test.describe("the hardware screens on a phone, 390 x 844", () => {
         })
         .tap();
 
-      await expect(activeSwitch(page, words)).toHaveAttribute(
-        "aria-checked",
-        "false",
+      await expect(availabilityBadge(page)).toHaveText(
+        romanian("priceDashboard.chips.inactive"),
       );
       await expect(page.getByTestId("staff-pending-prices")).toHaveCount(0);
       expect(requests).toEqual([]);

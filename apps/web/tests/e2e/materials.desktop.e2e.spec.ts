@@ -31,8 +31,11 @@ import {
   SERVER_IS_PRODUCTION_BUILD,
 } from "./support/hardware-page";
 import {
+  availabilityAction,
+  availabilityBadge,
+} from "./support/item-availability-page";
+import {
   activePercentOf,
-  activeSwitch,
   chipsOf,
   coloursCellOf,
   columnTitlesOf,
@@ -348,7 +351,7 @@ test.describe("the materials screens at desktop 1440", () => {
 
       await expect(editPageOf(page).locator("input")).toHaveCount(0);
       await expect(exampleOf(page)).toHaveCount(0);
-      await expect(activeSwitch(page, words)).toHaveAttribute(
+      await expect(availabilityAction(page)).toHaveAttribute(
         "aria-disabled",
         "true",
       );
@@ -488,7 +491,7 @@ test.describe("the materials screens at desktop 1440", () => {
       await shootForReview(page, "1440-d5a-production-menu");
 
       await openMaterial(page, MDF);
-      await expect(activeSwitch(page, words)).not.toHaveAttribute(
+      await expect(availabilityAction(page)).not.toHaveAttribute(
         "aria-disabled",
         "true",
       );
@@ -529,7 +532,7 @@ test.describe("the materials screens at desktop 1440", () => {
         })
         .click();
       await expect(itemDialogOf(page)).toHaveCount(0);
-      await activeSwitch(page, words).click();
+      await availabilityAction(page).click();
       await expect(
         itemDialogOf(page),
         "the switch-off asks first",
@@ -678,7 +681,7 @@ test.describe("the materials screens at desktop 1440", () => {
     }) => {
       await openMaterial(page, MDF);
 
-      await activeSwitch(page, words).click();
+      await availabilityAction(page).click();
 
       expect(plainText(await itemDialogOf(page).innerText())).toContain(
         romanian("priceDashboard.lifecycle.remaining", {
@@ -688,9 +691,8 @@ test.describe("the materials screens at desktop 1440", () => {
       await itemDialogOf(page)
         .getByRole("button", { name: CONFIRM_SWITCH_OFF(), exact: true })
         .click();
-      await expect(activeSwitch(page, words)).toHaveAttribute(
-        "aria-checked",
-        "false",
+      await expect(availabilityBadge(page)).toHaveText(
+        romanian("priceDashboard.chips.inactive"),
       );
       await expect(page.getByTestId("staff-pending-prices")).toHaveCount(0);
       await shootForReview(page, "1440-d5f-mdf-inactive");

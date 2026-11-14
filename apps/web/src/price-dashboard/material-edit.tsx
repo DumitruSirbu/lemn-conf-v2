@@ -32,7 +32,6 @@ import { materialsPathOf } from "./material-paths";
 import { ItemUnavailableScreen } from "./catalog-states";
 import styles from "./material.module.css";
 import type { PriceDraftClient } from "./price-draft-client";
-import editStyles from "./price-edit.module.css";
 import {
   materialPercentRefusalWords,
   materialWriteFailureWords,
@@ -237,33 +236,19 @@ function Lifecycle({
         deleteHint: translate("priceDashboard.materials.deleteHint"),
         deleteAction: translate("priceDashboard.materials.deleteAction"),
       }}
-      aboveSwitch={
+      aboveStatus={
         isItemOn(item, availability.context) ? null : (
-          <InactiveBanner
-            usedBy={usedBy}
-            canActivate={reasons.switchReason === undefined}
-            onActivate={() => {
-              availability.requestSwitch(item);
-            }}
-          />
+          <InactiveBanner usedBy={usedBy} />
         )
       }
-      belowSwitch={<MaterialFactLines facts={facts} usedBy={usedBy} />}
+      belowAction={<MaterialFactLines facts={facts} usedBy={usedBy} />}
     />
   );
 }
 
 /** A switched-off material says so, and what that does to the saved kitchens that still use it; the count is told only
- *  where one was had. */
-function InactiveBanner({
-  usedBy,
-  canActivate,
-  onActivate,
-}: {
-  readonly usedBy: number | undefined;
-  readonly canActivate: boolean;
-  readonly onActivate: () => void;
-}) {
+ *  where one was had. It names no action: the section's one button is the way back on (ADR 0184). */
+function InactiveBanner({ usedBy }: { readonly usedBy: number | undefined }) {
   const translate = useTranslations();
   const isUsed = isStillUsed(usedBy);
   return (
@@ -280,16 +265,6 @@ function InactiveBanner({
             : "priceDashboard.materials.inactiveBannerPlain",
         )}
       </p>
-      {canActivate ? (
-        <button
-          type="button"
-          className={editStyles.action}
-          data-tone="primary"
-          onClick={onActivate}
-        >
-          {translate("priceDashboard.common.activate")}
-        </button>
-      ) : null}
     </div>
   );
 }

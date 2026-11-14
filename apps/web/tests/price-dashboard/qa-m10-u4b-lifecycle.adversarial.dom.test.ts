@@ -48,6 +48,7 @@ import {
   type MountedMaterials,
 } from "./material-harness";
 import { inMemoryPriceDraftClient } from "./in-memory-price-draft-client";
+import { availabilityActionIn } from "./item-availability-control";
 import { roCopy } from "./romanian-copy";
 import {
   stubTheLifecycleServer,
@@ -176,11 +177,7 @@ describe("the page's own switch", () => {
     const { container } = screenOf();
     const pendingBefore = pendingChipText(container);
     expect(pendingBefore).toBeDefined();
-    const switchButton = allIn<HTMLButtonElement>(
-      container,
-      '[role="switch"]',
-    )[0];
-    if (switchButton === undefined) throw new Error("no switch");
+    const switchButton = availabilityActionIn(container);
     switchButton.focus();
 
     await press(switchButton);
@@ -208,18 +205,13 @@ describe("the page's own switch", () => {
     expect(document.activeElement).toBe(switchButton);
   });
 
-  it("gives focus to the page's heading, not to nothing, when the banner's button that asked is gone after the switch-on", async () => {
+  it("keeps focus on the section's button, not on nothing, after the switch-on takes the banner away", async () => {
     mounted = await mountMaterialEdit(
       MDF,
       materialPageOf({ disabled: [materialItem(MDF)] }),
     );
     const { container } = screenOf();
-    const banner = container.querySelector('[data-testid="material-banner"]');
-    const activate = allIn<HTMLButtonElement>(
-      (banner as HTMLElement | null) ?? document.body,
-      "button",
-    )[0];
-    if (activate === undefined) throw new Error("the banner offers no button");
+    const activate = availabilityActionIn(container);
     activate.focus();
 
     await press(activate);
@@ -229,7 +221,7 @@ describe("the page's own switch", () => {
       container.querySelector('[data-testid="material-banner"]'),
     ).toBeNull();
     expect(document.activeElement).not.toBe(document.body);
-    expect(document.activeElement?.tagName).toBe("H1");
+    expect(document.activeElement).toBe(activate);
   });
 
   it("gives focus to the page's heading when the deletion it confirmed takes the delete button out of the page", async () => {
@@ -498,11 +490,9 @@ describe("a production page", () => {
         roCopy("priceDashboard.chips.inactiveInUse", { count: designCount }),
       );
     }
-    const switchButton = allIn<HTMLButtonElement>(
-      container,
-      '[role="switch"]',
-    )[0];
-    expect(switchButton?.getAttribute("aria-disabled")).not.toBe("true");
+    expect(
+      availabilityActionIn(container).getAttribute("aria-disabled"),
+    ).not.toBe("true");
   });
 
   it("says no count on the page of a material the server's book dropped while the page's book still states it: the fact line is absent, not 0", async () => {

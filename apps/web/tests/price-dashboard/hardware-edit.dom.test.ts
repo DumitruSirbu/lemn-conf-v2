@@ -16,7 +16,7 @@ import type { PriceDraftClient } from "@/price-dashboard/price-draft-client";
 import { plainLeiOf } from "@/price-dashboard/price-field-input";
 import { resetStaffSessionExpiryForTests } from "@/staff/staff-session-expiry";
 
-import { allIn, click, requireIn } from "../support/render-with-intl";
+import { allIn, click } from "../support/render-with-intl";
 import {
   buttonNamed,
   fieldNamed,
@@ -39,6 +39,10 @@ import {
   type MountedHardware,
 } from "./hardware-harness";
 import { inMemoryPriceDraftClient } from "./in-memory-price-draft-client";
+import {
+  availabilityActionIn,
+  availabilityBadgeTextIn,
+} from "./item-availability-control";
 import { roCopy } from "./romanian-copy";
 import { leaveTheStaffServer, stubTheStaffServer } from "./staff-frame-harness";
 
@@ -369,9 +373,13 @@ describe("Save", () => {
 });
 
 describe("whether customers may choose the class", () => {
-  it("is a switch that opens the dialog on Cancel and writes at once on confirming, without a change of the draft", async () => {
+  it("is a button named for its action that opens the dialog on Cancel and writes at once on confirming, without a change of the draft", async () => {
     const container = await mountHettich();
-    const toggle = requireIn(container, '[role="switch"]');
+    const toggle = availabilityActionIn(container);
+    expect(toggle.textContent).toBe(roCopy("priceDashboard.common.deactivate"));
+    expect(availabilityBadgeTextIn(container)).toBe(
+      roCopy("priceDashboard.chips.active"),
+    );
 
     await press(toggle);
     const dialog = openDialog();
@@ -383,7 +391,10 @@ describe("whether customers may choose the class", () => {
       ),
     );
 
-    expect(toggle.getAttribute("aria-checked")).toBe("false");
+    expect(availabilityBadgeTextIn(container)).toBe(
+      roCopy("priceDashboard.chips.inactive"),
+    );
+    expect(toggle.textContent).toBe(roCopy("priceDashboard.common.activate"));
     expect(mounted?.draftServer.calls).toEqual([]);
     expect(
       mounted?.lifecycle.calls.filter((call) => call.kind === "setActive"),
@@ -393,7 +404,7 @@ describe("whether customers may choose the class", () => {
   it("names the other classes that stay on offer in its dialog, each by its own name and never by this class's", async () => {
     const container = await mountHettich();
 
-    await press(requireIn(container, '[role="switch"]'));
+    await press(availabilityActionIn(container));
 
     expect(openDialog()?.textContent).toContain(
       roCopy("priceDashboard.lifecycle.remaining", {
@@ -405,7 +416,7 @@ describe("whether customers may choose the class", () => {
   it("is off, with the fixed-default reason beside it, for the book's fallback class", async () => {
     mounted = await mountHardwareEdit(STANDARD, hardwarePageOf());
 
-    const toggle = requireIn(mounted.container, '[role="switch"]');
+    const toggle = availabilityActionIn(mounted.container);
     await press(toggle);
 
     expect(toggle.getAttribute("aria-disabled")).toBe("true");
@@ -420,7 +431,10 @@ describe("whether customers may choose the class", () => {
       BLUM,
       hardwarePageOf({ disabled: [hardwareItem(BLUM)] }),
     );
-    const toggle = requireIn(mounted.container, '[role="switch"]');
+    const toggle = availabilityActionIn(mounted.container);
+    expect(availabilityBadgeTextIn(mounted.container)).toBe(
+      roCopy("priceDashboard.chips.inactive"),
+    );
 
     await press(toggle);
     await press(
@@ -430,7 +444,10 @@ describe("whether customers may choose the class", () => {
       ),
     );
 
-    expect(toggle.getAttribute("aria-checked")).toBe("true");
+    expect(availabilityBadgeTextIn(mounted.container)).toBe(
+      roCopy("priceDashboard.chips.active"),
+    );
+    expect(toggle.textContent).toBe(roCopy("priceDashboard.common.deactivate"));
   });
 });
 

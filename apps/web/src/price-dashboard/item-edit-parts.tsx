@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useId, useRef, type ReactNode } from "react";
 
 import type { DeletableItemRef } from "@lemnaria/configurator-domain";
 
@@ -20,7 +20,7 @@ import type { ItemAvailabilityDesk } from "./use-item-availability";
 /** The words of one item's lifecycle section, in the reader's language. An absent `deleteHint` draws no hint. */
 export interface ItemLifecycleWords {
   readonly activeLabel: string;
-  /** Said under the switch while it can be pressed. */
+  /** Said under the status, whether or not the action can be taken. */
   readonly activeNote: string;
   readonly deleteHeading: string;
   readonly deleteHint: string | undefined;
@@ -30,49 +30,61 @@ export interface ItemLifecycleWords {
 export interface ItemLifecycleSectionProps {
   readonly availability: ItemAvailabilityDesk;
   readonly item: DeletableItemRef;
-  /** Why the switch and the deletion are off; absent, each can be pressed. */
+  /** Why the availability action and the deletion are off; absent, each can be pressed. */
   readonly reasons: ActionReasons;
   readonly words: ItemLifecycleWords;
-  /** Drawn above the switch, and between the switch and the deletion. */
-  readonly aboveSwitch?: ReactNode;
-  readonly belowSwitch?: ReactNode;
+  /** Drawn above the status line. */
+  readonly aboveStatus?: ReactNode;
+  /** Drawn between the availability button and the deletion. */
+  readonly belowAction?: ReactNode;
 }
 
-/** Whether customers are given the item, which applies at once and through the dialogs, and its deletion. */
+/** Whether customers are given the item, stated as a status and changed by a named button that asks first (ADR 0184),
+ *  which applies at once; and its deletion. */
 export function ItemLifecycleSection({
   availability,
   item,
   reasons,
   words,
-  aboveSwitch,
-  belowSwitch,
+  aboveStatus,
+  belowAction,
 }: ItemLifecycleSectionProps) {
   const translate = useTranslations();
   const isOn = isItemOn(item, availability.context);
+  const hintId = useId();
   return (
     <>
-      {aboveSwitch}
-      <ActionThatMayBeOff
-        reason={reasons.switchReason}
-        restingNote={words.activeNote}
-        switchState={isOn}
-        buttonClassName={styles.switch}
-        noteClassName={styles.hint}
-        noteTag="p"
-        onPress={() => {
-          availability.requestSwitch(item);
-        }}
-      >
-        <span>{words.activeLabel}</span>
-        <span className={styles.switchState}>
+      {aboveStatus}
+      <div className={styles.status} data-testid="item-status">
+        <span className={styles.statusLabel}>{words.activeLabel}</span>
+        <span className={styles.statusBadge} data-state={isOn ? "on" : "off"}>
           {translate(
             isOn
               ? "priceDashboard.chips.active"
               : "priceDashboard.chips.inactive",
           )}
         </span>
+      </div>
+      <p id={hintId} className={styles.hint}>
+        {words.activeNote}
+      </p>
+      <ActionThatMayBeOff
+        reason={reasons.switchReason}
+        describedById={hintId}
+        buttonClassName={editStyles.action}
+        noteClassName={styles.reason}
+        noteTag="p"
+        onPress={() => {
+          availability.requestSwitch(item);
+        }}
+      >
+        {translate(
+          isOn
+            ? "priceDashboard.common.deactivate"
+            : "priceDashboard.common.activate",
+        )}
       </ActionThatMayBeOff>
-      {belowSwitch}
+      {belowAction}
       <div className={styles.danger}>
         <h2 className={styles.cardTitle}>{words.deleteHeading}</h2>
         {words.deleteHint === undefined ? null : (

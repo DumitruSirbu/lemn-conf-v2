@@ -10,7 +10,6 @@ import {
 } from "@playwright/test";
 
 import {
-  activeSwitch as accessorySwitch,
   DRYING_RACK,
   menuButtonOf as accessoryMenuButtonOf,
   menuOf as accessoryMenuOf,
@@ -26,7 +25,6 @@ import {
   type CreationRun,
 } from "./creation-flow";
 import {
-  activeSwitch as hardwareSwitch,
   type Box,
   boxOf,
   chipsOf as hardwareChipsOf,
@@ -41,12 +39,8 @@ import {
   STANDARD,
   warmHardwareRoutes,
 } from "./hardware-page";
-import {
-  activeSwitch as materialSwitch,
-  MDF,
-  openMaterial,
-  warmMaterialRoutes,
-} from "./material-page";
+import { availabilityAction } from "./item-availability-page";
+import { MDF, openMaterial, warmMaterialRoutes } from "./material-page";
 import {
   discardDraft,
   priceRateLimitKeysOf,
@@ -63,9 +57,10 @@ import {
   type SignedInAdministrator,
 } from "./staff-world";
 
-// How an item's switch row and its row menu are drawn, in a browser: a switch that cannot be pressed is drawn off the way
-// a deletion that cannot be taken is, and an open menu never covers the "De publicat" chip of the row it belongs to. Both
-// hold under `next dev` and under the production build `CI` serves; what differs is which switches can be pressed.
+// How an item's availability button and its row menu are drawn, in a browser: a button that cannot be pressed is drawn
+// off the way a deletion that cannot be taken is, and an open menu never covers the "De publicat" chip of the row it
+// belongs to. Both hold under `next dev` and under the production build `CI` serves; what differs is which
+// availability buttons can be pressed.
 
 const FILES_TAKE_TURNS_MS = 600_000;
 const PENDING_CHIP = () => romanian("priceDashboard.chips.pending");
@@ -121,7 +116,7 @@ export function describeItemLook(viewport: Viewport): void {
     await discardDraft(context);
   });
 
-  test(`${viewport.label}: every switch that cannot be pressed is drawn as the deletion that cannot be taken is, and one that can be pressed is not`, async ({
+  test(`${viewport.label}: every availability button that cannot be pressed is drawn as the deletion that cannot be taken is, and one that can be pressed is not`, async ({
     page,
   }) => {
     const words = wordsOf("ro");
@@ -132,28 +127,28 @@ export function describeItemLook(viewport: Viewport): void {
         "hardware, the default class",
         async () => {
           await openClass(page, STANDARD);
-          return hardwareSwitch(page, words);
+          return availabilityAction(page);
         },
       ],
       [
         "hardware, a class",
         async () => {
           await openClass(page, HETTICH);
-          return hardwareSwitch(page, words);
+          return availabilityAction(page);
         },
       ],
       [
         "a material",
         async () => {
           await openMaterial(page, MDF);
-          return materialSwitch(page, words);
+          return availabilityAction(page);
         },
       ],
       [
         "an accessory",
         async () => {
           await openAccessory(page, DRYING_RACK);
-          return accessorySwitch(page, words);
+          return availabilityAction(page);
         },
       ],
     ];
@@ -164,7 +159,7 @@ export function describeItemLook(viewport: Viewport): void {
       const isOff = (await toggle.getAttribute("aria-disabled")) === "true";
       await shootForReview(
         page,
-        `item-look-${viewport.label}-switch-${isOff ? "off" : "live"}-${name.replaceAll(/\W+/g, "-")}`,
+        `item-look-${viewport.label}-availability-${isOff ? "off" : "live"}-${name.replaceAll(/\W+/g, "-")}`,
       );
       if (isOff) {
         offCount += 1;
@@ -184,12 +179,12 @@ export function describeItemLook(viewport: Viewport): void {
     }
     expect(
       offCount,
-      "the default class's switch is always off",
+      "the default class's availability button is always off",
     ).toBeGreaterThan(0);
     if (SERVER_IS_PRODUCTION_BUILD) {
       expect(
         offCount,
-        "a production build judges the switch-off from the saved defaults, so only the default class stays off",
+        "a production build judges the deactivation from the saved defaults, so only the default class stays off",
       ).toBe(1);
     }
   });

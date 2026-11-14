@@ -120,16 +120,24 @@
   composes: wordsValue from "./item-screen.module.css";
 }
 
-.switch {
-  composes: switch from "./item-screen.module.css";
+.status {
+  composes: status from "./item-screen.module.css";
 }
 
-.switchState {
-  composes: switchState from "./item-screen.module.css";
+.statusLabel {
+  composes: statusLabel from "./item-screen.module.css";
+}
+
+.statusBadge {
+  composes: statusBadge from "./item-screen.module.css";
 }
 
 .hint {
   composes: hint from "./item-screen.module.css";
+}
+
+.reason {
+  composes: reason from "./item-screen.module.css";
 }
 
 .fields {

@@ -58,6 +58,10 @@ import {
   press,
 } from "./hardware-harness";
 import { inMemoryPriceDraftClient } from "./in-memory-price-draft-client";
+import {
+  availabilityActionIn,
+  availabilityBadgeTextIn,
+} from "./item-availability-control";
 import { roCopy } from "./romanian-copy";
 import { stubTheLifecycleServer } from "./lifecycle-server-harness";
 import {
@@ -173,14 +177,16 @@ describe("the sink cover cannot be switched off from the list", () => {
 });
 
 describe("the sink cover cannot be switched off from its own page", () => {
-  it("holds a switch that is on, off to a press, and opens nothing", async () => {
+  it("holds a button that is off to a press, beside an active status, and opens nothing", async () => {
     mounted = await mountAccessoryEdit(SINK_COVER, accessoryPageOf());
-    const coverSwitch = requireIn(mounted.container, 'button[role="switch"]');
+    const coverSwitch = availabilityActionIn(mounted.container);
 
     await press(coverSwitch);
     await press(coverSwitch);
 
-    expect(coverSwitch.getAttribute("aria-checked")).toBe("true");
+    expect(availabilityBadgeTextIn(mounted.container)).toBe(
+      roCopy("priceDashboard.chips.active"),
+    );
     expect(coverSwitch.getAttribute("aria-disabled")).toBe("true");
     expect(openDialog()).toBeNull();
     expect(writesTo(mounted)).toEqual([]);

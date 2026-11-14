@@ -33,20 +33,16 @@ const LONGEST_TITLE_WORD_PX = Math.ceil((113 / 12) * 9);
 const MATERIAL_COLUMN_WANTS_PX = 180;
 
 describe("what a thumb must hit", () => {
-  it.each([
-    "back",
-    "name",
-    "editLink",
-    "more",
-    "menuEntry",
-    "switch",
-    "savedLink",
-  ])("declares .%s a touch target tall", (className) => {
-    const heights = valuesFor(css, className, "min-height");
+  it.each(["back", "name", "editLink", "more", "menuEntry", "savedLink"])(
+    "declares .%s a touch target tall",
+    (className) => {
+      const heights = valuesFor(css, className, "min-height");
 
-    expect(heights, className).not.toEqual([]);
-    for (const height of heights) expect(height, className).toBe(TOUCH_TARGET);
-  });
+      expect(heights, className).not.toEqual([]);
+      for (const height of heights)
+        expect(height, className).toBe(TOUCH_TARGET);
+    },
+  );
 
   it.each(["editLink", "more", "menuEntry"])(
     "declares .%s a touch target wide",
@@ -62,7 +58,6 @@ describe("what a thumb must hit", () => {
       "editLink",
       "more",
       "menuEntry",
-      "switch",
       "savedLink",
     ]) {
       const hasRing = css

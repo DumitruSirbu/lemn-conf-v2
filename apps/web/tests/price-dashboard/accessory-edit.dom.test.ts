@@ -38,6 +38,11 @@ import {
   press,
 } from "./hardware-harness";
 import { inMemoryPriceDraftClient } from "./in-memory-price-draft-client";
+import {
+  availabilityActionIn,
+  availabilityActionOrNullIn,
+  availabilityBadgeTextIn,
+} from "./item-availability-control";
 import { roCopy } from "./romanian-copy";
 import { leaveTheStaffServer, stubTheStaffServer } from "./staff-frame-harness";
 
@@ -102,7 +107,7 @@ describe("a built-in accessory's page", () => {
     );
   });
 
-  it("offers a switch and the price, and a deletion that is off and says the accessory comes with the catalogue", async () => {
+  it("offers a status and the price, and a deletion that is off and says the accessory comes with the catalogue", async () => {
     const container = await mountEdit(DRYING_RACK);
 
     const deleteButton = buttonNamed(
@@ -115,11 +120,9 @@ describe("a built-in accessory's page", () => {
         deleteButton.getAttribute("aria-describedby") ?? "",
       )?.textContent,
     ).toBe(roCopy("priceDashboard.lifecycle.builtInAccessoryCannotBeDeleted"));
-    expect(
-      container
-        .querySelector('button[role="switch"]')
-        ?.getAttribute("aria-checked"),
-    ).toBe("true");
+    expect(availabilityBadgeTextIn(container)).toBe(
+      roCopy("priceDashboard.chips.active"),
+    );
     await press(deleteButton);
     expect(openDialog()).toBeNull();
   });
@@ -159,9 +162,11 @@ describe("the sink cover's deletion", () => {
 describe("the sink cover's switch", () => {
   it("is off with the reason that the cover is always added, and the rack's stays on", async () => {
     const cover = await mountEdit(SINK_COVER);
-    const coverSwitch = cover.querySelector('button[role="switch"]');
-    expect(coverSwitch?.getAttribute("aria-disabled")).toBe("true");
-    expect(coverSwitch?.getAttribute("aria-checked")).toBe("true");
+    const coverSwitch = availabilityActionIn(cover);
+    expect(coverSwitch.getAttribute("aria-disabled")).toBe("true");
+    expect(availabilityBadgeTextIn(cover)).toBe(
+      roCopy("priceDashboard.chips.active"),
+    );
     expect(cover.textContent).toContain(
       roCopy("priceDashboard.lifecycle.alwaysPresentCannotChange"),
     );
@@ -169,11 +174,7 @@ describe("the sink cover's switch", () => {
 
     const rack = await mountEdit(DRYING_RACK);
 
-    expect(
-      rack
-        .querySelector('button[role="switch"]')
-        ?.getAttribute("aria-disabled"),
-    ).toBeNull();
+    expect(availabilityActionIn(rack).getAttribute("aria-disabled")).toBeNull();
   });
 });
 
@@ -309,9 +310,14 @@ describe("a linked accessory's page", () => {
   it("does not let an accessory only the draft knows be switched on, and says it is activated after publishing", async () => {
     const container = await mountEdit(CREATED, { changes: CREATED_ACCESSORY });
 
-    const switchButton = container.querySelector('button[role="switch"]');
-    expect(switchButton?.getAttribute("aria-checked")).toBe("false");
-    expect(switchButton?.getAttribute("aria-disabled")).toBe("true");
+    const switchButton = availabilityActionIn(container);
+    expect(availabilityBadgeTextIn(container)).toBe(
+      roCopy("priceDashboard.chips.inactive"),
+    );
+    expect(switchButton.textContent).toBe(
+      roCopy("priceDashboard.common.activate"),
+    );
+    expect(switchButton.getAttribute("aria-disabled")).toBe("true");
     expect(container.textContent).toContain(
       roCopy("priceDashboard.lifecycle.activateNotPublished"),
     );
@@ -350,7 +356,7 @@ describe("a linked accessory's page", () => {
       roCopy("priceDashboard.accessories.deleteNotice"),
     );
     expect(allIn(container, "input")).toEqual([]);
-    expect(container.querySelector('button[role="switch"]')).toBeNull();
+    expect(availabilityActionOrNullIn(container)).toBeNull();
   });
 });
 

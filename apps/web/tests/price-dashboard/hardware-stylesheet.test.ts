@@ -24,7 +24,6 @@ describe("what a thumb must hit", () => {
     "editLink",
     "more",
     "menuEntry",
-    "switch",
     "savedLink",
     "addLink",
   ])("declares .%s a touch target tall", (className) => {
@@ -57,7 +56,6 @@ describe("what a thumb must hit", () => {
       "editLink",
       "more",
       "menuEntry",
-      "switch",
       "savedLink",
     ]) {
       const hasRing = css

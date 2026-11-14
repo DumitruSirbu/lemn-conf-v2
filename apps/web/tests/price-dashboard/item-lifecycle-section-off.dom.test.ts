@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 //
-// The switch row of an item's page: with a reason it is a switch that is off, says so to the browser and to assistive
-// technology, and a press on it asks for nothing; without one it is pressed as before.
+// The availability section of an item's page: with a reason its button is off, says so to the browser and to assistive
+// technology, and a press on it asks for nothing; the status is stated either way; without a reason it is pressed.
 import { createElement } from "react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -13,13 +13,13 @@ import {
 import { ItemLifecycleSection } from "@/price-dashboard/item-edit-parts";
 import { useItemAvailability } from "@/price-dashboard/use-item-availability";
 
-import {
-  click,
-  mountInCatalogue,
-  requireIn,
-} from "../support/render-with-intl";
+import { click, mountInCatalogue } from "../support/render-with-intl";
 import { draftMovingOnEveryRead } from "../support/draft-facts-now";
 import { renderHook } from "../support/render-hook";
+import {
+  availabilityActionIn,
+  availabilityStatusIn,
+} from "./item-availability-control";
 import { recordingLifecycleClient } from "./recording-item-lifecycle-client";
 import { roCopy } from "./romanian-copy";
 
@@ -64,35 +64,62 @@ function sectionWith(switchReason: string | undefined) {
       words: WORDS,
     }),
   );
-  const toggle = requireIn(mounted.container, '[role="switch"]');
+  const toggle = availabilityActionIn(mounted.container);
   const unmount = () => {
     mounted.unmount();
     desk.unmount();
   };
-  return { toggle, requestSwitch, unmount };
+  return {
+    toggle,
+    status: availabilityStatusIn(mounted.container),
+    requestSwitch,
+    unmount,
+  };
 }
 
-describe("an item's switch row", () => {
-  it("is a switch that is off when it has a reason, and a press on it asks for nothing", () => {
+function descriptionOf(control: HTMLElement): (string | undefined)[] {
+  return (control.getAttribute("aria-describedby") ?? "")
+    .split(" ")
+    .map((id) => document.getElementById(id)?.textContent);
+}
+
+describe("an item's availability section", () => {
+  it("has its button off when it has a reason, and a press on it asks for nothing", () => {
     const { toggle, requestSwitch, unmount } = sectionWith(REASON);
 
     expect(toggle.getAttribute("aria-disabled")).toBe("true");
-    expect(toggle.className).toContain("switch");
     click(toggle);
 
     expect(requestSwitch).not.toHaveBeenCalled();
     unmount();
   });
 
-  it("carries the reason as its description, so the off state is said and not only drawn", () => {
+  it("carries the reason and then the hint as its description, so the off state is said and not only drawn", () => {
     const { toggle, unmount } = sectionWith(REASON);
 
-    const describedBy = toggle.getAttribute("aria-describedby") ?? "";
-    expect(document.getElementById(describedBy)?.textContent).toBe(REASON);
+    expect(descriptionOf(toggle)).toEqual([REASON, WORDS.activeNote]);
     unmount();
   });
 
-  it("is a switch that is not off when it has no reason, and a press on it asks for the switch", () => {
+  it("states the status whether or not the button is off, and the reason stands under the button", () => {
+    const { toggle, status, unmount } = sectionWith(REASON);
+
+    expect(status.textContent).toBe(
+      `${WORDS.activeLabel}${roCopy("priceDashboard.chips.active")}`,
+    );
+    expect(toggle.nextElementSibling?.textContent).toBe(REASON);
+    unmount();
+  });
+
+  it("is described by the hint alone, and says no reason, while the button can be pressed", () => {
+    const { toggle, unmount } = sectionWith(undefined);
+
+    expect(descriptionOf(toggle)).toEqual([WORDS.activeNote]);
+    expect(toggle.nextElementSibling?.textContent).not.toBe(REASON);
+    unmount();
+  });
+
+  it("has its button on when it has no reason, and a press on it asks for the change", () => {
     const { toggle, requestSwitch, unmount } = sectionWith(undefined);
 
     expect(toggle.hasAttribute("aria-disabled")).toBe(false);

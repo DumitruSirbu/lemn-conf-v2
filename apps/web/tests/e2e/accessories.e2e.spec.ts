@@ -31,7 +31,6 @@ import {
   ACCESSORY_NAME_KEY,
   accessoryPath,
   activePriceOf,
-  activeSwitch,
   BUILT_IN_ACCESSORIES,
   cancelPriceButton,
   chipsOf,
@@ -70,6 +69,10 @@ import {
   SAYS_SAVED_KITCHENS_USE_IT,
   SERVER_IS_PRODUCTION_BUILD,
 } from "./support/hardware-page";
+import {
+  availabilityAction,
+  availabilityBadge,
+} from "./support/item-availability-page";
 import {
   discardDraft,
   expectNoSidewaysScroll,
@@ -273,9 +276,11 @@ test.describe("the accessory screens on a phone, 390 x 844", () => {
       await openAccessory(page, SINK_COVER);
       const requests = collectDashboardRequests(page);
 
-      const toggle = activeSwitch(page, words);
+      const toggle = availabilityAction(page);
       await expect(toggle).toHaveAttribute("aria-disabled", "true");
-      await expect(toggle).toHaveAttribute("aria-checked", "true");
+      await expect(availabilityBadge(page)).toHaveText(
+        romanian("priceDashboard.chips.active"),
+      );
       await expect(
         editPageOf(page).getByText(
           romanian("priceDashboard.lifecycle.alwaysPresentCannotChange"),
@@ -532,7 +537,7 @@ test.describe("the accessory screens on a phone, 390 x 844", () => {
       await shootForReview(page, "390-d6a-production-menu");
 
       await openAccessory(page, DRYING_RACK);
-      await expect(activeSwitch(page, words)).not.toHaveAttribute(
+      await expect(availabilityAction(page)).not.toHaveAttribute(
         "aria-disabled",
         "true",
       );
@@ -544,7 +549,7 @@ test.describe("the accessory screens on a phone, 390 x 844", () => {
         requests.slice(requestsBeforeDeletion),
         "no request was made by pressing the off deletion",
       ).toEqual([]);
-      await activeSwitch(page, words).tap();
+      await availabilityAction(page).tap();
       await expect(
         itemDialogOf(page),
         "the switch-off asks first",
@@ -668,7 +673,7 @@ test.describe("the accessory screens on a phone, 390 x 844", () => {
     }) => {
       await openAccessory(page, DRYING_RACK);
 
-      await activeSwitch(page, words).tap();
+      await availabilityAction(page).tap();
       const dialog = itemDialogOf(page);
       await expect(dialog.getByRole("heading", { level: 2 })).toHaveText(
         romanian("priceDashboard.lifecycle.deactivateTitle", {
@@ -679,9 +684,8 @@ test.describe("the accessory screens on a phone, 390 x 844", () => {
         .getByRole("button", { name: CONFIRM_SWITCH_OFF(), exact: true })
         .tap();
 
-      await expect(activeSwitch(page, words)).toHaveAttribute(
-        "aria-checked",
-        "false",
+      await expect(availabilityBadge(page)).toHaveText(
+        romanian("priceDashboard.chips.inactive"),
       );
       await expect(deleteAccessoryButton(page, words)).toHaveAttribute(
         "aria-disabled",

@@ -39,6 +39,10 @@ import {
   SAMPLE_MATERIALS,
   type MountedMaterials,
 } from "./material-harness";
+import {
+  availabilityActionIn,
+  availabilityActionOrNullIn,
+} from "./item-availability-control";
 import { roCopy } from "./romanian-copy";
 import { leaveTheStaffServer, stubTheStaffServer } from "./staff-frame-harness";
 
@@ -398,7 +402,7 @@ describe("what the page says of use and colours", () => {
 });
 
 describe("a material that is switched off (D5F)", () => {
-  it("says it is inactive and used, with the count and the line that it moves, and offers to switch it on", async () => {
+  it("says it is inactive and used, with the count and the line that it moves, and leaves the one button of the section to switch it on", async () => {
     const container = await mountMdf({ disabled: [materialItem(MDF)] });
 
     const banner = requireIn(container, '[data-testid="material-banner"]');
@@ -409,9 +413,10 @@ describe("a material that is switched off (D5F)", () => {
     expect(banner.textContent).toContain(
       roCopy("priceDashboard.materials.inactiveBanner"),
     );
-    expect(
-      buttonNamed(banner, roCopy("priceDashboard.common.activate")),
-    ).toBeDefined();
+    expect(banner.querySelector("button")).toBeNull();
+    expect(availabilityActionIn(container).textContent).toBe(
+      roCopy("priceDashboard.common.activate"),
+    );
   });
 
   it("says only that customers cannot choose it, with no number, where the count is not had", async () => {
@@ -426,7 +431,7 @@ describe("a material that is switched off (D5F)", () => {
     );
 
     expect(banner.textContent).toBe(
-      `${roCopy("priceDashboard.materials.inactiveBannerPlain")}${roCopy("priceDashboard.common.activate")}`,
+      roCopy("priceDashboard.materials.inactiveBannerPlain"),
     );
   });
 
@@ -460,6 +465,6 @@ describe("a material the draft deletes", () => {
       roCopy("priceDashboard.materials.deleteNotice"),
     );
     expect(allIn(mounted.container, "input")).toEqual([]);
-    expect(allIn(mounted.container, '[role="switch"]')).toEqual([]);
+    expect(availabilityActionOrNullIn(mounted.container)).toBeNull();
   });
 });

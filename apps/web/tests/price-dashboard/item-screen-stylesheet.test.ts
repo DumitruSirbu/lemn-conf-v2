@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   declarationsOfRule,
+  readItemScreenSheet,
   sharedClassesNotComposed,
 } from "../support/item-screen-stylesheet";
 
@@ -18,29 +19,26 @@ describe("a screen takes every class of the shared item sheet", () => {
   });
 });
 
-describe("a switch that cannot be pressed", () => {
-  const OFF_PROPERTIES = ["color", "background", "border-color", "cursor"];
-
-  it("is drawn with what a button that cannot be pressed is drawn with", () => {
-    const buttonOff = declarationsOfRule(
-      "price-edit.module.css",
-      '.action[aria-disabled="true"]',
-    );
-    const switchOff = declarationsOfRule(
-      "item-screen.module.css",
-      '.switch[aria-disabled="true"]',
+describe("the availability status of an item's page (ADR 0184)", () => {
+  it("is drawn as text: the shared sheet has no switch rule and the status invites no press", () => {
+    const sheet = readItemScreenSheet("item-screen.module.css");
+    const statusRules = [".status", ".statusLabel", ".statusBadge"].map(
+      (selector) => declarationsOfRule("item-screen.module.css", selector),
     );
 
-    for (const property of OFF_PROPERTIES) {
-      expect(switchOff[property], property).toBeDefined();
-      expect(switchOff[property], property).toBe(buttonOff[property]);
+    expect(sheet).not.toMatch(/\.switch\b/);
+    for (const rule of statusRules) {
+      expect(Object.keys(rule).length).toBeGreaterThan(0);
+      expect(rule.cursor).toBeUndefined();
     }
   });
 
-  it("leaves a switch that can be pressed on the paper, with the pointer", () => {
-    const switchLive = declarationsOfRule("item-screen.module.css", ".switch");
+  it("says the off reason in a tone and weight that the hint above the button does not have", () => {
+    const reason = declarationsOfRule("item-screen.module.css", ".reason");
+    const hint = declarationsOfRule("item-screen.module.css", ".hint");
 
-    expect(switchLive.background).toBe("var(--paper)");
-    expect(switchLive.cursor).toBe("pointer");
+    expect(reason.color).toBeDefined();
+    expect(reason.color).not.toBe(hint.color);
+    expect(reason.font).not.toBe(hint.font);
   });
 });

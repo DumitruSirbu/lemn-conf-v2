@@ -39,8 +39,11 @@ import {
   SERVER_IS_PRODUCTION_BUILD,
 } from "./support/hardware-page";
 import {
+  availabilityAction,
+  availabilityBadge,
+} from "./support/item-availability-page";
+import {
   activePercentOf,
-  activeSwitch,
   cancelSurchargeButton,
   chipsOf,
   coloursCellOf,
@@ -485,9 +488,11 @@ test.describe("the materials screens on a phone, 390 x 844", () => {
         ),
       ).toBeVisible();
       await expect(exampleOf(page)).toHaveCount(0);
-      const toggle = activeSwitch(page, words);
+      const toggle = availabilityAction(page);
       await expect(toggle).toHaveAttribute("aria-disabled", "true");
-      await expect(toggle).toHaveAttribute("aria-checked", "true");
+      await expect(availabilityBadge(page)).toHaveText(
+        romanian("priceDashboard.chips.active"),
+      );
       await expect(editPageOf(page).getByText(reason)).toHaveCount(2);
       await expect(deleteMaterialButton(page, words)).toHaveAttribute(
         "aria-disabled",
@@ -553,7 +558,7 @@ test.describe("the materials screens on a phone, 390 x 844", () => {
       await shootForReview(page, "390-d5a-production-menu");
 
       await openMaterial(page, MDF);
-      await expect(activeSwitch(page, words)).not.toHaveAttribute(
+      await expect(availabilityAction(page)).not.toHaveAttribute(
         "aria-disabled",
         "true",
       );
@@ -594,7 +599,7 @@ test.describe("the materials screens on a phone, 390 x 844", () => {
         })
         .tap();
       await expect(itemDialogOf(page)).toHaveCount(0);
-      await activeSwitch(page, words).tap();
+      await availabilityAction(page).tap();
       await expect(
         itemDialogOf(page),
         "the switch-off asks first",
@@ -732,7 +737,7 @@ test.describe("the materials screens on a phone, 390 x 844", () => {
     }) => {
       await openMaterial(page, MDF);
       await expect(inactiveBannerOf(page)).toHaveCount(0);
-      await activeSwitch(page, words).tap();
+      await availabilityAction(page).tap();
       await itemDialogOf(page)
         .getByRole("button", { name: CONFIRM_SWITCH_OFF(), exact: true })
         .tap();
@@ -750,9 +755,8 @@ test.describe("the materials screens on a phone, 390 x 844", () => {
       expect(text).toContain(
         romanian("priceDashboard.materials.inactiveBanner"),
       );
-      await expect(activeSwitch(page, words)).toHaveAttribute(
-        "aria-checked",
-        "false",
+      await expect(availabilityBadge(page)).toHaveText(
+        romanian("priceDashboard.chips.inactive"),
       );
       await expect(
         editPageOf(page).getByText(
@@ -773,9 +777,8 @@ test.describe("the materials screens on a phone, 390 x 844", () => {
         .tap();
 
       await expect(inactiveBannerOf(page)).toHaveCount(0);
-      await expect(activeSwitch(page, words)).toHaveAttribute(
-        "aria-checked",
-        "true",
+      await expect(availabilityBadge(page)).toHaveText(
+        romanian("priceDashboard.chips.active"),
       );
       await expect(page.getByTestId("staff-pending-prices")).toHaveCount(0);
     });

@@ -33,6 +33,7 @@ import {
   rowOf,
   type MountedMaterials,
 } from "./material-harness";
+import { availabilityActionIn } from "./item-availability-control";
 import { roCopy } from "./romanian-copy";
 import { leaveTheStaffServer, stubTheStaffServer } from "./staff-frame-harness";
 
@@ -257,20 +258,14 @@ describe("the last material that is on (D5G)", () => {
     );
   });
 
-  it("is told from the page's own switch the same way", async () => {
+  it("is told from the page's own button the same way", async () => {
     mounted = await mountMaterialEdit(
       PAL,
       materialPageOf({
         disabled: [materialItem(MDF), materialItem(VENEER)],
       }),
     );
-    const switchButton = allIn<HTMLButtonElement>(
-      mounted.container,
-      '[role="switch"]',
-    )[0];
-    if (switchButton === undefined) throw new Error("no switch");
-
-    await press(switchButton);
+    await press(availabilityActionIn(mounted.container));
 
     expect(openDialog()?.textContent).toContain(
       roCopy("priceDashboard.lifecycle.lastActiveBody"),
@@ -302,21 +297,13 @@ describe("enabling a switched-off material", () => {
     expect(chipsOf(mounted.container, VENEER)).toEqual([ACTIVE]);
   });
 
-  it("is asked from the page too: the switch and the banner's button open the same dialog", async () => {
+  it("is asked from the page too: the section's button opens the dialog", async () => {
     mounted = await mountMaterialEdit(
       MDF,
       materialPageOf({ disabled: [materialItem(MDF)] }),
     );
-    const banner = mounted.container.querySelector<HTMLElement>(
-      '[data-testid="material-banner"]',
-    );
-    const activate = allIn<HTMLButtonElement>(
-      banner ?? document.body,
-      "button",
-    )[0];
-    if (activate === undefined) throw new Error("the banner offers no button");
 
-    await press(activate);
+    await press(availabilityActionIn(mounted.container));
 
     expect(openDialog()?.textContent).toContain(
       roCopy("priceDashboard.lifecycle.activateTitle", { name: MDF_NAME }),

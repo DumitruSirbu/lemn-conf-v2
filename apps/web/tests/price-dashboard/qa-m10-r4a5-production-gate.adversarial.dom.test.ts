@@ -20,7 +20,6 @@ import { resetStaffSessionExpiryForTests } from "@/staff/staff-session-expiry";
 
 import { flushPromises } from "../support/render-hook";
 import {
-  allIn,
   mountInCatalogue,
   type MountedScreen,
 } from "../support/render-with-intl";
@@ -30,6 +29,7 @@ import * as hardware from "./hardware-harness";
 import { inMemoryPriceDraftClient } from "./in-memory-price-draft-client";
 import { stubTheLifecycleServer } from "./lifecycle-server-harness";
 import * as materials from "./material-harness";
+import { availabilityActionIn } from "./item-availability-control";
 import { roCopy } from "./romanian-copy";
 import {
   contextOf,
@@ -366,7 +366,7 @@ describe.each(KINDS)("a production $label screen", (kind) => {
     });
   });
 
-  it("offers no switch-off of any item from its list while the saved defaults are unreadable, and counts and sends nothing", async () => {
+  it("offers no deactivation of any item from its list while the saved defaults are unreadable, and counts and sends nothing", async () => {
     const { container } = kind.mountList(undefined);
     await flushPromises(8);
 
@@ -382,21 +382,15 @@ describe.each(KINDS)("a production $label screen", (kind) => {
     expect(server.switchRequests).toEqual([]);
   });
 
-  it("offers no switch-off of any item from its own page while the saved defaults are unreadable", async () => {
+  it("offers no deactivation of any item from its own page while the saved defaults are unreadable", async () => {
     for (const { id } of kind.rows) {
       const { container } = kind.mountEdit(id, undefined);
       await flushPromises(8);
 
-      const switches = allIn(container, '[role="switch"]');
-      expect(
-        switches.length,
-        `${id}: the page has a switch to hold off`,
-      ).toBeGreaterThan(0);
-      for (const control of switches) {
-        await hardware.press(control);
-        expect(control.getAttribute("aria-disabled"), id).toBe("true");
-        expect(openDialog(), id).toBeNull();
-      }
+      const control = availabilityActionIn(container);
+      await hardware.press(control);
+      expect(control.getAttribute("aria-disabled"), id).toBe("true");
+      expect(openDialog(), id).toBeNull();
     }
 
     expectOnlyEachPagesOwnItemCounted();

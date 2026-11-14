@@ -16,7 +16,6 @@ import { expect } from "@playwright/test";
 import {
   ACCESSORY_NAME_KEY,
   activePriceOf,
-  activeSwitch,
   BUILT_IN_ACCESSORIES,
   chipsOf,
   columnTitlesOf,
@@ -55,6 +54,10 @@ import {
   SAYS_SAVED_KITCHENS_USE_IT,
   SERVER_IS_PRODUCTION_BUILD,
 } from "./support/hardware-page";
+import {
+  availabilityAction,
+  availabilityBadge,
+} from "./support/item-availability-page";
 import { isTopmostAtCentre } from "./support/item-list-geometry";
 import {
   discardDraft,
@@ -390,7 +393,7 @@ test.describe("the accessory screens at desktop 1440", () => {
       await shootForReview(page, "1440-d6a-production-menu");
 
       await openAccessory(page, DRYING_RACK);
-      await expect(activeSwitch(page, words)).not.toHaveAttribute(
+      await expect(availabilityAction(page)).not.toHaveAttribute(
         "aria-disabled",
         "true",
       );
@@ -402,7 +405,7 @@ test.describe("the accessory screens at desktop 1440", () => {
         requests.slice(requestsBeforeDeletion),
         "no request was made by pressing the off deletion",
       ).toEqual([]);
-      await activeSwitch(page, words).click();
+      await availabilityAction(page).click();
       await expect(
         itemDialogOf(page),
         "the switch-off asks first",
@@ -544,7 +547,7 @@ test.describe("the accessory screens at desktop 1440", () => {
     }) => {
       await openAccessory(page, DRYING_RACK);
 
-      await activeSwitch(page, words).click();
+      await availabilityAction(page).click();
       const dialog = itemDialogOf(page);
       await expect(dialog.getByRole("heading", { level: 2 })).toHaveText(
         romanian("priceDashboard.lifecycle.deactivateTitle", {
@@ -555,9 +558,8 @@ test.describe("the accessory screens at desktop 1440", () => {
         .getByRole("button", { name: CONFIRM_SWITCH_OFF(), exact: true })
         .click();
 
-      await expect(activeSwitch(page, words)).toHaveAttribute(
-        "aria-checked",
-        "false",
+      await expect(availabilityBadge(page)).toHaveText(
+        romanian("priceDashboard.chips.inactive"),
       );
       await expect(deleteAccessoryButton(page, words)).toHaveAttribute(
         "aria-disabled",

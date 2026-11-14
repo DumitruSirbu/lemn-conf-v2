@@ -186,15 +186,6 @@ export function cancelPriceButton(page: Page, words: Words): Locator {
   });
 }
 
-/** The accessory page's switch: "Activ". */
-export function activeSwitch(page: Page, words: Words): Locator {
-  return editPageOf(page).getByRole("switch", {
-    name: new RegExp(
-      `^${escaped(words("priceDashboard.accessories.activeLabel"))}`,
-    ),
-  });
-}
-
 export function deleteAccessoryButton(page: Page, words: Words): Locator {
   return editPageOf(page).getByRole("button", {
     name: words("priceDashboard.accessories.deleteAction"),
@@ -220,8 +211,4 @@ export function linkSelect(page: Page, words: Words): Locator {
 /** The table's column titles, which a card layout does not draw. */
 export function columnTitlesOf(page: Page): Locator {
   return page.locator('[data-testid="accessory-list"] > [aria-hidden="true"]');
-}
-
-function escaped(text: string): string {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

@@ -20,12 +20,7 @@ import { HardwareListScreen } from "@/price-dashboard/hardware-list";
 import type { PriceDraftClient } from "@/price-dashboard/price-draft-client";
 import { resetStaffSessionExpiryForTests } from "@/staff/staff-session-expiry";
 
-import {
-  allIn,
-  click,
-  mountInCatalogue,
-  requireIn,
-} from "../support/render-with-intl";
+import { allIn, click, mountInCatalogue } from "../support/render-with-intl";
 import { flushPromises } from "../support/render-hook";
 import { buttonNamed, typeInField } from "./cabinet-detail-harness";
 import {
@@ -48,6 +43,10 @@ import {
   type MountedHardware,
 } from "./hardware-harness";
 import { inMemoryPriceDraftClient } from "./in-memory-price-draft-client";
+import {
+  availabilityActionIn,
+  availabilityActionOrNullIn,
+} from "./item-availability-control";
 import { roCopy } from "./romanian-copy";
 import {
   stubTheLifecycleServer,
@@ -391,7 +390,7 @@ describe("a production build, as the server hands it its page", () => {
     );
     await flushPromises(5);
 
-    const classSwitch = requireIn(screenOf.container, '[role="switch"]');
+    const classSwitch = availabilityActionIn(screenOf.container);
     await press(classSwitch);
 
     expect(classSwitch.getAttribute("aria-disabled")).not.toBe("true");
@@ -587,8 +586,10 @@ describe("a class the draft deletes", () => {
       HETTICH,
       hardwarePageOf({ changes: DELETES_HETTICH }),
     );
+    const pageAction = availabilityActionOrNullIn(screen().container);
     const pageOffersTheSwitch =
-      allIn(screen().container, '[role="switch"]').length > 0;
+      pageAction !== null &&
+      pageAction.getAttribute("aria-disabled") !== "true";
 
     expect(pageOffersTheSwitch).toBe(listOffersTheSwitch);
   });

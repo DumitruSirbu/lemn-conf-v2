@@ -190,15 +190,6 @@ export function cancelSurchargeButton(page: Page, words: Words): Locator {
   });
 }
 
-/** The material page's switch: "Activ în configurator". */
-export function activeSwitch(page: Page, words: Words): Locator {
-  return editPageOf(page).getByRole("switch", {
-    name: new RegExp(
-      `^${escaped(words("priceDashboard.materials.activeLabel"))}`,
-    ),
-  });
-}
-
 export function deleteMaterialButton(page: Page, words: Words): Locator {
   return editPageOf(page).getByRole("button", {
     name: words("priceDashboard.materials.deleteAction"),
@@ -237,8 +228,4 @@ export async function examplePricesOf(
 function amountIn(text: string): number {
   const digits = text.replace(/[^\d]/g, "");
   return digits === "" ? 0 : Number(digits) * 100;
-}
-
-function escaped(text: string): string {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

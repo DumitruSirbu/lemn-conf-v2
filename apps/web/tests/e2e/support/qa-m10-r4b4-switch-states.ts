@@ -5,25 +5,19 @@ import {
 import { expect, type Locator, type Page } from "@playwright/test";
 
 import {
-  activeSwitch as accessorySwitch,
   DRYING_RACK,
   openAccessory,
   warmAccessoryRoutes,
 } from "./accessory-page";
 import {
-  activeSwitch as hardwareSwitch,
   deleteClassButton,
   HETTICH,
   openClass,
   STANDARD,
   warmHardwareRoutes,
 } from "./hardware-page";
-import {
-  activeSwitch as materialSwitch,
-  MDF,
-  openMaterial,
-  warmMaterialRoutes,
-} from "./material-page";
+import { availabilityAction } from "./item-availability-page";
+import { MDF, openMaterial, warmMaterialRoutes } from "./material-page";
 import {
   discardDraft,
   priceRateLimitKeysOf,
@@ -38,9 +32,9 @@ import {
   type SignedInAdministrator,
 } from "./staff-world";
 
-// An item's switch row in every state a control can be put in, in a browser: one that cannot be pressed keeps the look of
-// a deletion that cannot be taken whether it is on or off, hovered, focused or switched by the page's own attribute, and
-// one that can be pressed does not take that look in any of them.
+// An item's availability button (ADR 0184) in every state a control can be put in, in a browser: one that cannot be
+// pressed keeps the look of a deletion that cannot be taken whether hovered or focused, and one that can be pressed
+// does not take that look in either.
 
 const FILES_TAKE_TURNS_MS = 600_000;
 
@@ -99,34 +93,34 @@ export function describeSwitchStates(viewport: Viewport): void {
       name: "hardware, the default class",
       open: async (page) => {
         await openClass(page, STANDARD);
-        return hardwareSwitch(page, words);
+        return availabilityAction(page);
       },
     },
     {
       name: "hardware, a class",
       open: async (page) => {
         await openClass(page, HETTICH);
-        return hardwareSwitch(page, words);
+        return availabilityAction(page);
       },
     },
     {
       name: "a material",
       open: async (page) => {
         await openMaterial(page, MDF);
-        return materialSwitch(page, words);
+        return availabilityAction(page);
       },
     },
     {
       name: "an accessory",
       open: async (page) => {
         await openAccessory(page, DRYING_RACK);
-        return accessorySwitch(page, words);
+        return availabilityAction(page);
       },
     },
   ];
 
   for (const screen of screens) {
-    test(`${viewport.label}: ${screen.name}: the switch keeps its look hovered, focused and with either state of the attribute`, async ({
+    test(`${viewport.label}: ${screen.name}: the availability button keeps its look hovered and focused`, async ({
       page,
     }) => {
       await openClass(page, STANDARD);
@@ -150,28 +144,17 @@ export function describeSwitchStates(viewport: Viewport): void {
       failures.push(
         ...differences("hovered", await lookOf(toggle), drawnOff, isOff),
       );
-      for (const checked of ["true", "false"]) {
-        await setAttribute(toggle, "aria-checked", checked);
-        failures.push(
-          ...differences(
-            `aria-checked=${checked}`,
-            await lookOf(toggle),
-            drawnOff,
-            isOff,
-          ),
-        );
-      }
       expect(failures).toEqual([]);
     });
   }
 
-  test(`${viewport.label}: taking aria-disabled off a switch that was off draws it live, so the comparison tells the two apart`, async ({
+  test(`${viewport.label}: taking aria-disabled off an availability button that was off draws it live, so the comparison tells the two apart`, async ({
     page,
   }) => {
     await openClass(page, STANDARD);
     const drawnOff = await lookOf(deleteClassButton(page, words));
     await openClass(page, STANDARD);
-    const toggle = hardwareSwitch(page, words);
+    const toggle = availabilityAction(page);
     expect(await toggle.getAttribute("aria-disabled")).toBe("true");
 
     await setAttribute(toggle, "aria-disabled", "false");

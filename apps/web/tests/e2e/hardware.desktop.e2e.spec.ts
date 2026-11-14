@@ -20,7 +20,6 @@ import {
 } from "./support/cabinet-detail-page";
 import {
   activeRatesOf,
-  activeSwitch,
   BLUM,
   boxOf,
   chipsOf,
@@ -55,6 +54,10 @@ import {
   STANDARD,
   warmHardwareRoutes,
 } from "./support/hardware-page";
+import {
+  availabilityAction,
+  availabilityBadge,
+} from "./support/item-availability-page";
 import {
   discardDraft,
   expectNoSidewaysScroll,
@@ -546,7 +549,7 @@ test.describe("the hardware screens at desktop 1440", () => {
       await expect(itemDialogOf(page)).toHaveCount(0);
 
       await openClass(page, HETTICH);
-      await expect(activeSwitch(page, words)).not.toHaveAttribute(
+      await expect(availabilityAction(page)).not.toHaveAttribute(
         "aria-disabled",
         "true",
       );
@@ -763,7 +766,7 @@ test.describe("the hardware screens at desktop 1440", () => {
     }) => {
       await openClass(page, HETTICH);
 
-      await activeSwitch(page, words).click();
+      await availabilityAction(page).click();
 
       const dialog = itemDialogOf(page);
       const text = plainText(await dialog.innerText());
@@ -776,9 +779,8 @@ test.describe("the hardware screens at desktop 1440", () => {
       await dialog
         .getByRole("button", { name: CONFIRM_SWITCH_OFF(), exact: true })
         .click();
-      await expect(activeSwitch(page, words)).toHaveAttribute(
-        "aria-checked",
-        "false",
+      await expect(availabilityBadge(page)).toHaveText(
+        romanian("priceDashboard.chips.inactive"),
       );
       await expect(page.getByTestId("staff-pending-prices")).toHaveCount(0);
       await shootForReview(page, "1440-d4b-hettich-off");

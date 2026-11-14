@@ -210,15 +210,6 @@ export function cancelRatesButton(page: Page, words: Words): Locator {
   });
 }
 
-/** The class page's switch: "Activă în configurator". */
-export function activeSwitch(page: Page, words: Words): Locator {
-  return editPageOf(page).getByRole("switch", {
-    name: new RegExp(
-      `^${escaped(words("priceDashboard.hardware.activeLabel"))}`,
-    ),
-  });
-}
-
 export function deleteClassButton(page: Page, words: Words): Locator {
   return editPageOf(page).getByRole("button", {
     name: words("priceDashboard.hardware.deleteAction"),
@@ -229,10 +220,6 @@ export function deleteClassButton(page: Page, words: Words): Locator {
 /** The dialog a switch or a deletion opens: the page's only alertdialog. */
 export function itemDialogOf(page: Page): Locator {
   return page.getByRole("alertdialog");
-}
-
-function escaped(text: string): string {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 /** What a price cell says, as bani: "17,60 lei" is 1760 and "1 500 lei" is 150000. */
