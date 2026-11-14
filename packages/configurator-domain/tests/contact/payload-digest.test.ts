@@ -51,6 +51,10 @@ function validated(input: unknown): ContactSubmissionRequest {
 }
 
 const DESIGN = validated(DESIGN_REQUEST);
+const DESIGN_NAMING_AN_ACCOUNT = validated({
+  ...DESIGN_REQUEST,
+  profileAccountEmail: "ana@mail.md",
+});
 const CALLBACK = validated(CALLBACK_REQUEST);
 
 function treatmentsOf(): readonly DigestTreatment[] {
@@ -109,7 +113,7 @@ describe("what a payload's digest covers", () => {
   });
 
   it("holds exactly the keys a treatment names, so a treatment for a field no request has is found too", () => {
-    expect(Object.keys(DESIGN).sort()).toEqual(
+    expect(Object.keys(DESIGN_NAMING_AN_ACCOUNT).sort()).toEqual(
       [...Object.keys(REQUEST_TREATMENT), "contact", "target"].sort(),
     );
     expect(Object.keys(DESIGN.contact).sort()).toEqual(
@@ -132,7 +136,7 @@ describe("what a payload's digest covers", () => {
     ).toEqual([]);
   });
 
-  it("leaves out the elapsed time and the honeypot's answer, each with its reason, and nothing else", () => {
+  it("leaves out the elapsed time, the honeypot's answer and the account address the profile line named, each with its reason, and nothing else", () => {
     const leftOut = treatmentsOf().flatMap((treatment) =>
       "leavesOut" in treatment ? [treatment.leavesOut] : [],
     );
@@ -143,13 +147,27 @@ describe("what a payload's digest covers", () => {
           "leavesOut" in
           REQUEST_TREATMENT[key as keyof typeof REQUEST_TREATMENT],
       ),
-    ).toEqual(["isHoneypotFilled", "elapsedMs"]);
-    expect(leftOut).toHaveLength(2);
+    ).toEqual(["isHoneypotFilled", "elapsedMs", "profileAccountEmail"]);
+    expect(leftOut).toHaveLength(3);
     expect(leftOut.every((reason) => reason.length > 0)).toBe(true);
   });
 });
 
 describe("payloadDigestFields", () => {
+  it("is the same for a request that names an account address, another one, and one that names none", () => {
+    const another = validated({
+      ...DESIGN_REQUEST,
+      profileAccountEmail: "ion@mail.md",
+    });
+
+    expect(payloadDigestFields(DESIGN_NAMING_AN_ACCOUNT, BOOK_VERSION)).toEqual(
+      payloadDigestFields(DESIGN, BOOK_VERSION),
+    );
+    expect(payloadDigestFields(another, BOOK_VERSION)).toEqual(
+      payloadDigestFields(DESIGN, BOOK_VERSION),
+    );
+  });
+
   /** The same value with the keys of every level built in the opposite order. */
   function keysReversed<Value extends object>(value: Value): Value {
     const entries = Object.entries(value).reverse();

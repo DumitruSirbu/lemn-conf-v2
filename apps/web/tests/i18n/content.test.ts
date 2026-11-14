@@ -143,6 +143,7 @@ const FUNCTION_FAMILIES = [
   "globalSettings.depthOption",
   "globalSettings.depthNotePriced",
   "globalSettings.materialResetConfirm.body",
+  "contact.fillNotice",
   "submissionResult.channelLine",
   "submissionResult.whatsappMessageToShop",
   "submissionResult.alreadySentAdvice",
@@ -186,7 +187,7 @@ describe("the localized content resolver", () => {
   );
 
   it.each(CATALOGUES)(
-    "backs exactly 45 public functions with %s ICU messages",
+    "backs exactly 46 public functions with %s ICU messages",
     (locale, messages) => {
       const { content, translate } = contentAndOracleFor(locale, messages);
 

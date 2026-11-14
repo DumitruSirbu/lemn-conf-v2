@@ -29,17 +29,18 @@ import {
 } from "./kitchen-version-switch";
 import { FailedKitchens } from "./staff-kitchens-states";
 import type { StaffKitchenOpenedWire } from "./staff-kitchens-wire-contract";
+import { OpenIn3dLink } from "./staff-kitchen-3d-link";
 import { ClientProfile } from "./staff-kitchen-client";
 import { dayOf, shopRelativeAgeOf } from "./staff-kitchen-dates";
 import {
   modifiedSubLineOf,
-  shownDesignOf,
   sentAtOf,
   subLineOf,
   titleOf,
   versionsOf,
 } from "./staff-kitchen-facts";
 import { RequestLine, RequestStatusCard } from "./staff-kitchen-request";
+import { shownDesignOf } from "./shown-design";
 import {
   CannotShowNotice,
   KitchenHeader,
@@ -263,6 +264,15 @@ function ReadyKitchen({
               isCurrentVariantOfSent={
                 shown.source === "current" && wire.request !== null
               }
+            />
+          )}
+          {/* A page with no version switch has one readable copy, so the link names none. It sits under the
+          picture so the three columns start level. */}
+          {shown === undefined ? null : (
+            <OpenIn3dLink
+              locale={locale}
+              kitchenId={kitchen.id}
+              version={versionLabels === undefined ? undefined : shownVersion}
             />
           )}
           {versions === undefined || versionLabels === undefined ? null : (

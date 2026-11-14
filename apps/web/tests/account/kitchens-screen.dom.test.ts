@@ -163,6 +163,15 @@ describe("the list", () => {
     expect(page.container.querySelector("button[aria-busy]")).toBeNull();
   });
 
+  it("carries the account control in the page's header, beside the back link and the language link", async () => {
+    const page = await openScreen();
+    const header = requireIn(page.container, "header");
+    expect(
+      header.querySelector('[data-testid="top-bar-account"]'),
+    ).not.toBeNull();
+    expect(header.querySelector("nav a")).not.toBeNull();
+  });
+
   it("names a kitchen that was never named from its facts, never leaves it blank", async () => {
     const page = await openScreen();
     const unnamed = cards(page)[2]?.querySelector("h2")?.textContent ?? "";

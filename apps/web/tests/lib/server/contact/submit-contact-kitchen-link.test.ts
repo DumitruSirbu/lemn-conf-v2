@@ -46,6 +46,7 @@ import {
   REQUEST_ID,
   type Harness,
   type HarnessOptions,
+  readAnonymousSession,
 } from "./submit-contact-harness";
 
 const KITCHEN_HREF = /^https:\/\/lemnaria\.example\/ro\/s\/([0-9A-Za-z]{12})$/;
@@ -489,7 +490,11 @@ describe("the notice is never priced again", () => {
     };
 
     const answer = await submitContact(
-      { text: bodyOf(), visitorHash: undefined },
+      {
+        text: bodyOf(),
+        visitorHash: undefined,
+        readSession: readAnonymousSession,
+      },
       ports,
     );
 
@@ -521,7 +526,14 @@ describe("the notice is never priced again", () => {
       },
     };
     const submit = () =>
-      submitContact({ text: bodyOf(), visitorHash: undefined }, ports);
+      submitContact(
+        {
+          text: bodyOf(),
+          visitorHash: undefined,
+          readSession: readAnonymousSession,
+        },
+        ports,
+      );
     await submit();
     isFirstAttemptDone = true;
     const retried = await submit();

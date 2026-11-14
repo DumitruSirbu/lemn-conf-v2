@@ -1293,3 +1293,50 @@ describe("the statements of NeonAccountKitchenStore and NeonSentMarkStore", () =
     });
   });
 });
+
+describe("the card thumbnail in the mark statements", () => {
+  const NO_STATEMENT: SentQuery = { text: "", values: [] };
+
+  it("deletes the thumbnail row of the rows markDeleted marked, in the same statement as the mark", async () => {
+    const { markDeleted } = await everyStatementTheStoresSend();
+
+    const text = normalised(markDeleted.statements[1] ?? NO_STATEMENT);
+
+    expect(text).toContain(
+      "removed as ( delete from design_thumbnails where design_id in (select id from marked) returning design_id )",
+    );
+    expect(occurrencesOf(text, "delete from")).toBe(1);
+  });
+
+  it("deletes only through the marked set, never by the design id it was handed", async () => {
+    const { markDeleted } = await everyStatementTheStoresSend();
+
+    const text = normalised(markDeleted.statements[1] ?? NO_STATEMENT);
+    const [, removal = ""] = text.split("removed as (");
+
+    expect(removal.split(")")[0]).not.toContain("= ?");
+    expect(markDeleted.statements[1]?.values).toEqual([
+      DESIGN_ID,
+      ACCOUNT_ID,
+      DESIGN_ID,
+      ACCOUNT_ID,
+      false,
+      DESIGN_ID,
+      ACCOUNT_ID,
+    ]);
+  });
+
+  it("leaves the thumbnail of a kitchen it hides alone, and sends no delete", async () => {
+    const { hide, all } = await everyStatementTheStoresSend();
+
+    expect(normalised(hide.statements[1] ?? NO_STATEMENT)).not.toContain(
+      "design_thumbnails",
+    );
+    const everyOtherStatement = all.filter(
+      (statement) => !normalised(statement).includes("removed as ("),
+    );
+    for (const statement of everyOtherStatement) {
+      expect(normalised(statement)).not.toMatch(/\bdelete\b/);
+    }
+  });
+});

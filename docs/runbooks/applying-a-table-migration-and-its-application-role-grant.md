@@ -1286,6 +1286,137 @@ application's save.
 
 **Not in the nightly export.** A restore leaves new kitchens at the fixed fallbacks until the defaults are saved again.
 
+## For `0030_create_design_thumbnails.sql` (M11 wave W4a, added 2026-11-13)
+
+The steps above stand; the table is `design_thumbnails`, the version is **30**. It holds the picture on a kitchen's card:
+one row per design, the revision the picture depicts, the image bytes and their type. Nothing in it is personal beyond what
+the kitchen already is, and the application reads it for the owning account alone. The decision and its reasons: [ADR 0181](../decisions/0181-a-kitchen-card-thumbnail-is-captured-in-the-editor-after-a-save-stored-in-its-own-table-for-the-current-revision-and-served-privately-to-its-owner.md)
+d3, d4 and d9 (accepted 2026-11-13). **Executed on preview and on production on 2026-11-14; the record is under "Recorded result, 2026-11-14" below** [it was
+written in wave W4a by its developer as written, not run; the dated record supersedes that]. The **test** database is
+different: the live persistence suite applies `0030` there itself, through each live file's `beforeAll`
+(`runMigrations`), and no grant is needed there.
+**Order of environments: preview first, then production**, every step on one database before the next. Applying it, to any
+database, is asked of the owner first.
+
+**This one is not like `0010` or `0029`: the order against the code breaks a route that exists today.** The client's delete
+of a kitchen (`NeonAccountKitchenStore.markDeleted`) names `design_thumbnails` in the same statement that marks the
+kitchen. **A push of a branch containing W4a is a preview deploy, and a merge to `main` is a production deploy** (Vercel's
+Git integration, `.github/workflows/deploy.yml` header; preview deploys and local development share the preview database,
+ADR 0054) [inference: the Vercel project settings were not checked]. So the migration and the grant are owed on preview
+before the push and on production before the merge. Against a database without the table, or without the `DELETE` grant below, **every client delete of a kitchen
+fails**, whatever W4b and W4c have shipped. The order is the migration, then the grants, then the privilege test as
+`app_designs`, then the deploy of any code that contains W4a. Do not use `.github/workflows/deploy.yml` for this rollout: it
+migrates and deploys in one run and has no grant step.
+
+- **Step 1:** `pnpm --filter @lemnaria/persistence run migrate <environment>`, then
+  `pnpm --filter @lemnaria/persistence run migrate:status <environment>`. The ledger reads **30** (1 to 29 before). For
+  preview, pass `PREVIEW_OWNER_DATABASE_URL` as `MIGRATION_DATABASE_URL` for that one invocation, with the label `preview`
+  ([environments-and-resources.md](../best-practices/environments-and-resources.md)).
+- **Step 2, for `0030`:** `create table if not exists` passes over an older table of the same name, so confirm the table is
+  the one `0030` describes. Read-only, in the database console, with the migration credential:
+
+  ```sql
+  -- Expect 5.
+  select count(*) as columns
+  from information_schema.columns
+  where table_schema = 'public' and table_name = 'design_thumbnails';
+
+  -- Expect c = 3, f = 1, p = 1. (PostgreSQL 18 also lists NOT NULL as 'n'; the filter leaves it out.)
+  select contype, count(*) as constraints
+  from pg_constraint
+  where conrelid = 'public.design_thumbnails'::regclass and contype in ('c', 'f', 'p')
+  group by contype order by contype;
+
+  -- Expect one row: designs, c (on delete cascade).
+  select confrelid::regclass::text as referenced, confdeltype
+  from pg_constraint
+  where conrelid = 'public.design_thumbnails'::regclass and contype = 'f';
+  ```
+
+  That is **5 columns and 5 constraints**: the primary key on `design_id`, the cascading reference to `designs (id)`
+  (`design_thumbnails_design_id_fkey`), and the checks `design_thumbnails_revision_is_positive`,
+  `design_thumbnails_image_size` and `design_thumbnails_image_type_is_known`. Any other answer means stop and report.
+- **Before step 4, on each database, read `pg_default_acl`** with the query in the `0009` section. Any row that would reach
+  `design_thumbnails` for `app_designs` or `PUBLIC` means stop and report, as in step 3.
+- **Before step 4, on each database: the pre-grant probes.** Read-only, with the migration credential. **Expect `held =
+  false` on every row before step 4**; a `true` there came through `PUBLIC`, a default privilege or a role membership, and
+  is a stop-and-report:
+
+  ```sql
+  select 'select' as probe, has_table_privilege('app_designs', 'public.design_thumbnails', 'SELECT') as held
+  union all select 'insert', has_table_privilege('app_designs', 'public.design_thumbnails', 'INSERT')
+  union all select 'delete', has_table_privilege('app_designs', 'public.design_thumbnails', 'DELETE')
+  union all select 'update revision', has_column_privilege('app_designs', 'public.design_thumbnails', 'revision', 'UPDATE')
+  union all select 'update image', has_column_privilege('app_designs', 'public.design_thumbnails', 'image', 'UPDATE')
+  union all select 'update image_type', has_column_privilege('app_designs', 'public.design_thumbnails', 'image_type', 'UPDATE')
+  union all select 'update captured_at', has_column_privilege('app_designs', 'public.design_thumbnails', 'captured_at', 'UPDATE')
+  union all select 'update design_id', has_column_privilege('app_designs', 'public.design_thumbnails', 'design_id', 'UPDATE')
+  union all select 'truncate', has_table_privilege('app_designs', 'public.design_thumbnails', 'TRUNCATE')
+  union all select 'references', has_table_privilege('app_designs', 'public.design_thumbnails', 'REFERENCES')
+  union all select 'trigger', has_table_privilege('app_designs', 'public.design_thumbnails', 'TRIGGER');
+  ```
+
+  Run the same query again after step 4. The rows `select`, `insert`, `delete` and the four `update` rows other than
+  `update design_id` then read true (the column `UPDATE` is granted by column), and `update design_id`, `truncate`,
+  `references` and `trigger` must still read false; any other `true` is a stop-and-report.
+- **Step 3:** with the table present and nothing granted, the privilege test's `public.design_thumbnails` tests are **red
+  with nothing held**, not skipped. A skip, *"public.design_thumbnails does not exist yet on this database"*, means `0030`
+  is not on the database reached.
+- **Step 4: issue exactly these two statements, preview first:**
+
+  ```sql
+  GRANT SELECT, INSERT, DELETE ON TABLE public.design_thumbnails TO app_designs;
+  GRANT UPDATE (revision, image, image_type, captured_at) ON TABLE public.design_thumbnails TO app_designs;
+  ```
+
+  `DELETE` is the grant the client's delete needs and the only one on this table that removes a row. Do not grant
+  `TRUNCATE`, `REFERENCES`, `TRIGGER` or `ALL`, nor `UPDATE` of `design_id` (a picture can never be moved to another
+  design). Do not add `WITH GRANT OPTION`. Grant nothing to `PUBLIC` and nothing on `ALL TABLES IN SCHEMA`. **Nothing on
+  `designs` changes**: the write and the read use the `SELECT` and the table-level `UPDATE` (a row lock needs it) that
+  `app_designs` already holds there.
+- **Steps 5 to 7, as `app_designs` on each database.** Run the privilege test file with `DATABASE_URL` set to that
+  environment's application-role URL, for that one invocation. Use the command in the `0009` section. Quote the run's own
+  line `reached database "…" as role "…"` with the outcome, for preview and again for production. The tests named
+  `public.design_thumbnails` must have **run, not skipped**:
+  - *Holds exactly the grant:* table-level `DELETE`, `INSERT` and `SELECT` and no other table-level privilege; column
+    `UPDATE` on exactly `captured_at`, `image`, `image_type` and `revision`; no `REFERENCES`; nothing with grant option;
+    nothing through `PUBLIC`.
+  - *The planning test.* **Positive:** `explain` of the store's own write statement (both credential arms) and read
+    statement, and of the delete of one row, is planned without error. **Negative control:** `explain update
+    public.design_thumbnails set design_id = design_id` is refused with SQLSTATE **`42501`**, which is what makes the
+    grant's omission of `UPDATE (design_id)` checked and not assumed.
+- **Step 8:** `designs` is unchanged. On production, read it with `has_table_privilege`, not by attempting a delete.
+
+**After applying, cross-check (owner, by hand).** The application credential can write a picture to any claimed kitchen it
+can name and delete any picture, so a planted or removed picture changes only what a card shows: no price, no design and no
+request. A row whose `revision` is higher than its design's `revision` did not come from the application's write, which
+stores only a design's current revision.
+
+**Not in the nightly export.** Thumbnails are not in the export of `designs`, so a restore leaves every card on its placeholder
+until the kitchen is saved again.
+
+**The test database.** The live persistence suite applies `0030` to the test database on its next run, as it does every
+migration. No grant is needed there. The privilege test needs the application role, which the test database does not hold,
+so its passing arm for this table runs only where steps 5 to 7 are run.
+
+**Recorded result, 2026-11-14 [coordinator-run, at the owner's instruction; relayed to the scribe, who ran nothing].**
+
+- **Test database (`lemn-conf-v2-staging`):** `migrate:status` already level at 30; the live suite applied `0030` there.
+- **Preview (`lemn-conf-v2-preview`):**
+  - Step 1: `migrate:status` read "behind by 1 (0030)". `migrate preview` printed "applied 0030_create_design_thumbnails.sql
+    against lemn-conf-v2-preview (29 already applied)". `migrate:status` then read "level".
+  - Step 2: 5 columns; constraints c = 3, f = 1, p = 1; the foreign key references `designs` with `confdeltype` c.
+  - `pg_default_acl`: only `cloud_admin` to `neon_superuser` rows (tables and sequences); nothing reaching `app_designs` or
+    `PUBLIC`. Pre-grant probes: all false.
+  - Step 4: exactly the two statements above were issued. Post-grant probes: select, insert, delete and the four column
+    updates true; update `design_id`, truncate, references and trigger false.
+  - Steps 5 to 7, as `app_designs`: `reached database "lemn-conf-v2-preview" as role "app_designs"`, 55 passed, 0 skipped,
+    including "effectively holds select, insert and delete and update of four columns on design_thumbnails…".
+- **Production (`lemn-conf-v2`):** identical. `migrate:status` behind by 1, `0030` applied ("29 already applied"), then
+  level; same table shape, same default ACL, pre-grant probes all false, the same two grants, the same post-grant
+  pattern. Privilege test: `reached database "lemn-conf-v2" as role "app_designs"`, 55 passed, 0 skipped.
+- **Step 8:** nothing on `designs` changed; no statement touched it.
+
 ## Why step 5 names the application role
 
 The file is safe on any credential (criterion 13): it refuses to run past its guard as an owner. It is also only

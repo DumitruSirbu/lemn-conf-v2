@@ -4,6 +4,7 @@ import type {
   DashboardAuditEntry,
   Design,
   KitchensListedDetail,
+  KitchenViewed3dDetail,
   NoteTextRefusalCode,
   PriceBookCurrency,
   PricingFailureCode,
@@ -14,6 +15,8 @@ import type {
   StaffKitchenQueryRefusalCode,
   StatusChangedDetail,
 } from "@lemnaria/configurator-domain";
+
+import type { ShownDesign } from "./shown-design";
 
 // What `GET /api/staff/kitchens` and `GET /api/staff/kitchens/{id}` answer and the staff pages that read them expect,
 // once. It lives outside `lib/server` because the client bundle may not import a server-only module, and holds types
@@ -119,6 +122,32 @@ export interface StaffInvalidQueryWire {
   }[];
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+// `GET /api/staff/kitchens/{id}/3d` (ADR 0180)
+
+/** `200` of the 3D view's read: the copy of the kitchen it shows and which copy that is, and nothing of the client, the
+ *  request, the notes or the estimates. `source` is `shownDesignOf`'s: `as-sent` is the audit row's `sent`. */
+export interface StaffKitchen3dWire {
+  readonly design: Design;
+  readonly source: ShownDesign["source"];
+}
+
+/** `400` of the 3D view's read: its one query member, `version`, is anything but `sent`, `current` or absent. Never the
+ *  value that was refused. */
+export interface StaffKitchen3dInvalidVersionWire {
+  readonly status: "invalid-input";
+  readonly issues: readonly {
+    readonly field: "version";
+    readonly code: "UNKNOWN_VALUE";
+  }[];
+}
+
+/** `422` of the 3D view's read: the kitchen exists, may be read by this staff member, and holds no copy this build can
+ *  read, so there is nothing to show. No audit row is written for it. */
+export interface StaffKitchenUnreadableWire {
+  readonly code: "STAFF_KITCHEN_UNREADABLE";
+}
+
 /** What a staff write's body can be refused for, by the domain's own codes. `NOTE_TEXT_NOT_JUDGED` is the store's
  *  refusal of a text the domain accepted: the two disagree, which is a defect of ours. */
 export type StaffWriteIssue =
@@ -205,11 +234,17 @@ export type StaffAuditEntryWire =
     }
   | {
       readonly kind: "recognised";
+      readonly action: "kitchen-viewed-3d";
+      readonly detail: KitchenViewed3dDetail;
+    }
+  | {
+      readonly kind: "recognised";
       readonly action: Exclude<
         StaffAuditAction,
         | "status-changed"
         | "kitchens-listed"
         | "audit-viewed"
+        | "kitchen-viewed-3d"
         | DashboardAuditAction
       >;
       readonly detail: null;

@@ -82,7 +82,7 @@ function sortedUnique(values: readonly string[]): readonly string[] {
 }
 
 describe("golden-output fixture coverage", () => {
-  it("covers exactly the 35 function-valued legacy content families", () => {
+  it("covers exactly the 36 function-valued legacy content families", () => {
     const actualFamilies = collectContentFunctionFamilies();
     expect(actualFamilies).toEqual([...CONTENT_FUNCTION_FAMILIES].sort());
     expect(
@@ -272,7 +272,7 @@ describe("golden-output fixture coverage", () => {
     // +6 for `leadNotice.groupCount`'s four counts and `.preheader` with and without a locality.
     // M10 T3b: +3 for `priceBreakdown.depthLine` and `globalSettings.depthNotePriced`'s zero and surcharge forms.
     // -2 for the retired `panel.handleDefaultNote`.
-    expect(FUNCTION_CONTENT_FIXTURES).toHaveLength(76);
+    expect(FUNCTION_CONTENT_FIXTURES).toHaveLength(77);
     // 7L S3: +2 for `room.suggestion.title` and `room.suggestion.switchToLinear`.
     // +1 for `room.compose.limitReached`.
     expect(ROOM_FIXTURES).toHaveLength(73);
@@ -280,7 +280,7 @@ describe("golden-output fixture coverage", () => {
     expect(REVIEW_FIXTURES).toHaveLength(12);
     // M8 8L S2: the contact leaves reached by field code and by class of answer: 11 field errors, 7 outcomes.
     // M8 8M S4: -2 for the retired `contact.outcomes.sent` and `.failed`.
-    expect(CONTACT_FIXTURES).toHaveLength(16);
+    expect(CONTACT_FIXTURES).toHaveLength(17);
     // M10 H1: +1 for `UNKNOWN_HANDLE`.
     expect(REJECTION_FIXTURES).toHaveLength(42);
     expect(INSERTABLE_BODY_DEFINITIONS).toHaveLength(16);
@@ -318,7 +318,7 @@ describe("golden-output fixture coverage", () => {
     // +1 static fixture for `panel.handleFollowsKitchen`, -2 function ones for the retired `panel.handleDefaultNote`.
     // M10 Q3b: +1 static fixture for `globalSettings.pricesUnavailable`.
     // M10 Q5c: +1 static fixture for `replacementSheet.headerMaterialToChoose`.
-    expect(GOLDEN_FIXTURES).toHaveLength(584);
+    expect(GOLDEN_FIXTURES).toHaveLength(586);
     expect(new Set(GOLDEN_FIXTURES.map((fixture) => fixture.id)).size).toBe(
       GOLDEN_FIXTURES.length,
     );

@@ -22,10 +22,15 @@ export function requireSha256Digest(
   whatItIs: string,
   operation: string,
 ): void {
-  // `RegExp.test` turns its argument into text first, so a list of one digest would pass as the digest.
-  if (typeof value === "string" && SHA256_HEX_DIGEST.test(value)) return;
+  if (isSha256Digest(value)) return;
   throw new Error(
     `Refusing to ${operation}: a ${whatItIs} must be a 64-character lowercase hex SHA-256 digest. ` +
       `Any other shape risks a row a guessable value could write or claim.`,
   );
+}
+
+/** Whether a value is a 64-character lowercase hex digest. A non-string never is: `RegExp.test` turns its argument into
+ *  text first, so a list of one digest would otherwise pass as the digest. */
+export function isSha256Digest(value: unknown): value is string {
+  return typeof value === "string" && SHA256_HEX_DIGEST.test(value);
 }

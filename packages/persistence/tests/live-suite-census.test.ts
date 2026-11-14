@@ -256,11 +256,41 @@ const EXPECTED_CLASSIFICATION: Readonly<
     reason:
       "writes accounts, sessions, kitchens and audit rows under random ids it mints, deletes them by those ids when it finishes, asserts no whole-table figure and needs the schema intact (M8B Lot 3 L3-S3)",
   },
+  "neon-account-store.fill-profile.live.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "writes accounts under random ids it mints, reads them back by those ids and deletes them by those ids when it finishes, asserts no whole-table figure and needs the schema intact (M11 wave W2a)",
+  },
+  "qa-w2a-fill-profile-concurrency.adversarial.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "adversarial QA of W2a: writes accounts under random ids it mints, reads them back by those ids and deletes them by those ids when it finishes, asserts no whole-table figure and needs the schema intact (M11 wave W2a QA)",
+  },
   "neon-staff-kitchen-reader.live.test.ts": {
     gate: "live test database",
     lock: "exclusive",
     reason:
       "asserts how far the whole-database changed count moves from a baseline read in an earlier statement, so another run's saves, marks or deletes land in between; it failed so beside a parallel shard in run 43217351639 (owner, 2026-11-12). Writes accounts, kitchens, requests, sent copies, statuses, notes, seen marks and their audit rows under random ids it mints and deletes them by those ids (M8B Lot 3 L3-S4; M10 wave S4)",
+  },
+  "neon-design-thumbnail-store.live.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "writes kitchens and their thumbnails under random ids it mints, deletes them by those ids when it finishes, asserts no whole-table figure and needs the schema intact; its one blocked-write test holds a row lock on a kitchen of its own (M11 wave W4a)",
+  },
+  "neon-account-kitchen-store.thumbnail-delete.live.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "writes kitchens and their thumbnails under random ids it mints, deletes them by those ids when it finishes, asserts no whole-table figure and needs the schema intact (M11 wave W4a)",
+  },
+  "qa-m11-w4a-design-thumbnails.live.adversarial.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "adversarial QA of M11 W4a: writes kitchens and their thumbnails under random ids it mints, pushes each id before the insert and deletes by those ids when it finishes, races a thumbnail write against the client's delete of the same kitchen and awaits both to their end, asserts no whole-table figure and needs the schema intact",
   },
   "neon-account-kitchen-store.notes.live.test.ts": {
     gate: "live test database",

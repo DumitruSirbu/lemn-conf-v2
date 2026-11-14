@@ -22,7 +22,7 @@ describe("readMigrationFiles", () => {
 
     expect(migrations.map((migration) => migration.version)).toEqual([
       1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29,
+      22, 23, 24, 25, 26, 27, 28, 29, 30,
     ]);
     expect(migrations.map((migration) => migration.fileName)).toEqual([
       "0001_create_designs.sql",
@@ -54,6 +54,7 @@ describe("readMigrationFiles", () => {
       "0027_create_staff_change_digest.sql",
       "0028_create_design_price_notices.sql",
       "0029_create_kitchen_defaults.sql",
+      "0030_create_design_thumbnails.sql",
     ]);
   });
 

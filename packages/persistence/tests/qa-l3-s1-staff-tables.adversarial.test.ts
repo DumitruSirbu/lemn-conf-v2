@@ -725,6 +725,7 @@ const DETAILS_THE_DOMAIN_ACCEPTS: Readonly<
       })),
     ),
   ),
+  "kitchen-viewed-3d": [{ version: "sent" }, { version: "current" }],
   "price-draft-changed": [
     { changeKind: "depth-rule" },
     {

@@ -3,7 +3,12 @@
 // the caller was handed.
 import { describe, expect, it } from "vitest";
 
-import { CATALOG_PAGES, isCatalogPage, staffPathOf } from "@/staff/staff-paths";
+import {
+  CATALOG_PAGES,
+  isCatalogPage,
+  staffKitchen3dPathOf,
+  staffPathOf,
+} from "@/staff/staff-paths";
 
 const ID = "k".repeat(21);
 
@@ -61,4 +66,42 @@ describe("staffPathOf", () => {
   it("writes no kitchen under a page that has none", () => {
     expect(staffPathOf("ru", "audit", ID)).toBe("/ru/staff/audit");
   });
+});
+
+describe("staffKitchen3dPathOf", () => {
+  it("writes the kitchen's 3D view in either language, with no query when no copy is named", () => {
+    expect(staffKitchen3dPathOf({ locale: "ro", kitchenId: ID })).toBe(
+      `/ro/staff/kitchens/${ID}/3d`,
+    );
+    expect(staffKitchen3dPathOf({ locale: "ru", kitchenId: ID })).toBe(
+      `/ru/staff/kitchens/${ID}/3d`,
+    );
+  });
+
+  it.each(["sent", "current"] as const)(
+    "carries the copy %s the person chose, as the one query member",
+    (version) => {
+      expect(
+        staffKitchen3dPathOf({ locale: "ro", kitchenId: ID, version }),
+      ).toBe(`/ro/staff/kitchens/${ID}/3d?version=${version}`);
+    },
+  );
+
+  it.each([
+    ["too short", "abc"],
+    ["a climb", "../../../account/profile"],
+    ["a query", `${"k".repeat(19)}?x`],
+    ["nothing", ""],
+  ])(
+    "writes nothing of an id that is %s, and leads to the list",
+    (_, hostile) => {
+      expect(
+        staffKitchen3dPathOf({
+          locale: "ru",
+          kitchenId: hostile,
+          version: "current",
+        }),
+      ).toBe("/ru/staff/kitchens");
+    },
+  );
 });

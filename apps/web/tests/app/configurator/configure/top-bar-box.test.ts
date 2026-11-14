@@ -565,7 +565,7 @@ describe("the locale chip is the control that opens the language menu", () => {
 
   it("stands in the row as its own grid item and nothing else", () => {
     // `.locale` is a direct child of `.screen`, which the two shells' `grid-template-areas` require.
-    expect(screenSource).toContain("<LocaleMenu />");
+    expect(screenSource.match(/<LocaleMenu\b/g)).toHaveLength(1);
     expect(screenSource).not.toContain("styles.locale}");
     expect(menuSource).toContain("<div className={styles.locale}");
   });

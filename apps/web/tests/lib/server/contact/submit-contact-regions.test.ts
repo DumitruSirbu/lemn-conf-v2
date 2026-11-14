@@ -22,6 +22,7 @@ import {
   REQUEST_ID,
   VISITOR_HASH,
   wireOf,
+  readAnonymousSession,
 } from "./submit-contact-harness";
 
 vi.mock("@/lib/server/mail/lead-notification", async (importOriginal) => {
@@ -143,7 +144,11 @@ describe("before a reference is held, a throw is unavailable, with its cause", (
       const harness = aHarness();
 
       const answer = await submitContact(
-        { text: bodyOf(), visitorHash: undefined },
+        {
+          text: bodyOf(),
+          visitorHash: undefined,
+          readSession: readAnonymousSession,
+        },
         { ...harness.ports, ...broken },
       );
 

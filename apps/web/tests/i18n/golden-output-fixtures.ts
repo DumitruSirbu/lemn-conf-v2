@@ -120,7 +120,7 @@ function requiredFixtureValue<T>(value: T | undefined, id: string): T {
 const BASE_BAND_WORD = romanianContent.panel.bandWords.base.one;
 
 /**
- * The 35 function-valued content families. The gate compares this declaration to a runtime walk of
+ * The 36 function-valued content families. The gate compares this declaration to a runtime walk of
  * resolved Romanian content, so a newly introduced function cannot silently miss the oracle.
  */
 export const CONTENT_FUNCTION_FAMILIES = [
@@ -150,6 +150,7 @@ export const CONTENT_FUNCTION_FAMILIES = [
   "globalSettings.pillHardware",
   "globalSettings.pillDepth",
   "globalSettings.pillNameAllSettings",
+  "contact.fillNotice",
   "leadNotice.subject",
   "leadNotice.line",
   "leadNotice.figure",
@@ -552,6 +553,12 @@ export const FUNCTION_CONTENT_FIXTURES: readonly GoldenFixture[] = [
         name: "name-token",
       }),
   ),
+  contentFixture(
+    "contact.fillNotice",
+    "email-token",
+    () => romanianContent.contact.fillNotice("email-token"),
+    () => translate("contact.fillNotice", { email: "email-token" }),
+  ),
   ...(["phone", "whatsapp", "email"] as const).map((channel) =>
     contentFixture(
       "submissionResult.channelLine",
@@ -815,6 +822,7 @@ const CONTACT_RENDER_ARGUMENTS: Readonly<
 > = {
   "contact.outcomes.limited": { time: "Time" },
   "contact.outcomes.limitedTomorrow": { time: "Time" },
+  "contact.fillNotice": { email: "email-token" },
 };
 
 export const CONTACT_RENDER_ARGUMENT_PATHS = Object.keys(

@@ -101,6 +101,51 @@ describe("validateContactSubmission: a valid request", () => {
   });
 });
 
+describe("validateContactSubmission: the account address the profile line named", () => {
+  it("is carried when it is text, as sent", () => {
+    const result = validateContactSubmission({
+      ...DESIGN_REQUEST,
+      profileAccountEmail: "Ana@Mail.md",
+    });
+
+    expect(result.ok && result.request.profileAccountEmail).toBe("Ana@Mail.md");
+  });
+
+  it("is absent from the request when it was not sent", () => {
+    const result = validateContactSubmission(DESIGN_REQUEST);
+
+    expect(result.ok && "profileAccountEmail" in result.request).toBe(false);
+  });
+
+  it.each([
+    ["a number", 5],
+    ["null", null],
+    ["an object", { a: 1 }],
+    ["text past the e-mail bound", "a".repeat(255)],
+  ] as const)(
+    "is ignored as a claim, and the request is still valid, when it is %s",
+    (_what, value) => {
+      const result = validateContactSubmission({
+        ...DESIGN_REQUEST,
+        profileAccountEmail: value,
+      });
+
+      expect(result.ok && "profileAccountEmail" in result.request).toBe(false);
+    },
+  );
+
+  it("is kept at the e-mail bound", () => {
+    const atTheBound = "a".repeat(254);
+
+    const result = validateContactSubmission({
+      ...DESIGN_REQUEST,
+      profileAccountEmail: atTheBound,
+    });
+
+    expect(result.ok && result.request.profileAccountEmail).toBe(atTheBound);
+  });
+});
+
 describe("validateContactSubmission: what is not a request", () => {
   class Request {
     contact = CONTACT;
@@ -506,6 +551,7 @@ describe("validateContactSubmission: the request has no price", () => {
       | "locale"
       | "isHoneypotFilled"
       | "elapsedMs"
+      | "profileAccountEmail"
     >();
   });
 

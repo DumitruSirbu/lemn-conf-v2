@@ -25,6 +25,7 @@ import type {
 
 import { ACCOUNT_RESPONSE_HEADERS } from "@/lib/server/account/account-responses";
 import type { StaffAuditQueryIssue } from "@/lib/server/staff/staff-audit-query";
+import type { ShownDesign } from "@/staff/shown-design";
 import type {
   StaffAuditActorWire,
   StaffAuditClientWire,
@@ -38,12 +39,15 @@ import type {
   StaffInvalidInputWire,
   StaffInvalidQueryWire,
   StaffChangedCountWire,
+  StaffKitchen3dInvalidVersionWire,
+  StaffKitchen3dWire,
   StaffKitchenEstimatesWire,
   StaffKitchenMarkedListWire,
   StaffKitchenNoteWire,
   StaffKitchenOpenedWire,
   StaffKitchenRequestWire,
   StaffKitchenStatusWire,
+  StaffKitchenUnreadableWire,
   StaffKitchenWire,
   StaffListedKitchenMarkedWire,
   StaffNoteAddedWire,
@@ -179,6 +183,32 @@ export function staffKitchenResponse(
   return jsonResponse(staffKitchenOpenedWireOf(kitchen, estimates), 200);
 }
 
+/** `200`: the copy of one kitchen the 3D view shows, and which copy it is: the design and its source, never the client, the
+ *  request, the notes or the estimates. Built before the audit row is written and sent only after it commits. */
+export function staffKitchen3dResponse({
+  design,
+  source,
+}: ShownDesign): NextResponse {
+  const body: StaffKitchen3dWire = { design, source };
+  return jsonResponse(body, 200);
+}
+
+/** `400` of the 3D view: `version` is neither `sent`, `current` nor absent. Never the value that was refused. */
+export function staffInvalidVersionResponse(): NextResponse {
+  const body: StaffKitchen3dInvalidVersionWire = {
+    status: "invalid-input",
+    issues: [{ field: "version", code: "UNKNOWN_VALUE" }],
+  };
+  return jsonResponse(body, 400);
+}
+
+/** `422`: the kitchen is there to be read and no copy of it is one this build can read. Nothing was shown, so no audit row
+ *  was written. */
+export function staffKitchenUnreadableResponse(): NextResponse {
+  const body: StaffKitchenUnreadableWire = { code: "STAFF_KITCHEN_UNREADABLE" };
+  return jsonResponse(body, 422);
+}
+
 /** `200`: how many sent kitchens changed after staff saw them, and nothing else. It writes no audit row. */
 export function staffChangedCountResponse(count: number): NextResponse {
   const body: StaffChangedCountWire = { count };
@@ -200,6 +230,9 @@ type StaffWireBody =
   | StaffConflictWire
   | StaffKitchenMarkedListWire
   | StaffKitchenOpenedWire
+  | StaffKitchen3dWire
+  | StaffKitchen3dInvalidVersionWire
+  | StaffKitchenUnreadableWire
   | StaffSeenInvalidWire
   | StaffSeenConflictWire
   | StaffSeenMarkedWire
@@ -362,6 +395,12 @@ function auditEntryWireOf(reading: StaffAuditReading): StaffAuditEntryWire {
           hasActionFilter: entry.detail.hasActionFilter,
           hasDateFilter: entry.detail.hasDateFilter,
         },
+      };
+    case "kitchen-viewed-3d":
+      return {
+        kind: "recognised",
+        action: entry.action,
+        detail: { version: entry.detail.version },
       };
     case "kitchen-opened":
     case "note-added":

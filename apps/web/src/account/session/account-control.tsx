@@ -16,7 +16,7 @@ import type { AccountControlCopy } from "@/i18n/content";
 import { useAccountControlCopy } from "@/i18n/use-content";
 import { staffPathOf } from "@/staff/staff-paths";
 
-import { accountPathOf } from "../account-shell";
+import { accountPathOf } from "../account-paths";
 import styles from "../account.module.css";
 import { StatusToast } from "../status-toast";
 import type { ToastMessage } from "../use-toast-message";
@@ -45,7 +45,8 @@ import {
 // The menu, and the "sign out everywhere" question it leads to, are not drawn inside the cell but rendered into the
 // screen's own `<main>`. The modal behaviour marks every band of the `<main>` but the one holding the dialog inert, and
 // both top bars are bands of it (the room's is a single one): a dialog nested in the bar would leave the whole bar
-// operable.
+// operable. The exception is the account shell: its header sits beside the `<main>` (the document's is used), so the
+// header stays operable while the menu is open, as it does under that page's other dialogs.
 //
 // The confirmation of "Ieși din cont" is rendered into the document's body instead. It outlives the menu, which goes
 // with the signed-in state it was drawn for, and it must be neither inert while a dialog is open elsewhere nor held under
@@ -295,13 +296,17 @@ interface OpenSurfaceControls {
   readonly askEverywhere: () => void;
 }
 
-/** Which surface is open and where: the screen's `<main>`, found from the trigger, or the body for a screen without one. */
+/** Which surface is open and where: the screen's `<main>`, found from the trigger or, for a trigger in a header that sits
+ *  beside the `<main>` (the account pages), the document's own; the body for a screen without one. */
 function useOpenSurface(
   triggerRef: RefObject<HTMLElement | null>,
 ): OpenSurfaceControls {
   const [open, setOpen] = useState<OpenState | undefined>(undefined);
   const openMenu = useCallback(() => {
-    const screen = triggerRef.current?.closest("main") ?? document.body;
+    const screen =
+      triggerRef.current?.closest("main") ??
+      document.querySelector("main") ??
+      document.body;
     setOpen({ screen, surface: "menu" });
   }, [triggerRef]);
   const close = useCallback(() => {

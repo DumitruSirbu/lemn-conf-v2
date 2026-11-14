@@ -43,6 +43,7 @@ const DETAILS: Readonly<Record<string, unknown>> = {
     hasActionFilter: false,
     hasDateFilter: false,
   },
+  "kitchen-viewed-3d": { version: "sent" },
   "price-draft-changed": { changeKind: "depth-rule" },
   "price-draft-reverted": { changeKind: "provisional", revertedCount: 1 },
   "price-bulk-changed": {
@@ -71,6 +72,7 @@ const LABEL_KEYS: Readonly<Record<string, string>> = {
   "kitchen-unhidden": "actionKitchenUnhidden",
   "kitchens-listed": "actionKitchensListed",
   "audit-viewed": "actionAuditViewed",
+  "kitchen-viewed-3d": "actionKitchenViewed3d",
   "price-draft-changed": "actionPriceDraftChanged",
   "price-draft-reverted": "actionPriceDraftReverted",
   "price-bulk-changed": "actionPriceBulkChanged",
@@ -107,7 +109,7 @@ afterEach(() => {
 });
 
 describe("the catalogues hold words for every action of the list", () => {
-  it("names a label key for exactly the fifteen actions", () => {
+  it("names a label key for exactly the sixteen actions", () => {
     expect(Object.keys(LABEL_KEYS).sort()).toEqual(
       [...STAFF_AUDIT_ACTIONS].sort(),
     );
@@ -121,7 +123,7 @@ describe("the catalogues hold words for every action of the list", () => {
         wordsOf(locale, action),
       );
 
-      expect(new Set(labels).size).toBe(15);
+      expect(new Set(labels).size).toBe(STAFF_AUDIT_ACTIONS.length);
       for (const [index, label] of labels.entries()) {
         const action = STAFF_AUDIT_ACTIONS[index] ?? "";
         expect(label.trim(), action).not.toBe("");
@@ -141,7 +143,7 @@ describe("the catalogues hold words for every action of the list", () => {
 });
 
 describe.each(LOCALES)(
-  "the audit page in %s over all fifteen actions",
+  "the audit page in %s over all sixteen actions",
   (locale) => {
     beforeEach(async () => {
       harness.answers((request) => {
@@ -170,7 +172,7 @@ describe.each(LOCALES)(
       expect(cells).not.toContain(CATALOGUES[locale].staffAudit.actionUnknown);
     });
 
-    it("offers the fifteen in the menu in their words, each valued by its code", () => {
+    it("offers the sixteen in the menu in their words, each valued by its code", () => {
       const options = allIn<HTMLOptionElement>(
         harness.actionSelect(),
         "option",

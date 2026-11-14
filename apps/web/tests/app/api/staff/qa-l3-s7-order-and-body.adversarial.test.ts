@@ -916,13 +916,14 @@ describe("the query string and the method", () => {
     },
   );
 
-  it("exports one method for each route and no route file beside the seven the kitchen's paths hold", () => {
+  it("exports one method for each route and no route file beside the eight the kitchen's paths hold", () => {
     const appRoot = join(__dirname, "../../../../src/app/api/staff/kitchens");
     const routeFiles = filesUnder(appRoot, /^route\.ts$/)
       .map((path) => path.slice(appRoot.length))
       .sort();
 
     expect(routeFiles).toEqual([
+      "/[id]/3d/route.ts",
       "/[id]/notes/route.ts",
       "/[id]/route.ts",
       "/[id]/seen/route.ts",

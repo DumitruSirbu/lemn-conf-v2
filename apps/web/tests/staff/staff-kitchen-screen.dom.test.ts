@@ -842,7 +842,9 @@ describe("what a client or a colleague typed", () => {
   it("makes no address and no phone a link to write or to call", () => {
     expect(allIn(container(), 'a[href^="mailto:" i]')).toHaveLength(0);
     expect(allIn(container(), 'a[href^="tel:" i]')).toHaveLength(0);
-    expect(allIn(page(), "a")).toHaveLength(1);
+    expect(
+      allIn(page(), "a:not([data-testid='staff-kitchen-open-3d'])"),
+    ).toHaveLength(1);
   });
 
   it("keeps the kitchen's name out of the document's title", () => {

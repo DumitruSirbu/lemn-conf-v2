@@ -1,3 +1,4 @@
+import type { ProfileFill } from "@lemnaria/configurator-domain";
 import { NeonDbError } from "@neondatabase/serverless";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -273,6 +274,138 @@ describe("findProfile and updateProfile", () => {
         }),
       ).toEqual({ kind: "none" });
     });
+  });
+});
+
+describe("fillProfileBlanks writes the four profile columns and updated_at, only where a column is null, by the account's id", () => {
+  const REQUEST_FILL: ProfileFill = {
+    name: "Request Name",
+    address: "Request Locality",
+    phone: { entered: "069 000 111", normalForm: "+37369000111" },
+  };
+
+  function fillStatementFor(fill: ProfileFill) {
+    return loneStatementOf(
+      () => newStore().fillProfileBlanks({ accountId: ACCOUNT_ID, fill }),
+      [{ id: ACCOUNT_ID }],
+    );
+  }
+
+  it("is one statement that sets each column from the request only while the column is null", async () => {
+    const text = normalised(await fillStatementFor(REQUEST_FILL));
+
+    expect(text).toContain(
+      "set name = case when name is null then ?::text else name end",
+    );
+    expect(text).toContain(
+      "address = case when address is null then ?::text else address end",
+    );
+    expect(text).toContain(
+      "phone = case when phone is null then ?::text else phone end",
+    );
+    expect(text).toContain(
+      "phone_normal_form = case when phone is null then ?::text else phone_normal_form end",
+    );
+  });
+
+  it("moves updated_at only for a row that has a blank this request fills", async () => {
+    const text = normalised(await fillStatementFor(REQUEST_FILL));
+
+    expect(text).toMatch(
+      /updated_at = now\(\) where id = \? and \(name is null or phone is null or \(address is null and \?::text is not null\)\) returning id$/,
+    );
+  });
+
+  it("assigns exactly name, address, phone, phone_normal_form and updated_at", async () => {
+    const text = normalised(await fillStatementFor(REQUEST_FILL));
+    const assigned = [...text.matchAll(/(?:\bset |, )([a-z_]+) = /g)].map(
+      (match) => match[1],
+    );
+
+    expect(assigned).toEqual([
+      "name",
+      "address",
+      "phone",
+      "phone_normal_form",
+      "updated_at",
+    ]);
+  });
+
+  it("binds the request's values in the entered and normal forms, each in its own place, and the session's account", async () => {
+    const statement = await fillStatementFor(REQUEST_FILL);
+
+    expect(statement.values).toEqual([
+      "Request Name",
+      "Request Locality",
+      "069 000 111",
+      "+37369000111",
+      ACCOUNT_ID,
+      "Request Locality",
+    ]);
+  });
+
+  it("binds an absent locality as null in both places, so the address is neither written nor a reason to write", async () => {
+    const statement = await fillStatementFor({
+      ...REQUEST_FILL,
+      address: undefined,
+    });
+
+    expect(statement.values).toEqual([
+      "Request Name",
+      null,
+      "069 000 111",
+      "+37369000111",
+      ACCOUNT_ID,
+      null,
+    ]);
+  });
+
+  it("reads nothing of a contact request and names no other table", async () => {
+    const text = normalised(await fillStatementFor(REQUEST_FILL));
+    const words = new Set(text.match(/[a-z_][a-z0-9_]*/g));
+
+    expect(words.has("contact_submissions")).toBe(false);
+    expect(words.has("select")).toBe(false);
+    expect(text).toMatch(/^update accounts set /);
+  });
+
+  it("answers filled when the statement changed the row, and nothing to fill when it matched none", async () => {
+    resetQueryDriver();
+    answerQueryWith([{ id: ACCOUNT_ID }]);
+    const filled = await newStore().fillProfileBlanks({
+      accountId: ACCOUNT_ID,
+      fill: REQUEST_FILL,
+    });
+    resetQueryDriver();
+    answerQueryWith([]);
+    const nothing = await newStore().fillProfileBlanks({
+      accountId: ACCOUNT_ID,
+      fill: REQUEST_FILL,
+    });
+
+    expect(filled).toEqual({ kind: "filled" });
+    expect(nothing).toEqual({ kind: "nothing-to-fill" });
+  });
+
+  it.each([
+    ["an empty name", { ...REQUEST_FILL, name: "" }],
+    ["an empty address", { ...REQUEST_FILL, address: "" }],
+    [
+      "a phone whose normal form is empty",
+      { ...REQUEST_FILL, phone: { entered: "069 000 111", normalForm: "" } },
+    ],
+  ])("refuses %s before any statement is sent", async (_label, fill) => {
+    resetQueryDriver();
+
+    const failure = await rejectionOf(
+      newStore().fillProfileBlanks({ accountId: ACCOUNT_ID, fill }),
+    );
+
+    expect(failure).toBeInstanceOf(Error);
+    expect((failure as Error).message).toMatch(
+      /^Refusing to fill a profile's blanks: /,
+    );
+    expect(queryDriver.statements).toHaveLength(0);
   });
 });
 

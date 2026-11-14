@@ -5,6 +5,7 @@ import {
 } from "@lemnaria/configurator-domain";
 import {
   FakeAccountKitchenStore,
+  FakeAccountStore,
   FakeContactSubmissionStore,
   FakeSentKitchenViewRepository,
   FakeSentMarkStore,
@@ -14,6 +15,8 @@ import {
 } from "@lemnaria/persistence";
 import { vi } from "vitest";
 
+import type { CurrentSession } from "@/lib/server/account/current-session";
+import type { ProfileFillStore } from "@/lib/server/contact/fill-profile-from-request";
 import { makeContactJudge } from "@/lib/server/contact/judge-contact-request";
 import {
   submitContact,
@@ -81,14 +84,39 @@ export function requestOf(
   return merged;
 }
 
+/** The address of the account the fill tests sign in. */
+export const SUBMITTER_EMAIL = "submitter@example.invalid";
+
+/** A request as a signed-in form sends it, naming the account its profile line showed. */
+export function bodyNamingTheSubmitter(
+  overrides: Record<string, unknown> = {},
+): string {
+  return bodyOf({ profileAccountEmail: SUBMITTER_EMAIL, ...overrides });
+}
+
+export function callbackBodyNamingTheSubmitter(
+  overrides: Record<string, unknown> = {},
+): string {
+  return callbackBodyOf({ profileAccountEmail: SUBMITTER_EMAIL, ...overrides });
+}
+
 export function callbackBodyOf(
   overrides: Record<string, unknown> = {},
 ): string {
   return bodyOf({ intent: "callback", ...overrides });
 }
 
+const ANONYMOUS_SESSION: CurrentSession = { kind: "anonymous" };
+
+/** The session of a visitor with no cookie: the reader every harness request has unless a test says otherwise. */
+export function readAnonymousSession(): Promise<CurrentSession> {
+  return Promise.resolve(ANONYMOUS_SESSION);
+}
+
 export interface Harness {
   readonly ports: SubmitContactPorts;
+  /** The accounts the profile fill reaches: a test seeds the submitter's account here and reads its profile back. */
+  readonly accounts: FakeAccountStore;
   readonly store: FakeContactSubmissionStore;
   readonly sender: FakeMailSender;
   /** The frozen copies' fake, which takes a view only for a request the store holds, as the table's reference does. */
@@ -129,6 +157,14 @@ export interface HarnessOptions {
     kitchens: FakeAccountKitchenStore,
     calls: string[],
   ) => SentMarkStore;
+  /** The profile fill's port, made of the accounts it fills and the harness's call log. Absent, the persistence
+   *  package's own fake, which logs nothing, so a test that never fills sees the call log it always saw. */
+  readonly profiles?: (
+    accounts: FakeAccountStore,
+    calls: string[],
+  ) => ProfileFillStore;
+  /** The session of the request; by default a visitor's. */
+  readonly readSession?: () => Promise<CurrentSession>;
 }
 
 /** Every port the orchestration is handed, made of fakes: the persistence package's fake store and frozen views, the
@@ -150,10 +186,13 @@ export function aHarness(options: HarnessOptions = {}): Harness {
   const store = (options.store ?? ((inner) => inner))(innerStore);
   const views = (options.views ?? ((inner) => inner))(innerViews);
   const kitchens = new FakeAccountKitchenStore();
+  const accounts = new FakeAccountStore();
+  const readSession = options.readSession ?? readAnonymousSession;
   const ports: SubmitContactPorts = {
     store: loggedStore(store, calls),
     sentMarks:
       options.sentMarks?.(kitchens, calls) ?? new FakeSentMarkStore(kitchens),
+    profiles: options.profiles?.(accounts, calls) ?? accounts,
     createSender:
       options.createSender ??
       (() => ({ kind: "sender", sender: loggedSender(sender, calls) })),
@@ -186,10 +225,14 @@ export function aHarness(options: HarnessOptions = {}): Harness {
     sender,
     views: innerViews,
     kitchens,
+    accounts,
     calls,
     recorded: spyOnCounters(),
     submit: (body = bodyOf(), visitorHash) =>
-      submitContact({ text: body, visitorHash } satisfies ContactBody, ports),
+      submitContact(
+        { text: body, visitorHash, readSession } satisfies ContactBody,
+        ports,
+      ),
   };
 }
 

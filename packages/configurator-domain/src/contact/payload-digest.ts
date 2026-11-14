@@ -4,8 +4,9 @@ import type { ContactSubmissionRequest } from "./contact-submission.js";
 // What a request's keyed digest covers. The digest itself is made where the secret is; this says which fields go into
 // it and in what order, so that "one id, another body" is a conflict however the body differs (ADR 0150, ADR 0153).
 // Every stored and mailed field of the validated request is covered, and for a design the price book's version the
-// server would price it under, which a retry across a change of book must not survive. Only the time the form took and
-// the honeypot's answer are left out: neither is stored, and neither is the sender's meaning.
+// server would price it under, which a retry across a change of book must not survive. Only the time the form took, the
+// honeypot's answer and the account address the profile line named are left out: none is stored, and none is the
+// sender's meaning.
 
 /** The covered fields in the order they are written. A field is added here, never inferred. */
 export const PAYLOAD_DIGEST_FIELDS = [
@@ -60,6 +61,10 @@ export const REQUEST_TREATMENT: TreatmentOf<
   elapsedMs: {
     leavesOut:
       "how long the form was open; it is refused when short and never stored",
+  },
+  profileAccountEmail: {
+    leavesOut:
+      "a claim about the sender's session, compared with it before a profile is filled; never stored, and a retry that adds or drops it is still the same request",
   },
 };
 

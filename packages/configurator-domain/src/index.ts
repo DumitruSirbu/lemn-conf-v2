@@ -216,6 +216,8 @@ export * from "./preset/preset-name-facts.js";
 // Amendment A), and the text Postgres cannot hold.
 export * from "./preset/preset-limits.js";
 export * from "./preset/preset-name-rule.js";
+// The size, closed type list and header check of a kitchen card's thumbnail (ADR 0181 d3, d4).
+export * from "./design/thumbnail-limits.js";
 export { isUnstorableText } from "./unstorable-text.js";
 // Which presets a room is offered, each adapted to it once (ADR 0109 Amendments A2 to E). Named,
 // not `export *`: the world, the subtraction and the refill are internal to the one evaluation, so no second caller
@@ -431,7 +433,9 @@ export {
 export {
   auditActionAcceptsDesignId,
   auditActionNamesDesign,
+  isKitchenViewed3dVersion,
   isStaffAuditAction,
+  KITCHEN_VIEWED_3D_VERSIONS,
   readStaffAuditEntry,
   STAFF_AUDIT_ACTION_NAMES_DESIGN,
   STAFF_AUDIT_ACTIONS,
@@ -442,6 +446,8 @@ export {
   type StaffAuditRefusalCode,
   type AuditViewedDetail,
   type KitchensListedDetail,
+  type KitchenViewed3dDetail,
+  type KitchenViewed3dVersion,
   type StatusChangedDetail,
 } from "./staff/staff-audit-action.js";
 // The price dashboard's audit actions, a list of their own beside `STAFF_AUDIT_ACTIONS` (M10 X0).

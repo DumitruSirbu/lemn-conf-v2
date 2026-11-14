@@ -1,6 +1,8 @@
 import { fc } from "@fast-check/vitest";
 import {
   judgeAccountEmail,
+  profileFillOf,
+  validateContactFields,
   validateEmailChange,
   validateProfileText,
 } from "@lemnaria/configurator-domain";
@@ -8,6 +10,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   requireValidEmailChangeTokenToIssue,
+  requireValidProfileBlanksFill,
   requireValidProfileUpdate,
 } from "../src/account-store.js";
 
@@ -63,6 +66,41 @@ describe("a profile the domain accepts is a profile the store accepts", () => {
         changes: validation.ok ? validation.changes : {},
       });
     }).not.toThrow();
+  });
+});
+
+describe("a contact request the domain accepts yields a fill the store accepts", () => {
+  const FILL_RUNS = 3000;
+  const MIN_ACCEPTED_PER_ARM = 50;
+
+  it("for any name, locality and phone, the arm with a locality and the arm without one alike", () => {
+    let withLocality = 0;
+    let withoutLocality = 0;
+
+    fc.assert(
+      fc.property(anyText, anyText, anyText, (name, locality, phone) => {
+        const validation = validateContactFields({
+          name,
+          phone,
+          locality,
+          channel: "phone",
+          consent: true,
+          consentTextVersion: "placeholder",
+        });
+        fc.pre(validation.ok);
+        const fill = profileFillOf(validation.contact);
+
+        expect(() => {
+          requireValidProfileBlanksFill({ accountId: ACCOUNT_ID, fill });
+        }).not.toThrow();
+        if (fill.address === undefined) withoutLocality += 1;
+        else withLocality += 1;
+      }),
+      { numRuns: FILL_RUNS },
+    );
+
+    expect(withLocality).toBeGreaterThanOrEqual(MIN_ACCEPTED_PER_ARM);
+    expect(withoutLocality).toBeGreaterThanOrEqual(MIN_ACCEPTED_PER_ARM);
   });
 });
 

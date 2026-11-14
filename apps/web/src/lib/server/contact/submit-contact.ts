@@ -28,6 +28,11 @@ import {
   sentAnswer,
 } from "@/lib/server/contact/contact-responses";
 import {
+  fillSubmittersProfileBlanks,
+  type ProfileFillStore,
+  type SessionReader,
+} from "@/lib/server/contact/fill-profile-from-request";
+import {
   deliverNotice,
   inTheRegionOfAReference,
   proveTheNoticeIsBuildable,
@@ -49,11 +54,13 @@ import type { MailSenderCreation } from "@/lib/server/mail/create-mail-sender";
 import type { MailSender } from "@/lib/server/mail/mail-sender";
 import { contactUnavailableResponse } from "@/lib/server/rate-limit/rate-limited-response";
 
-/** What a request is, as the route hands it over: the body's text, unparsed, and the hash of the visitor's cookie when
- *  there was one. Nothing here has been judged or parsed. */
+/** What a request is, as the route hands it over: the body's text, unparsed, the hash of the visitor's cookie when
+ *  there was one, and a reader of its session that is asked only once the request is stored. Nothing here has been
+ *  judged or parsed. */
 export interface ContactBody {
   readonly text: string;
   readonly visitorHash: string | undefined;
+  readonly readSession: SessionReader;
 }
 
 /**
@@ -67,6 +74,7 @@ export interface SubmitContactPorts
     KitchenLinkSources {
   readonly store: ContactSubmissionStore;
   readonly sentMarks: SentMarkStore;
+  readonly profiles: ProfileFillStore;
   readonly createSender: () => MailSenderCreation;
   readonly digester: DigesterOutcome;
   readonly noticeContent: Content;
@@ -86,6 +94,7 @@ interface HeldRequest {
   readonly sender: MailSender;
   readonly request: ContactSubmissionRequest;
   readonly payloadDigest: string;
+  readonly readSession: SessionReader;
   /** What was stored, when this request stored it; absent for a retry, which reads the design again. */
   readonly stored: PreparedSubmission | undefined;
 }
@@ -226,6 +235,11 @@ async function countAndRecord(
     prepared.submission,
     recording.reference,
   );
+  await fillSubmittersProfileBlanks(
+    { readSession: body.readSession, profiles: ports.profiles },
+    request,
+    recording.reference,
+  );
   return recording.isNotified
     ? endWithAnswer(sentAnswer(recording.reference))
     : holdForDelivery(admission, {
@@ -261,19 +275,26 @@ async function markDesignSent(
 }
 
 function holdForDelivery(
-  { request, sender, payloadDigest }: Admission,
+  { request, sender, payloadDigest, body }: Admission,
   { reference, stored }: ForDelivery,
 ): Reached {
   return {
     kind: "held",
-    held: { reference, sender, request, payloadDigest, stored },
+    held: {
+      reference,
+      sender,
+      request,
+      payloadDigest,
+      readSession: body.readSession,
+      stored,
+    },
   };
 }
 
 /** The retry of a stored request reads its design again, and is refused for it as any request is, with a line that
  *  names the stored request. A request this call stored carries what it stored. A retry that finds its design marks it
- *  sent again; a stored request whose notice already went out is answered without that read, so a mark lost there is
- *  not repaired: the lookup carries no design id. */
+ *  sent again and fills the submitter's profile again; a stored request whose notice already went out is answered
+ *  without that read, so a mark lost there is not repaired: the lookup carries no design id. */
 function passOn(
   heldRequest: HeldRequest,
   ports: SubmitContactPorts,
@@ -286,6 +307,11 @@ function passOn(
     }
     if (heldRequest.stored === undefined) {
       await markDesignSent(ports.sentMarks, prepared.submission, reference);
+      await fillSubmittersProfileBlanks(
+        { readSession: heldRequest.readSession, profiles: ports.profiles },
+        heldRequest.request,
+        reference,
+      );
     }
     return deliverNotice({
       reference,

@@ -52,6 +52,16 @@ export interface FakeAccountKitchenStoreOptions {
    * function that revokes its own; with none, a mark revokes nothing.
    */
   readonly revokeShareLinksOf?: (designId: DesignId, at: Date) => void;
+  /**
+   * What `markDeleted` does to the design's card thumbnail, in the same step. The thumbnail is a separate port, so a
+   * test passes `FakeDesignThumbnailStore.deleteFor`; with none, a delete removes no picture.
+   */
+  readonly deleteThumbnailOf?: (designId: DesignId) => void;
+  /**
+   * What `hide` does to the design's card thumbnail: marks it hidden and keeps the picture. A test passes a function
+   * that calls `FakeDesignThumbnailStore.mark(designId, { isHidden: true })`; with none, a hide marks nothing there.
+   */
+  readonly hideThumbnailOf?: (designId: DesignId) => void;
 }
 
 /** A row a test plants. Everything but the owner and the document defaults to the unmarked, unnamed, just-now row. */
@@ -98,13 +108,19 @@ export class FakeAccountKitchenStore implements AccountKitchenStore {
   private readonly notes: HeldNote[] = [];
   private readonly now: () => Date;
   private readonly revokeShareLinksOf: (designId: DesignId, at: Date) => void;
+  private readonly deleteThumbnailOf: (designId: DesignId) => void;
+  private readonly hideThumbnailOf: (designId: DesignId) => void;
 
   constructor({
     now = () => new Date(),
     revokeShareLinksOf,
+    deleteThumbnailOf,
+    hideThumbnailOf,
   }: FakeAccountKitchenStoreOptions = {}) {
     this.now = now;
     this.revokeShareLinksOf = revokeShareLinksOf ?? (() => undefined);
+    this.deleteThumbnailOf = deleteThumbnailOf ?? (() => undefined);
+    this.hideThumbnailOf = hideThumbnailOf ?? (() => undefined);
   }
 
   /** Test setup: plants a row, replacing any row with the same id. */
@@ -259,6 +275,7 @@ export class FakeAccountKitchenStore implements AccountKitchenStore {
       if (kitchen.sentAt === undefined) return { kind: "not-sent" };
       const at = this.now();
       this.markAndRevoke({ ...kitchen, hiddenAt: at }, at);
+      this.hideThumbnailOf(designId);
       return { kind: "hidden" };
     });
   }
@@ -274,6 +291,7 @@ export class FakeAccountKitchenStore implements AccountKitchenStore {
       if (kitchen.sentAt !== undefined) return { kind: "sent" };
       const at = this.now();
       this.markAndRevoke({ ...kitchen, deletedAt: at }, at);
+      this.deleteThumbnailOf(designId);
       return { kind: "deleted" };
     });
   }

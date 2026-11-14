@@ -325,3 +325,16 @@ design. The personal columns stay unreadable and decision 1's grant is unchanged
 application learns nothing about who a lead is) is eroded for a claimed design. Accepted risk, owner-visible; the
 plan (M8B §10) carries the row and [ADR 0172](0172-a-client-account-is-an-e-mail-and-an-argon2id-password-a-session-is-a-hashed-host-only-cookie-a-role-is-a-named-set-of-capabilities-and-a-claimed-design-opens-on-any-device.md) D11 (the named join and its revisit trigger) the rest. (The pointer first said
 Amendment B, which does not discuss the join.)
+
+## Amendment A — 2026-11-13: decision 1's intent changes for a signed-in submitter's own profile blanks (owner-ruled)
+
+**Owner ruling, 2026-11-13, third round [owner, answered through AskUserQuestion, relayed by the coordinator; recorded in
+`docs/OWNER_FEEDBACK.md`].** When a **confirmed client** (`design.edit.own`) sends a contact request while signed in, the
+request's name, phone and locality fill the **empty** fields of that client's own profile, and the privacy notice says
+so. Staff read a client's profile name and phone [src at `607af1db`: `packages/persistence/src/staff-kitchen-statements.ts:89`,
+`:194`], so for this submitter decision 1's intent, that the application learns nothing about who a lead is, no longer
+holds. **Decision 1's grant is unchanged:** the values are taken from the request body being judged, before and apart
+from the stored row, and no statement reads a personal column of `contact_submissions`. A visitor's, a staff member's
+and an unconfirmed account's request are as before. Record and bounds:
+[ADR 0179](0179-a-signed-in-customers-contact-form-is-prefilled-from-the-profile-and-the-stored-request-fills-only-the-profiles-blanks-in-one-statement.md),
+*ADR 0153 d1 and ADR 0172 D11 — what changes*. Nothing is built.

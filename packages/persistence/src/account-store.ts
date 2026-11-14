@@ -1,4 +1,5 @@
 import type {
+  ProfileFill,
   ProfileTextChanges,
   RegisteredPhone,
   RegistrationFields,
@@ -52,6 +53,7 @@ export type AccountStoreOperation =
   | "replace a password hash"
   | "read a profile"
   | "update a profile"
+  | "fill a profile's blanks"
   | "change a password";
 
 /** The database refused, did not answer, or answered with something that is not the row this port reads. Its `cause`
@@ -297,6 +299,18 @@ export type ProfileUpdateOutcome =
   | { readonly kind: "saved" }
   | { readonly kind: "none" };
 
+/** The request's values and the account they may fill. `accountId` is the session's, never the request's. */
+export interface ProfileBlanksFill {
+  readonly accountId: string;
+  readonly fill: ProfileFill;
+}
+
+/** `filled`: at least one column was blank and is now written. `nothing-to-fill`: every column the request offers was
+ *  already held, or the account does not exist; nothing was written. */
+export type ProfileFillOutcome =
+  | { readonly kind: "filled" }
+  | { readonly kind: "nothing-to-fill" };
+
 /** A signed-in password change is a compare-and-set on the hash the caller verified, so it cannot overwrite a password
  *  that a reset or another change replaced meanwhile. */
 export interface PasswordChange {
@@ -328,6 +342,10 @@ export interface AccountStore {
   /** One statement that writes `name`, `address`, `phone` and `phone_normal_form` for the fields `changes` names and
    *  nothing else: an empty text is stored as `null`, and the phone pair is set or cleared together. */
   updateProfile(update: ProfileUpdate): Promise<ProfileUpdateOutcome>;
+  /** One statement that sets `name`, `address` and the phone pair from `fill`, each only where the column is null: a
+   *  held value is never overwritten or cleared, the phone pair is written together or not at all, an absent address
+   *  writes nothing, and `updated_at` moves only when a column did. Idempotent. */
+  fillProfileBlanks(fill: ProfileBlanksFill): Promise<ProfileFillOutcome>;
   /** One transaction: the hash replaced if it is still `expectedPasswordHash`, `password_changed_at` set, then every
    *  session of the account revoked (a second statement, so a session a racing login committed is revoked too). The
    *  caller starts the replacing session afterwards, bound to the new hash. */
@@ -595,6 +613,34 @@ export function requireValidProfileUpdate(update: ProfileUpdate): void {
     phone === undefined || isStorablePhoneChange(phone),
     "phone",
     `both columns null or both 1 to ${String(PHONE_MAX_LENGTH)} characters`,
+    operation,
+  );
+}
+
+export function requireValidProfileBlanksFill({
+  accountId,
+  fill,
+}: ProfileBlanksFill): void {
+  const operation = "fill a profile's blanks";
+  requireAccountIdShape(accountId, operation);
+  requireField(
+    isLengthWithin(fill.name, 1, PROFILE_NAME_COLUMN_MAX),
+    "name",
+    `1 to ${String(PROFILE_NAME_COLUMN_MAX)} characters`,
+    operation,
+  );
+  requireField(
+    fill.address === undefined ||
+      isLengthWithin(fill.address, 1, PROFILE_ADDRESS_COLUMN_MAX),
+    "address",
+    `absent or 1 to ${String(PROFILE_ADDRESS_COLUMN_MAX)} characters`,
+    operation,
+  );
+  requireField(
+    isLengthWithin(fill.phone.entered, 1, PHONE_MAX_LENGTH) &&
+      isLengthWithin(fill.phone.normalForm, 1, PHONE_MAX_LENGTH),
+    "phone",
+    `both forms 1 to ${String(PHONE_MAX_LENGTH)} characters`,
     operation,
   );
 }

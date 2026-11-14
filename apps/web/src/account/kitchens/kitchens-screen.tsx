@@ -148,7 +148,7 @@ function KitchensFrame({
   readonly children: ReactNode;
 }) {
   return (
-    <AccountShell locale={locale} page="kitchens" isWide>
+    <AccountShell locale={locale} page="kitchens" isWide hasAccountControl>
       {children}
     </AccountShell>
   );

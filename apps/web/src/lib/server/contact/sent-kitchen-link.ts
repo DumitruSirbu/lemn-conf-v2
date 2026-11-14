@@ -90,6 +90,11 @@ export async function beforeDeadline<Answer>(
   }
 }
 
+/** Whether `beforeDeadline` gave up on its promise, as opposed to the promise itself having failed. */
+export function isDeadlineExceeded(failure: unknown): boolean {
+  return failure instanceof RecordDeadlineExceeded;
+}
+
 function causeOf(failure: unknown): KitchenLinkCause {
   if (failure instanceof RecordDeadlineExceeded) return "deadline";
   if (failure instanceof SentKitchenViewRepositoryError) return "record-failed";

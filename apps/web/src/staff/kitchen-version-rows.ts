@@ -3,6 +3,7 @@ import {
   projectDesignForDisplay,
   type Design,
   type DisplayEntry,
+  type KitchenViewed3dVersion,
 } from "@lemnaria/configurator-domain";
 
 import type { Content } from "@/i18n/content";
@@ -12,7 +13,7 @@ import { buildCatalogAtDepthOf } from "@/price/price-book-root";
 // placement's id, with the ones that differ marked and no account of how. A body only the sent copy holds is the one the
 // client took out; a body only the current copy holds is the one the client added.
 
-export type KitchenVersion = "sent" | "current";
+export type KitchenVersion = KitchenViewed3dVersion;
 
 /** How a body stands between the two copies, as the current version tells it. */
 export type VersionRowChange = "same" | "differs" | "added" | "removed";

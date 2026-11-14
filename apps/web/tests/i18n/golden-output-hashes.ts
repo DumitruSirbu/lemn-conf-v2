@@ -337,6 +337,8 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "00102dc6ec45b8a74b033c02a7cda6cb019acb310f0397fb0baff35709d698d2",
   "catalog.wall-lift.800":
     "00102dc6ec45b8a74b033c02a7cda6cb019acb310f0397fb0baff35709d698d2",
+  "contact.fillNotice":
+    "42f70de85744f09b02c8115abaad44b5213417af641af92a9f8a4b7ae711ab6b",
   "contact.fieldErrors.CONSENT_NOT_GIVEN":
     "4b83fb4ea543fad41669efd78ee4f65f5e9aa7f88d3c71aa3e0dab94e5932dd4",
   "contact.fieldErrors.FORBIDDEN_CHARACTER":
@@ -511,6 +513,8 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "19e4d026b84f44efe22141222fed0b40bf2b26858ad820da85135a2996f7b936",
   "content.priceBreakdown.wholeKitchenLabel.material":
     "3ac2b136c5b55303cfa80635f7ed6086e29f88a083f99bc9a50fced1ec71d5ed",
+  "content.contact.fillNotice.email-token":
+    "42f70de85744f09b02c8115abaad44b5213417af641af92a9f8a4b7ae711ab6b",
   "content.submissionResult.channelLine.email":
     "d39f8b0a2c38034a1f433f0fad6cf2b0139192073c94eacf6236aaad5429b90a",
   "content.submissionResult.channelLine.phone":

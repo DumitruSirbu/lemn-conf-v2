@@ -1,4 +1,5 @@
 import {
+  CONTACT_EMAIL_MAX_LENGTH,
   CONTACT_FIELDS,
   validateContactFields,
   type ContactField,
@@ -30,6 +31,7 @@ const REQUEST_KEYS = [
   "locale",
   "honeypot",
   "elapsedMs",
+  "profileAccountEmail",
 ] as const;
 
 const DESIGN_REFERENCE_KEYS = ["id", "revision"] as const;
@@ -93,6 +95,9 @@ export interface ContactSubmissionRequest {
   readonly locale: string;
   readonly isHoneypotFilled: boolean;
   readonly elapsedMs: number;
+  /** The account address the form's profile line named, present only when the form showed it. It is a claim the server
+   *  compares with its own session before it fills a profile, never an identity, and it is not stored or digested. */
+  readonly profileAccountEmail?: string;
 }
 
 export type ContactSubmissionValidation =
@@ -111,6 +116,7 @@ interface RequestJudgements {
   readonly locale: Outcome<string>;
   readonly isHoneypotFilled: Outcome<boolean>;
   readonly elapsedMs: Outcome<number>;
+  readonly profileAccountEmail: Outcome<string | undefined>;
 }
 
 type AcceptedJudgements = {
@@ -161,6 +167,9 @@ function judgeRequest(
     locale: judgeLocale(ownValueOf(request, "locale"), servedLocales),
     isHoneypotFilled: judgeHoneypot(ownValueOf(request, "honeypot")),
     elapsedMs: judgeElapsedMs(ownValueOf(request, "elapsedMs")),
+    profileAccountEmail: judgeProfileAccountEmail(
+      ownValueOf(request, "profileAccountEmail"),
+    ),
   };
 }
 
@@ -185,6 +194,7 @@ function refusedIssues(
 }
 
 function assemble(accepted: AcceptedJudgements): ContactSubmissionRequest {
+  const { profileAccountEmail } = accepted;
   return {
     contact: accepted.contact.value,
     target: accepted.target.value,
@@ -192,6 +202,9 @@ function assemble(accepted: AcceptedJudgements): ContactSubmissionRequest {
     locale: accepted.locale.value,
     isHoneypotFilled: accepted.isHoneypotFilled.value,
     elapsedMs: accepted.elapsedMs.value,
+    ...(profileAccountEmail.value === undefined
+      ? {}
+      : { profileAccountEmail: profileAccountEmail.value }),
   };
 }
 
@@ -294,6 +307,15 @@ function judgeElapsedMs(raw: unknown): Outcome<number> {
   return isElapsedMs(raw)
     ? succeeded(raw)
     : failed(issue("elapsedMs", "MALFORMED"));
+}
+
+/** A claim about the sender's session, read as text and compared with it by the server. A value that is not text, or
+ *  is longer than an address can be, is no claim: it is ignored and never refused, so a request is never turned away
+ *  for what only decides whether a profile is filled. */
+function judgeProfileAccountEmail(raw: unknown): Outcome<string | undefined> {
+  const isClaim =
+    typeof raw === "string" && countCharacters(raw) <= CONTACT_EMAIL_MAX_LENGTH;
+  return succeeded(isClaim ? raw : undefined);
 }
 
 /** Any whole number a JSON number holds exactly: a slow submission is not refused here. */

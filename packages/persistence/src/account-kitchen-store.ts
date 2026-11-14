@@ -202,6 +202,7 @@ export type ExportSize =
  * existing row, and only `duplicate` inserts.
  *
  * `hide` and `markDeleted` set an access-control mark and revoke the design's active share link in one atomic step.
+ * `markDeleted` also deletes the design's thumbnail row in that step; `hide` leaves it.
  * They do not by themselves close the other ways into a kitchen (the visitor cookie and write token, a share `issue`):
  * no caller may expose them until the open, save, resume and share paths refuse a marked row.
  */
@@ -242,7 +243,7 @@ export interface AccountKitchenStore {
   ): Promise<KitchenDuplicationOutcome>;
   /** Hides a sent kitchen from its owner's list. The stored row stays. */
   hide(mark: KitchenMark): Promise<KitchenHideOutcome>;
-  /** Deletes an unsent kitchen from its owner's list by a mark. The stored row stays. */
+  /** Deletes an unsent kitchen from its owner's list by a mark, and its card thumbnail with it. The stored row stays. */
   markDeleted(mark: KitchenMark): Promise<KitchenDeleteOutcome>;
 }
 

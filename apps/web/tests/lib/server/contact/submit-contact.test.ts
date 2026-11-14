@@ -25,6 +25,7 @@ import {
   REQUEST_ID,
   VISITOR_HASH,
   wireOf,
+  readAnonymousSession,
 } from "./submit-contact-harness";
 
 afterEach(() => {
@@ -214,7 +215,14 @@ describe("nothing is counted, looked up, stored or sent before its check", () =>
       },
     };
 
-    await submitContact({ text: bodyOf(), visitorHash: undefined }, ports);
+    await submitContact(
+      {
+        text: bodyOf(),
+        visitorHash: undefined,
+        readSession: readAnonymousSession,
+      },
+      ports,
+    );
 
     const factoryCalls = harness.calls.filter(
       (call) => call === "createSender",

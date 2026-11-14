@@ -109,6 +109,23 @@ export type {
 export { NeonPresetRepository } from "./neon-preset-repository.js";
 export { FakePresetRepository } from "./fake-preset-repository.js";
 export type { HeldPreset } from "./fake-preset-repository.js";
+// The pictures on kitchen cards (ADR 0181, migration `0030`).
+export { DesignThumbnailStoreError } from "./design-thumbnail-store.js";
+export type {
+  DesignThumbnailOperation,
+  DesignThumbnailStore,
+  DesignThumbnailStoreFailure,
+  OwnThumbnailLookup,
+  OwnThumbnailRequest,
+  ThumbnailStoreOutcome,
+  ThumbnailToStore,
+} from "./design-thumbnail-store.js";
+export { NeonDesignThumbnailStore } from "./neon-design-thumbnail-store.js";
+export { FakeDesignThumbnailStore } from "./fake-design-thumbnail-store.js";
+export type {
+  HeldThumbnail,
+  SeededThumbnailDesign,
+} from "./fake-design-thumbnail-store.js";
 export { NeonRateLimitStore } from "./neon-rate-limit-store.js";
 export {
   RateLimitStoreError,
@@ -189,6 +206,8 @@ export type {
   PasswordResetOutcome,
   PlainEmailTokenPurpose,
   PreviousAddress,
+  ProfileBlanksFill,
+  ProfileFillOutcome,
   ProfileLookup,
   ProfileUpdate,
   ProfileUpdateOutcome,
@@ -206,6 +225,7 @@ export { FakeAccountStore } from "./fake-account-store.js";
 export type {
   FakeAccountStoreOptions,
   HeldEmailToken,
+  HeldProfileColumns,
 } from "./fake-account-store.js";
 export {
   SESSION_TOUCH_INTERVAL_SECONDS,

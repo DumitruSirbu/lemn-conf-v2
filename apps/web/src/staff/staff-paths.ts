@@ -1,4 +1,7 @@
-import { isDesignId } from "@lemnaria/configurator-domain";
+import {
+  isDesignId,
+  type KitchenViewed3dVersion,
+} from "@lemnaria/configurator-domain";
 
 // The addresses of the staff area, in one leaf module. The staff frame and the account control both write them, and the
 // frame imports the control, so a path that lived in either would be imported back by the other: a cycle. This module
@@ -46,4 +49,25 @@ export function staffPathOf(
   const isKitchen =
     page === "kitchens" && kitchenId !== undefined && isDesignId(kitchenId);
   return isKitchen ? `${pagePath}/${kitchenId}` : pagePath;
+}
+
+const KITCHEN_3D_SEGMENT = "3d";
+
+/**
+ * The address of a kitchen's 3D view, carrying `version` only when one is named (a kitchen with a single readable copy
+ * names none). A kitchen id that is not a design id gives the list's address, as `staffPathOf` does.
+ */
+export function staffKitchen3dPathOf({
+  locale,
+  kitchenId,
+  version,
+}: {
+  readonly locale: string;
+  readonly kitchenId: string;
+  readonly version?: KitchenViewed3dVersion | undefined;
+}): string {
+  const kitchenPath = staffPathOf(locale, "kitchens", kitchenId);
+  if (!isDesignId(kitchenId)) return kitchenPath;
+  const path = `${kitchenPath}/${KITCHEN_3D_SEGMENT}`;
+  return version === undefined ? path : `${path}?version=${version}`;
 }

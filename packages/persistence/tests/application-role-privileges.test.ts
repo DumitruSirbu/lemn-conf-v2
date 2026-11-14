@@ -16,6 +16,10 @@ import {
   setItemActiveStatement,
 } from "../src/catalogue-availability-statements.js";
 import {
+  loadOwnThumbnailStatement,
+  storeThumbnailStatement,
+} from "../src/design-thumbnail-statements.js";
+import {
   readKitchenDefaultsStatement,
   saveKitchenDefaultsStatement,
 } from "../src/kitchen-defaults-statements.js";
@@ -438,6 +442,24 @@ interface StaffTableGrant {
 }
 
 const A_PROBE_ID = "0".repeat(21);
+
+const DESIGN_THUMBNAILS = "public.design_thumbnails";
+/** The table-level grant of ADR 0181 d3: the picture is written, read and deleted with its kitchen. `UPDATE` is by column. */
+const DESIGN_THUMBNAILS_TABLE_PRIVILEGES = ["DELETE", "INSERT", "SELECT"];
+const DESIGN_THUMBNAILS_COLUMNS = [
+  "captured_at",
+  "design_id",
+  "image",
+  "image_type",
+  "revision",
+];
+/** The columns of the `UPDATE` grant. `design_id` is left out so a picture can never be moved to another design. */
+const DESIGN_THUMBNAILS_UPDATABLE_COLUMNS = [
+  "captured_at",
+  "image",
+  "image_type",
+  "revision",
+];
 
 const STAFF_TABLE_GRANTS: readonly StaffTableGrant[] = [
   {
@@ -1565,6 +1587,88 @@ describe.skipIf(!hasLiveDatabase)("the application's database role", () => {
   // planned and never run. The save reads and updates `catalogue_availability_head` and updates `kitchen_defaults` besides
   // writing the audit row, and the reader reads `designs` (its document and `deleted_by_client_at`), so a column a
   // statement names that the role was not granted is a 42501 here and not at the first save.
+  // The card thumbnails (migration `0030`, ADR 0181 d3, d9): the one table of the application role that holds `DELETE`
+  // beside a column-scoped `UPDATE`. Asked of the catalog, `PUBLIC` and inherited roles included. Red until the owner has
+  // issued the two grants, which is the runbook's step 3; skipped, with the reason, until the table exists.
+  guardedTest(
+    "effectively holds select, insert and delete and update of four columns on design_thumbnails, nothing through PUBLIC and no grant option, once it exists",
+    async (context) => {
+      await skipUnlessTheTableExists(context, DESIGN_THUMBNAILS);
+      const sql = neon(readDatabaseUrl());
+
+      const known = await tablePrivilegesTheServerKnows(sql);
+      expect(known).toEqual(
+        expect.arrayContaining([...TABLE_PRIVILEGES_EVERY_SERVER_KNOWS]),
+      );
+      expect(await privilegesHeldOn(sql, DESIGN_THUMBNAILS, known)).toEqual(
+        DESIGN_THUMBNAILS_TABLE_PRIVILEGES,
+      );
+      const columns = await columnsOf(sql, DESIGN_THUMBNAILS);
+      expect(sorted(columns)).toEqual(DESIGN_THUMBNAILS_COLUMNS);
+      expect(await columnsHolding(sql, DESIGN_THUMBNAILS, "SELECT")).toEqual(
+        columns,
+      );
+      expect(await columnsHolding(sql, DESIGN_THUMBNAILS, "INSERT")).toEqual(
+        columns,
+      );
+      expect(
+        sorted(await columnsHolding(sql, DESIGN_THUMBNAILS, "UPDATE")),
+      ).toEqual(DESIGN_THUMBNAILS_UPDATABLE_COLUMNS);
+      expect(
+        await columnsHolding(sql, DESIGN_THUMBNAILS, "REFERENCES"),
+      ).toEqual([]);
+      await expectNothingHeldWithGrantOption(sql, DESIGN_THUMBNAILS, known);
+      expect(await grantsToPublicOn(sql, DESIGN_THUMBNAILS)).toBe(0);
+    },
+  );
+
+  // The store's own write and read, built by the same functions, and the delete of one row, planned and never run. A
+  // column a statement names that the role was not granted is a 42501 here and not at the first picture. The negative
+  // control is what makes the omission of `UPDATE (design_id)` checked and not assumed.
+  guardedTest(
+    "can have the thumbnail store's statements and the delete of one picture planned, and cannot have an update of design_id planned, once the table exists",
+    async (context) => {
+      await skipUnlessTheTableExists(context, DESIGN_THUMBNAILS);
+      await skipUnlessTheTableExists(context, "public.designs");
+      const sql = neon(readDatabaseUrl());
+      const write = {
+        designId: A_PROBE_ID,
+        revision: "1",
+        imageHex: "00",
+        imageType: "image/webp",
+      };
+
+      for (const statement of [
+        storeThumbnailStatement(recordedStatement, {
+          ...write,
+          credential: { kind: "write-token", hash: "a".repeat(64) },
+        }),
+        storeThumbnailStatement(recordedStatement, {
+          ...write,
+          credential: { kind: "account", accountId: A_PROBE_ID },
+        }),
+        loadOwnThumbnailStatement(recordedStatement, {
+          accountId: A_PROBE_ID,
+          designId: A_PROBE_ID,
+        }),
+      ]) {
+        await expect(
+          explainOfThePresetStatement(statement),
+        ).resolves.toBeDefined();
+      }
+      await expect(
+        sql.query(
+          `explain delete from ${DESIGN_THUMBNAILS} where design_id = '${A_PROBE_ID}'`,
+        ),
+      ).resolves.toBeDefined();
+      expect(
+        await failureOf(
+          `explain update ${DESIGN_THUMBNAILS} set design_id = design_id`,
+        ),
+      ).toMatchObject({ code: INSUFFICIENT_PRIVILEGE });
+    },
+  );
+
   guardedTest(
     "can have the kitchen defaults store's and the usage reader's statements planned, once the tables exist",
     async (context) => {

@@ -3,6 +3,7 @@
 import type { Design } from "@lemnaria/configurator-domain";
 
 import { ConfigureScreen } from "@/app/configurator/configure/configure-screen";
+import type { LocaleMenuQuery } from "@/app/configurator/configure/locale-menu";
 import {
   ConfiguratorSnapshotProvider,
   hydrateSessionStoreInBrowser,
@@ -36,7 +37,14 @@ const SHARED_VIEW_REVISION = "shared";
  * mounts, never a rerender of one instance: the render-time `hydrate()` below would otherwise write a
  * store during another component's render, a real React warning.
  */
-export function SharedDesignView({ design }: { design: Design }) {
+export function SharedDesignView({
+  design,
+  localeQuery,
+}: {
+  design: Design;
+  /** The query the language menu keeps across a switch. The share page passes none; the staff 3D view passes `version`. */
+  localeQuery?: LocaleMenuQuery | undefined;
+}) {
   const loaded = {
     design,
     designId: SHARED_VIEW_DESIGN_ID,
@@ -46,7 +54,7 @@ export function SharedDesignView({ design }: { design: Design }) {
   hydrateSessionStoreInBrowser(loaded, (session) => session.design === design);
   return (
     <ConfiguratorSnapshotProvider loaded={loaded}>
-      <ConfigureScreen variant="shared" />
+      <ConfigureScreen variant="shared" localeQuery={localeQuery} />
     </ConfiguratorSnapshotProvider>
   );
 }

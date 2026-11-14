@@ -26,10 +26,12 @@ import {
   INITIAL_CONTACT_FORM,
   measureElapsedMs,
   reduceContactForm,
+  shownProfileAccountEmail,
   type ContactFormEvent,
   type ContactFormField,
   type ContactFormState,
   type MonotonicClock,
+  type ProfileAccount,
 } from "./contact-form-model";
 import {
   generateRandomRequestId,
@@ -126,6 +128,10 @@ export interface ContactSubmission {
   readonly refusedPress: RefusedPress | undefined;
   readonly edit: (event: ContactFormEdit) => void;
   readonly press: () => void;
+  /** Forgets the last send: the next one carries a new id, and the connection's return no longer resends the old one. */
+  readonly resetRequestId: () => void;
+  /** The account the form's profile line names, or none: a send names it exactly when the line is shown for it. */
+  readonly showProfileAccount: (account: ProfileAccount | undefined) => void;
 }
 
 /** Mutable on purpose: a handler must read what the last handler wrote before React has rendered again. */
@@ -138,6 +144,11 @@ interface SessionMemory {
   refusedPressCount: number;
   /** Whether the last send got no answer and nothing has been sent since. */
   hasUnansweredSend: boolean;
+  profileAccount: ProfileAccount | undefined;
+  /** A withdrawal of the profile's values that a send's hold put off, applied when the hold ends. */
+  hasWithdrawalPending: boolean;
+  /** Whether the last answer put the page on the failure screen, which has no fields to mend. */
+  isOnFailureScreen: boolean;
 }
 
 const IDLE: ContactSubmissionPhase = { kind: "idle" };
@@ -170,8 +181,23 @@ export function useContactSubmission(
 
   const edit = useCallback(
     (event: ContactFormEdit) => {
+      if (isIdHeldBySend(memory) && deferProfileEvent(event, memory)) return;
       memory.form = reduceContactForm(memory.form, event);
       setForm(memory.form);
+      if (event.type === "account-changed") {
+        leaveFailureScreenWhenUnsendable(memory, { setPhase, setRefusedPress });
+      }
+    },
+    [memory],
+  );
+
+  const resetRequestId = useCallback(() => {
+    memory.history = NO_SEND_YET;
+    applyPendingWithdrawal(memory, setForm);
+  }, [memory]);
+  const showProfileAccount = useCallback(
+    (account: ProfileAccount | undefined) => {
+      memory.profileAccount = account;
     },
     [memory],
   );
@@ -200,7 +226,67 @@ export function useContactSubmission(
     retry: retryAfterUnansweredSend,
   });
 
-  return { form, phase, saveWait, refusedPress, edit, press };
+  return {
+    form,
+    phase,
+    saveWait,
+    refusedPress,
+    edit,
+    press,
+    resetRequestId,
+    showProfileAccount,
+  };
+}
+
+/** While a send holds a reusable id, its values are the request's: a profile arriving does not change them, and one
+ *  withdrawn waits until the hold ends, so Retry on the failure screen still sends what the send carried. An arrival
+ *  means the profile is back, so nothing is left to withdraw. Whether the event was set aside is the answer. */
+function deferProfileEvent(
+  event: ContactFormEdit,
+  memory: SessionMemory,
+): boolean {
+  if (event.type === "profile-arrived") {
+    memory.hasWithdrawalPending = false;
+    return true;
+  }
+  if (event.type !== "profile-withdrawn") return false;
+  memory.hasWithdrawalPending = true;
+  return true;
+}
+
+/** Another account is signed in and what the failure screen promised to keep is gone: Retry would send nothing, so the
+ *  form comes back with its focus on the first field to fill, as a refused press puts it. A send that is out, a final
+ *  answer and a wait the limit told are left as they are. */
+function leaveFailureScreenWhenUnsendable(
+  memory: SessionMemory,
+  show: Pick<PressContext["show"], "setPhase" | "setRefusedPress">,
+): void {
+  if (!memory.isOnFailureScreen || memory.isSending || memory.isFinished)
+    return;
+  if (memory.waitsUntilMs !== undefined) return;
+  const field = firstInvalidField(memory.form.values);
+  if (field === undefined) return;
+  memory.isOnFailureScreen = false;
+  memory.refusedPressCount += 1;
+  show.setPhase(IDLE);
+  show.setRefusedPress({ field, pressNumber: memory.refusedPressCount });
+}
+
+/** The withdrawal a hold put off, once nothing holds the values any more: the id was reset or spent. */
+function applyPendingWithdrawal(
+  memory: SessionMemory,
+  setForm: (form: ContactFormState) => void,
+): void {
+  if (!memory.hasWithdrawalPending || isIdHeldBySend(memory)) return;
+  memory.hasWithdrawalPending = false;
+  memory.form = reduceContactForm(memory.form, { type: "profile-withdrawn" });
+  setForm(memory.form);
+}
+
+/** A send whose id a retry would keep: a fill that changed its fields would make the retry another request with another
+ *  id, and the first may already be stored. */
+function isIdHeldBySend(memory: SessionMemory): boolean {
+  return memory.history.kind === "sent-before" && !memory.history.isIdSpent;
 }
 
 function isUnanswered(phase: ContactSubmissionPhase): boolean {
@@ -272,6 +358,10 @@ function prepareSendFromMemory(
       target,
       locale,
       elapsedMs: measureElapsedMs(startedAtMs, ports.monotonicNow),
+      profileAccountEmail: shownProfileAccountEmail(
+        memory.profileAccount,
+        memory.form,
+      ),
     },
     bookVersion: target.kind === "design" ? bookVersion : undefined,
     generateId: ports.generateId,
@@ -287,6 +377,9 @@ function newSessionMemory(): SessionMemory {
     waitsUntilMs: undefined,
     refusedPressCount: 0,
     hasUnansweredSend: false,
+    profileAccount: undefined,
+    hasWithdrawalPending: false,
+    isOnFailureScreen: false,
   };
 }
 
@@ -353,6 +446,7 @@ function startSending(
   void sendContactRequest(prepared.body, ports.fetchContact).then((outcome) => {
     rememberWhenSent(prepared.request, outcome);
     show.setPhase(settle(memory, outcome, ports.wallNowMs()));
+    applyPendingWithdrawal(memory, show.setForm);
   });
 }
 
@@ -375,6 +469,7 @@ function settle(
   memory.hasUnansweredSend = outcome.kind === "unanswered";
   memory.history = historyAfterOutcome(memory.history, outcome);
   memory.isFinished = isFinalOutcome(outcome);
+  memory.isOnFailureScreen = outcome.kind !== "sent";
   memory.waitsUntilMs =
     outcome.kind === "limited"
       ? nowMs + outcome.waitSeconds * MILLISECONDS_PER_SECOND

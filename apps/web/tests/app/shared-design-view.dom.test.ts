@@ -15,12 +15,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const firstFrame = vi.hoisted(() => ({
   design: undefined as Design | undefined,
   variant: undefined as string | undefined,
+  props: undefined as Record<string, unknown> | undefined,
 }));
 
 vi.mock("@/app/configurator/configure/configure-screen", () => ({
-  ConfigureScreen: (props: { variant?: string }) => {
+  ConfigureScreen: (props: { variant?: string; localeQuery?: unknown }) => {
     firstFrame.design = useConfiguratorStore.getState().design;
     firstFrame.variant = props.variant;
+    firstFrame.props = props;
     return null;
   },
 }));
@@ -76,6 +78,7 @@ beforeEach(() => {
   });
   firstFrame.design = undefined;
   firstFrame.variant = undefined;
+  firstFrame.props = undefined;
 });
 
 afterEach(() => {
@@ -100,6 +103,31 @@ describe("SharedDesignView", () => {
     expect(useConfiguratorStore.getState()).toMatchObject({
       design: shared,
       canWrite: false,
+    });
+  });
+
+  it("hands the screen no locale query when it is given none, so share links stay the path alone", () => {
+    mount(KITCHEN_L_DESIGN, "token-a");
+
+    expect(firstFrame.props).toEqual({ variant: "shared" });
+  });
+
+  it("hands the screen the locale query it is given", () => {
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    act(() => {
+      root.render(
+        createElement(SharedDesignView, {
+          design: KITCHEN_L_DESIGN,
+          localeQuery: { version: "current" },
+        }),
+      );
+    });
+
+    expect(firstFrame.props).toEqual({
+      variant: "shared",
+      localeQuery: { version: "current" },
     });
   });
 

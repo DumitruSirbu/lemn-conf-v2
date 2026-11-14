@@ -1050,6 +1050,7 @@ describe("8H criterion 23: the request says whether the honeypot was filled, not
       | "locale"
       | "isHoneypotFilled"
       | "elapsedMs"
+      | "profileAccountEmail"
     >();
   });
 
