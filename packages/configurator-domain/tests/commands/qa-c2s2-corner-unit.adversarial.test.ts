@@ -405,13 +405,6 @@ describe.each(SMALL_ROOMS)("%s: the corner is covered", (_label, room, ids) => {
           columns: state.recordedColumns,
           probe,
         }).filter((option) => option.verdict.status === "available").length,
-        handle: setHandle({
-          design: state.design,
-          catalog: state.catalog,
-          target,
-          handle: "black",
-          occurredAt: OCCURRED_AT,
-        }).ok,
       }));
 
       expect(outcomes).toEqual({
@@ -422,8 +415,28 @@ describe.each(SMALL_ROOMS)("%s: the corner is covered", (_label, room, ids) => {
         narrower: false,
         wider: false,
         freeWidths: 0,
-        handle: false,
       });
+    }
+  });
+
+  /** The one edit §13.1 does not name, and the one ADR 0182 gave every corner that carries a bar: a handle of its
+   *  own, taken as the side wall's corner cabinet takes it, and written to this placement only. */
+  it.each(ids)("accepts a handle for %s, at 600 and at 700", (id) => {
+    for (const state of [world, atDepth(world, DEEP_MM)]) {
+      const result = setHandle({
+        design: state.design,
+        catalog: state.catalog,
+        target: { kind: "placement", id },
+        handle: "black",
+        occurredAt: OCCURRED_AT,
+      });
+
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      const handled = result.design.placements.filter(
+        (placement) => placement.body.handle === "black",
+      );
+      expect(handled.map((placement) => placement.id)).toEqual([id]);
     }
   });
 

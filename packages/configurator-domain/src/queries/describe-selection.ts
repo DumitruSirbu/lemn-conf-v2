@@ -72,10 +72,10 @@ export interface SelectionMeta {
    *  Published so §9's Mâner section can mark the chip without re-deriving the rule from a `y0` `meta`
    *  does not carry. */
   readonly defaultHandle: Handle;
-  /** Present only when this body offers nothing structural (no swap list, delete, finish, handle or width)
-   *  and says why (§11 row 16, §13.1). Read from the catalogue entry's declaration, not inferred from the
-   *  four capability flags: a panel that offers nothing never produces the refusal §11 row 16 requires to
-   *  carry the explanation. */
+  /** Present when this body's structural edits (swap, delete, width) are refused and the panel owes the customer
+   *  the explanation (§11 row 16, §13.1); finish and handle may still be offered beside it. Read from the
+   *  catalogue entry's declaration, not inferred from the capability flags: a panel that offers no structural
+   *  edit never produces the refusal §11 row 16 requires to carry the explanation. */
   readonly structuralReason?: StructuralReason;
 }
 

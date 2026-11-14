@@ -20,6 +20,7 @@ import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
   projectDesignForDisplay,
+  type BodyCatalog,
   type Design,
   type PlacementRecord,
 } from "@lemnaria/configurator-domain";
@@ -29,6 +30,7 @@ import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { forEachCabinetHandleMesh } from "../src/cabinet-handle-meshes.js";
 import { makeKit, type Kit } from "../src/kitchen-parts.js";
 import { syncSolidBodies } from "../src/scene-sync.js";
+import { catalogWithCornersTakingNoHandle } from "./support/before-adr-0182.js";
 import {
   createHeadlessCanvas,
   installHeadlessDocument,
@@ -42,6 +44,11 @@ const TOP_ROW_FLOOR_MM = 2_200;
  *  nothing is a case and not a default. */
 const EVERY_HANDLE_STATE = [undefined, "push", "steel", "black"] as const;
 
+/** The shipped catalogue with every corner refusing a mode, as it was declared before ADR 0182. */
+const CATALOG_BEFORE_ADR_0182 = catalogWithCornersTakingNoHandle(
+  KITCHEN_L_BODY_CATALOG,
+);
+
 let kit: Kit;
 let solidsRoot: THREE.Group;
 
@@ -54,8 +61,11 @@ beforeEach(() => {
   solidsRoot = new THREE.Group();
 });
 
-function mount(design: Design): readonly PlacementRecord[] {
-  const records = derivePlacementRecords(design, KITCHEN_L_BODY_CATALOG);
+function mount(
+  design: Design,
+  catalog: BodyCatalog = KITCHEN_L_BODY_CATALOG,
+): readonly PlacementRecord[] {
+  const records = derivePlacementRecords(design, catalog);
   syncSolidBodies({ kit, solidsRoot, records, room: design.room });
   return records;
 }
@@ -96,12 +106,16 @@ function sceneHidesBarsOn(placementId: string): boolean {
 /** **What the ruling says**, read off the design document and the catalogue row rather than off
  *  either implementation of it (ADR 0092 decision 3, Amendment C): a recorded mode decides where the
  *  row permits one, and otherwise the slot decides by §6.5's module line. */
-function theRulingHidesBarsOn(design: Design, placementId: string): boolean {
+function theRulingHidesBarsOn(
+  design: Design,
+  placementId: string,
+  catalog: BodyCatalog = KITCHEN_L_BODY_CATALOG,
+): boolean {
   const placement = design.placements.find(
     (candidate) => candidate.id === placementId,
   );
   if (!placement) throw new Error(`the design holds no "${placementId}"`);
-  const definition = KITCHEN_L_BODY_CATALOG.get(placement.body.buildId);
+  const definition = catalog.get(placement.body.buildId);
   if (!definition) {
     throw new Error(`the catalogue holds no "${placement.body.buildId}"`);
   }
@@ -112,12 +126,16 @@ function theRulingHidesBarsOn(design: Design, placementId: string): boolean {
   return placement.y0Mm >= TOP_ROW_FLOOR_MM;
 }
 
-function latchesOn(design: Design, placementId: string): number {
-  const entry = projectDesignForDisplay(design, KITCHEN_L_BODY_CATALOG)
+function latchesOn(
+  design: Design,
+  placementId: string,
+  catalog: BodyCatalog = KITCHEN_L_BODY_CATALOG,
+): number {
+  const entry = projectDesignForDisplay(design, catalog)
     .flatMap((group) => group.entries)
     .find((candidate) => candidate.placementId === placementId);
   if (!entry) throw new Error(`the projection holds no "${placementId}"`);
-  return countHardwareMechanisms([entry], KITCHEN_L_BODY_CATALOG).pushToOpen;
+  return countHardwareMechanisms([entry], catalog).pushToOpen;
 }
 
 function withHandleEverywhere(handle: string | undefined): Design {
@@ -139,35 +157,47 @@ function placementsWithABar(records: readonly PlacementRecord[]): string[] {
     .filter((placementId) => cabinetBarsOf(placementId).built > 0);
 }
 
+/** The shipped catalogue, and the one from before ADR 0182 in which the corners refused a mode: the second is what
+ *  keeps the ruling's "recorded mode, but the row refuses it" arm swept over the built scene, since no shipped row
+ *  has a bar and refuses a mode any more. */
+const CATALOGUES: readonly (readonly [string, BodyCatalog])[] = [
+  ["shipped", KITCHEN_L_BODY_CATALOG],
+  ["corners taking no handle", CATALOG_BEFORE_ADR_0182],
+];
+
 describe("the built scene matches the ruling read off the document, not the deleted rule", () => {
-  it.each(EVERY_HANDLE_STATE)(
-    "hides exactly the bars the ruling hides, with every placement recording %s",
-    (handle) => {
-      const design = withHandleEverywhere(handle);
-      const records = mount(design);
-      const gated = placementsWithABar(records);
+  describe.each(CATALOGUES)("in the %s catalogue", (_name, catalog) => {
+    it.each(EVERY_HANDLE_STATE)(
+      "hides exactly the bars the ruling hides, with every placement recording %s",
+      (handle) => {
+        const design = withHandleEverywhere(handle);
+        const records = mount(design, catalog);
+        const gated = placementsWithABar(records);
 
-      const disagreeing = gated.filter(
-        (placementId) =>
-          sceneHidesBarsOn(placementId) !==
-          theRulingHidesBarsOn(design, placementId),
-      );
+        const disagreeing = gated.filter(
+          (placementId) =>
+            sceneHidesBarsOn(placementId) !==
+            theRulingHidesBarsOn(design, placementId, catalog),
+        );
 
-      expect(disagreeing).toEqual([]);
-      expect(gated.length).toBeGreaterThan(0);
-    },
-  );
+        expect(disagreeing).toEqual([]);
+        expect(gated.length).toBeGreaterThan(0);
+      },
+    );
+  });
 
   /** The sweep above is only worth running if the ruling answers both ways inside each state, which
-   *  is what stops a constant implementation passing it. */
+   *  is what stops a constant implementation passing it. With every cabinet recording one mode, the
+   *  shipped catalogue answers one way everywhere below the top row (the corners take the mode too), so the
+   *  sentinel is held in the catalogue whose corners refuse it. */
   it.each(EVERY_HANDLE_STATE)(
     "has bodies on both sides of the ruling at handle %s",
     (handle) => {
       const design = withHandleEverywhere(handle);
-      const records = mount(design);
+      const records = mount(design, CATALOG_BEFORE_ADR_0182);
       const gated = placementsWithABar(records);
       const hidden = gated.filter((placementId) =>
-        theRulingHidesBarsOn(design, placementId),
+        theRulingHidesBarsOn(design, placementId, CATALOG_BEFORE_ADR_0182),
       );
 
       expect(hidden.length).toBeGreaterThan(0);
@@ -242,7 +272,8 @@ describe("the scene's flip sits between 2199 and 2200, on the same body", () => 
 });
 
 /**
- * **Direction B on the same catalogue row rather than on its twin** (ADR 0092 Amendment C).
+ * **Direction B on the same catalogue row rather than on its twin** (ADR 0092 Amendment C), held in the catalogue
+ * as it was declared before ADR 0182: no shipped row has a bar and refuses a mode any more.
  *
  * The wave demonstrates *"`canHandle` disqualifies the recorded mode and nothing more"* with
  * `wall-corner-return-570` at 1 500 against `wall-corner-return-570-top` at 2 200 — two rows. The
@@ -272,20 +303,20 @@ describe("a recorded push on a row that permits no mode follows the slot, on the
 
   it("keeps its bar and takes no latch below the line, though it records push", () => {
     const design = oneCornerReturnAt(1_500, "push");
-    mount(design);
+    mount(design, CATALOG_BEFORE_ADR_0182);
 
     expect(sceneHidesBarsOn("solo")).toBe(false);
-    expect(latchesOn(design, "solo")).toBe(0);
+    expect(latchesOn(design, "solo", CATALOG_BEFORE_ADR_0182)).toBe(0);
   });
 
   it.each(["push", "steel", "black"])(
     "hides its bar and takes one latch at the line, recording %s",
     (handle) => {
       const design = oneCornerReturnAt(TOP_ROW_FLOOR_MM, handle);
-      mount(design);
+      mount(design, CATALOG_BEFORE_ADR_0182);
 
       expect(sceneHidesBarsOn("solo")).toBe(true);
-      expect(latchesOn(design, "solo")).toBe(1);
+      expect(latchesOn(design, "solo", CATALOG_BEFORE_ADR_0182)).toBe(1);
     },
   );
 });

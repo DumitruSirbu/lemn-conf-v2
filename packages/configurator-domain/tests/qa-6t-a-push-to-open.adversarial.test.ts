@@ -23,6 +23,7 @@ import {
 import {
   doorLeafCount,
   drawerCount,
+  frontPopulationQueryFor,
   UndeclaredFrontPopulationError,
 } from "../src/front-population.js";
 import {
@@ -32,6 +33,12 @@ import {
 import { toMetres, toMillimetres } from "../src/millimetres.js";
 import type { PriceBook } from "../src/pricing/price-book.js";
 import { priceDesign } from "../src/pricing/price-design.js";
+import {
+  catalogWithAHandlelessDoorRow,
+  catalogWithCornersTakingNoHandle,
+  HANDLELESS_DOOR_BUILD_ID,
+  HANDLELESS_DOOR_TOP_BUILD_ID,
+} from "./support/before-adr-0182.js";
 import { MEASURED_DEEPENING_ROWS } from "./support/deepening-rows.js";
 import { NOTHING_DISABLED } from "./support/availability.js";
 import { roundedToTenLei } from "./support/line-amounts.js";
@@ -44,6 +51,9 @@ import {
 import type { BodyCatalog, BodyDefinition } from "../src/void-engine.js";
 
 const CATALOG = KITCHEN_L_BODY_CATALOG;
+/** The shipped catalogue plus a door row that takes no handle: no shipped body has both a front that opens and
+ *  `canHandle: false` since ADR 0182, and the rule below is about exactly that body. */
+const HANDLELESS_CATALOG = catalogWithAHandlelessDoorRow();
 const BOOK = SAMPLE_PRICE_BOOK;
 
 const EVERY_TIER_ID = [
@@ -202,16 +212,19 @@ describe("the demo's 16 latches, derived from the fixture rather than from the c
   });
 });
 
-/** `PUSH_WHEREVER_PERMITTED` in `hardware-tier-reconciliation.test.ts` bills 34 latches and 5 push runners. It must
+/** `PUSH_WHEREVER_PERMITTED` in `hardware-tier-reconciliation.test.ts` bills a latch on every door leaf, the corners'
+ *  included since ADR 0182 (36 of 36; 34 while the two corners below the top row declared `canHandle: false`). It must
  *  not stamp `push` onto bodies whose definitions permit no mode, so it is checked for that as well as for its
  *  numbers. */
-describe("a genuine push kitchen bills 34 latches and 5 push runners, and is genuinely a push kitchen", () => {
+describe("a genuine push kitchen bills 36 latches and 5 push runners, and is genuinely a push kitchen", () => {
   const STAMPED: readonly BodyCensus[] = SEEDED_CENSUS.map((body) =>
     body.canHandle ? { ...body, recordedHandle: "push" as const } : body,
   );
 
   // Asked of the shipped count: `push` stamped onto every body, the ones whose definitions permit no mode
-  // included, bills the same 34 as stamping only where one is permitted.
+  // included, bills the same as stamping only where one is permitted. Held against the catalogue as it was
+  // before ADR 0182, where the two corner leaves below the top row were such bodies, so the stamp that must not
+  // bill is on a front that opens.
   it("stamps a mode only where the definition permits one", () => {
     const stampedEverywhere: Design = {
       ...KITCHEN_L_DESIGN,
@@ -220,31 +233,28 @@ describe("a genuine push kitchen bills 34 latches and 5 push runners, and is gen
         body: { ...placement.body, handle: "push" as const },
       })),
     };
-
-    expect(SEEDED_CENSUS.filter((body) => !body.canHandle)).not.toHaveLength(0);
-    expect(
+    const countAgainst = (catalog: BodyCatalog) =>
       countHardwareMechanisms(
-        projectDesignForDisplay(stampedEverywhere, CATALOG).flatMap(
+        projectDesignForDisplay(stampedEverywhere, catalog).flatMap(
           (group) => group.entries,
         ),
-        CATALOG,
-      ).pushToOpen,
-    ).toBe(34);
+        catalog,
+      ).pushToOpen;
+
+    expect(SEEDED_CENSUS.filter((body) => !body.canHandle)).not.toHaveLength(0);
+    expect(countAgainst(CATALOG)).toBe(36);
+    expect(countAgainst(catalogWithCornersTakingNoHandle())).toBe(34);
   });
 
-  it("derives 34 as 36 door leaves less the two bars that stay on", () => {
+  it("derives 36 as every door leaf: no bar stays on once the corners take the kitchen's handle", () => {
     const unlatched = STAMPED.filter(
       (body) => !isPushToOpenByTheRuling(body) && doorLeavesOf(body) > 0,
     );
 
-    expect(
-      unlatched.map((body) => [body.placementId, doorLeavesOf(body)]),
-    ).toEqual([
-      ["p25", 1],
-      ["p9", 1],
-    ]);
+    expect(unlatched).toEqual([]);
+    expect(sum(STAMPED.map(doorLeavesOf))).toBe(36);
     expect(sum(STAMPED.filter(isPushToOpenByTheRuling).map(doorLeavesOf))).toBe(
-      34,
+      36,
     );
   });
 
@@ -268,7 +278,7 @@ describe("a genuine push kitchen bills 34 latches and 5 push runners, and is gen
         ),
         CATALOG,
       ),
-    ).toMatchObject({ pushToOpen: 34, drawers: 0, pushRunners: 5 });
+    ).toMatchObject({ pushToOpen: 36, drawers: 0, pushRunners: 5 });
   });
 });
 
@@ -449,7 +459,7 @@ describe("the metre frame and the millimetre predicate survive the trip between 
 });
 
 /** One placement under test, at the floor the case is about; `widthMm` and `heightMm` default to
- *  `wall-corner-return-570`'s built size. */
+ *  `wall-corner-return-570`'s built size, which is also `handleless-door`'s. */
 function entryAt(
   overrides: Partial<DisplayEntry> & { readonly buildId: string },
 ): DisplayEntry {
@@ -479,13 +489,13 @@ describe("the latch count flips at the module line and nowhere else", () => {
           countHardwareMechanisms(
             [
               entryAt({
-                buildId: "wall-corner-return-570-top",
+                buildId: HANDLELESS_DOOR_TOP_BUILD_ID,
                 y0Mm,
                 heightMm: 400,
                 ...(handle === undefined ? {} : { handle }),
               }),
             ],
-            CATALOG,
+            HANDLELESS_CATALOG,
           ).pushToOpen > 0;
         if (latched !== previous) flips.push(y0Mm);
         previous = latched;
@@ -502,17 +512,32 @@ describe("the latch count flips at the module line and nowhere else", () => {
  * measured is the floor and not the row.
  */
 describe("canHandle disqualifies the recorded mode and never exempts a body", () => {
-  const REFUSING_ROW = "wall-corner-return-570";
+  const REFUSING_ROW = HANDLELESS_DOOR_BUILD_ID;
 
   it("declares canHandle false beside one leaf and one bar", () => {
-    expect(definitionOf(REFUSING_ROW).canHandle).toBe(false);
+    const declared = HANDLELESS_CATALOG.get(REFUSING_ROW);
+    expect(declared?.canHandle).toBe(false);
+    expect(
+      declared === undefined
+        ? 0
+        : doorLeafCount(
+            frontPopulationQueryFor({
+              body: entryAt({ buildId: REFUSING_ROW }),
+              definition: declared,
+            }),
+          ),
+    ).toBe(1);
+    expect(declared?.cabinetHandles).toEqual({
+      countedFrom: "declared-count",
+      handles: 1,
+    });
   });
 
   it("bills a recorded push below the module line no latch", () => {
     expect(
       countHardwareMechanisms(
         [entryAt({ buildId: REFUSING_ROW, y0Mm: 1_500, handle: "push" })],
-        CATALOG,
+        HANDLELESS_CATALOG,
       ),
     ).toEqual({
       hinges: 2,
@@ -529,7 +554,7 @@ describe("canHandle disqualifies the recorded mode and never exempts a body", ()
       expect(
         countHardwareMechanisms(
           [entryAt({ buildId: REFUSING_ROW, y0Mm: TOP_ROW_FLOOR_MM, handle })],
-          CATALOG,
+          HANDLELESS_CATALOG,
         ).pushToOpen,
       ).toBe(1);
     },
@@ -545,7 +570,7 @@ describe("canHandle disqualifies the recorded mode and never exempts a body", ()
             handle: "push",
           }),
         ],
-        CATALOG,
+        HANDLELESS_CATALOG,
       ).pushToOpen,
     ).toBe(0);
   });
@@ -562,8 +587,8 @@ describe("a row that declares no canHandle decides nothing the two sides could d
    *  distinguishes. Refuses to build if the field was not there, so a rename cannot leave two identical catalogues
    *  agreeing. */
   function catalogWithout(field: "canHandle" | "fronts"): BodyCatalog {
-    const declared = definitionOf("wall-corner-return-570");
-    if (!(field in declared)) {
+    const declared = HANDLELESS_CATALOG.get(HANDLELESS_DOOR_BUILD_ID);
+    if (!declared || !(field in declared)) {
       throw new Error(
         `the row declares no "${field}", so removing it proves nothing`,
       );
@@ -586,8 +611,8 @@ describe("a row that declares no canHandle decides nothing the two sides could d
         catalog,
       );
       const declaringFalse = countHardwareMechanisms(
-        [entryAt({ buildId: "wall-corner-return-570", y0Mm, handle: "push" })],
-        CATALOG,
+        [entryAt({ buildId: HANDLELESS_DOOR_BUILD_ID, y0Mm, handle: "push" })],
+        HANDLELESS_CATALOG,
       );
 
       expect(withoutTheFlag).toEqual(declaringFalse);

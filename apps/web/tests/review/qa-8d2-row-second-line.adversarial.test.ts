@@ -270,7 +270,8 @@ describe.each(["ro", "ru"] as const)("a row's second line, in %s", (locale) => {
 
     // Each arm of the claim is exercised, and by more than a handful.
     expect(seen.bodies).toBeGreaterThan(1500);
-    expect(seen.widthOnly).toBeGreaterThan(300);
+    // Was 300 until ADR 0182: the corners below the top row left this arm for the handle one (280 measured now).
+    expect(seen.widthOnly).toBeGreaterThan(250);
     expect(seen.both).toBeGreaterThan(50);
     expect(seen.freeColours).toBeGreaterThan(50);
     expect([...seen.finishes.keys()].sort()).toEqual(

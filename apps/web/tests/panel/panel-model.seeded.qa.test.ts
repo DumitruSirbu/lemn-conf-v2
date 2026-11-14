@@ -2,6 +2,7 @@
 // sweep over "the voids" would sweep nothing while green, so every sweep asserts it actually swept something.
 import {
   cabinetDepthMmOf,
+  CORNER_WALL_UNIT_TEMPLATES,
   deriveColumns,
   derivePlacementRecords,
   describeSelection,
@@ -376,10 +377,13 @@ describe("what a seeded width control actually offers", () => {
 const isCorner = (record: { readonly buildId: string }) =>
   record.buildId.includes("corner");
 
+/** The one corner body with no front and no bar: it offers no handle control (ADR 0182 decision 1). */
+const BAR_LESS_CORNER_BUILD_ID = "base-corner-return-320";
+
 describe("§13.1's structural corners, as the seeded design ships them", () => {
   // §13.1: "Corners are structural. No replace, no delete, never a width donor" (§11 row 16). Asserted over the shipped
   // design because `cornerReturnMeta()` hand-builds a corner that already obeys the rule.
-  it("offers a corner its colour, the structural explanation, and nothing else", () => {
+  it("offers a corner its colour, a handle where it has a bar, the structural explanation, and nothing else", () => {
     const world = worldFrom(KITCHEN_L_DESIGN);
     const corners = world.records.filter(isCorner);
     expect(corners.length).toBeGreaterThan(0);
@@ -389,12 +393,53 @@ describe("§13.1's structural corners, as the seeded design ships them", () => {
       // §13.1's refusals still hold: no `replace`, no `width`, `canDelete` false. `finish` is the one exception (ADR
       // 0021
       // decision 2, finish half reversed; see SUPERSESSIONS.md), and the structural explanation stays beside it (§11
-      // row 16).
+      // row 16). `handle` is the other, on the bodies that carry a bar (ADR 0182): the return leg is a carcass and a
+      // worktop with nothing to grip.
       expect([
         corner.id,
         panel.sections.map((section) => section.kind),
         panel.footer.canDelete,
-      ]).toEqual([corner.id, ["structural", "finish"], false]);
+      ]).toEqual([
+        corner.id,
+        corner.buildId === BAR_LESS_CORNER_BUILD_ID
+          ? ["structural", "finish"]
+          : ["structural", "finish", "handle"],
+        false,
+      ]);
+    }
+  });
+
+  // M12 W1-4 (ADR 0182): the five corner bodies that carry a bar, in the panel's order: the structural note, then
+  // Finisaj, then Mâner (§9). The corner wall unit stands in no seeded design, so its two placements are added.
+  it("puts the handle section after the finish section on each of the five corner bodies that carry a bar, and on no other", () => {
+    const world = worldFrom({
+      ...KITCHEN_L_DESIGN,
+      placements: [
+        ...KITCHEN_L_DESIGN.placements,
+        ...CORNER_WALL_UNIT_TEMPLATES,
+      ],
+    });
+    const corners = world.records.filter(isCorner);
+
+    expect(corners.map((corner) => corner.buildId).sort()).toEqual([
+      "base-corner-return-320",
+      "base-corner-x-900",
+      "wall-corner-return-570",
+      "wall-corner-return-570-top",
+      "wall-corner-x-900",
+      "wall-corner-x-900-top",
+    ]);
+    for (const corner of corners) {
+      const kinds = sectionsAt(world, { kind: "placement", id: corner.id }).map(
+        (section) => section.kind,
+      );
+
+      expect([corner.buildId, kinds]).toEqual([
+        corner.buildId,
+        corner.buildId === BAR_LESS_CORNER_BUILD_ID
+          ? ["structural", "finish"]
+          : ["structural", "finish", "handle"],
+      ]);
     }
   });
 

@@ -25,6 +25,10 @@ import {
   type DisplayEntry,
   type Handle,
 } from "../../src/index.js";
+import {
+  catalogWithAHandlelessDoorRow,
+  HANDLELESS_DOOR_TOP_BUILD_ID,
+} from "../support/before-adr-0182.js";
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows.js";
 import { NOTHING_DISABLED } from "../support/availability.js";
 
@@ -225,13 +229,15 @@ describe("the worn handle is the oracle's with the front count taken independent
     expect(wrong).toEqual([]);
   });
 
-  it("keeps wall-corner-return-570-top push at the line and nothing a millimetre below it", () => {
-    const catalog = buildKitchenLBodyCatalog(600);
+  it("keeps a handle-less top-row door push at the line and nothing a millimetre below it", () => {
+    const catalog = catalogWithAHandlelessDoorRow(
+      buildKitchenLBodyCatalog(600),
+    );
     const wornAt = (y0Mm: number) => {
       const [entry] = projectDesignForDisplay(
         soloDesign({
           catalog,
-          buildId: "wall-corner-return-570-top",
+          buildId: HANDLELESS_DOOR_TOP_BUILD_ID,
           y0Mm,
           heightMm: 400,
           kitchen: "black",

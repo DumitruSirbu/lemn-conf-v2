@@ -122,14 +122,14 @@ const oneBaseLeaf: FrontPopulationRule = baseLeaves(1);
 
 /** §13.1 / §11 row 16: a corner is structural: no replace, no delete, never a width donor. Shared by the
  *  two wall returns and the two base legs. `kind` is not part of it: the six bodies share four kinds.
- *  Structural is about shape, not colour: the corner is an ordinary cabinet for colour only. */
+ *  Structural is about shape, not colour or handle: the corner is an ordinary cabinet for both, so each corner
+ *  row declares its own `canHandle` (true where it carries a bar, false on the leaf-less return). see ADR 0182 */
 const STRUCTURAL_CORNER: Pick<
   BodyDefinition,
   | "canReplace"
   | "canDelete"
   | "canFinish"
   | "finishRule"
-  | "canHandle"
   | "fixedWidth"
   | "structuralReason"
 > = {
@@ -140,7 +140,6 @@ const STRUCTURAL_CORNER: Pick<
   // Must move with `canFinish`: `bodyFinishRuleOf` throws on load if the two disagree. With no `finish`
   // key the corner follows the kitchen's colour (`resolvedFinishOf`'s `??` chain).
   finishRule: CHOOSES_ITS_OWN_COLOUR,
-  canHandle: false,
   fixedWidth: true,
   // §11 row 16's refusal, rendered beside the Finisaj section in `panel-model.ts`, not instead of it.
   structuralReason: "corner",
@@ -267,6 +266,7 @@ export function buildSeededBodyDefinitions(
         cabinetHandles: carriesHandles(1),
         fronts: oneBaseLeaf,
         ...STRUCTURAL_CORNER,
+        canHandle: true,
         kind: "corner_base_x",
         // Seated by the joint: it has no plane of its own to measure, and measuring one re-seats the leg
         // 20 mm forward into its neighbour (ADR 0077 decision 1).
@@ -287,6 +287,7 @@ export function buildSeededBodyDefinitions(
         // The one seeded base body with no front: a carcass and a worktop.
         fronts: NO_OPENING_FRONTS,
         ...STRUCTURAL_CORNER,
+        canHandle: false,
         kind: "corner_base_return",
         // Built to the run's carcass front with its back on the wall, so the seat is its depth.
         frameDepthMm: baseCarcassFrontMm(cabinetDepthMm),
@@ -451,6 +452,7 @@ export function buildSeededBodyDefinitions(
         cabinetHandles: carriesHandles(1),
         fronts: wallLeaves({ frameHeightMm: 700, leavesPerBand: 1 }),
         ...STRUCTURAL_CORNER,
+        canHandle: true,
         // Its own kind, so the priced document does not give it and its top-row twin one name at two
         // amounts; `normaliseBand` still groups it with the wall row. see ADR 0066
         kind: WALL_CORNER_RETURN_KIND,
@@ -562,6 +564,7 @@ export function buildSeededBodyDefinitions(
         cabinetHandles: carriesHandles(1),
         fronts: wallLeaves({ frameHeightMm: 400, leavesPerBand: 1 }),
         ...STRUCTURAL_CORNER,
+        canHandle: true,
         // A separate kind from `wall-corner-return-570`: they differ by row and the breakdown line renders
         // no band (ADR 0066).
         kind: WALL_CORNER_RETURN_TOP_KIND,
@@ -580,6 +583,7 @@ export function buildSeededBodyDefinitions(
         cabinetHandles: carriesHandles(1),
         fronts: wallLeaves({ frameHeightMm: 700, leavesPerBand: 1 }),
         ...STRUCTURAL_CORNER,
+        canHandle: true,
         kind: WALL_CORNER_RETURN_KIND,
         frameDepthMm: wallCarcassSeatDepthMm(cabinetDepthMm),
       },
@@ -592,6 +596,7 @@ export function buildSeededBodyDefinitions(
         cabinetHandles: carriesHandles(1),
         fronts: wallLeaves({ frameHeightMm: 400, leavesPerBand: 1 }),
         ...STRUCTURAL_CORNER,
+        canHandle: true,
         kind: WALL_CORNER_RETURN_TOP_KIND,
         frameDepthMm: wallCarcassSeatDepthMm(cabinetDepthMm),
         frameHeightMm: 400,

@@ -7,6 +7,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Design } from "../../src/design.js";
+import type { BodyCatalog } from "../../src/void-engine.js";
 import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
@@ -17,11 +18,15 @@ import { priceDesign } from "../../src/pricing/price-design.js";
 import type { PricedDesign } from "../../src/pricing/price-lines.js";
 import { SAMPLE_PRICE_BOOK } from "../../src/pricing/sample-price-book.js";
 import { projectDesignForDisplay } from "../../src/queries/design-projection.js";
+import { catalogWithCornersTakingNoHandle } from "../support/before-adr-0182.js";
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows.js";
 import { NOTHING_DISABLED } from "../support/availability.js";
 
 const BOOK = SAMPLE_PRICE_BOOK;
 const CATALOG = KITCHEN_L_BODY_CATALOG;
+/** The corners as they were declared before ADR 0182: the price book is keyed by build id, so the specimen keeps
+ *  the shipped id and takes the flag off. */
+const CORNERS_TAKING_NO_HANDLE = catalogWithCornersTakingNoHandle();
 
 const SEEDED_ENTRIES = projectDesignForDisplay(
   KITCHEN_L_DESIGN,
@@ -154,12 +159,16 @@ describe("the sample rates reconcile to ADR 0070's totals table", () => {
 });
 
 /** The hardware amount `priceDesign` publishes for any design at any tier. */
-function hardwareAmountOf(design: Design, tierId: string): number {
+function hardwareAmountOf(
+  design: Design,
+  tierId: string,
+  catalog: BodyCatalog = CATALOG,
+): number {
   const result = priceDesign({
     deepeningRows: MEASURED_DEEPENING_ROWS,
     availability: NOTHING_DISABLED,
     design,
-    catalog: CATALOG,
+    catalog,
     book: BOOK,
     pricingVersion: BOOK.version,
     selections: { hardwareTierId: tierId },
@@ -194,10 +203,10 @@ describe("a push-to-open kitchen's hardware is not zero", () => {
     ),
   };
 
-  /** Every door leaf except two: `base-corner-x-900`'s leaf and `wall-corner-return-570`'s declare
-   *  `canHandle: false` and stand below the top row, so no recorded mode reaches them. The kitchen's drawers take no
-   *  latch: each is a push runner. */
-  const PUSH_DOOR_LEAVES_WHEN_PERMITTED = 34;
+  /** Every door leaf of the kitchen. It was 34 while `base-corner-x-900`'s leaf and `wall-corner-return-570`'s
+   *  declared `canHandle: false` and stood below the top row, where no recorded mode reached them (ADR 0182 lets one
+   *  reach them). The kitchen's drawers take no latch: each is a push runner. */
+  const PUSH_DOOR_LEAVES_WHEN_PERMITTED = 36;
 
   it("counts a latch on every door leaf the customer can choose one for, and a push runner on every drawer", () => {
     expect(
@@ -234,10 +243,11 @@ describe("a push-to-open kitchen's hardware is not zero", () => {
 });
 
 /**
- * ADR 0092 decision 3, Amendment C: `wall-corner-return-570` declares `canHandle: false` beside `carriesHandles(1)` and
- * one leaf, so its bar is built and visible below the top row. A recorded `handle: "push"` on it does not remove the
- * bar in the scene, so it must not be billed a latch. A fixture stamping `push` only on `canHandle: true` bodies
- * cannot witness this.
+ * ADR 0092 decision 3, Amendment C: a body that declares `canHandle: false` beside `carriesHandles(1)` and one leaf
+ * has its bar built and visible below the top row. A recorded `handle: "push"` on it does not remove the bar in the
+ * scene, so it must not be billed a latch. A fixture stamping `push` only on `canHandle: true` bodies cannot witness
+ * this. Since ADR 0182 no shipped body is such a body, so the witness is the wall corner return in the catalogue as it was
+ * declared before, with the one flag off.
  */
 describe("a recorded push on a body that permits no mode is billed no latch", () => {
   const RECORDED_PUSH_ON_A_VISIBLE_BAR: Design = {
@@ -263,9 +273,9 @@ describe("a recorded push on a body that permits no mode is billed no latch", ()
       countHardwareMechanisms(
         projectDesignForDisplay(
           RECORDED_PUSH_ON_A_VISIBLE_BAR,
-          CATALOG,
+          CORNERS_TAKING_NO_HANDLE,
         ).flatMap((group) => group.entries),
-        CATALOG,
+        CORNERS_TAKING_NO_HANDLE,
       ),
     ).toEqual({
       hinges: 2,
@@ -277,9 +287,13 @@ describe("a recorded push on a body that permits no mode is billed no latch", ()
   });
 
   it.each(EVERY_TIER_ID)("bills %s for the hinges alone", (tierId) => {
-    expect(hardwareAmountOf(RECORDED_PUSH_ON_A_VISIBLE_BAR, tierId)).toBe(
-      tenLeiOf(2 * tierOf(tierId).perHingeMinor),
-    );
+    expect(
+      hardwareAmountOf(
+        RECORDED_PUSH_ON_A_VISIBLE_BAR,
+        tierId,
+        CORNERS_TAKING_NO_HANDLE,
+      ),
+    ).toBe(tenLeiOf(2 * tierOf(tierId).perHingeMinor));
   });
 });
 

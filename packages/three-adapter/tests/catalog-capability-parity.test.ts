@@ -241,6 +241,23 @@ describe("every catalogue entry's capability flags match what its builder draws"
     });
   });
 
+  // ADR 0182: the five corner bodies that carry a bar declare `canHandle` and draw one cabinet handle; the return leg
+  // draws none and declares none. Pinned beside the generic implication above, which would hold just as well of a
+  // corner declaring nothing, so a corner losing its flag (or the leg gaining one) fails here by name.
+  it.each([
+    ["base-corner-x-900", true, 1],
+    ["wall-corner-return-570", true, 1],
+    ["wall-corner-return-570-top", true, 1],
+    ["wall-corner-x-900", true, 1],
+    ["wall-corner-x-900-top", true, 1],
+    ["base-corner-return-320", false, 0],
+  ])(
+    "%s: canHandle is %s and it draws %i cabinet handle",
+    (buildId, canHandle, cabinetHandles) => {
+      expect(censusOf(buildId)).toMatchObject({ canHandle, cabinetHandles });
+    },
+  );
+
   // A `handle_bar` count would get this wrong: the hob base's only handle is the oven's, and the tower builds four bars
   // of which two are the cabinet's. The hob base's one front is its filler panel, so `canFinish` follows the front and
   // `canHandle` the cabinet-handle count.

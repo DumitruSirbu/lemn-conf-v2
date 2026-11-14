@@ -27,8 +27,9 @@ const KITCHEN_HANDLES: readonly Handle[] = ["steel", "black", "push"];
 /** Bodies of the seeded kitchen by kind (none chose a handle), each named with its build and floor. */
 const BELOW_TOP_ROW_TAKING_A_HANDLE = "p0"; // base-sink-800, y0 0
 const TOP_ROW_TAKING_A_HANDLE = "p15"; // wall-2door-600-top, y0 2200
-const TOP_ROW_TAKING_NONE = "p21"; // wall-corner-return-570-top, y0 2200
-const BELOW_TOP_ROW_TAKING_NONE = "p25"; // base-corner-x-900, y0 0
+const TOP_ROW_CORNER = "p21"; // wall-corner-return-570-top, y0 2200: takes a handle since ADR 0182
+const BELOW_TOP_ROW_CORNER = "p25"; // base-corner-x-900, y0 0: takes a handle since ADR 0182
+const BELOW_TOP_ROW_TAKING_NONE = "p26"; // base-corner-return-320, y0 0: no front and no bar
 
 function withKitchenHandle(design: Design, handle: Handle): Design {
   return { ...design, settings: { ...design.settings, handle } };
@@ -106,11 +107,16 @@ describe("a body on the top row", () => {
     },
   );
 
-  it("reads push-to-open although its definition takes no handle, because the price bills it a latch", () => {
-    expect(handleFactsOf(KITCHEN_L_DESIGN, TOP_ROW_TAKING_NONE)).toEqual([
-      HANDLE_WORDS.push,
-    ]);
-  });
+  it.each(KITCHEN_HANDLES)(
+    "reads a top-row corner as push-to-open under the kitchen handle %s, the slot's and not the kitchen's",
+    (kitchen) => {
+      const design = withKitchenHandle(KITCHEN_L_DESIGN, kitchen);
+
+      expect(handleFactsOf(design, TOP_ROW_CORNER)).toEqual([
+        HANDLE_WORDS.push,
+      ]);
+    },
+  );
 
   it("keeps a handle of its own", () => {
     const design = withOwnHandle(
@@ -153,6 +159,35 @@ describe("a body with no front that opens, moved onto the top row", () => {
       expect(entry && latchesThePriceBillsFor([entry], design)).toBe(0);
     },
   );
+});
+
+// M12 W1-9 (ADR 0182): a corner below the top row named no handle before, and names the one it wears now.
+describe("a corner below the top row", () => {
+  it("reads steel when the kitchen has no handle", () => {
+    expect(handleFactsOf(KITCHEN_L_DESIGN, BELOW_TOP_ROW_CORNER)).toEqual([
+      HANDLE_WORDS.steel,
+    ]);
+  });
+
+  it.each(KITCHEN_HANDLES)("reads the kitchen's handle, %s", (kitchen) => {
+    const design = withKitchenHandle(KITCHEN_L_DESIGN, kitchen);
+
+    expect(handleFactsOf(design, BELOW_TOP_ROW_CORNER)).toEqual([
+      HANDLE_WORDS[kitchen],
+    ]);
+  });
+
+  it("keeps a handle of its own under a kitchen that says otherwise", () => {
+    const design = withOwnHandle(
+      withKitchenHandle(KITCHEN_L_DESIGN, "push"),
+      BELOW_TOP_ROW_CORNER,
+      "black",
+    );
+
+    expect(handleFactsOf(design, BELOW_TOP_ROW_CORNER)).toEqual([
+      HANDLE_WORDS.black,
+    ]);
+  });
 });
 
 describe("a body below the top row whose definition takes no handle", () => {

@@ -41,7 +41,13 @@ import {
   OCCURRED_AT,
   paletteFinishOf,
 } from "../support/replacement-kitchens.js";
+import {
+  catalogWithAHandlelessDoorRow,
+  HANDLELESS_DOOR_TOP_BUILD_ID,
+} from "../support/before-adr-0182.js";
 import { documentsWithNoKitchenHandle } from "../kitchen-handle/handle-document-facts.js";
+
+const HANDLELESS_CATALOG = catalogWithAHandlelessDoorRow(CATALOG);
 
 /** Designs on each declared material that offers palette entries, wearing only that material's own colours. MDF's free
  *  colours are not items. */
@@ -293,13 +299,17 @@ describe("after a handle replacement, the hardware line follows the resolved han
     },
   );
 
+  /** The body is the wall corner return's top-row twin with the one flag off: no shipped body takes no handle and has
+   *  a door since ADR 0182. */
   it("keeps a top-row body that takes no handle push and latched, whatever it stores and whatever replaces it", () => {
     const returnTop = KITCHEN_L_DESIGN.placements.find(
       (placement) => placement.body.buildId === "wall-corner-return-570-top",
     );
     if (!returnTop)
       throw new Error("the seeded kitchen has no corner return top");
-    expect(CATALOG.get(returnTop.body.buildId)?.canHandle).toBe(false);
+    expect(
+      HANDLELESS_CATALOG.get(HANDLELESS_DOOR_TOP_BUILD_ID)?.canHandle,
+    ).toBe(false);
     expect(returnTop.y0Mm).toBeGreaterThanOrEqual(TOP_ROW_Y0_MM);
 
     for (const to of HANDLES) {
@@ -307,7 +317,14 @@ describe("after a handle replacement, the hardware line follows the resolved han
         ...KITCHEN_L_DESIGN,
         placements: KITCHEN_L_DESIGN.placements.map((placement) =>
           placement.id === returnTop.id
-            ? { ...placement, body: { ...placement.body, handle: "black" } }
+            ? {
+                ...placement,
+                body: {
+                  ...placement.body,
+                  buildId: HANDLELESS_DOOR_TOP_BUILD_ID,
+                  handle: "black",
+                },
+              }
             : placement,
         ),
         settings: { cabinetDepthMm: 600, topRowHandle: "black" },
@@ -331,9 +348,9 @@ describe("after a handle replacement, the hardware line follows the resolved han
 });
 
 function latchesOfBody(design: Design, placementId: string): number {
-  const entries = projectDesignForDisplay(design, CATALOG)
+  const entries = projectDesignForDisplay(design, HANDLELESS_CATALOG)
     .flatMap((group) => group.entries)
     .filter((entry) => entry.placementId === placementId);
   expect(entries).toHaveLength(1);
-  return countHardwareMechanisms(entries, CATALOG).pushToOpen;
+  return countHardwareMechanisms(entries, HANDLELESS_CATALOG).pushToOpen;
 }

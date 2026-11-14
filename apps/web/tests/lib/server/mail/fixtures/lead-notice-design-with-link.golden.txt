@@ -23,9 +23,11 @@ Lista corpurilor (pentru verificare)
 Perete A · bază
 Dulap bază de colț 900: 4 000
   900 mm
+  Bară inox
 Perete A · suspendate
 Dulap suspendat de colț 900: 1 600
   900 mm
+  Bară inox
 Dulap de colț rând de sus 900: 900
   900 mm
   Push-to-open
@@ -47,6 +49,7 @@ Dulap plită și 2 sertare 600: 3 500
 Perete B · suspendate
 Dulap suspendat de colț 570: 1 600
   570 mm
+  Bară inox
 Dulap suspendat 2 uși 600: 2 970
   600 mm
   Bară inox

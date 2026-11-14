@@ -18,6 +18,7 @@ import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
   projectDesignForDisplay,
+  type BodyCatalog,
   type Design,
   type PlacementRecord,
 } from "@lemnaria/configurator-domain";
@@ -27,6 +28,7 @@ import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { forEachCabinetHandleMesh } from "../src/cabinet-handle-meshes.js";
 import { makeKit, type Kit } from "../src/kitchen-parts.js";
 import { syncSolidBodies } from "../src/scene-sync.js";
+import { catalogWithCornersTakingNoHandle } from "./support/before-adr-0182.js";
 import {
   createHeadlessCanvas,
   installHeadlessDocument,
@@ -51,11 +53,17 @@ const TOP_ROW_PLACEMENT_IDS = [
   "p23",
 ] as const;
 
-/** `wall-corner-return-570`, seeded at `y0` 1500 on wall B. It declares `canHandle: false` beside
- *  `carriesHandles(1)` and one door leaf, so its bar is built and visible — and its `-top` twin
- *  `p21` declares the identical pair and differs only by the row it stands on. Direction B's
- *  witness. */
+/** `wall-corner-return-570`, seeded at `y0` 1500 on wall B: one door leaf and one bar. It took no handle
+ *  until ADR 0182, so its bar was built and visible whatever was recorded, and its `-top` twin `p21`
+ *  declared the identical pair and differed only by the row it stands on. Direction B's witness, held in
+ *  the catalogue as it was declared then (`CATALOG_BEFORE_ADR_0182`): no shipped body has a
+ *  bar and refuses a mode any more, and the rule about that body is still the rule. */
 const VISIBLE_BAR_PLACEMENT_ID = "p9";
+
+/** The shipped catalogue with every corner refusing a mode, as it was declared before ADR 0182. */
+const CATALOG_BEFORE_ADR_0182 = catalogWithCornersTakingNoHandle(
+  KITCHEN_L_BODY_CATALOG,
+);
 
 let kit: Kit;
 let solidsRoot: THREE.Group;
@@ -69,8 +77,11 @@ beforeEach(() => {
   solidsRoot = new THREE.Group();
 });
 
-function mount(design: Design): readonly PlacementRecord[] {
-  const records = derivePlacementRecords(design, KITCHEN_L_BODY_CATALOG);
+function mount(
+  design: Design,
+  catalog: BodyCatalog = KITCHEN_L_BODY_CATALOG,
+): readonly PlacementRecord[] {
+  const records = derivePlacementRecords(design, catalog);
   syncSolidBodies({ kit, solidsRoot, records, room: design.room });
   return records;
 }
@@ -112,12 +123,16 @@ function sceneHidesBarsOn(placementId: string): boolean {
 }
 
 /** **What the price says**: this body is billed at least one latch. */
-function latchesOn(design: Design, placementId: string): number {
-  const entry = projectDesignForDisplay(design, KITCHEN_L_BODY_CATALOG)
+function latchesOn(
+  design: Design,
+  placementId: string,
+  catalog: BodyCatalog = KITCHEN_L_BODY_CATALOG,
+): number {
+  const entry = projectDesignForDisplay(design, catalog)
     .flatMap((group) => group.entries)
     .find((candidate) => candidate.placementId === placementId);
   if (!entry) throw new Error(`the projection holds no "${placementId}"`);
-  return countHardwareMechanisms([entry], KITCHEN_L_BODY_CATALOG).pushToOpen;
+  return countHardwareMechanisms([entry], catalog).pushToOpen;
 }
 
 function withRecordedHandle(placementId: string, handle: string): Design {
@@ -216,13 +231,27 @@ describe("direction B — a visible bar is no longer billed a latch", () => {
   const RECORDED_PUSH = withRecordedHandle(VISIBLE_BAR_PLACEMENT_ID, "push");
 
   it("keeps the bars on a body whose definition permits no mode", () => {
-    mount(RECORDED_PUSH);
+    mount(RECORDED_PUSH, CATALOG_BEFORE_ADR_0182);
 
     expect(sceneHidesBarsOn(VISIBLE_BAR_PLACEMENT_ID)).toBe(false);
   });
 
   it("bills it no latch, because the customer grips it by its bar", () => {
-    expect(latchesOn(RECORDED_PUSH, VISIBLE_BAR_PLACEMENT_ID)).toBe(0);
+    expect(
+      latchesOn(
+        RECORDED_PUSH,
+        VISIBLE_BAR_PLACEMENT_ID,
+        CATALOG_BEFORE_ADR_0182,
+      ),
+    ).toBe(0);
+  });
+
+  /** The same recorded push on the same body, now that it takes a mode: the bar goes and the latch is billed. */
+  it("hides the bar and bills a latch once the body permits a mode (ADR 0182)", () => {
+    mount(RECORDED_PUSH);
+
+    expect(sceneHidesBarsOn(VISIBLE_BAR_PLACEMENT_ID)).toBe(true);
+    expect(latchesOn(RECORDED_PUSH, VISIBLE_BAR_PLACEMENT_ID)).toBe(1);
   });
 
   /** Its `-top` twin, one band up, with the same declarations and no recorded mode at all: the bar

@@ -41,6 +41,13 @@ import {
   type Handle,
 } from "../src/index.js";
 import { KITCHEN_L_DESIGN } from "../src/fixtures/kitchen-l-design.js";
+import {
+  catalogWithAHandlelessDoorRow,
+  HANDLELESS_DOOR_BUILD_ID,
+  HANDLELESS_DOOR_TOP_BUILD_ID,
+} from "./support/before-adr-0182.js";
+
+const HANDLELESS_CATALOG = catalogWithAHandlelessDoorRow();
 
 const SEEDED_ENTRIES: readonly DisplayEntry[] = projectDesignForDisplay(
   KITCHEN_L_DESIGN,
@@ -331,17 +338,17 @@ describe("push-to-open is counted per door leaf, on the bodies whose bars are no
     }
   });
 
-  /** 34, not 36: the two leaves that keep their bars are `base-corner-x-900`'s and
-   *  `wall-corner-return-570`'s, which declare `canHandle: false` and stand below the top row. Their
-   *  `-top` twin's leaf is counted, because the slot hides its bar. The kitchen's 5 drawers carry no latch. */
-  it("counts a latch on 34 of the seeded kitchen's 36 door leaves", () => {
+  /** 36 of 36 since ADR 0182: `base-corner-x-900` and `wall-corner-return-570` stand below the top row and kept
+   *  their bars while they declared `canHandle: false` (34 then); they take a recorded mode now, so a recorded `push`
+   *  hides their bars like any cabinet's. The kitchen's 5 drawers carry no latch. */
+  it("counts a latch on every one of the seeded kitchen's 36 door leaves", () => {
     expect(
       SEEDED_ENTRIES.reduce((leaves, entry) => leaves + doorLeavesOf(entry), 0),
     ).toBe(36);
     expect(
       countHardwareMechanisms(pushWhereverPermitted, KITCHEN_L_BODY_CATALOG)
         .pushToOpen,
-    ).toBe(34);
+    ).toBe(36);
   });
 
   it("moves every drawer of a push kitchen to the push runners and leaves the hinges alone", () => {
@@ -377,18 +384,22 @@ describe("push-to-open is counted per door leaf, on the bodies whose bars are no
   });
 
   /** **Direction B, from the failing side** (ADR 0092 decision 3, Amendment C). A recorded `push` on
-   *  a body whose definition refuses a mode keeps its bars in the scene, so it takes no latch — and
-   *  a fixture that only stamps `push` on `canHandle: true` bodies does not witness it. */
+   *  a body whose definition refuses a mode keeps its bars in the scene, so it takes no latch: and
+   *  a fixture that only stamps `push` on `canHandle: true` bodies does not witness it. No shipped body has a
+   *  front that opens and refuses a mode since ADR 0182, so the witness is the shipped wall corner return with
+   *  the one flag off. */
   it("counts none for a recorded push on a body that permits no mode", () => {
-    const cornerReturn = entryAt({
-      buildId: "wall-corner-return-570",
+    const handlelessDoor = entryAt({
+      buildId: HANDLELESS_DOOR_BUILD_ID,
       y0Mm: 1_500,
       handle: "push",
     });
 
-    expect(definitionOf("wall-corner-return-570").canHandle).toBe(false);
+    expect(HANDLELESS_CATALOG.get(HANDLELESS_DOOR_BUILD_ID)?.canHandle).toBe(
+      false,
+    );
     expect(
-      countHardwareMechanisms([cornerReturn], KITCHEN_L_BODY_CATALOG),
+      countHardwareMechanisms([handlelessDoor], HANDLELESS_CATALOG),
     ).toEqual({
       hinges: 2,
       drawers: 0,
@@ -399,18 +410,18 @@ describe("push-to-open is counted per door leaf, on the bodies whose bars are no
   });
 
   /** Its `-top` twin declares the identical `carriesHandles(1)` and the identical `canHandle: false`
-   *  and differs only by the row it stands on — which is the whole of ADR 0092's `canHandle` ruling,
+   *  and differs only by the row it stands on, which is the whole of ADR 0092's `canHandle` ruling,
    *  measured. */
   it("counts one for the same body's twin in the top row", () => {
     expect(
       countHardwareMechanisms(
         [
           entryAt({
-            buildId: "wall-corner-return-570-top",
+            buildId: HANDLELESS_DOOR_TOP_BUILD_ID,
             y0Mm: TOP_ROW_Y0_MM,
           }),
         ],
-        KITCHEN_L_BODY_CATALOG,
+        HANDLELESS_CATALOG,
       ),
     ).toEqual({
       hinges: 2,
@@ -430,9 +441,9 @@ describe("push-to-open is counted per door leaf, on the bodies whose bars are no
 
     expect(
       countHardwareMechanisms(withSteel, KITCHEN_L_BODY_CATALOG).pushToOpen,
-      // The one that remains is `wall-corner-return-570-top`, whose bar no recorded mode can
-      // restore.
-    ).toBe(1);
+      // `wall-corner-return-570-top` was the one that remained while its bar was out of any mode's
+      // reach; it takes a recorded `steel` now (ADR 0182), so none does.
+    ).toBe(0);
   });
 });
 

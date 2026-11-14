@@ -310,7 +310,7 @@ describe("the unit is structural (ADR 0021): fixed, not editable, nothing insert
   const world = createWorld(generated(L_ROOM), buildKitchenLBodyCatalog(600));
 
   it.each(["p27", "p28"])(
-    "%s offers nothing, refuses deletion and every width",
+    "%s offers nothing, refuses deletion and every width, and takes a handle (ADR 0182)",
     (id) => {
       const target = { kind: "placement", id } as const;
       const meta = describeSelection({ kitchenSettings: {}, ...world, target });
@@ -341,7 +341,7 @@ describe("the unit is structural (ADR 0021): fixed, not editable, nothing insert
       }).toEqual({
         canReplace: false,
         canDelete: false,
-        canHandle: false,
+        canHandle: true,
         canWidth: false,
         fixedWidth: true,
         structuralReason: "corner",

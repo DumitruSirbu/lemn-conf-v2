@@ -1,7 +1,7 @@
 // `DisplayEntry.wornHandle` is the handle a customer-facing list names for a body, and it must never name push-to-open
 // where the price bills neither a latch nor a push runner. A body with no front that opens (an open shelf, a hood) is
 // billed neither whatever row it stands on, so it wears nothing; a top-row body that takes no handle but has doors
-// still wears push-to-open. The oracle is written out here (own handle, else the kitchen's below the top row, else
+// still wears push-to-open (no shipped body is that since ADR 0182, so the sweep adds the two handle-less door rows). The oracle is written out here (own handle, else the kitchen's below the top row, else
 // steel; the top row is the kitchen's top-row handle, else push, at the literal 2200 mm), and the price's counts are
 // the independent witness.
 import { describe, expect, it } from "vitest";
@@ -10,6 +10,10 @@ import {
   buildKitchenLBodyCatalog,
   KITCHEN_L_DESIGN,
 } from "../../src/fixtures/kitchen-l-design.js";
+import {
+  catalogWithAHandlelessDoorRow,
+  HANDLELESS_DOOR_TOP_BUILD_ID,
+} from "../support/before-adr-0182.js";
 import {
   countHardwareMechanisms,
   frontPopulationQueryFor,
@@ -39,7 +43,9 @@ interface Probe {
 }
 
 const PROBES: readonly Probe[] = CATALOGUE_DEPTHS_MM.flatMap((depthMm) => {
-  const catalog = buildKitchenLBodyCatalog(depthMm);
+  const catalog = catalogWithAHandlelessDoorRow(
+    buildKitchenLBodyCatalog(depthMm),
+  );
   return [...catalog].map(([buildId, definition]) => ({
     buildId,
     definition,
@@ -206,9 +212,9 @@ describe("the handle a list names for a body", () => {
     expect(arm((row) => row.fronts === 0)).toBeGreaterThan(0);
   });
 
-  it("is push for the top-row corner return, which takes no handle but has a door the price bills a latch for", () => {
+  it("is push for a top-row door that takes no handle, which the price bills a latch for", () => {
     const probe = PROBES.find(
-      (candidate) => candidate.buildId === "wall-corner-return-570-top",
+      (candidate) => candidate.buildId === HANDLELESS_DOOR_TOP_BUILD_ID,
     );
     if (probe === undefined) throw new Error("the catalogue lost the row");
     const entry = entryOf({

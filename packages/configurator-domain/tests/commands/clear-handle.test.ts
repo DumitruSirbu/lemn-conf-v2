@@ -28,7 +28,7 @@ import {
 } from "../price-dashboard/m2-support.js";
 
 const BASE_CABINET_ID = "p0";
-const NO_HANDLE_BODY_ID = "p25";
+const NO_HANDLE_BODY_ID = "p26";
 const TWO_DOOR_TOP_ROW_ID = "p15";
 const ONE_DOOR_TOP_ROW_ID = "p16";
 const HANDLES: readonly Handle[] = HandleSchema.options;

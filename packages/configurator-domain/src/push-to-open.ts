@@ -55,9 +55,9 @@ export interface PushToOpenQuery {
  *   not by catalogue band.
  *
  * `canHandle: false` disqualifies the recorded mode and nothing more. It does not exempt a body from
- * latches or claim the front has no bar: `wall-corner-return-570` at `y0` 1500 has a visible bar and
- * takes no latch, while its `-top` twin has the same bar hidden by the slot, cannot be turned back on,
- * and takes one.
+ * latches or claim the front has no bar: a body that takes no handle but has a front that opens, standing on
+ * the top row, still has its bar hidden by the slot, cannot be turned back on, and takes a latch. No catalogue
+ * row is in that case: every `canHandle: false` row has no opening front, and the capability-parity gate holds it.
  */
 export function isPushToOpen(front: PushToOpenQuery): boolean {
   const handle = resolvedHandleAt(front);
@@ -89,7 +89,8 @@ export interface WornHandleQuery extends PushToOpenQuery {
  * The handle this body is read as wearing: the resolved one, else push-to-open when the body opens without a bar and
  * has a front that opens (a door leaf takes a latch, a drawer a push runner). A body with nothing that opens (an open
  * shelf on the top row) is billed neither and draws no bar, so it wears nothing; a top-row body that takes no handle but
- * has doors (`wall-corner-return-570-top`) wears push.
+ * has doors would wear push. The corner wall units are not that case: they resolve a handle of their own (ADR 0182),
+ * so `wall-corner-return-570-top` wears the kitchen's top-row handle, `push` by default.
  */
 export function wornHandleAt(front: WornHandleQuery): Handle | undefined {
   const resolved = resolvedHandleAt(front);

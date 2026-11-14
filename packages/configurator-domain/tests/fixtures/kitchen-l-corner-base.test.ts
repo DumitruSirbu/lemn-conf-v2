@@ -69,51 +69,62 @@ describe("the base corner is a selectable placement (§11 row 16)", () => {
     },
   );
 
-  /** **`canFinish` is the one capability a corner has, and it is not one §13.1 names.** The ruling of
-   *  2026-09-09 gave the corner a colour of its own and moved nothing else: §13.1's list is replace,
-   *  delete and width donor, and all three are still refused here. */
-  it.each(CORNER_BASE_IDS)("%s offers colour and nothing else", (id) => {
-    const meta = metaFor(id);
-    expect({
-      canReplace: meta?.canReplace,
-      canDelete: meta?.canDelete,
-      canFinish: meta?.canFinish,
-      canHandle: meta?.canHandle,
-      canWidth: meta?.canWidth,
-      fixedWidth: meta?.fixedWidth,
-      structuralReason: meta?.structuralReason,
-    }).toEqual({
-      canReplace: false,
-      canDelete: false,
-      canFinish: true,
-      canHandle: false,
-      canWidth: false,
-      fixedWidth: true,
-      structuralReason: "corner",
-    });
-  });
+  /** **`canFinish` and `canHandle` are the capabilities a corner has, and §13.1 names neither.** The ruling of
+   *  2026-09-09 gave the corner a colour of its own and ADR 0182 a handle where it carries a bar: §13.1's list is
+   *  replace, delete and width donor, and all three are still refused here. The X-leg has one door and one bar;
+   *  the return leg is a carcass and a worktop, so it has nothing to grip and offers no handle control. */
+  it.each([
+    ["p25", true],
+    ["p26", false],
+  ] as const)(
+    "%s offers colour, a handle only if it has a bar, and nothing else",
+    (id, canHandle) => {
+      const meta = metaFor(id);
+      expect({
+        canReplace: meta?.canReplace,
+        canDelete: meta?.canDelete,
+        canFinish: meta?.canFinish,
+        canHandle: meta?.canHandle,
+        canWidth: meta?.canWidth,
+        fixedWidth: meta?.fixedWidth,
+        structuralReason: meta?.structuralReason,
+      }).toEqual({
+        canReplace: false,
+        canDelete: false,
+        canFinish: true,
+        canHandle,
+        canWidth: false,
+        fixedWidth: true,
+        structuralReason: "corner",
+      });
+    },
+  );
 
   // The panel's explanation is keyed by `structuralReason`, so the two base legs answering exactly
   // what the two wall returns answer is what makes "behaves the same" a checked claim rather than
-  // an eyeballed one.
-  it("answers every capability the way the wall corner returns already do", () => {
-    const capabilities = (id: string) => {
+  // an eyeballed one. The one difference is the handle control, which follows the bar (ADR 0182): the X-leg
+  // answers it as the wall returns do, the bar-less return leg does not offer one.
+  it("answers every capability the way the wall corner returns already do, the handle following the bar", () => {
+    const capabilities = (
+      id: string,
+      override: { readonly canHandle?: boolean } = {},
+    ) => {
       const meta = metaFor(id);
       return [
         meta?.canReplace,
         meta?.canDelete,
         meta?.canFinish,
-        meta?.canHandle,
+        override.canHandle ?? meta?.canHandle,
         meta?.canWidth,
         meta?.structuralReason,
       ];
     };
-    for (const id of CORNER_BASE_IDS) {
-      expect([id, capabilities(id)]).toEqual([
-        id,
-        capabilities(CORNER_RETURN_IDS[0]),
-      ]);
-    }
+    const [wallReturn] = CORNER_RETURN_IDS;
+
+    expect(capabilities("p25")).toEqual(capabilities(wallReturn));
+    expect(capabilities("p26")).toEqual(
+      capabilities(wallReturn, { canHandle: false }),
+    );
   });
 
   it.each(CORNER_BASE_IDS)("%s has an empty swap list", (id) => {

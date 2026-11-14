@@ -25,7 +25,7 @@ import { ro } from "../support/romanian-content";
 
 const BASE_CABINET_ID = "p0";
 const TOP_ROW_CABINET_ID = "p15";
-const NO_HANDLE_BODY_ID = "p25";
+const NO_HANDLE_BODY_ID = "p26";
 
 /** The store takes back an unsaved edit it holds for the same design id and revision, so each open gets an id of its
  *  own. */
@@ -177,6 +177,32 @@ describe("the handle control's row for following the kitchen", () => {
       elementAt("handle-follow-kitchen").getAttribute("aria-pressed"),
     ).toBe("false");
   });
+
+  // M12 W1 (ADR 0182): the wall corner return and the base corner X-leg are the corners below the top row.
+  it.each([
+    ["p9", "wall corner return"],
+    ["p25", "base corner X-leg"],
+  ])(
+    "is drawn on the %s (%s), naming the kitchen's black, and a press there pins that corner alone",
+    (cornerId) => {
+      openThePanelOn(withSettings({ handle: "black" }), cornerId);
+
+      expect(elementAt("handle-follow-kitchen").textContent).toContain(
+        ro.panel.handleLabels.black,
+      );
+      press("handle-push");
+      const pinned = useConfiguratorStore
+        .getState()
+        .design.placements.filter(
+          (placement) => placement.body.handle !== undefined,
+        )
+        .map((placement) => [placement.id, placement.body.handle]);
+      press("handle-follow-kitchen");
+
+      expect(pinned).toEqual([[cornerId, "push"]]);
+      expect(ownHandleOf(cornerId)).toBeUndefined();
+    },
+  );
 
   it("is not drawn for a body that takes no handle, as its chips are not", () => {
     openThePanelOn(KITCHEN_L_DESIGN, NO_HANDLE_BODY_ID);
