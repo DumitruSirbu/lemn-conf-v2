@@ -329,7 +329,7 @@ Amendment B, which does not discuss the join.)
 ## Amendment A — 2026-11-13: decision 1's intent changes for a signed-in submitter's own profile blanks (owner-ruled)
 
 **Owner ruling, 2026-11-13, third round [owner, answered through AskUserQuestion, relayed by the coordinator; recorded in
-`docs/OWNER_FEEDBACK.md`].** When a **confirmed client** (`design.edit.own`) sends a contact request while signed in, the
+`docs/archive/OWNER_FEEDBACK-2026-11-07.md`].** When a **confirmed client** (`design.edit.own`) sends a contact request while signed in, the
 request's name, phone and locality fill the **empty** fields of that client's own profile, and the privacy notice says
 so. Staff read a client's profile name and phone [src at `607af1db`: `packages/persistence/src/staff-kitchen-statements.ts:89`,
 `:194`], so for this submitter decision 1's intent, that the application learns nothing about who a lead is, no longer

@@ -12,7 +12,7 @@ ADR 0179.
 ## Context
 
 Owner feedback item 5, part 1 (2026-11-07): the staff kitchen page `/{locale}/staff/kitchens/{id}` lacks "the most
-important thing", a way to open the kitchen in the 3D configurator; read-only is fine [doc: `docs/OWNER_FEEDBACK.md`,
+important thing", a way to open the kitchen in the 3D configurator; read-only is fine [doc: `docs/archive/OWNER_FEEDBACK-2026-11-07.md`,
 item 5]. The ruling of 2026-11-13 [owner, relayed]: **a staff-only read-only route, behind the staff gate, writing an
 audit row as the detail page does; no share link is minted.** New copy is pre-approved as drafted (second round, Q3).
 

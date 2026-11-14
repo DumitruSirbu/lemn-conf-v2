@@ -325,7 +325,7 @@ Amendment is kept, struck through.
 
 ~~**Conflicting text found, not edited here** (path and line, read today): ADR 0165 lines 41-42 and 48-52
 (the done page's link "opens for editing … in this browser", Q-8V-2 = yes);
-`docs/OWNER_FIXES.md` lines 373-377 (Q-F3-9: a hidden sent kitchen "cannot edit it later", which implies a
+`docs/archive/OWNER_FIXES.md` lines 373-377 (Q-F3-9: a hidden sent kitchen "cannot edit it later", which implies a
 sent kitchen is editable until hidden).~~ **No longer conflicts** (fifth Amendment). The M8 plan: I found no
 text that lets a customer edit a sent kitchen (searched for edit/sent phrasings; the one near hit, line
 11318-11325, is about resending the form for an unchanged kitchen). Backlog 286, 285, 277.
@@ -345,7 +345,7 @@ configurator design no longer matters.
 
 1. **No lock.** A sent kitchen stays editable. There is no "create a copy" action. ADR 0165's done-page
    link that opens the design for editing stays as it is. The conflicts the fourth Amendment listed
-   (ADR 0165 lines 41-52, `docs/OWNER_FIXES.md` Q-F3-9) are **therefore no longer conflicts**.
+   (ADR 0165 lines 41-52, `docs/archive/OWNER_FIXES.md` Q-F3-9) are **therefore no longer conflicts**.
 2. **A sent kitchen behaves like any other.** It shows the current price (the ADR 0072 Amendment) and gets
    the mandatory-replacement sheet for disabled items (third Amendment).
 3. **Soft, non-blocking note to the customer on a sent kitchen:** „Ai trimis deja această bucătărie.

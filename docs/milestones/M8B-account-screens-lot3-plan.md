@@ -43,7 +43,7 @@
   The folder's `DEVELOPMENT-SPEC.md` differs from the repository's and is older (36.1 K against 48.6 K); the README
   already rules the repository copy authoritative [doc].
 - Read for this plan: AGENTS.md, `docs/STATUS.md`, `docs/WORKFLOW.md` (spine, *Scope discipline*, *How much review*),
-  `docs/OWNER_FIXES.md` Fix 3, the Lot 2 plan (§2.2, §4, §9, §12, §14), ADR 0172 (D3, D7, D9–D12, Amendments E–H and
+  `docs/archive/OWNER_FIXES.md` Fix 3, the Lot 2 plan (§2.2, §4, §9, §12, §14), ADR 0172 (D3, D7, D9–D12, Amendments E–H and
   addenda), ADR 0153 d1 and *What later waves inherit*, ADR 0062, ADR 0095 decision 2, ADR 0112 (grep), the runbook
   `applying-a-table-migration-and-its-application-role-grant.md` (sections `0011`, `0012`–`0015`, `0016`–`0019`), and the
   source files cited at each claim.
@@ -299,7 +299,7 @@ security review exist. Where a "Default" or "Blocks" cell below reads as pending
 ### 3.1 Decision-record sweep (WORKFLOW *Sweep the decision records before deciding*)
 
 Run on 2026-10-20 in this worktree [run: `rtk proxy grep -rn` over `docs/decisions/` (records, `README.md`,
-`SUPERSESSIONS.md`), `docs/OWNER_FIXES.md` and the M8C plan, for `0062`, `price dashboard`, `price.edit`,
+`SUPERSESSIONS.md`), `docs/archive/OWNER_FIXES.md` and the M8C plan, for `0062`, `price dashboard`, `price.edit`,
 `translation.edit`, `user.manage`, `audit_log`, `sort_position` and `reorder`; plus the headings of ADRs 0062, 0095,
 0112].
 

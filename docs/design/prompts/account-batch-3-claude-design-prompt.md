@@ -8,7 +8,7 @@
 > `account-screens-claude-design-prompt.md`. Sources:
 > - that prompt;
 > - the Lot 1 review §2 and SB1–SB16;
-> - `docs/OWNER_FIXES.md` Fix 2 and Fix 3;
+> - `docs/archive/OWNER_FIXES.md` Fix 2 and Fix 3;
 > - ADR 0172 D7 (capabilities as built);
 > - plan §12.
 >

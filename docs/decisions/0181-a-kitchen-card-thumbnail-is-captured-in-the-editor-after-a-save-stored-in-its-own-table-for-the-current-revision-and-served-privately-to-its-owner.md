@@ -18,7 +18,7 @@ ADR 0179.
 ## Context
 
 Owner feedback item 3 (2026-11-07): every card on "Bucătăriile mele" shows a striped placeholder; the owner wants a
-picture of the actual kitchen rendered from the 3D scene [doc: `docs/OWNER_FEEDBACK.md`, item 3]. The rulings [owner,
+picture of the actual kitchen rendered from the 3D scene [doc: `docs/archive/OWNER_FEEDBACK-2026-11-07.md`, item 3]. The rulings [owner,
 relayed]:
 
 - **First round:** capture on save, store it: the browser renders a small image when the kitchen saves and the server

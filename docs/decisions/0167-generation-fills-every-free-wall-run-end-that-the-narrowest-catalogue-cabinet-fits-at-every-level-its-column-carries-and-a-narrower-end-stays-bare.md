@@ -16,16 +16,16 @@ decision 4 (by M-1, or by M-2 if F1a is withdrawn), and the notes listed under *
 **Evidence tiers.** *[doc]* quoted from a file in this repository; *[plan]* a figure or a source reference the M8C plan
 quotes (the architect read the tree at `4f85b970`; the scribe did not re-read the source unless it says so);
 *[relayed]* the coordinator's relay of the owner's answer; *[owner-doc]* the owner's words as recorded in
-`docs/OWNER_FIXES.md`; *[inf]* inference, with what would falsify it. **The scribe ran nothing and has no shell.** Every
+`docs/archive/OWNER_FIXES.md`; *[inf]* inference, with what would falsify it. **The scribe ran nothing and has no shell.** Every
 count below is copied from the plan, and the census script is not in the tree.
 
 ## Context
 
-**The report.** The owner, in `docs/OWNER_FIXES.md` (Fix 1): *"the generator adds a cabinet on all levels … wherever one
+**The report.** The owner, in `docs/archive/OWNER_FIXES.md` (Fix 1): *"the generator adds a cabinet on all levels … wherever one
 fits … Let it be added, and if user will want, will remove"*, for the line and the L; the U keeps its back-wall exception
 [plan §1, quoting the owner-doc].
 
-**The two rulings recorded in `OWNER_FIXES.md`, 2026-10-17 [owner-doc, lines 78–80]:**
+**The two rulings recorded in `archive/OWNER_FIXES.md`, 2026-10-17 [owner-doc, lines 78–80]:**
 - **Q-F1-1:** where no cabinet is narrow enough for a remainder, **keep the space empty**. No filler or end panel.
 - **Q-F1-2:** the fill applies to **wall runs only**, not next to windows and doors.
 

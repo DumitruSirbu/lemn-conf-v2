@@ -1,104 +1,75 @@
 # Owner feedback inbox
 
-Running list of UI feedback from the owner, recorded as given. **Nothing here is built yet.** Each item is
-fixed later, in a wave that follows `docs/WORKFLOW.md`. Evidence tier of every entry: **[owner]** unless noted.
+Running list of owner feedback, recorded as given. **Nothing here is built yet.** Each item is fixed later, in a wave
+that follows `docs/WORKFLOW.md`. Evidence tier of every entry: **[owner]** unless noted. The previous round
+(2026-11-07, M11) is archived: [`archive/OWNER_FEEDBACK-2026-11-07.md`](archive/OWNER_FEEDBACK-2026-11-07.md), so is
+the 2026-10-17 request [`archive/OWNER_FIXES.md`](archive/OWNER_FIXES.md).
 
-## 1 — "My kitchens" page is missing the profile icon (recorded 2026-11-07)
+## Round 2026-11-14 (eight screenshots; recorded only, no plan yet)
 
-- **Page:** "Bucătăriile mele" (the saved-kitchens list, reached from "Înapoi la configurator").
-- **Owner's words:** the profile icon is missing on this page; add it.
-- **Screenshot observation [inference]:** the header shows the LEMNARIA wordmark, the back link and a round
-  "RU" button at the far right. That button may be the language switch rather than the profile/account icon,
-  so the account entry point (as it appears in the configurator header) is not on this page. Confirm against the
-  configurator header and the account mockup before building.
-- **Wanted:** the same profile icon the configurator header shows, on the My-kitchens header.
+### 1 — Global handles setting is ignored by corner cabinets
 
-## 2 — Share-link dialog: freshly created link state has oversized buttons (recorded 2026-11-07)
+- **Owner's words:** when the handles are switched in the global settings, the corner cabinets keep the default
+  handle; they should take the global one.
+- **Screenshot:** the configurator with the corner wall cabinet ("Dulap suspendat de colț", Perete A, 900 × 700 mm)
+  selected; its panel shows a note ("Here needs to be added the handlers selection").
 
-- **Dialog:** "Link de partajare", the state right after a link is created (shows the URL, "Copiază link-ul",
-  "Oprește link-ul", the note "Copiază link-ul acum — nu îl vom mai putea afișa.", "Închide").
-- **Observed:** "Copiază link-ul" and "Oprește link-ul" are stretched to huge stacked blocks (roughly 400 px
-  and 400 px tall) and fill the dialog.
-- **Wanted:** make them the same small size as the buttons in the already-active state ("Link-ul este activ."
-  with "Creează un link nou" and "Oprește link-ul"), and lay them out **inline, side by side**, the same way.
-- **Note [inference]:** the height looks like a flex/grid stretch bug in the created-link state, not an
-  intended design. Check the dialog's two states share one button style and row layout.
+### 2 — Corner cabinets cannot be given a custom handle
 
-## 3 — "My kitchens" cards: real 3D thumbnail instead of the striped placeholder (recorded 2026-11-07)
+- **Owner's words:** for corner cabinets it is not possible to choose a custom handle; add the selector.
+- **Wanted:** the handle choice in the structural (corner) cabinet panel, like other cabinets, below the colour
+  picker and "Preia culoarea bucătăriei". Pairs with item 1.
 
-- **Page:** "Bucătăriile mele", every kitchen card.
-- **Observed:** the card image is a diagonal-stripe placeholder.
-- **Wanted:** a picture of the actual kitchen rendered from the 3D scene, as the card thumbnail.
-- **Open questions [inference]:** when the image is captured (on save, or on demand), where it is stored
-  (persistence package, so a new column or object store and a new resource), and what the card shows for a
-  kitchen saved before this exists. Needs an ADR before building. Same image could serve share links.
-- **Also seen in the screenshot (not asked for):** the two cards lay out their "Modificată acum … / De la
-  57 000 MDL" line differently (one on a single row, one stacked), so the buttons sit at different heights.
+### 3 — The cabinet above the full-size fridge is often missing, and too shallow at depth 600
 
-## 4 — Contact form: prefill from the profile, and save missing fields back (recorded 2026-11-07)
+- **Owner's words:** pretty often, after a kitchen is generated, the cabinet above the fridge is missing (add it).
+  At depth 600 mm the cabinet above the fridge is narrower (shallower) than the fridge. It should always cover the
+  fridge.
+- **Screenshot annotation:** "The cabinet above the full size fridge should cover the fridge (depth === 700 mm)".
+  The overview shows the wall cabinet above the fridge set back from the fridge's front edge.
+- **Wanted:** the generator always places that cabinet, and its depth is 700 mm so it covers the fridge.
+- **Check first [inference]:** the generation rules (ADR 0167) and the fridge column's top fill.
 
-- **Page:** Contact ("Unde îți trimitem oferta?"), fields Nume, Telefon, Oraș sau localitate, and the
-  preferred-contact choice (Telefon / WhatsApp / E-mail).
-- **Wanted, part 1:** when the customer is signed in and their profile already holds name, phone and city,
-  the form opens prefilled with them.
-- **Wanted, part 2:** when a signed-in customer submits the form and the profile lacks any of those values,
-  save the submitted values into the profile (only the missing ones; do not overwrite what the profile has).
-- **Open questions [inference]:** whether the preferred-contact choice is also profile data; whether a
-  value the customer edits in the form should update the profile or only fill blanks (the owner's words say
-  only the missing ones); what a signed-out visitor sees (unchanged, empty form). Check the existing profile
-  fields and the account/profile ADRs first, since this writes personal data and touches persistence.
+### 4 — Profile menu: rename the staff entry and make it stand out
 
-## 5 — Staff kitchen-request page: no link to open the kitchen in 3D, no cabinet list (recorded 2026-11-07)
+- **Page:** the account popover (signed in as admin): Profil, Zona personalului, Ieși din cont, Ieși de pe toate
+  dispozitivele, Închide.
+- **Owner's words:** rename "Zona personalului" to "Panoul de administrare" and set that last option split off,
+  more visible than the profile-related links.
+- **Clarified [owner, 2026-11-14]:** keep the entry in the profile-icon menu, renamed "Panoul de administrare", as the
+  **last** option, visually separated (a divider or its own group) from the profile-related links above it. The
+  earlier wording was not about "Ieși de pe toate dispozitivele".
 
-- **Page:** `/ro/staff/kitchens/<id>` (the staff "Bucătării clienți" detail page, an inline 3D preview marked
-  "Doar vizualizare", status, request, customer account, notes, "Configurația trimisă").
-- **Owner's words:** the most important thing is missing: a way to **open the kitchen in the 3D configurator**
-  (the URL; read-only is fine, but it must be there).
-- **Wanted, part 1:** a clear "open in 3D" link or button on this page that opens the kitchen read-only.
-- **Wanted, part 2:** the **list of every cabinet with its size, colour and details**, the way the customer
-  sees it after clicking "verify design" (the customer's review of the design). Also important for staff.
-- **Design is needed first [owner]:** part 2 has no mockup for the staff view. **REMINDER: prepare a Claude
-  Design prompt for this screen before any implementation.** Base it on the customer's "verify design" review
-  (cabinet list with sizes, colours, details) adapted to the staff detail page; see
-  `docs/design/claude-design-brief-translations.md` for the brief format already in use.
-- **Open question [inference]:** which existing read-only entry point to reuse (the share-link viewer or a
-  staff-only route), and whether it needs its own access rule and audit-log entry, since the page already
-  records "Accesul este înregistrat în jurnal".
+### 5 — Staff hardware class: "Activă în configurator" is hard to read as the way to disable
 
-## Owner rulings, 2026-11-13 [owner, answered through AskUserQuestion]
+- **Page:** staff Feronerie, class "Hettich" (Activ). Row "Activă în configurator · Activ".
+- **Owner's words:** very hard to understand that disabling needs a click on this row. It should be a separate action,
+  or be renamed to "Dezactivează" (simple word). Maybe it needs to be redone: analyse best practices for how to use
+  such toggles here.
+- **Also:** screenshot of the Materiale page (MDF vopsit mat, "Activ în configurator · Activ") came with no text
+  [inference: same row, same complaint; confirm].
 
-- **Item 3:** capture on save, store it. The browser renders a small image when the kitchen saves and the server
-  stores it (new storage, so an ADR and a migration first; the add-only resource rule applies). A kitchen saved
-  before this exists keeps the placeholder until its next save.
-- **Item 4:** fill blanks only. Prefill name, phone and city from the profile; on submit save only the fields the
-  profile lacks, never overwrite. The preferred-contact choice is **not** profile data.
-- **Item 5.1:** a staff-only read-only route, behind the staff gate, writing an audit row as the detail page does.
-  No share link is minted.
-- **Item 1** is built as asked even if mockup frame A9A lacks the icon; the departure gets a dated note in
-  `docs/design/README.md`.
-- Work runs on branch `fix/owner-feedback-2026-11-07`, cut from `main` after M10's merge (`12266a02`).
+### 6 — Staff "Bucătării clienți": "Status cerere" filter layout
 
-## Owner rulings, 2026-11-13, second round [owner, answered through AskUserQuestion]
+- **Page:** Ciorne tab. The "Status cerere" select (disabled) sits beside the "Doar modificate" checkbox, with the
+  hint "Disponibil doar la „Trimise"" under it; the boxed area is the problem.
+- **Owner's words:** fix the layout; do **not** move the input up, just add the info/warning text below.
 
-These answer the M11 plan's questions Q1 to Q3 (`docs/milestones/M11-owner-feedback-2026-11-07.md`), plus one W1 residual.
+### 7 — Staff request page: the kitchen link, the cabinet list, the price
 
-- **Q1, consent (item 4):** yes. A signed-in customer's contact form says, in one line, that any missing details
-  are saved to their profile.
-- **Q2, a phone the customer removed (item 4):** refill it. Fill-blanks is plain: an empty profile field is filled
-  from the request, even one the customer emptied on purpose. No "removed" mark and no migration.
-- **Q3, copy:** new Romanian and Russian copy for M11 is pre-approved as drafted, as Lot 2's was (O28b).
-- **W1 residual, header live behind the profile menu:** record it in the backlog and fix it later, together with
-  the account page's other dialogs, which already behave the same way. Not fixed in W1.
+- **Status [owner, 2026-11-14]:** the new design is at `design-source/v3/` (untracked): `Bucatarii clienti.dc.html`
+  (the staff request list and detail, the page this item is about), `Personal.dc.html`, `Presete.dc.html`,
+  `Traduceri.dc.html`, plus `cabinets/` and `shots/`. Per the owner: updated mocks, plus some not implemented yet,
+  focused on improving the view of the sent kitchen from the client's screen. Not yet read by the scribe.
+- **Process note [doc-quoted, AGENTS.md rule 3]:** `design-source/` is untracked and will be deleted. Before any wave,
+  copy the needed files into `docs/design/mockups/` with a sha256 check, as Lot 3 did; nothing may import from the folder.
 
-## Owner rulings, 2026-11-13, third round [owner, answered through AskUserQuestion]
-
-These answer questions raised by the security read of ADRs 0179–0181.
-
-- **Who gets the prefill and fill (item 4):** confirmed customer accounts only, gated on `design.edit.own`.
-  Staff accounts and unconfirmed customer accounts see the empty form, as a visitor does, and nothing is written
-  to their profiles.
-- **Privacy (item 4):** accepted. Copying a request's name, phone and locality into the customer's profile is a
-  dated, owner-ruled change to ADR 0153 d1 for signed-in submitters, and the privacy notice says that a profile can
-  be filled from a request.
-- **Thumbnail erasure (item 3):** the picture is deleted together with the kitchen, in the same statement that
-  marks the kitchen deleted (a `DELETE` grant on the new table). A hidden kitchen keeps its picture.
+- **Page:** request detail ("În formă de L, 2800 × 2600 mm, editat (copie)").
+- **Owner's words, part 1:** most important: the link to view the kitchen (read only) needs to be added. The request
+  id ("Cererea trimisă: LM-…") is useless as it stands; the owner does not see how to use it to view the kitchen.
+  **Note [inference]:** a "Deschide în 3D" link already exists under the picture (M11 W3b). The owner may not have
+  found it, or wants it at the request line. Check before building.
+- **Part 2:** the full list of cabinets, shown the same way as when the client reviews the kitchen ("Verifică
+  designul"), placed in an accordion so it can be toggled hide/show.
+- **Part 3 (question):** when the actual price and the sent price differ (the client sent, then edited, so the price
+  changed), is that shown? Both lines read "De la 57 000 MDL" in the screenshot.

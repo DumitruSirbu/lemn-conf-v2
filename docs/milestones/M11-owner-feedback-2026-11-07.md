@@ -4,7 +4,7 @@ Status: **In progress** (2026-11-13). W0 (`dfc9db48`) and W1a+W1b (`05d1dc74`) a
 W1's criteria were written against `12266a02`; the planner saw uncommitted W1 edits and `qa-w1-*` test files in the
 working tree but did not read or run them, so W1's QA judges that work against the criteria below, not the reverse.
 Branch: `fix/owner-feedback-2026-11-07`, cut from `main` at `12266a02` (M10 merged and archived).
-Source of the work: [`docs/OWNER_FEEDBACK.md`](../OWNER_FEEDBACK.md), items 1 to 5 and the three *Owner rulings,
+Source of the work: [`docs/archive/OWNER_FEEDBACK-2026-11-07.md`](../archive/OWNER_FEEDBACK-2026-11-07.md), items 1 to 5 and the three *Owner rulings,
 2026-11-13* sections (first, second and third round).
 Decision records: [ADR 0179](../decisions/0179-a-signed-in-customers-contact-form-is-prefilled-from-the-profile-and-the-stored-request-fills-only-the-profiles-blanks-in-one-statement.md)
 (W2), [ADR 0180](../decisions/0180-staff-open-a-kitchen-in-3d-on-a-staff-only-route-that-mounts-the-share-view-reads-through-its-own-audited-endpoint-and-mints-no-share-link.md)
@@ -42,11 +42,11 @@ of W1.
 
 - Thumbnails on share links, the done page or the configurator's own summary card (backlog 217,
   `docs/backlog/open.md:3064`). The owner's note that the same image "could serve share links" is not a ruling to build
-  it [doc: `OWNER_FEEDBACK.md`, item 3, *Open questions*].
+  it [doc: `archive/OWNER_FEEDBACK-2026-11-07.md`, item 3, *Open questions*].
 - A thumbnail for a kitchen saved before W4 ships: it keeps the placeholder until its next save [owner, relayed]. No
   backfill through the `/internal/scene-shot` rig.
 - The account control on account pages other than "Bucătăriile mele" (profile, password, export). The owner asked for
-  the kitchens page [doc: `OWNER_FEEDBACK.md`, item 1, *Wanted*]. A later request is a one-line extension of W1a.
+  the kitchens page [doc: `archive/OWNER_FEEDBACK-2026-11-07.md`, item 1, *Wanted*]. A later request is a one-line extension of W1a.
 - Prefilling the contact form's e-mail from the account address, and storing the preferred-contact choice (ruled not
   profile data [owner, relayed]).
 - Building item 5.2. It waits for the Claude Design export and a plan of its own.
@@ -113,7 +113,7 @@ stored content served back). The security reviewer's reading always includes the
 **Finding.** The account pages' header draws the back link, the wordmark, an optional title and the locale chips, and
 nothing else (`apps/web/src/account/account-shell.tsx:64-85` [src]). The round "RU" button the owner saw is the locale
 chip (`LocaleLink`, `:98-116` [src]), so the item is real, not a mislabelled icon [inf, from the screenshot's
-description in `OWNER_FEEDBACK.md`, item 1]. The configurator, the room screen and the staff shell all mount
+description in `archive/OWNER_FEEDBACK-2026-11-07.md`, item 1]. The configurator, the room screen and the staff shell all mount
 `AccountControl` (`configure-screen.tsx:202`, `room-screen.tsx:198`, `staff-shell.tsx:133` [src]).
 
 **Mockup check.** Frame A9A sets no `hdr` (`docs/design/mockups/Lemnaria Cont Lot 2.dc.html:180` [doc]), so it takes
@@ -141,7 +141,7 @@ note is in `docs/design/README.md` (dated 2026-11-13).
 
 | Slice | Work | Files likely touched | Reading |
 | --- | --- | --- | --- |
-| W1a | Mount the control in the kitchens page's header | `account/account-shell.tsx`, `account/account.module.css`, a leaf module for the path builders, `app/[locale]/account/kitchens/page.tsx` or `account/kitchens/kitchens-screen.tsx` | This section; `OWNER_FEEDBACK.md` item 1; `account-control.tsx:35-80`, `:290-310`; `staff-shell.tsx:105-150`; `Lemnaria Cont Lot 2.dc.html:48-52`, `:307-313`; ADR 0104 Amendment H; `docs/design/README.md` (A19A and the 2026-11-13 notes) |
+| W1a | Mount the control in the kitchens page's header | `account/account-shell.tsx`, `account/account.module.css`, a leaf module for the path builders, `app/[locale]/account/kitchens/page.tsx` or `account/kitchens/kitchens-screen.tsx` | This section; `archive/OWNER_FEEDBACK-2026-11-07.md` item 1; `account-control.tsx:35-80`, `:290-310`; `staff-shell.tsx:105-150`; `Lemnaria Cont Lot 2.dc.html:48-52`, `:307-313`; ADR 0104 Amendment H; `docs/design/README.md` (A19A and the 2026-11-13 notes) |
 
 **Acceptance criteria.**
 
@@ -180,7 +180,7 @@ the link field stays above it and the "shown once" caption below.
 
 | Slice | Work | Files likely touched | Reading |
 | --- | --- | --- | --- |
-| W1b | One row for the two actions | `account/kitchens/share-kitchen-sheet.tsx`, `account/kitchens/kitchens.module.css` | This section; `OWNER_FEEDBACK.md` item 2; `share-kitchen-sheet.tsx:170-300`; `account.module.css:860-980`; `kitchens.module.css:395-425`; frame A9G note (`Lemnaria Cont Lot 2.dc.html:186`) |
+| W1b | One row for the two actions | `account/kitchens/share-kitchen-sheet.tsx`, `account/kitchens/kitchens.module.css` | This section; `archive/OWNER_FEEDBACK-2026-11-07.md` item 2; `share-kitchen-sheet.tsx:170-300`; `account.module.css:860-980`; `kitchens.module.css:395-425`; frame A9G note (`Lemnaria Cont Lot 2.dc.html:186`) |
 
 **Acceptance criteria.**
 
@@ -200,7 +200,7 @@ state's; a component test for W1b-3 and W1b-4's markup; screenshots for the visu
 
 ### W1c (optional) — the card's "Modificată / De la" line
 
-**Observation [doc: `OWNER_FEEDBACK.md`, item 3, *Also seen*].** Two cards lay the age and price line out differently
+**Observation [doc: `archive/OWNER_FEEDBACK-2026-11-07.md`, item 3, *Also seen*].** Two cards lay the age and price line out differently
 (one row versus stacked), so their buttons sit at different heights. Not asked for; build only if the coordinator
 dispatches it.
 

@@ -58,7 +58,7 @@ that is a development fixture and must never be shown to a customer as a chosen 
 - **M7B before M8.** M8's review groups wall, band, order; a third wall (U-shaped rooms) reaches the stored
   document, so M8 first would rework it.
 - **M8C before M8B**, by owner ruling (fixes first, then the preset milestone, then login / register /
-  dashboard; `../OWNER_FIXES.md`). M8 is not done and M8C does not close M8's open items. Accounts, roles
+  dashboard; `../archive/OWNER_FIXES.md`). M8 is not done and M8C does not close M8's open items. Accounts, roles
   and the dashboard stay M8B's.
 - **M8B after M8, before launch.** Split from M8 so a pull request is a reviewable unit; nothing ships before
   every milestone is done, so the split costs no release.

@@ -10,13 +10,13 @@
 > (paired tests, QA gates review) and is recorded as ADR 0172 decision 12, scoped to this round. §8 says what
 > replaces QA and what it costs; §9 lists the tests owed.
 
-This plan covers the **login and register part of Fix 3** (`docs/OWNER_FIXES.md`, *Fix 3*, owner rulings
+This plan covers the **login and register part of Fix 3** (`docs/archive/OWNER_FIXES.md`, *Fix 3*, owner rulings
 2026-10-17). It is the first part of [M8B](M8B-customer-profiles.md) to be planned; M8B's dashboard, GDPR and
 retention waves come later (§12).
 
 **Evidence tiers.** **[src]** read in the source at `4f85b970`; **[run]** a command run by the architect, output
 quoted; **[doc]** quoted from a record in this repository; **[owner]** an owner ruling as recorded in
-`OWNER_FIXES.md`; **[inf]** the architect's inference; **[ven]** a vendor fact from memory, **not re-read**:
+`archive/OWNER_FIXES.md`; **[inf]** the architect's inference; **[ven]** a vendor fact from memory, **not re-read**:
 wave L0 re-reads every one before code depends on it.
 
 ---
@@ -26,7 +26,7 @@ wave L0 re-reads every one before code depends on it.
 - **M8B** ([plan stub](M8B-customer-profiles.md)) holds twelve obligations from ADR 0115 and the cut 8N, 8P1–8P9.
   This plan replaces the slices of 8N and 8P1–8P7 for login and register. The table below maps them. 8P8
   (dashboard) and 8P9 (deletion, notice, retention) stay later waves.
-- **Fix 3's order** [owner, `OWNER_FIXES.md` *Order of this fix*]: (1) the ADR, (2) the owner designs the
+- **Fix 3's order** [owner, `archive/OWNER_FIXES.md` *Order of this fix*]: (1) the ADR, (2) the owner designs the
   screens in Claude Design, (3) M8B is replanned. This plan is (3) for the server half and waits on (2) for the
   screens (waves L13b, L14a, L14b; L13a needs only L0's reads).
 - **M8C** (the sibling branch `fix/empty-space-fill-and-preset-save`) holds ADRs **0167, 0168** and migration
@@ -410,7 +410,7 @@ and security reviewers, in parallel, on a diff whose verification (§8) is green
 | 3 | The owner creates the Turnstile widgets and sets the two variables (§6) |
 | 4 | The scribe writes the dated notes ADR 0172 owes (its *Records to annotate on acceptance*), the `decisions/README.md` row and `SUPERSESSIONS.md` |
 
-**Reading:** this plan; ADR 0172; `OWNER_FIXES.md` *Fix 3*; ADR 0115, 0019 (d1, d5, d9, notes), 0114 d1–d6, 0154
+**Reading:** this plan; ADR 0172; `archive/OWNER_FIXES.md` *Fix 3*; ADR 0115, 0019 (d1, d5, d9, notes), 0114 d1–d6, 0154
 d11, 0161 d1–d2. **Reviewer reading (security):** the same plus `security-headers.ts`, `cross-site-request.ts`.
 
 **Acceptance.**
@@ -461,7 +461,7 @@ runbook. **Reviewer reading:** the same; security adds ADR 0019 d11.
 | 3 | `CAPABILITIES` (closed): `design.read.own`, `design.edit.own`, `design.read.any`, `design.unhide`, `contact.read`, `contact.update-status`, `note.write`, `preset.create`, `preset.manage`, `price.edit`, `translation.edit`, `user.manage`, `audit.read`. `ROLES`: client = the two `.own` (only the client holds them); operator = `design.read.any`, `contact.read`, `contact.update-status`, `note.write`, `design.unhide`; administrator = every capability except the two `.own` ones [src: `capabilities.ts`, read 2026-10-18]. `hasCapability(role, capability)`; `isRole(text)` | `capabilities.ts` |
 | 4 | The package's exports | `account/index.ts`, `src/index.ts` |
 
-**Reading:** this plan §2 (D1, D2, D7); `OWNER_FIXES.md` *Fix 3* items 1, 8–12 and *Consequences*;
+**Reading:** this plan §2 (D1, D2, D7); `archive/OWNER_FIXES.md` *Fix 3* items 1, 8–12 and *Consequences*;
 `contact/contact-fields.ts`, `contact/phone-number.ts`, `contact/input-checks.ts`; engineering-conventions *Code
 and domain boundaries*. **Reviewer reading:** the same.
 

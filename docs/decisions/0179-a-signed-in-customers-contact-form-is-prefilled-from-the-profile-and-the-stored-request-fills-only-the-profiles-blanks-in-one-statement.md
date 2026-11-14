@@ -7,7 +7,7 @@ Type: Decision record (product rule and data path)
 Milestone: M11 — [`M11-owner-feedback-2026-11-07.md`](../milestones/M11-owner-feedback-2026-11-07.md), waves W2a and W2b
 
 **Evidence tiers.** **[owner, relayed]**: an owner selection through AskUserQuestion on 2026-11-13, relayed by the
-coordinator and recorded in `docs/OWNER_FEEDBACK.md` (*Owner rulings, 2026-11-13*, *second round*, *third round*); an
+coordinator and recorded in `docs/archive/OWNER_FEEDBACK-2026-11-07.md` (*Owner rulings, 2026-11-13*, *second round*, *third round*); an
 option picked, not a verbatim quotation. **[sec, relayed]**: a finding of the 2026-11-13 security read, relayed by the
 coordinator; each one used here was re-read in the source by the architect before it was written. **[doc]** and
 **[src]**: a repository document or source file with `file:line`, at `607af1db` unless marked `12266a02`. **[inf]**:
@@ -17,7 +17,7 @@ the architect's reasoning, with its falsifier.
 
 Owner feedback item 4 (2026-11-07): a signed-in customer's contact form ("Unde îți trimitem oferta?") should open
 prefilled with the profile's name, phone and city, and a submission should save into the profile only the values it
-lacks [doc: `docs/OWNER_FEEDBACK.md`, item 4]. The rulings [owner, relayed]:
+lacks [doc: `docs/archive/OWNER_FEEDBACK-2026-11-07.md`, item 4]. The rulings [owner, relayed]:
 
 - **First round:** fill blanks only; prefill name, phone and city; on submit save only the fields the profile lacks,
   never overwrite; the preferred-contact choice is not profile data.

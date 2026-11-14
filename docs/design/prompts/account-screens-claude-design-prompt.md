@@ -11,7 +11,7 @@
 > (`apps/web/src/lib/server/account/account-responses.ts`, the domain's password and field rules) and from
 > `docs/milestones/M8B-login-register-plan.md` §5, L13b–L14b. Batches 2 and 3 have **no server contract yet**
 > (that plan puts them in later waves); their copy is draft and their API words will be fixed by the wave that
-> builds each screen. Owner rulings come from `docs/OWNER_FIXES.md`, Fix 3 (2026-10-17).
+> builds each screen. Owner rulings come from `docs/archive/OWNER_FIXES.md`, Fix 3 (2026-10-17).
 
 ---
 

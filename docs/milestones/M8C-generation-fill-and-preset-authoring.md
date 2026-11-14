@@ -1,7 +1,7 @@
 # M8C — Generation fills every free wall-run end, and the owner can save, list and use presets
 
 > **STATUS: PLANNED, 2026-10-17; revised the same day on the owner's answers (§10, *Answered*). Nothing is built.**
-> This is the plan (`docs/WORKFLOW.md`, step 1) for the two owner fixes in `docs/OWNER_FIXES.md` (Fix 1 and Fix 2).
+> This is the plan (`docs/WORKFLOW.md`, step 1) for the two owner fixes in `docs/archive/OWNER_FIXES.md` (Fix 1 and Fix 2).
 > **Fix 3 (accounts, roles, dashboard) is not planned here**; it stays M8B's. Branch:
 > `fix/empty-space-fill-and-preset-save`, cut from `main` at `4f85b970`.
 >
@@ -53,13 +53,13 @@
 >
 > **No owner question remains open.** The first dispatch is F0 (§5, *Order and first dispatch*).
 >
-> **Evidence tiers.** **[owner]** the owner's words, as recorded in `OWNER_FIXES.md` or relayed by the coordinator. **[src]** read in the tree at
+> **Evidence tiers.** **[owner]** the owner's words, as recorded in `archive/OWNER_FIXES.md` or relayed by the coordinator. **[src]** read in the tree at
 > `4f85b970` by the architect. **[measured]** run by the architect at `4f85b970`, with the command in §2.1.
 > **[doc]** quoted from a record. **[inf]** inference, with what would falsify it.
 
 ## 0. Numbering, and where M8C sits
 
-- **M9 is taken** (delivery preparation, a stub), so this cannot be "M9" as `OWNER_FIXES.md` suggested.
+- **M9 is taken** (delivery preparation, a stub), so this cannot be "M9" as `archive/OWNER_FIXES.md` suggested.
 - The repository's suffix convention puts owner-feedback rounds after their milestone: `M5B`, `M7B`, and
   `M7C-m7-feedback-fixes.md`. That file exists, but the README table does not list it (noted for the scribe, §12).
   `M8B` is customer profiles. **The next free number is M8C.**
@@ -405,7 +405,7 @@ run's end, and (a) and (b) give the same kitchen.
 | Copy-on-use | ADR 0131 §4 quotes it; 0112 lacks it | — | **Written into 0112 Amendment A** (ADR 0131's revival condition) |
 | Where authored | `WORKFLOW.md`, *Nothing ships mid-milestone* (owner, 2026-08-27) | **Q-4, answered: deploy to production and author there** [relayed, 2026-10-17] | **The owner's own exception to the owner's own rule, for this deployment.** The production deployment is not public. ADR 0112 Amendment A records it with its date |
 | Listing | ADR 0112 d5: read on the room page's server, *"no public list endpoint is added"* | — | **Amended, an engineering decision** (§3.5): one read route for one room's matches |
-| Backup | ADR 0112 *Consequences*: *"wave 7P1 extends the export"*; ADR 0012: a new table needs *"a second, separately-scoped export"* | `OWNER_FIXES.md` says the table *"is part of the production backup like any other table"* | **That sentence is false at HEAD** [src]: `BACKUP_BLOB_PREFIX = "backups/designs/"` (`backup-designs.ts:15`). Wave P2 adds the second export **before authoring starts**, as ADR 0112's *Consequences* already decided |
+| Backup | ADR 0112 *Consequences*: *"wave 7P1 extends the export"*; ADR 0012: a new table needs *"a second, separately-scoped export"* | `archive/OWNER_FIXES.md` says the table *"is part of the production backup like any other table"* | **That sentence is false at HEAD** [src]: `BACKUP_BLOB_PREFIX = "backups/designs/"` (`backup-designs.ts:15`). Wave P2 adds the second export **before authoring starts**, as ADR 0112's *Consequences* already decided |
 
 ### 3.2 Storage — migration `0011_create_presets.sql` (ADR 0112 d1, amended)
 
@@ -1216,5 +1216,5 @@ Each follows your words, the brief or a later dated ruling. Say so if one is not
   removed or replaced by `preset.create`; the launch gate checks it"*.
 - `STATUS.md`: M8C planned, no owner question open; *What to do next* names F0, then F1a (§5, *Order and first
   dispatch*).
-- `OWNER_FIXES.md` is the owner's record and is not edited. Its sentence on the presets backup (§3.1) is corrected
+- `archive/OWNER_FIXES.md` is the owner's record and is not edited. Its sentence on the presets backup (§3.1) is corrected
   here, not there.

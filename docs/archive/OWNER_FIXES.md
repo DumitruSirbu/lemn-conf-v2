@@ -34,8 +34,8 @@ Evidence tiers: **[owner]** the owner's words, **[source-verified]** read in the
    over it as well, which is why the top level looks emptiest.
 4. **The corner top unit and the 800 + 100 spaces.** Backlog 247 records the 800 + 100 spaces above each U corner
    staying two (ADR 0166 d6); backlog 255 records that the commands still cut empty space at 800.
-5. **The product rule behind it.** [ADR 0067](decisions/0067-leftover-wall-is-the-normal-case-and-the-price-is-a-floor.md)
-   and [ADR 0117](decisions/0117-generation-produces-the-cheap-correct-baseline-and-the-owners-taste-enters-through-presets.md)
+5. **The product rule behind it.** [ADR 0067](../decisions/0067-leftover-wall-is-the-normal-case-and-the-price-is-a-floor.md)
+   and [ADR 0117](../decisions/0117-generation-produces-the-cheap-correct-baseline-and-the-owners-taste-enters-through-presets.md)
    say bare wall is the normal case and *"the baseline is allowed to be plain"*; generation is the cheap correct
    baseline. **The owner's request is a new ruling that supersedes this for the cabinet fill, and it needs an ADR
    with a dated note on 0067 / 0117 / 0110 Amendment O** (the AGENTS.md rule: a dated record is not silently
@@ -101,13 +101,13 @@ Evidence tiers: **[owner]** the owner's words, **[source-verified]** read in the
   presets (`camera-preset-store.ts`, three-adapter camera tests). There is no table, no route, no Step 1 preset
   list, no evaluator and no save button.
 - **It was designed and deliberately deferred.** The decisions already written:
-  - [ADR 0112](decisions/0112-the-preset-library-is-owner-authored-data-behind-a-server-side-gate.md): presets are
+  - [ADR 0112](../decisions/0112-the-preset-library-is-owner-authored-data-behind-a-server-side-gate.md): presets are
     owner-authored rows in a `presets` table, saved from the editor by a temporary button; the server snapshots the
     *stored design* (not a client payload); a preset must have zero validation findings and contain a sink and a
     hob; the thumbnail is captured at save. It specified a feature flag **and** an owner secret.
-  - [ADR 0109](decisions/0109-a-preset-is-a-recipe-document-and-is-listed-only-if-the-product-would-never-mark-it.md):
+  - [ADR 0109](../decisions/0109-a-preset-is-a-recipe-document-and-is-listed-only-if-the-product-would-never-mark-it.md):
     matching and adaptation, with Amendment A for the owner's *"+- 600 mm"* on wall lengths.
-  - [ADR 0131](decisions/0131-the-preset-story-is-deferred-past-m8-and-every-room-goes-from-its-dimensions-straight-to-composition.md):
+  - [ADR 0131](../decisions/0131-the-preset-story-is-deferred-past-m8-and-every-room-goes-from-its-dimensions-straight-to-composition.md):
     the preset story moved past M8, and records the owner's **copy-on-use** ruling: presets live in their own table,
     only the administrator updates them, using one copies it into a new private design. **ADR 0112 does not yet
     carry that ruling; its amendment must be written before planning.**
@@ -198,8 +198,8 @@ Each wave follows `docs/WORKFLOW.md`: plan, implement, adversarial QA, review, v
 
 The owner will produce the dashboard screens in Claude Design, in the style of the existing screens, and hand them
 over as was done for the 3D and the five screens. This section is the requirements list for that brief and for the
-plan. It extends [`M8B-customer-profiles.md`](milestones/M8B-customer-profiles.md) (planned, not started) and
-[ADR 0115](decisions/0115-customer-profiles-replace-the-pin-and-arrive-in-m8-and-m7-ships-the-browser-cookie-and-share-links.md);
+plan. It extends [`M8B-customer-profiles.md`](../milestones/M8B-customer-profiles.md) (planned, not started) and
+[ADR 0115](../decisions/0115-customer-profiles-replace-the-pin-and-arrive-in-m8-and-m7-ships-the-browser-cookie-and-share-links.md);
 it does not replace either. The new rulings below need ADR 0115 amended and M8B revised before any wave is planned.
 
 ### Owner's requirements [owner]

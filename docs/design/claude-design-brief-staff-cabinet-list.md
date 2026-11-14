@@ -7,7 +7,7 @@ switch and the list that marks the cabinets the two versions do not share; the c
 list**, it does not sit beside it), `Lemnaria Configurator Mobil.dc.html` (frames 3A and 3B, "Verifică designul": the
 customer's review, whose rows this list adapts), and `ContBlocks2.dc.html` (blocks; do not edit `ContBlocks.dc.html`).
 
-Sources this brief was written from, so a reviewer can check it: `docs/OWNER_FEEDBACK.md` item 5 (the owner's request
+Sources this brief was written from, so a reviewer can check it: `docs/archive/OWNER_FEEDBACK-2026-11-07.md` item 5 (the owner's request
 and the reminder to write this prompt before any implementation); the customer review as built
 (`apps/web/src/app/d/[id]/review/review-screen.tsx:113-189`, `apps/web/src/review/review-groups.tsx:79-170`,
 `apps/web/src/review/review-model.ts:44-58`: one row per cabinet, grouped by wall and band, a name, then the width, the

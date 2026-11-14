@@ -3373,7 +3373,7 @@ Applies to a material, a hardware class and an accessory. **Ruled:** deleting st
 
 **Ruling** ([ADR 0062 fifth Amendment](../decisions/0062-a-manufacturer-price-dashboard-comes-after-m8-and-shapes-seams-now.md)); it reverses the fourth Amendment's lock, which is kept below, struck through. Owner: "the most important part of the tool, the creating of the lead, the connection with the manufacturer and the starting on the project, will be achieved… This is 100% the goal of the tool, not keeping it always up to date… At the moment when the client sends his details, it's already a win."
 
-1. **No lock, no "create a copy".** ADR 0165's done-page link that opens the design for editing stays as it is; ADR 0165 lines 41-52 and `docs/OWNER_FIXES.md` Q-F3-9 no longer conflict.
+1. **No lock, no "create a copy".** ADR 0165's done-page link that opens the design for editing stays as it is; ADR 0165 lines 41-52 and `docs/archive/OWNER_FIXES.md` Q-F3-9 no longer conflict.
 2. A sent kitchen shows the current price (ADR 0072 Amendment) and gets the mandatory-replacement sheet (ADR 0062 third Amendment).
 3. Soft, non-blocking note: „Ai trimis deja această bucătărie. Modificările se văd și la noi, dar spune-ne la telefon dacă e ceva important.”
 4. **Changed after sending** = `designs.revision` > the submission's `design_revision` (coordinator, source-verified: `0004_add_design_revision.sql` increments per save; `0008_create_contact_submissions.sql` stores snapshots and `design_revision`; no history of earlier versions). New per-submission **seen revision**, recorded when an operator or administrator opens the kitchen in "Bucătării clienți". Revision > seen revision: badge „Modificată după ce ai văzut-o" and a counter in the dashboard menu (always on). The kitchen page shows "Trimisă" and "Actuală" side by side.
@@ -3391,7 +3391,7 @@ Applies to a material, a hardware class and an accessory. **Ruled:** deleting st
 
 ~~**Open (inference, not ruled):** (1) the price a locked kitchen shows; recommended: no estimate, just "Prețul final îl primești de la producător". (2) The mandatory-replacement sheet on a locked kitchen; recommended: no sheet, the item shows as unavailable with "Creează o copie" to choose a replacement there. (3) Who can review: an operator or an administrator; roles are outside the dashboard's scope. (4) The review status (sent, reviewed, maybe "in production") does not exist; new work for the "Bucătării clienți" area.~~ (3) carried over; (4) ruled above.
 
-~~**Conflicting text, not edited:** ADR 0165 lines 41-42, 48-52 (done-page link opens for editing in the same browser); `docs/OWNER_FIXES.md` lines 373-377 (Q-F3-9).~~ No longer conflicts. Links 285, 277. **Owner:** architect.
+~~**Conflicting text, not edited:** ADR 0165 lines 41-42, 48-52 (done-page link opens for editing in the same browser); `docs/archive/OWNER_FIXES.md` lines 373-377 (Q-F3-9).~~ No longer conflicts. Links 285, 277. **Owner:** architect.
 
 ## 287. The staff path guard may compare undecoded path segments, so an encoded staff URL could miss its headers — RECORDED 2026-10-26 (COORDINATOR-RELAYED FROM THE M10 U1 REVIEW); LOW; UNCONFIRMED; PREDATES M10
 

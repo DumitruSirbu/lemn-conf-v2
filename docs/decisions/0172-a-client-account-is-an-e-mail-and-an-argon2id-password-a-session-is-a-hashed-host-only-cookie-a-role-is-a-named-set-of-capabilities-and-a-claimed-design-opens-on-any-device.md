@@ -46,7 +46,7 @@ The record is Accepted. These are what stands between it and a production accoun
    is not chosen here.
 
 **Evidence tiers.**
-- *[owner]*: the owner's rulings as recorded in `docs/OWNER_FIXES.md`, *Fix 3*, 2026-10-17.
+- *[owner]*: the owner's rulings as recorded in `docs/archive/OWNER_FIXES.md`, *Fix 3*, 2026-10-17.
 - *[doc]*: quoted from this repository.
 - *[src]*: read in the source at `4f85b970`.
 - *[run]*: run by the architect, output quoted.
@@ -68,7 +68,7 @@ into obligations (decision 4) [doc]. M8B carries twelve of them and five open qu
 - staff created by invitation only;
 - **"once a client has a profile, the one-browser limit goes away"**.
 
-The owner closed questions Q-F3-1 to Q-F3-10 the same day. `OWNER_FIXES.md` ends: *"Nothing in Fix 3 remains
+The owner closed questions Q-F3-1 to Q-F3-10 the same day. `archive/OWNER_FIXES.md` ends: *"Nothing in Fix 3 remains
 open for the owner. The next step is the decision record."* [doc].
 
 **What the tree has today [src]:**
@@ -87,7 +87,7 @@ the retention job are later records. Each decision below names the seam it leave
 
 "Honoured" means the design in this record and the plan answers the ruling. **No code has been executed** (D12), so
 nothing here is verified; a "deferred" row is **not built**, and its owner is the plan section or the record that must
-write it. Source for every row: `docs/OWNER_FIXES.md` *Fix 3* [doc]; the "lands" column is the plan [doc].
+write it. Source for every row: `docs/archive/OWNER_FIXES.md` *Fix 3* [doc]; the "lands" column is the plan [doc].
 
 | Ruling | Status | Where it lands, and the named owner |
 | --- | --- | --- |
@@ -274,7 +274,7 @@ write it. Source for every row: `docs/OWNER_FIXES.md` *Fix 3* [doc]; the "lands"
 
 ### D7. RBAC: capabilities are a closed list in the domain, a role is a set of them, and the application cannot write a role
 
-- **Capabilities** [owner, with the *Consequences* list of `OWNER_FIXES.md`]:
+- **Capabilities** [owner, with the *Consequences* list of `archive/OWNER_FIXES.md`]:
   - `design.read.own`, `design.edit.own`;
   - `design.read.any`, `design.unhide`;
   - `contact.read`, `contact.update-status`, `note.write`;
@@ -1011,7 +1011,7 @@ text above is kept as written; where it differs, this amendment governs.
 - No Save / Discard buttons. A15 and A16A are dropped. A16B survives as a non-modal Step-1 card shown to a visitor
   after confirming Back from an edited editor (O28a, ruled yes). A16C stays under O9 (deferred).
 - This **explicitly reverses** part of the owner's own 2026-10-17 rulings: Q-F3-5's "Save or Discard" pop-up and Q-F3-8's
-  "the same Save / Discard pop-up … on Save, always told" (`docs/OWNER_FIXES.md`, Fix 3; dated note added there). Q-F3-5's
+  "the same Save / Discard pop-up … on Save, always told" (`docs/archive/OWNER_FIXES.md`, Fix 3; dated note added there). Q-F3-5's
   "the client keeps all kitchens they generated" **stands**, and autosave delivers it.
 - CG1 is closed. CG12 is opened and answered by U15c: the back-guard dialog's "Modificările vor fi pierdute" is untrue
   under autosave, so its body is chosen by session state (dated notes on ADR 0104 D4 and ADR 0139 decision 6; copy only,

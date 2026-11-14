@@ -307,7 +307,7 @@ undated prose in a wave plan.
 
 ## Dated note — 2026-10-17: an owner ruling under decision 7 narrows decision 1 and *Consequences* (ADR 0167, Proposed)
 
-The owner asked that generation fill every free wall-run end where a cabinet fits (`docs/OWNER_FIXES.md`, Fix 1; Q-F1-1,
+The owner asked that generation fill every free wall-run end where a cabinet fits (`docs/archive/OWNER_FIXES.md`, Fix 1; Q-F1-1,
 Q-2 = (b), Q-8 = no new rule; see [ADR 0167](0167-generation-fills-every-free-wall-run-end-that-the-narrowest-catalogue-cabinet-fits-at-every-level-its-column-carries-and-a-narrower-end-stays-bare.md)).
 This is **the route decision 7 names**: *"The route to change a refusal is an owner ruling, and nothing else."* It is not a
 taste rule added from a screenshot (decision 4). Once 0167 is Accepted:

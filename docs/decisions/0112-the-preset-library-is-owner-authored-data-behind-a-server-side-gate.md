@@ -151,14 +151,14 @@ customer.
 
 **Evidence tiers.** *[doc]* quoted from this repository; *[plan]* the M8C plan (`milestones/M8C-generation-fill-and-preset-authoring.md`,
 §3.1–§3.7, committed at `dad97495`); *[relayed]* the coordinator's relay of the owner's 2026-10-17 answers; *[owner-doc]*
-`docs/OWNER_FIXES.md`. The scribe ran nothing and has no shell. **Everything below is decided, not built.**
+`docs/archive/OWNER_FIXES.md`. The scribe ran nothing and has no shell. **Everything below is decided, not built.**
 
 **Order, stated plainly.** The pointer at the head of this record and [ADR 0131](0131-the-preset-story-is-deferred-past-m8-and-every-room-goes-from-its-dimensions-straight-to-composition.md)
 §4 both say a reviver writes this amendment *before planning* the work. The M8C plan was committed first (`dad97495`)
 and this amendment is written in wave F0 after it. The plan carries the design; this amendment is its record.
 
 **Why now.** ADR 0131 §4 named its revival trigger: *"the owner's direction to start the preset work"*. The owner gave it
-on 2026-10-17 (`OWNER_FIXES.md`, Fix 2: *"I need the button to save the preset, and after that, when I generate again, I
+on 2026-10-17 (`archive/OWNER_FIXES.md`, Fix 2: *"I need the button to save the preset, and after that, when I generate again, I
 should be able to see and select from the preset"* [owner-doc, line 89–90]). ADR 0131's *"after M8"* is also overridden
 by that direction, since M8C runs while M8 is open; M8's own open items stay M8's.
 
@@ -219,7 +219,7 @@ snapshot in the room page is unbounded. The data is product data every customer 
 - *"wave 7P1 extends the export"* becomes **wave P2 adds a second, separately-scoped export before authoring starts**
   (ADR 0012: a new table needs *"a second, separately-scoped export"*; the export is `backups/presets/`, with the same
   14-day rotation).
-- **Correction of a sentence in `docs/OWNER_FIXES.md`** (that file is the owner's record and is not edited): it says the
+- **Correction of a sentence in `docs/archive/OWNER_FIXES.md`** (that file is the owner's record and is not edited): it says the
   presets table *"is part of the production backup like any other table"*. **That is false at HEAD** [plan, src:
   `const BACKUP_BLOB_PREFIX = "backups/designs/"`, `apps/web/src/lib/server/backup-designs.ts:15`, confirmed by the
   scribe's grep]. Neon's point-in-time history is 6 hours (milestones README). Until P2 ships, presets are not backed up.

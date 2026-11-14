@@ -202,7 +202,7 @@ its stray designs. Production grants for `0023`-`0029`: owner-run, unverified. P
 5. Owed code change: flip the copy-lock "Drafted, not approved" comments for the OQ-11g/h/i/j leaves (coordinator to hand to a developer).
 6. Backlog 302 (digest recipient) and 306 (hosting migration, crons re-homed) stay open in the backlog.
 
-**2026-11-13 (M11, owner feedback of 2026-11-07: W0 and W1 committed; branch `fix/owner-feedback-2026-11-07`, cut from `main` `12266a02`) [relayed from the coordinator, who ran the commands; the scribe ran nothing].** Plan: [`M11-owner-feedback-2026-11-07.md`](milestones/M11-owner-feedback-2026-11-07.md); owner rulings: the two *Owner rulings, 2026-11-13* sections of [`OWNER_FEEDBACK.md`](OWNER_FEEDBACK.md).
+**2026-11-13 (M11, owner feedback of 2026-11-07: W0 and W1 committed; branch `fix/owner-feedback-2026-11-07`, cut from `main` `12266a02`) [relayed from the coordinator, who ran the commands; the scribe ran nothing].** Plan: [`M11-owner-feedback-2026-11-07.md`](milestones/M11-owner-feedback-2026-11-07.md); owner rulings: the two *Owner rulings, 2026-11-13* sections of [`archive/OWNER_FEEDBACK-2026-11-07.md`](archive/OWNER_FEEDBACK-2026-11-07.md).
 - **W0 (docs) `dfc9db48`:** rulings, M11 plan, ADRs 0179-0181 (**Proposed**), the staff cabinet-list design brief, backlog 308.
 - **W1 `05d1dc74` (waves W1a and W1b):** the profile icon on the My-kitchens header; the share-sheet acts in one row.
 - **W1 QA:** the first run was red (Create and Retry were still bare buttons); fixed, now green.
@@ -211,7 +211,7 @@ its stray designs. Production grants for `0023`-`0029`: owner-run, unverified. P
 - **Next:** a security read of ADRs 0179-0181, then W2 (contact) and W3 (staff open-in-3D), then W4 (thumbnails). W1c (card line alignment) is optional. W5 is the Claude Design round trip, owner-held.
 
 **2026-11-13, later (M11: W2a and W3a committed, plus the ADR acceptance) [relayed from the coordinator, who ran the commands; the scribe ran nothing].**
-- **`c3f504c9` (docs):** ADRs 0179-0181 are **Accepted** after the security read and the owner's third-round rulings ([`OWNER_FEEDBACK.md`](OWNER_FEEDBACK.md)). It also adds ADR 0153 Amendment A. This supersedes "Proposed, owe a security read" in the entry above and in the phase table.
+- **`c3f504c9` (docs):** ADRs 0179-0181 are **Accepted** after the security read and the owner's third-round rulings ([`archive/OWNER_FEEDBACK-2026-11-07.md`](archive/OWNER_FEEDBACK-2026-11-07.md)). It also adds ADR 0153 Amendment A. This supersedes "Proposed, owe a security read" in the entry above and in the phase table.
 - **W2a `99f641e7`:** a confirmed client's stored contact request fills the empty fields of their profile.
   - QA found one low defect: the catch could throw on an exotic thrown value. Fixed.
   - Logic, clean-code and security reviews: no blockers; security found nothing exploitable. The coordinator fixed the privacy notice draft.

@@ -96,7 +96,7 @@ figure already read `60.000`, and the application's grouping is not decided by t
   of the A9 frames draws the account control: they set no `hdr` (`:180-191`), so they take the default `'std'` header
   (`:307`), which draws the back mark, the wordmark and the language chip (`:48`, `:52`); the "Contul meu" icon is drawn
   only for `hdr==='ed-in'`, the editor's header (`:51`, `:313`). The owner ruled that the kitchens page shows the same
-  account control as the configurator's header anyway (owner feedback item 1, `docs/OWNER_FEEDBACK.md`), so the A9
+  account control as the configurator's header anyway (owner feedback item 1, `docs/archive/OWNER_FEEDBACK-2026-11-07.md`), so the A9
   frames are **departed from on that point** and nothing else. Plan: [`M11-owner-feedback-2026-11-07.md`](../milestones/M11-owner-feedback-2026-11-07.md),
   wave W1a. An ADR 0104 amendment recording the departure is owed (the plan's §9). The mockup file is not edited.
 
