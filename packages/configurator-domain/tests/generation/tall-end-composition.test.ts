@@ -615,7 +615,10 @@ describe("every planned body is attempted exactly once (criterion 15)", () => {
         if (!result.ok) return;
         if (blockOf(twoWallPlanOf(result.log)).length > 0) withABlock += 1;
         const baseStepIds = result.log.steps
-          .filter((step) => !["upper", "hood", "top"].includes(step.role))
+          .filter(
+            (step) =>
+              !["upper", "hood", "over-body", "top"].includes(step.role),
+          )
           .map((step) => step.id);
 
         // Every planned base plus the core roles the plan had no wall for, and nothing else: a body falling through

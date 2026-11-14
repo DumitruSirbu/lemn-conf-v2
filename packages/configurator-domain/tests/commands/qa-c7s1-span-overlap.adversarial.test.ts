@@ -5,7 +5,7 @@
 // The oracle everywhere is plain interval arithmetic on whole-millimetre spans read off the document, never
 // the predicate under test. Editor states go through the store's own path (recorded columns, published
 // voids, `reconcileSuccessfulCommandResult`).
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { CommandResult } from "../../src/commands/command-result.js";
 import { insertBody } from "../../src/commands/insert-body.js";
@@ -39,6 +39,7 @@ import {
   type PlacementRecord,
   type VoidRecord,
 } from "../../src/void-engine.js";
+import { beforeAdr0183 } from "../support/before-adr-0183.js";
 import { createFakeProbeFactory } from "../support/fake-probe.js";
 import {
   CAPPED_DOORLESS_SEAT_MM,
@@ -52,6 +53,16 @@ import {
   WALLS,
   type Run,
 } from "../support/span-overlap-fixtures.js";
+
+// ADR 0183 (M12 wave W2) hangs a wall cabinet over a generated kitchen's fridge. This file's subject is how a wall
+// body is seated beside and over the full-height members it starts from, and its editor cases clear or replace the
+// fridge's column, so the kitchens it starts from are the ones generated before that cabinet existed.
+vi.mock("../../src/wall-body-over-it.js", async (importOriginal) => {
+  const { withTheDeclarationSwitchable } = await import(
+    "../support/before-adr-0183.js"
+  );
+  return withTheDeclarationSwitchable(await importOriginal());
+});
 
 const OCCURRED_AT = "2026-10-02T12:00:00.000Z";
 const SHALLOW_MM = 600;
@@ -199,7 +210,9 @@ function applied(world: World, result: CommandResult): World {
 }
 
 function generated(room: DesignRoom): World {
-  const result = generateKitchen({ room, occurredAt: OCCURRED_AT, probeAt });
+  const result = beforeAdr0183(() =>
+    generateKitchen({ room, occurredAt: OCCURRED_AT, probeAt }),
+  );
   if (!result.ok) throw new Error(`refused: ${result.reason.code}`);
   return worldOf(result.design);
 }

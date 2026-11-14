@@ -125,6 +125,11 @@ export {
   type ColumnBuildDepthQuery,
 } from "./cabinet-depth-rule.js";
 export {
+  A_WALL_BODY_IS_OWED_OVER_IT,
+  isAWallBodyOwedOver,
+  type WallBodyOverIt,
+} from "./wall-body-over-it.js";
+export {
   bodyFinishRuleOf,
   choosesItsOwnColour,
   CHOOSES_ITS_OWN_COLOUR,

@@ -27,6 +27,7 @@ import {
   type UPlannedGenerationBase,
 } from "../../src/index.js";
 import { createFakeProbeFactory } from "./fake-probe.js";
+import { isOverABodyOwedOne } from "./over-owed-body.js";
 
 const WALL_ROW_FLOOR_MM = 1500;
 const TOP_ROW_FLOOR_MM = 2200;
@@ -150,7 +151,15 @@ function commandFindings(result: Composed): readonly string[] {
   if (log.commands.some((c) => !EDITOR_COMMAND_TYPES.has(c.type))) {
     findings.push("a command other than insert_body or set_width");
   }
-  const inserts = log.commands.filter((c) => c.type === "insert_body").length;
+  // A refused insert is logged with its step and changes nothing (the over-fridge cabinet is refused below 2501 mm,
+  // ADR 0183), so it is a command and not a body.
+  const refusedInserts = log.steps
+    .filter((step) => step.status === "not_placed")
+    .flatMap((step) => step.commands)
+    .filter((c) => c.type === "insert_body").length;
+  const inserts =
+    log.commands.filter((c) => c.type === "insert_body").length -
+    refusedInserts;
   const generated = generatedBodies(design).length;
   if (inserts !== generated) {
     findings.push(
@@ -277,9 +286,14 @@ function upperFindings(room: DesignRoom, result: Composed): readonly string[] {
   return findings;
 }
 
+/** The generated wall-row bodies, the one over a body that declares one owed (ADR 0183) left out: it is neither an
+ *  upper nor a hood, it stands on the body's top and not on the wall row's floor, and it has no top over it. */
 function wallRowBodies(design: Design): readonly DesignPlacement[] {
   return generatedBodies(design).filter(
-    (p) => p.y0Mm >= WALL_ROW_FLOOR_MM && p.y0Mm < TOP_ROW_FLOOR_MM,
+    (p) =>
+      p.y0Mm >= WALL_ROW_FLOOR_MM &&
+      p.y0Mm < TOP_ROW_FLOOR_MM &&
+      !isOverABodyOwedOne(design, p),
   );
 }
 

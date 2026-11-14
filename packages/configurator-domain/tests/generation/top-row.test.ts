@@ -12,6 +12,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildKitchenLBodyCatalog,
   cabinetDepthMmOf,
+  isAWallBodyOwedOver,
   isPushToOpen,
   MAX_PLACEMENTS,
   replayGenerationLog,
@@ -22,6 +23,7 @@ import {
 } from "../../src/index.js";
 import { generateKitchen } from "../../src/generation/generate-kitchen.js";
 import { createFakeProbeFactory } from "../support/fake-probe.js";
+import { isOverABodyOwedOne } from "../support/over-owed-body.js";
 
 const OCCURRED_AT = "2026-10-02T10:00:00.000Z";
 const WALL_ROW_FLOOR_MM = 1500;
@@ -48,10 +50,13 @@ function generatedBodies(design: Design): DesignPlacement[] {
   );
 }
 
+/** The wall row's uppers and hoods: the cabinet ADR 0183 hangs over the fridge is not one, and has no top over it. */
 function wallRowOf(design: Design): DesignPlacement[] {
   return generatedBodies(design).filter(
     (placement) =>
-      placement.y0Mm >= WALL_ROW_FLOOR_MM && placement.y0Mm < TOP_ROW_FLOOR_MM,
+      placement.y0Mm >= WALL_ROW_FLOOR_MM &&
+      placement.y0Mm < TOP_ROW_FLOOR_MM &&
+      !isOverABodyOwedOne(design, placement),
   );
 }
 
@@ -240,7 +245,10 @@ describe("what the top row must not stand over (criterion 2)", () => {
     },
   );
 
-  it("leaves the wall above a fridge and a tall oven without a top cabinet", () => {
+  // ADR 0183 (M12 wave W2) supersedes Amendment C for the fridge alone: its slot now holds the one 750 mm cabinet that
+  // stands from the fridge's top to the module grid's last level, which no 400 mm top can stand over (ADR 0110
+  // Amendment O9: tops are composed over uppers). The oven tower declares no such cabinet, so its slot stays bare.
+  it("stands no top cabinet over the fridge's cabinet or over a tall oven, whose wall stays bare", () => {
     const result = composed({
       shape: "L",
       widthMm: 4100,
@@ -254,10 +262,24 @@ describe("what the top row must not stand over (criterion 2)", () => {
         (catalog.get(placement.body.buildId)?.nominalHeightMm ?? 0) >
         WALL_ROW_FLOOR_MM,
     );
+    const owedOne = tall.filter((placement) =>
+      isAWallBodyOwedOver(catalog.get(placement.body.buildId)),
+    );
 
-    expect(tall.length).toBeGreaterThan(0);
+    expect(tall.length).toBeGreaterThan(owedOne.length);
+    expect(owedOne.map((body) => body.body.buildId)).toEqual(["fridge-free"]);
     for (const body of tall) {
       expect(topRowOf(design).map(spanKey)).not.toContain(spanKey(body));
+    }
+    for (const body of tall.filter((body) => !owedOne.includes(body))) {
+      expect(
+        generatedBodies(design).filter(
+          (other) =>
+            other.wall === body.wall &&
+            other.y0Mm >= WALL_ROW_FLOOR_MM &&
+            spanKey(other) === spanKey(body),
+        ),
+      ).toEqual([]);
     }
   });
 

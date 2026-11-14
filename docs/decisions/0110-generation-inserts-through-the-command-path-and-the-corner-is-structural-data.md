@@ -5018,3 +5018,17 @@ scribe on 2026-10-17 before this note was added.
 
 **Not changed by 0167 or this note:** E6 and O10 (the absorbs run first, D4), E7, O9, O4, N3 revised 11 and Amendment C /
 F7 (the 100 mm reserve, D9).
+
+## Dated note — 2026-11-15: Amendment C's fridge clause and E7's fridge witness, superseded for the freestanding fridge by ADR 0183
+
+Appended; nothing above is changed. [doc: ADR 0183, Accepted 2026-11-14, and its Amendment A of 2026-11-15]
+
+- **Amendment C (owner F2, 2026-09-11), *"never above the fridge (a column)"*:** superseded **for the freestanding
+  fridge** by the owner's request of 2026-11-14 (feedback item 3). Generation hangs one `wall-cabinet` on every placed
+  `fridge-free`, on the fridge's top, as wide as the fridge, after every base is settled and before the top row, wherever
+  `insertBody` succeeds — from a 2501 mm ceiling (651-749 mm tall up to 2599, 750 from 2600; ADR 0183 Amendment A). The
+  clause still holds for the wall row's 1500 floor: the new body stands on the fridge's top, not on the wall row.
+- **E7 (2026-09-14):** kept for every other full-height body (`tall-oven-tower`, `tall-pantry`, `tall-fridge-housing`).
+  The fridge stops being E7's witness ("the fridge keeps its exact present behaviour"). The rule is read from a catalogue
+  declaration on the fridge's row (`WallBodyOverIt`), never from its id or role, which is E7's own reason.
+- **O9 and E11:** unchanged; no top-row step is attempted over the fridge's cabinet.

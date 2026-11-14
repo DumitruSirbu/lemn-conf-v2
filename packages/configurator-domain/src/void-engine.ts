@@ -21,6 +21,7 @@ import {
 } from "./kitchen-handle/kitchen-handle.js";
 import { drawnFinishOf } from "./resolved-finish.js";
 import type { SeatRule } from "./seat-rule.js";
+import type { WallBodyOverIt } from "./wall-body-over-it.js";
 import { bodyFinishRuleOf, type BodyFinishRule } from "./body-finish-rule.js";
 import {
   alongWallCoordinate,
@@ -135,6 +136,10 @@ export interface BodyDefinition {
   /** True when a rebuild takes its depth from `columnBuildDepthM`'s lifted arm, not the equivalent's `frameDepthMm`
    *  (ADR 0101 decision 1). Declared, never inferred; read via `declaresALiftedColumnDepth`; absent means false. */
   readonly builtDepthFollowsALiftedColumn?: boolean;
+  /** What this body declares about the wall body that hangs over it: today, that generation owes one (ADR 0183
+   *  decision 1). Declared, never inferred from `kind`, id or role; absent means none is owed. Read via
+   *  `isAWallBodyOwedOver`. */
+  readonly wallBodyOverIt?: WallBodyOverIt;
   /** Which plane seats this body (ADR 0077); optional because `BodyDefinition` is a port, refused at assembly by
    *  `refuseUndeclaredSeatRules`. */
   readonly seatRule?: SeatRule;

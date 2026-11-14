@@ -2,7 +2,10 @@
 
 Status: **Accepted** (2026-11-14), on the owner's answers to the M12 plan's §9 the same day [owner, relayed by the
 coordinator]: Q3-1 leave the space empty below a 2600 mm ceiling, Q3-2 no surcharge (both answered explicitly), Q3-3 and
-Q3-4 defaults stand. Proposed earlier the same day. Owner feedback of 2026-11-14, item 3. Nothing is built.
+Q3-4 defaults stand. Proposed earlier the same day. Owner feedback of 2026-11-14, item 3. **Amendment A, 2026-11-15**:
+decision 2's ceiling boundary was mis-measured and the Q3-1 answer rested on it; the cabinet is placed wherever the
+insert succeeds, which is from a 2501 mm ceiling (coordinator ruling, owner told the same day). Read Amendment A before
+decisions 1 and 2.
 Date: 2026-11-14
 Type: Decision record (generation rule and a depth rule; supersedes one clause of an owner-ruled amendment)
 Milestone: M12 — [`M12-owner-feedback-2026-11-14.md`](../milestones/M12-owner-feedback-2026-11-14.md), waves W2, W3a, W3b
@@ -54,14 +57,19 @@ freestanding fridge it is not.
    `catalog.ts:233` [src]; ADR 0102: no generation-side copy). The width is the fridge's (700). The height follows §5.2's
    `resolveHeightM` unchanged (`insert-fit.ts:498-503` [src]). **[measured]** Inserting `wall-cabinet` into that void in
    generated designs (69 fridges per ceiling and depth, L/linear/U): at ceilings 2600, 2800 and 3000 it is placed
-   750 mm tall (the opening is 1850-2600 because the module grid ends at 2600), 700 wide, floor 1850.
+   750 mm tall (the opening is 1850-2600 because the module grid ends at 2600), 700 wide, floor 1850. **Incomplete —
+   see Amendment A:** from 2501 to 2599 it is also placed, shortened to the opening (651 mm at 2501 … 749 at 2599).
 2. **Where the room cannot take it, it is logged as not placed and nothing else changes** (Amendment C's own pattern: *"an
-   upper that cannot be placed is logged as not placed and removes nothing below it"*). **[measured]** Below a 2600 mm
+   upper that cannot be placed is logged as not placed and removes nothing below it"*). ~~**[measured]** Below a 2600 mm
    ceiling the void over the fridge is cut at the wall row's top (2200), 350 mm, and `insertBody` refused
    `OPENING_TOO_SHORT` in every room from 2200 to 2500 (`HEIGHT_FLEX_MIN_OPENING_MM` 400, `insert-fit.ts:54` [src]); at
-   2000 no void exists. These are the rooms that get no top row (`upper-policy.ts:46-48` [src]). The step looks the void
-   up without `plannedVoid`'s throw (`generate-kitchen.ts:953-977` [src]). Default of owner question Q3-1; a shorter
-   cabinet under a lower ceiling would change how openings are cut (§4) and is not decided here.
+   2000 no void exists. These are the rooms that get no top row (`upper-policy.ts:46-48` [src]).~~ **Struck 2026-11-15,
+   Amendment A:** the 2200-2500 refusals were measured correctly, but "below 2600" was an inference over ceilings sampled
+   in 100 mm steps, and it is false from 2501 to 2599, where the cabinet is placed; the bands are in Amendment A. The step
+   looks the void up without `plannedVoid`'s throw (`generate-kitchen.ts:953-977` [src]). ~~Default of owner question
+   Q3-1; a shorter cabinet under a lower ceiling would change how openings are cut (§4) and is not decided here.~~
+   **Struck 2026-11-15, Amendment A:** a shorter cabinet needs no §4 change; it is §5.2's height-flex arm in one opening
+   across two levels.
 3. **The rule is the freestanding fridge's, not every full-height body's.** E7 stands for `tall-oven-tower`,
    `tall-pantry` and `tall-fridge-housing` (default of owner question Q3-3). The body is identified by a declaration on
    its catalogue row, never by its id or role name (ADR 0110 E7's own reason).
@@ -87,7 +95,8 @@ freestanding fridge it is not.
 
 - **Anchor:** back face on the wall plane (`seatedOnWallPlane`), floor = fridge top, along-wall centre = the fridge's
   centre. Depth grows forward from the wall, never into it (§11 row 19).
-- **Scaling:** width follows the fridge; height follows the opening per §5.2 (750 wherever it is placed today); depth is the declared 700, not a
+- **Scaling:** width follows the fridge; height follows the opening per §5.2 (~~750 wherever it is placed today~~ 651-749 mm
+  from a 2501 to a 2599 mm ceiling, 750 from 2600 — Amendment A); depth is the declared 700, not a
   measurement (ADR 0060 d2: *"never the clearance MAX"*; 742 is a machine's depth and is not built).
 - **Dependency:** the cabinet depends on the fridge under it. Deleting the fridge leaves the cabinet over an opening
   (§11 row 1's "one 750 mm slot above" is about the empty column, unchanged); its depth re-plans to the column's new
@@ -127,3 +136,39 @@ freestanding fridge it is not.
 - The two tests that assert the empty slot are updated with their reason; the fridge-end census helpers in
   `tests/support/` are read for assertions about the slot above.
 - §11 row 1 is unaffected (it is about the empty column after a delete).
+
+## Amendment A, 2026-11-15 — the cabinet is placed wherever the insert succeeds; the 2501-2599 band was missed
+
+**Source.** The W2 logic review, finding R1.1, and the coordinator's ruling of 2026-11-15; the owner was told in chat the
+same day [relayed by the coordinator]. The bands below were measured by the W2 developer, QA and the logic reviewer in
+source-verified runs [relayed; not re-run by the architect].
+
+**What was wrong, and why.** Decision 2 and the M12 plan's §4 said nothing fits below a 2600 mm ceiling. The
+architect's census sampled ceilings 2200, 2240, 2250, 2300, 2400, 2450, 2500, 2600, 2800, 3000: every refusal it
+recorded was real, but the band 2501-2599 lay between two samples and was assumed refused. The owner's Q3-1 answer ("leave
+empty below 2600") was given on that false premise, so it is not read as a ruling about 2501-2599.
+
+**Ruling (coordinator, 2026-11-15).** The cabinet over the freestanding fridge is placed **wherever `insertBody`
+succeeds**. Measured bands, by ceiling height:
+
+| Ceiling | Outcome |
+| --- | --- |
+| ≤ 2150 | No opening over the fridge (`NO_OPENING`): no command is issued and nothing throws |
+| 2151-2500 | `insertBody` refuses `OPENING_TOO_SHORT`; the refused command is logged; nothing else changes |
+| 2501-2599 | Placed, shortened to the opening: 651 mm at 2501 … 749 mm at 2599. One §4 opening across two levels and §5.2's height-flex arm; **no §4 change** |
+| ≥ 2600 | Placed, 750 mm (1850-2600; `LEVELS` ends at 2.6) |
+
+Nothing is placed over the fridge's cabinet at any ceiling: the top row is never attempted over it (ADR 0110 O9), and
+`hasRoomForATopRow` is false below 2600 (`upper-policy.ts:46-48` [src]).
+
+**What this changes.** Decision 1's measured line and the *Scaling* bullet (heights 651-750); decision 2's boundary (struck
+in place above); the M12 plan's §9 Q3-1 row and criteria W2-1/W2-2. Decisions 3-7 are untouched.
+
+**Also accepted, for the backlog (not built).** While the cabinet hangs over a generated fridge, replacing that fridge
+with a tower or a pantry is refused. Accepted as known behaviour for now.
+
+**For wave W3a (logic review R1.3) [relayed].** W2 introduced the row declaration `WallBodyOverIt`
+(`packages/configurator-domain/src/wall-body-over-it.ts`, one field `isOwedByGeneration`). Decision 4's depth fact goes
+in a **sibling field** of `WallBodyOverIt`, not inside `isOwedByGeneration`'s meaning; the depth rule reads that field,
+so QA's test "generation is the only reader of the declaration" is relaxed to "generation and the depth rule are the
+only readers", with that reason recorded beside the test.

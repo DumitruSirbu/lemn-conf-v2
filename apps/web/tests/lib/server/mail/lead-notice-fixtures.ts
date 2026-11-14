@@ -1,6 +1,7 @@
 import {
   buildKitchenLBodyCatalog,
   cabinetDepthMmOf,
+  isAWallBodyOwedOver,
   MAX_ROOM_DEPTH_MM,
   MAX_ROOM_WIDTH_MM,
   NARROWEST_CATALOG_WIDTH_MM,
@@ -156,14 +157,29 @@ export function densestUKitchen(): Design {
   };
 }
 
-/** One body of the generated kitchen for each band it fills, by build: the floor's cabinet and the two wall rows. */
+/** One body of the generated kitchen for each band it fills, by build: the floor's cabinet and the two wall rows. The
+ *  wall cabinet ADR 0183 hangs on a freestanding fridge's top is no row of its own: it stands on that body, not on a
+ *  band's floor. */
 function bandTemplatesOf(design: Design): readonly DesignPlacement[] {
+  const catalog = buildKitchenLBodyCatalog(cabinetDepthMmOf(design));
+  const standsOnABodyOwedOne = (placement: DesignPlacement): boolean =>
+    design.placements.some((under) => {
+      const definition = catalog.get(under.body.buildId);
+      return (
+        isAWallBodyOwedOver(definition) &&
+        under.y0Mm + (definition?.nominalHeightMm ?? 0) === placement.y0Mm
+      );
+    });
   const byBand = new Map<number, DesignPlacement>();
   for (const placement of design.placements) {
     const isPlainCabinet =
       placement.body.buildId === "base-cabinet" ||
       placement.body.buildId === "wall-cabinet";
-    if (isPlainCabinet && !byBand.has(placement.y0Mm)) {
+    if (
+      isPlainCabinet &&
+      !standsOnABodyOwedOne(placement) &&
+      !byBand.has(placement.y0Mm)
+    ) {
       byBand.set(placement.y0Mm, placement);
     }
   }

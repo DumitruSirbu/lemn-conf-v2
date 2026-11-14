@@ -10,7 +10,7 @@
 // To regenerate (only when the old behaviour is deliberately changed), print `measured(shape)` for each shape.
 import { createHash } from "node:crypto";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   APPROVED_ROOM_POLICY,
@@ -25,7 +25,17 @@ import {
   type DesignRoom,
   type RoomInput,
 } from "../../src/index.js";
+import { beforeAdr0183 } from "../support/before-adr-0183.js";
 import { createFakeProbeFactory } from "../support/fake-probe.js";
+
+// ADR 0183 hangs a cabinet over every placed fridge, which `ce341734` did not; this file's claim is about the
+// request's settings, so the generator is asked with that one step switched off.
+vi.mock("../../src/wall-body-over-it.js", async (importOriginal) => {
+  const { withTheDeclarationSwitchable } = await import(
+    "../support/before-adr-0183.js"
+  );
+  return withTheDeclarationSwitchable(await importOriginal());
+});
 
 const OCCURRED_AT = "2026-10-27T09:30:00.000Z";
 
@@ -123,11 +133,13 @@ function digestOf(values: readonly unknown[]): string {
 }
 
 function generatedFor(room: DesignRoom) {
-  return generateKitchen({
-    room,
-    occurredAt: OCCURRED_AT,
-    probeAt: createFakeProbeFactory(),
-  });
+  return beforeAdr0183(() =>
+    generateKitchen({
+      room,
+      occurredAt: OCCURRED_AT,
+      probeAt: createFakeProbeFactory(),
+    }),
+  );
 }
 
 function shellFor(room: DesignRoom) {

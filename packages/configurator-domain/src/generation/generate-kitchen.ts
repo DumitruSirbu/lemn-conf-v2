@@ -6,6 +6,7 @@ import {
   type DesignWall,
 } from "../design.js";
 import { toMetres } from "../millimetres.js";
+import { isAWallBodyOwedOver } from "../wall-body-over-it.js";
 import { findOverflowingPlacementIds } from "../queries/overflowing-placements.js";
 import { validateDesignForCatalog } from "../validate-design.js";
 import {
@@ -45,6 +46,11 @@ import {
   type FreeRunMm,
 } from "./free-end-fill.js";
 import { COMPOSITION_WIDTH_LIMIT_MM } from "./leftover-rule.js";
+import {
+  OVER_BODY_ROLE,
+  overBodyStepId,
+  type OverBodyRole,
+} from "./over-body-policy.js";
 import {
   copyOfNewKitchenSettings,
   stampedSettingsOf,
@@ -92,6 +98,10 @@ export type GenerationPlan = KitchenCompositionPlan | UKitchenCompositionPlan;
 
 export type GenerationPlanningReason =
   | {
+      readonly code: "NO_OPENING";
+      readonly params: Readonly<Record<string, never>>;
+    }
+  | {
       readonly code: "DROPPED_FOR_FIT";
       readonly params: Readonly<Record<string, never>>;
     }
@@ -120,8 +130,13 @@ export interface LoggedSetWidth {
 
 export type GenerationCommand = LoggedInsertBody | LoggedSetWidth;
 
-/** Every role a log step carries: a planned base, the upper or hood over one, or the top cabinet over an upper. */
-export type GenerationStepRole = GenerationBaseRole | UpperRole | TopRole;
+/** Every role a log step carries: a planned base, the upper or hood over one, the wall body over a body that is owed
+ *  one (ADR 0183), or the top cabinet over an upper. */
+export type GenerationStepRole =
+  | GenerationBaseRole
+  | UpperRole
+  | OverBodyRole
+  | TopRole;
 
 export type GenerationStep =
   | {
@@ -599,6 +614,16 @@ function compose(args: {
     steps.push(applied.step);
   }
 
+  const overBodies = insertWhatIsOwedOverTheBodies(world, {
+    plannedBases,
+    placedBaseIds,
+    probe: args.probe,
+    occurredAt: args.input.occurredAt,
+  });
+  world = overBodies.world;
+  commands.push(...overBodies.commands);
+  steps.push(...overBodies.steps);
+
   const topRow = insertTopRow(world, steps, {
     room: args.input.room,
     occurredAt: args.input.occurredAt,
@@ -731,7 +756,7 @@ function insertPlannedBase(
 /** One insert into the opening over `over`: the same span, a row's floor, the body that row takes. */
 interface InsertOverSpec {
   readonly id: string;
-  readonly role: UpperRole | TopRole;
+  readonly role: UpperRole | OverBodyRole | TopRole;
   readonly buildId: string;
   readonly floorMm: number;
   readonly over: DesignPlacement;
@@ -746,14 +771,55 @@ function insertOver(
   readonly step: GenerationStep;
   readonly commands: readonly GenerationCommand[];
 } {
-  const { id, role, buildId, over } = spec;
-  const target = plannedVoid(
-    world.voids,
+  const target = plannedVoid(world.voids, ...openingOver(spec));
+  return insertInto(world, { spec, target }, when);
+}
+
+/** `insertOver` for a body whose opening may not exist: where no void has the span, nothing is attempted and the
+ *  step is logged as not placed, the way a refusal is (ADR 0183 decision 2). */
+function insertOverWhereAnOpeningMayBeMissing(
+  world: GenerationWorld,
+  spec: InsertOverSpec,
+  when: { readonly probe: BodyProbe; readonly occurredAt: string },
+): {
+  readonly world: GenerationWorld;
+  readonly step: GenerationStep;
+  readonly commands: readonly GenerationCommand[];
+} {
+  const target = findVoid(world.voids, ...openingOver(spec));
+  if (target === undefined) {
+    return {
+      world,
+      step: notPlaced(spec.id, spec.role, spec.buildId, noOpeningReason(), []),
+      commands: [],
+    };
+  }
+  return insertInto(world, { spec, target }, when);
+}
+
+function openingOver(
+  spec: InsertOverSpec,
+): [DesignWall, number, number, number] {
+  const { over, floorMm } = spec;
+  return [
     over.wall,
-    spec.floorMm,
+    floorMm,
     over.alongMm - over.body.widthMm / 2,
     over.alongMm + over.body.widthMm / 2,
-  );
+  ];
+}
+
+function insertInto(
+  world: GenerationWorld,
+  opening: { readonly spec: InsertOverSpec; readonly target: VoidRecord },
+  when: { readonly probe: BodyProbe; readonly occurredAt: string },
+): {
+  readonly world: GenerationWorld;
+  readonly step: GenerationStep;
+  readonly commands: readonly GenerationCommand[];
+} {
+  const { id, role, buildId } = opening.spec;
+  const { target } = opening;
   const command: LoggedInsertBody = {
     type: "insert_body",
     targetVoidId: target.id,
@@ -777,6 +843,74 @@ function insertOver(
       command,
     ]),
     commands: [command],
+  };
+}
+
+/** One wall cabinet on every placed body whose catalogue row declares one owed (ADR 0183 decisions 1 and 2): on its
+ *  declared top, as wide as the body stands after every resize and fill, as tall as the opening the room leaves. It is
+ *  placed wherever the insert succeeds, so a ceiling from 2501 mm up gets a shortened one (the owner's ask is
+ *  "always place it"); below that `insertBody` refuses it, or no opening exists, and the step is logged as not
+ *  placed. The lookup does not throw. A planned body that was not placed gets no step. */
+function insertWhatIsOwedOverTheBodies(
+  world: GenerationWorld,
+  input: {
+    readonly plannedBases: readonly UPlannedGenerationBase[];
+    readonly placedBaseIds: ReadonlyMap<string, string>;
+    readonly probe: BodyProbe;
+    readonly occurredAt: string;
+  },
+): {
+  readonly world: GenerationWorld;
+  readonly steps: readonly GenerationStep[];
+  readonly commands: readonly GenerationCommand[];
+} {
+  const steps: GenerationStep[] = [];
+  const commands: GenerationCommand[] = [];
+  let current = world;
+  for (const planned of input.plannedBases) {
+    const body = placedBodyOwedOneFor(current, planned, input.placedBaseIds);
+    if (body === undefined) continue;
+    const applied = insertOverWhereAnOpeningMayBeMissing(
+      current,
+      overBodySpec({ catalog: current.catalog, planned, body }),
+      { probe: input.probe, occurredAt: input.occurredAt },
+    );
+    current = applied.world;
+    commands.push(...applied.commands);
+    steps.push(applied.step);
+  }
+  return { world: current, steps, commands };
+}
+
+/** The placement of a planned base that was placed and whose row declares a wall body owed over it. */
+function placedBodyOwedOneFor(
+  world: GenerationWorld,
+  planned: UPlannedGenerationBase,
+  placedBaseIds: ReadonlyMap<string, string>,
+): DesignPlacement | undefined {
+  const placementId = placedBaseIds.get(planned.id);
+  if (
+    placementId === undefined ||
+    !isAWallBodyOwedOver(world.catalog.get(planned.buildId))
+  ) {
+    return undefined;
+  }
+  return placementById(world.design, placementId);
+}
+
+/** The cabinet over `body`: the declared top is its floor, and its own span is the opening's. */
+function overBodySpec(input: {
+  readonly catalog: BodyCatalog;
+  readonly planned: UPlannedGenerationBase;
+  readonly body: DesignPlacement;
+}): InsertOverSpec {
+  const { catalog, planned, body } = input;
+  return {
+    id: overBodyStepId(planned.id),
+    role: OVER_BODY_ROLE,
+    buildId: WALL_CABINET_BUILD_ID,
+    floorMm: body.y0Mm + declaredHeightMm(catalog, planned.buildId),
+    over: body,
   };
 }
 
@@ -957,7 +1091,23 @@ function plannedVoid(
   startMm: number,
   endMm: number,
 ): VoidRecord {
-  const found = voids.find((candidate) => {
+  const found = findVoid(voids, wall, y0Mm, startMm, endMm);
+  if (!found) {
+    throw new Error(
+      `generateKitchen: no ${wall} opening covers [${String(startMm)}, ${String(endMm)}] at ${String(y0Mm)}`,
+    );
+  }
+  return found;
+}
+
+function findVoid(
+  voids: readonly VoidRecord[],
+  wall: DesignWall,
+  y0Mm: number,
+  startMm: number,
+  endMm: number,
+): VoidRecord | undefined {
+  return voids.find((candidate) => {
     if (candidate.wall !== wall || Math.round(candidate.y0 * 1000) !== y0Mm)
       return false;
     const candidateStartMm = Math.round(
@@ -968,12 +1118,6 @@ function plannedVoid(
     );
     return candidateStartMm === startMm && candidateEndMm >= endMm;
   });
-  if (!found) {
-    throw new Error(
-      `generateKitchen: no ${wall} opening covers [${String(startMm)}, ${String(endMm)}] at ${String(y0Mm)}`,
-    );
-  }
-  return found;
 }
 
 function alongM(record: VoidRecord, wall: DesignWall): number {
@@ -1070,6 +1214,10 @@ function minimumReason(): Extract<
   { readonly code: "MINIMUM_NOT_MET" }
 > {
   return { code: "MINIMUM_NOT_MET", params: EMPTY_PARAMS };
+}
+
+function noOpeningReason(): GenerationPlanningReason {
+  return { code: "NO_OPENING", params: EMPTY_PARAMS };
 }
 
 function baseAbsentReason(): GenerationPlanningReason {

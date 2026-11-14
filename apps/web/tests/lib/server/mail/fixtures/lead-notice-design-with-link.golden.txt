@@ -9,13 +9,13 @@ Telefon: +37369000123
 Localitate: Orhei
 Canal preferat: WhatsApp
 
-Cameră: În L · 900 × 5999 mm · cot la stânga · 22 dulapuri
+Cameră: În L · 900 × 5999 mm · cot la stânga · 23 dulapuri
 Perete A · bază — 1 corp
 Perete A · suspendate — 2 corpuri
 Perete B · bază — 5 corpuri
-Perete B · suspendate — 10 corpuri
+Perete B · suspendate — 11 corpuri
 Perete B · coloane — 4 corpuri
-Preț: De la 82 000 MDL
+Preț: De la 85 000 MDL
 Preț de pornire, rotunjit în sus.
 Pretul afișat este estimativ. Nu reprezintă o ofertă comercială finală. Oferta comercială finală se stabilește doar după măsurarile exacte.
 
@@ -61,6 +61,9 @@ Dulap suspendat 2 uși 600: 2 970
   Bară inox
 Hotă 600: nu este inclus
   600 mm
+Dulap suspendat 2 uși 700: 3 310
+  700 mm
+  Bară inox
 Dulap de colț rând de sus 570: 900
   570 mm
   Push-to-open
@@ -88,7 +91,7 @@ Coloană cămară 2 uși 600: 8 080
 Coloană cămară 2 uși 698: 8 780
   698 mm
   Bară inox
-Feronerie · Blum: 9 450
+Feronerie · Blum: 9 750
 Material · PAL melaminat: inclus
 Accesorii · Protecție de aluminiu pentru dulapul chiuvetei: 200
 Accesorii · Uscător de vase: 400

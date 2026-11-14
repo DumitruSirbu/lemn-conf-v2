@@ -24,6 +24,7 @@ import {
   type DesignRoom,
   type BodyProbeFactory,
 } from "../../src/index.js";
+import { OVER_BODY_ROLE } from "../../src/generation/over-body-policy.js";
 import { narrowerEnteredWall } from "../support/entered-walls.js";
 import {
   createFakeProbe,
@@ -149,7 +150,8 @@ describe("generateKitchen", () => {
       ["upper", "hood"].includes(step.role),
     );
     expect(firstUpperIndex).toBeGreaterThan(0);
-    // The top row (ADR 0110 Amendment O9) closes the log: after the uppers, and only top steps follow.
+    // ADR 0183 (W2): the one wall cabinet over the fridge follows the uppers, and the top row (ADR 0110 Amendment O9)
+    // closes the log after it: only top steps follow.
     const firstTopIndex = result.log.steps.findIndex(
       (step) => step.role === "top",
     );
@@ -157,7 +159,7 @@ describe("generateKitchen", () => {
     expect(
       result.log.steps
         .slice(firstUpperIndex, firstTopIndex)
-        .every((step) => ["upper", "hood"].includes(step.role)),
+        .every((step) => ["upper", "hood", OVER_BODY_ROLE].includes(step.role)),
     ).toBe(true);
     expect(
       result.log.steps
@@ -600,7 +602,7 @@ describe("generateKitchen", () => {
     expect(suppressedBases).toBeGreaterThan(0);
   });
 
-  it("leaves the wall row above the fridge empty, reading its height off the catalogue", () => {
+  it("hangs a cabinet over the fridge and none over a tower, reading both off the catalogue", () => {
     const result = generate(KITCHEN_L_DESIGN.room);
 
     expect(result.ok).toBe(true);
@@ -609,16 +611,24 @@ describe("generateKitchen", () => {
     expect(result.log.steps.find((step) => step.id === "fridge")?.status).toBe(
       "placed",
     );
-    // 7D5b S0b / ADR 0110 M11: the fridge is again not the only body the rule suppresses an upper
-    // above — the reference room's oven tower is back and reaches the same wall row. The subject is
-    // unchanged: the fridge's wall row stays empty, found from the declared height, never the name.
+    // 7D5b S0b / ADR 0110 M11: the fridge is not the only body the upper rule suppresses an upper above — the
+    // reference room's oven tower reaches the same wall row. Both are still found from the declared height, never
+    // the name, and neither gets an upper. ADR 0183 (W2) supersedes Amendment C and E7 for the fridge alone: the
+    // fridge's own step is the over-body one, and the tower, which declares no such cabinet, keeps its empty slot.
     expect(basesAboveWallRow({ result, catalog })).toEqual([
       "column:A:0",
       "fridge",
     ]);
     expect(
-      result.log.steps.filter((step) => step.id.endsWith(":fridge")),
+      result.log.steps.filter(
+        (step) => step.id.endsWith(":fridge") && step.role !== OVER_BODY_ROLE,
+      ),
     ).toEqual([]);
+    expect(
+      result.log.steps
+        .filter((step) => step.role === OVER_BODY_ROLE)
+        .map((step) => [step.id, step.status]),
+    ).toEqual([["over-body:fridge", "placed"]]);
     expect(
       result.log.steps.filter((step) => step.id.endsWith(":column:A:0")),
     ).toEqual([]);
@@ -767,7 +777,7 @@ function uppersOverTallBodies(input: {
 }): readonly string[] {
   const floorMm = wallRowFloorMm(input.result.design);
   const generated = input.result.log.steps.flatMap((step) =>
-    step.status === "placed"
+    step.status === "placed" && step.role !== OVER_BODY_ROLE
       ? input.result.design.placements.filter(
           (placement) => placement.id === step.placementId,
         )
@@ -836,6 +846,7 @@ function upperMismatches(input: {
         !suppressed.has(step.id) &&
         step.role !== "upper" &&
         step.role !== "hood" &&
+        step.role !== OVER_BODY_ROLE &&
         step.role !== "top",
     )
     .flatMap((baseStep) => {

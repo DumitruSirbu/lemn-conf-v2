@@ -9,6 +9,7 @@ import {
   APPROVED_ROOM_POLICY,
   buildKitchenLBodyCatalog,
   cabinetDepthMmOf,
+  isAWallBodyOwedOver,
   declaredCabinetDepthsMm,
   declaredColumnSizes,
   DOOR_BASE_BUILD_ID,
@@ -174,10 +175,15 @@ describe("E7's upper suppression matches the kitchen that was built", () => {
     sweepGeneratedKitchens((result) => {
       const wallRowFloorMm = observedWallRowFloorMm(result.design);
       const generated = generatedPlacements(result);
+      const catalog = buildKitchenLBodyCatalog(cabinetDepthMmOf(result.design));
+      // ADR 0183 (W2) supersedes E7 for the one row that declares a wall body owed over it, the freestanding fridge:
+      // the cabinet on its top is the rule, read from the declaration and not from the row's name. Every other body
+      // reaching into the wall row keeps its empty slot.
       const reachingIn = generated.filter(
         (placement) =>
           placement.y0Mm < wallRowFloorMm &&
-          placement.y0Mm + placement.body.heightMm > wallRowFloorMm,
+          placement.y0Mm + placement.body.heightMm > wallRowFloorMm &&
+          !isAWallBodyOwedOver(catalog.get(placement.body.buildId)),
       );
       const intruding = generated
         .filter((placement) => placement.y0Mm >= wallRowFloorMm)

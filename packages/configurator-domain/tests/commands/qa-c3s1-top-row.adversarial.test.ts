@@ -44,6 +44,7 @@ import {
   type VoidRecord,
 } from "../../src/void-engine.js";
 import { createFakeProbeFactory } from "../support/fake-probe.js";
+import { isOverABodyOwedOne } from "../support/over-owed-body.js";
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows.js";
 import { NOTHING_DISABLED } from "../support/availability.js";
 
@@ -228,7 +229,9 @@ describe.each(ROOMS)("%s: the ceiling rule", (_label, room) => {
       expect(
         design.placements.filter(
           (placement) =>
-            placement.y0Mm + placement.body.heightMm > TOP_ROW_FLOOR_MM,
+            placement.y0Mm + placement.body.heightMm > TOP_ROW_FLOOR_MM &&
+            // ADR 0183: the cabinet on the fridge's top reaches the ceiling (shortened from 2501 up); it is not a top.
+            !isOverABodyOwedOne(design, placement),
         ),
       ).toEqual([]);
       expect(uppersOf(design).length).toBeGreaterThan(0);

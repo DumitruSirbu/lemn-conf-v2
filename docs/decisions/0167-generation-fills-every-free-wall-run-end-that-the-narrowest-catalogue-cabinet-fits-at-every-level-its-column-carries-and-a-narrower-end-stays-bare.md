@@ -251,3 +251,13 @@ move); C / F2, E6, O10, D-revised 4, E7, O9, O4, N3r 11, C / F7 unchanged; ADR 0
 record (Amendment E); ADR 0067 d2 narrowed for generated kitchens (a remainder `≥ F` is filled by owner ruling; under
 `F` it is still normal; *no filler* holds); ADR 0117 d1, d4 narrowed by an owner ruling under d7; ADR 0166 d4 amended by
 M-1; ADR 0035 d2, d8, ADR 0033 and RQ26 followed.
+
+## Dated note — 2026-11-15: *"Above a full-height body nothing changes"* is superseded for the freestanding fridge (ADR 0183)
+
+Appended; nothing above is changed. The *Consequences* line *"Above a full-height body nothing changes (E7, O9) … L grid
+at 2600: 8 816 slots above fridges"* no longer holds for the freestanding fridge: by
+[ADR 0183](0183-generation-hangs-a-cabinet-over-the-freestanding-fridge-and-a-cabinet-over-that-fridge-is-built-700-mm-deep-at-every-cabinet-depth.md)
+(Accepted 2026-11-14; Amendment A 2026-11-15), generation hangs a `wall-cabinet` on every placed `fridge-free` wherever
+`insertBody` succeeds — from a 2501 mm ceiling. The line still holds above towers and pantries (ADR 0110 E7, unchanged)
+and for the top row (O9). D4's order is unchanged: the cabinet is inserted after the absorbs, the resizes and the fills,
+so it hangs over the fridge's final position.

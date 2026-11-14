@@ -59,6 +59,7 @@ import {
   type BodyFinishRule,
 } from "../body-finish-rule.js";
 import { WALL_FRONT_ASSEMBLY_MM, WORKTOP_DEPTH_MM } from "../worktop-depth.js";
+import { A_WALL_BODY_IS_OWED_OVER_IT } from "../wall-body-over-it.js";
 import {
   cornerAlongWallCentreMm,
   cornerAssemblyWidthsMm,
@@ -427,6 +428,8 @@ export function buildSeededBodyDefinitions(
         // A machine, not cabinetry, so `columnCarcass`'s `FOLLOWS_CABINET_DEPTH` is wrong: it is 742 deep at
         // every setting (ADR 0058 decision 2).
         depthRule: IS_A_MANUFACTURED_SIZE,
+        // The seeded twin of `fridge-free` declares what it does (ADR 0183 decision 1).
+        wallBodyOverIt: A_WALL_BODY_IS_OWED_OVER_IT,
         fixedWidth: true,
         ...namedAfterCatalogEquivalent("fridge-free"),
       },

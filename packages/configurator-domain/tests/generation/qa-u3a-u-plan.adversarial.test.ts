@@ -28,6 +28,7 @@ import { basesAlongWall } from "../../src/generation/run-layout.js";
 import { risesIntoWallRow } from "../../src/generation/upper-policy.js";
 import { asBeforeAdr0135 } from "../support/before-adr-0135.js";
 import { beforeAdr0167 } from "../support/before-adr-0167-free-end-fill.js";
+import { beforeAdr0183 } from "../support/before-adr-0183.js";
 import { beforeC5 } from "../support/before-c5-fridge-end-leftover.js";
 import { withTheCornerUnitPutBack } from "../support/before-c2-corner-unit.js";
 import { withTheTopRowTakenOff } from "../support/before-c3-top-row.js";
@@ -65,6 +66,15 @@ vi.mock("../../src/generation/free-end-fill.js", async (importOriginal) => {
     "../support/before-adr-0167-free-end-fill.js"
   );
   return withTheFreeEndFillSwitchable(await importOriginal());
+});
+
+// ADR 0183 (M12 wave W2): the same switch for the wall cabinet over the fridge, which no recording below has, so
+// every step of the chain asks the generator as it stood before it.
+vi.mock("../../src/wall-body-over-it.js", async (importOriginal) => {
+  const { withTheDeclarationSwitchable } = await import(
+    "../support/before-adr-0183.js"
+  );
+  return withTheDeclarationSwitchable(await importOriginal());
 });
 
 const SAMPLES = 1500;
@@ -535,8 +545,11 @@ describe("the L, the mirrored L and the straight kitchen are byte-identical to t
       probeAt: createFakeProbeFactory(),
     });
 
+  const generatedBeforeAdr0183 = (room: unknown) =>
+    beforeAdr0183(() => generated(room));
+
   const generatedBeforeAdr0167 = (room: unknown) =>
-    beforeAdr0167(() => generated(room));
+    beforeAdr0167(() => generatedBeforeAdr0183(room));
 
   const generatedBeforeC5 = (room: unknown) =>
     beforeC5(() => generatedBeforeAdr0167(room));
@@ -549,7 +562,7 @@ describe("the L, the mirrored L and the straight kitchen are byte-identical to t
       DIGEST_AFTER_C5,
     );
     expect(
-      theFillFindingsOver(generatedBeforeAdr0167, generated),
+      theFillFindingsOver(generatedBeforeAdr0167, generatedBeforeAdr0183),
     ).toStrictEqual([]);
   });
 

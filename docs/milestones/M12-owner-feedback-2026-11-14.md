@@ -114,8 +114,12 @@ tests and comments that pin it**. The owner's screenshot body is `wall-corner-x-
     700 (the lifted arm, finished 600/700);
   - ceiling 2000: no void over the fridge (44 fridges), and the 25 U rooms already throw in `generateKitchen` at `HEAD`
     (*"a U's hob has no hood over it"*) — pre-existing, outside this milestone, to be logged in the backlog.
-  So the cabinet fits exactly where the top row fits (ceiling ≥ 2600, `hasRoomForATopRow`, `upper-policy.ts:46-48`
-  [src]); its height is always 750 there (the opening never exceeds 900, so §5.2's nominal arm is unreachable); and
+  ~~So the cabinet fits exactly where the top row fits (ceiling ≥ 2600, `hasRoomForATopRow`, `upper-policy.ts:46-48`
+  [src]); its height is always 750 there~~ **Corrected 2026-11-15 (W2 logic review R1.1; ADR 0183 Amendment A):** the
+  census sampled ceilings in 100 mm steps and missed 2501-2599. The measured bands [relayed: W2 developer, QA and logic
+  review, source-verified runs] are: no opening ≤ 2150 (no command, no throw); `OPENING_TOO_SHORT` 2151-2500; **placed
+  from 2501**, shortened to the opening (651 mm at 2501 … 749 at 2599; one §4 opening across two levels, §5.2's
+  height-flex arm); 750 from 2600. The opening never exceeds 900, so §5.2's nominal arm stays unreachable; and
   `plannedVoid` would **throw** where no void exists (`generate-kitchen.ts:953-977` [src]), so the new step must look the
   void up without throwing. §11 row 1's *"one 750 mm slot above"* (`DEVELOPMENT-SPEC.md:518` [doc]) is the same opening.
 
@@ -265,8 +269,8 @@ adversarial pass owes*. **Logic reviewer reading:** ADR 0182; ADR 0021; ADR 0092
 
 **Coordinate anchors, scaling, dependency.** Anchor: wall = the fridge's; along-wall centre = the fridge's final centre
 (after resizes and fills); floor = fridge `y0Mm` + the fridge row's declared `nominalHeightMm`; back face on the wall
-plane. Scaling: width = the fridge's width; height = §5.2 (`resolveHeightM`), measured 750 at every ceiling ≥ 2600 (§4
-finding). Dependency: inserted after every base (and the free-end resizes and fills) and before the top row; never
+plane. Scaling: width = the fridge's width; height = §5.2 (`resolveHeightM`): 651-749 mm from a 2501 to a 2599 mm
+ceiling, 750 from 2600 (§4 finding as corrected 2026-11-15). Dependency: inserted after every base (and the free-end resizes and fills) and before the top row; never
 before the fridge exists; the void is looked up without `plannedVoid`'s throw.
 
 | Slice | Work | Files likely touched | Reading |
@@ -280,16 +284,19 @@ reading:** ADR 0183; ADR 0110 C, E7, O9; ADR 0167 D4; the diff. **Clean-code rev
 
 **Acceptance criteria.**
 
-- **W2-1 (property, `fast-check` or a swept grid with a floor per arm).** Over L, linear and U rooms (widths, depths,
-  wall C across their bounds) at ceilings ≥ 2600: for every generated design with a placed `fridge-free`, exactly one
-  placement stands over the fridge; it is `wall-cabinet`, on the fridge's wall, `alongMm` equal to the fridge's,
-  `widthMm` equal to the fridge's, `y0Mm` equal to the fridge's `y0Mm` + its row's `nominalHeightMm`, and `heightMm`
-  equal to the opening (750 under `LEVELS` today). Each of L, linear and U, and each of depths 600 and 700, is reached at
-  least once.
-- **W2-2 (ceilings below 2600, no throw).** For every ceiling from the room minimum to 2599 at which `HEAD` generates a
-  room without throwing, the new code also generates it without throwing; the step over the fridge is logged
-  `not_placed` (whatever refusal `insertBody` gives, or "no opening" where no void exists); and the design is equal to
-  `HEAD`'s for that room.
+- **W2-1 (property, `fast-check` or a swept grid with a floor per arm; amended 2026-11-15).** Over L, linear and U rooms
+  (widths, depths, wall C across their bounds) at ceilings ≥ 2501: for every generated design with a placed
+  `fridge-free`, exactly one placement stands over the fridge; it is `wall-cabinet`, on the fridge's wall, `alongMm`
+  equal to the fridge's, `widthMm` equal to the fridge's, `y0Mm` equal to the fridge's `y0Mm` + its row's
+  `nominalHeightMm`, and `heightMm` equal to the opening: `ceiling − 1850` from 2501 to 2599 (651 … 749), 750 from 2600.
+  Each of L, linear and U, each of depths 600 and 700, and each of the two height arms (2501-2599, ≥ 2600, with 2501 and
+  2599 as witnesses) is reached at least once.
+- **W2-2 (ceilings up to 2500, no throw; amended 2026-11-15).** For every ceiling from the room minimum to 2500 at which
+  `HEAD` generates a room without throwing, the new code also generates it without throwing, and the design is equal to
+  `HEAD`'s for that room. At ≤ 2150 there is no opening over the fridge: no command is issued. From 2151 to 2500 the
+  refused `insertBody` command is logged with `OPENING_TOO_SHORT`. Witnesses at 2150, 2151 and 2500.
+- **W2-8 (nothing over it).** At no ceiling is a body placed or a top-row step attempted over the fridge's cabinet (ADR
+  0110 O9; `hasRoomForATopRow` is false below 2600).
 - **W2-3 (only an addition, property).** For every room in W2-1, every placement other than the new one equals
   `HEAD`'s, and every column record (empty column or stored extent) whose span does not overlap the fridge's span equals
   `HEAD`'s; settings are equal.
@@ -300,8 +307,12 @@ reading:** ADR 0183; ADR 0110 C, E7, O9; ADR 0167 D4; the diff. **Clean-code rev
 - **W2-6.** The Step 1 list renders unchanged for every swept room (the new step counts under no row).
 - **W2-7.** The two tests asserting the empty slot are updated, their reason recorded in the wave's test table.
 
-**Verification.** Domain suite; W2-1 to W2-3 as committed tests (they replace the architect's scratch census, which is
-not in the repository).
+**Verification.** Domain suite; W2-1 to W2-3 and W2-8 as committed tests (they replace the architect's scratch census,
+which is not in the repository and missed the 2501-2599 band).
+
+**Accepted for the backlog (2026-11-15, coordinator ruling).** While the cabinet hangs over a generated fridge,
+replacing that fridge with a tower or a pantry is refused. Recorded as known behaviour (ADR 0183 Amendment A); not built
+in M12.
 
 ---
 
@@ -316,7 +327,13 @@ re-planned by ADR 0103's trigger.
 | --- | --- | --- | --- |
 | W3a | A declaration on the freestanding fridge rows that a body over them is built to the deepest declared depth; the column answers it beside `hasFullHeightUnder`; `columnBuildDepthMm` gets the third arm; `resolveDepthM`, the depth-change map and the dependent re-plan read it | `catalog.ts` (the `fridge-free` row), `fixtures/kitchen-l-design.ts` (`fridge-free-700`), `void-engine.ts` (`Column`, `withCurrentFullHeightMembers`, the record field), `cabinet-depth-rule.ts`, `commands/insert-fit.ts`, `frozen-map-at-cabinet-depth.ts` (and `commands/replan-dependent-members.ts` if its trigger must compare the new fact) | This section; ADR 0183 d4-d7; ADR 0060 (whole); ADR 0101 d1 and Amendment A; ADR 0103 d3; ADR 0011 Gap D; ADR 0090 Amendment B; DEVELOPMENT-SPEC §3.2, §5.2, §7 (the `0.33` paragraph), §11 row 19; `cabinet-depth-rule.ts:140-200`; `insert-fit.ts:660-710`; `void-engine.ts:236-262`, `:830-880`; `frozen-map-at-cabinet-depth.ts:260-300`; `replan-dependent-members.ts:60-130`; `worktop-depth.ts:60-90`; `docs/best-practices/product-invariants.md` |
 
-**QA reading:** this section; ADR 0183; ADR 0101; ADR 0103 d3; `tests/build-depth.test.ts`,
+**From W2's logic review R1.3 (2026-11-15) [relayed].** The depth fact is a **sibling field** of the row declaration
+W2 introduced, `WallBodyOverIt` (`packages/configurator-domain/src/wall-body-over-it.ts`), not a second meaning of
+`isOwedByGeneration`. W2's QA test "generation is the only reader of the declaration" is relaxed to "generation and the
+depth rule are the only readers", with that reason recorded beside the test (ADR 0183 Amendment A). Add
+`wall-body-over-it.ts` and that test to this wave's reading.
+
+**QA reading:** this section; ADR 0183 (with Amendment A); ADR 0101; ADR 0103 d3; `tests/build-depth.test.ts`,
 `tests/…/seeded-equivalent-depth-agreement.test.ts`; DEVELOPMENT-SPEC §5.2, §11 rows 1, 19. **Logic reviewer reading:**
 ADR 0183; ADR 0060; ADR 0101; ADR 0103; the diff. **Clean-code reviewer reading:** the diff. A **mini-review** after the
 slice (six production files).
@@ -594,8 +611,10 @@ the security reviewer's report.
    the same route; a second route breaks it silently. QA sabotages it both ways (R6).
 3. **W2's new step** may meet typed role handling in `apps/web/src/room/generation-model.ts:140-160` and any persisted
    generation log. Stated as W2-6.
-4. **The tree carries uncommitted owner doc edits** (ADRs 0167, 0180 among them). The scribe's dated notes on those
-   files (§10) wait until the owner's edits are committed, or are made with the owner's knowledge.
+4. ~~**The tree carries uncommitted owner doc edits** (ADRs 0167, 0180 among them). The scribe's dated notes on those
+   files (§10) wait until the owner's edits are committed, or are made with the owner's knowledge.~~ **Discharged
+   2026-11-15:** `git status` shows no uncommitted change under `docs/decisions/` (the owner's edits went in with W0's
+   commit `348a157f`, which `git log` names as the last commit to touch ADR 0167).
 5. **Copy-lock and golden-hash churn** across W4-W6; serialise through the coordinator.
 6. **W6d reads near a personal table, and W6f turns customer contact into links.** Security review on both; the
    statement names columns; link targets come only from the builder's refusals-first rules (W6f-1, W6f-2); `address`
@@ -627,7 +646,7 @@ says "default stands" the owner did not overturn the proposed default.
 
 | # | Question | Default proposed | Answer (2026-11-14) |
 | --- | --- | --- | --- |
-| Q3-1 | Below a 2600 mm ceiling the opening over the fridge is cut at 2200 mm, leaving 350 mm, and no cabinet fits (measured: refused in every room from 2200 to 2500). These are the same rooms that get no top row. Accept "not placed" there, or should a lower ceiling get a shorter cabinet up to the ceiling (a change to how openings are cut, its own wave)? | Not placed, logged; nothing else changes | Leave empty below 2600 (default, answered explicitly) |
+| Q3-1 | Below a 2600 mm ceiling the opening over the fridge is cut at 2200 mm, leaving 350 mm, and no cabinet fits (measured: refused in every room from 2200 to 2500). These are the same rooms that get no top row. Accept "not placed" there, or should a lower ceiling get a shorter cabinet up to the ceiling (a change to how openings are cut, its own wave)? | Not placed, logged; nothing else changes | Answered 2026-11-14: leave empty below 2600. **Superseded 2026-11-15 on a corrected measurement** (coordinator ruling, owner told in chat the same day; ADR 0183 Amendment A): the question's premise was false — the census sampled 100 mm steps and missed 2501-2599, where the cabinet fits shortened (651-749 mm) with no §4 change. Ruling: placed wherever `insertBody` succeeds, i.e. from a 2501 mm ceiling; refused 2151-2500; no opening ≤ 2150 |
 | Q3-2 | A 700 mm cabinet in a 600 mm kitchen: should it take the 700 mm depth surcharge? | No surcharge (ADR 0177 A-1 unchanged) | No surcharge (default, answered explicitly) |
 | Q3-3 | Should generation also hang a cabinet over the oven tower, pantry or built-in fridge housing? | No; only the freestanding fridge | Default stands |
 | Q3-4 | 700 mm leaves the fridge's door front 42 mm proud (it is 742 deep with its doors); and the cabinet is 750 mm tall, 1850-2600, so above a 2600 mm ceiling it stops at 2600 like every top-row cabinet. Both as intended? | Yes to both (the owner's 700; the module grid ends at 2600) | Default stands |
@@ -642,9 +661,10 @@ says "default stands" the owner did not overturn the proposed default.
 ## 10. Owed at close or by the scribe (not done in this planning step)
 
 - STATUS row for M12 and the "what to do next" pointer (scribe, after W0's commit).
-- Dated notes: ADR 0021 (d2 handle half superseded by 0182); ADR 0092 d3 (examples); ADR 0120's row on ADR 0021; ADR 0110
-  (Amendment C's fridge clause and E7's witness, by 0183); ADR 0167 (Consequences, by 0183); ADR 0060 and ADR 0101 (the
-  third arm); ADR 0174 O-L3-1 (reference removed by owner Q7-1; profile contact extended with links by Q7-3, ADR 0185 d2
+- Dated notes: ADR 0021 (d2 handle half superseded by 0182); ADR 0092 d3 (examples); ADR 0120's row on ADR 0021; ~~ADR
+  0110 (Amendment C's fridge clause and E7's witness, by 0183); ADR 0167 (Consequences, by 0183);~~ **written
+  2026-11-15 by the architect** (appended dated notes at the end of ADR 0110 and ADR 0167, carrying ADR 0183 Amendment
+  A's 2501 mm boundary); ADR 0060 and ADR 0101 (the third arm); ADR 0174 O-L3-1 (reference removed by owner Q7-1; profile contact extended with links by Q7-3, ADR 0185 d2
   and d7); ADR 0180 (the link card); ADR 0104 amendment and `docs/design/README.md` dated notes for the departures from
   frames Lot 2 `STAFF` (item 4), D4B (item 5) and S3 v3 (contact block sourced from the profile, not the request; route
   address).
@@ -654,6 +674,8 @@ says "default stands" the owner did not overturn the proposed default.
 - Launch item [sec S6]: the written privacy notice must say staff see a client's profile name, phone and address with
   the kitchens the client sends (the notice is a placeholder today).
 - ADR 0101 d4: dated note (byte identity at 600 superseded for `p24` only).
+- Backlog (2026-11-15): replacing a generated fridge with a tower or a pantry is refused while the cabinet hangs over it
+  (ADR 0183 Amendment A).
 - Backlog: `generateKitchen` throws for U rooms at a 2000 mm ceiling at `HEAD` (*"a U's hob has no hood over it"*),
   measured 25 of 25 U rooms on the architect's grid on 2026-11-14; outside M12.
 - M11 plan: W5 marked discharged by the v3 mockup (the scribe confirms with the coordinator).

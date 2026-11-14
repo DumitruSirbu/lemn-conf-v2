@@ -147,6 +147,49 @@ describe("the resolved row set (criteria 30, 31, 32)", () => {
   });
 });
 
+describe("the cabinet over the fridge counts under no row (M12 W2-6, ADR 0183)", () => {
+  /** Tall enough for the cabinet to be placed; the roomy room's own 2500 leaves the space over the fridge empty. */
+  const TALL_ENOUGH_ROOM: DesignRoom = { ...ROOMY_ROOM, heightMm: 2800 };
+
+  it("reads the same six rows with the step in the log as with it taken out", () => {
+    const log = logFor(TALL_ENOUGH_ROOM);
+    const overBodySteps = log.steps.filter((step) => step.role === "over-body");
+    expect(overBodySteps.map((step) => [step.id, step.status])).toEqual([
+      ["over-body:fridge", "placed"],
+    ]);
+
+    const withoutIt = {
+      ...log,
+      steps: log.steps.filter((step) => step.role !== "over-body"),
+    };
+
+    expect(resolveGenerationRows(log)).toEqual(
+      resolveGenerationRows(withoutIt),
+    );
+  });
+
+  it("leaves the fridge row placed or not by the fridge alone, not by the cabinet over it", () => {
+    const log = logFor(TALL_ENOUGH_ROOM);
+    const fridgeRefused = {
+      ...log,
+      steps: log.steps.map((step) =>
+        step.id === "fridge"
+          ? ({
+              ...step,
+              status: "not_placed",
+              reason: { code: "DROPPED_FOR_FIT", params: {} },
+              commands: [],
+            } as GenerationStep)
+          : step,
+      ),
+    };
+
+    expect(rowFor(resolveGenerationRows(fridgeRefused), "fridge").status).toBe(
+      "not_placed",
+    );
+  });
+});
+
 describe("a not-placed row is absent from the design (criterion 31)", () => {
   // The smallest accepted room rather than a comfortable one, because a comfortable one refuses
   // nothing and the assertion would sweep an empty set — the vacuous pass this file's guard below
@@ -237,15 +280,17 @@ const EVERY_STEP_ROLE = [
   "storage",
   "upper",
   "hood",
+  "over-body",
 ] as const satisfies readonly GenerationStep["role"][];
 
-/** Every reason a step can be refused for: the engine's three planning reasons, plus the rejection
+/** Every reason a step can be refused for: the engine's four planning reasons, plus the rejection
  *  codes the catalogue carries copy for — `golden-output-fixtures.ts`' list, which is itself held to
  *  the domain's union by a `satisfies` and a reverse exhaustiveness check. */
 const EVERY_REFUSAL_CODE = [
   "DROPPED_FOR_FIT",
   "MINIMUM_NOT_MET",
   "BASE_NOT_PLACED",
+  "NO_OPENING",
   ...REJECTION_CODES,
 ] as const;
 
