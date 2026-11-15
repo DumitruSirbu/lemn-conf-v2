@@ -50,6 +50,8 @@ const CONTEXT: StaffShellContext = {
 const KITCHEN_ADDRESS = `/api/staff/kitchens/${STAFF_KITCHEN_ID}`;
 const LINK = '[data-testid="staff-kitchen-open-3d"]';
 const PAGE = '[data-testid="staff-kitchen-page"]';
+const CONTACT_ACTIONS =
+  '[data-testid="staff-kitchen-profile-write"], [data-testid="staff-kitchen-profile-call"]';
 const FEWER_BODIES: unknown = {
   ...(WIRE_DESIGN as { placements: unknown[] }),
   placements: (WIRE_DESIGN as { placements: unknown[] }).placements.slice(0, 3),
@@ -255,7 +257,7 @@ describe.each(LOCALES)("the open-in-3D link in %s", (locale) => {
 
       expect(links(container)).toHaveLength(0);
       expect(
-        allIn(container, `${PAGE} a`).map((anchor) =>
+        allIn(container, `${PAGE} a:not(${CONTACT_ACTIONS})`).map((anchor) =>
           anchor.getAttribute("href"),
         ),
       ).toEqual([`/${locale}/staff/kitchens`]);
@@ -267,8 +269,8 @@ describe.each(LOCALES)("the open-in-3D link in %s", (locale) => {
 
     expect(links(container)).toHaveLength(1);
     expect(
-      allIn(container, `${PAGE} a:not(${LINK})`).map((anchor) =>
-        anchor.getAttribute("href"),
+      allIn(container, `${PAGE} a:not(${LINK}):not(${CONTACT_ACTIONS})`).map(
+        (anchor) => anchor.getAttribute("href"),
       ),
     ).toEqual([`/${locale}/staff/kitchens`]);
   });

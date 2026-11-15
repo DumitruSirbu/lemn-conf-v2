@@ -1548,6 +1548,14 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     profileEmail: "E-mail",
     profileName: "Nume",
     profilePhone: "Telefon",
+    // Drafted, not approved (M12 W6f; ADR 0185 decision 7): the address row is the profile form's label without its
+    // "(opțional)"; "Sună" and "Scrie" are the v3 mockup's words, and the two sentences carry the value the link acts on
+    // into its accessible name.
+    profileAddress: "Adresă / localitate",
+    profileCall: "Sună",
+    profileCallTo: "Sună la {phone}",
+    profileWrite: "Scrie",
+    profileWriteTo: "Scrie la {email}",
     accessLogged: "Accesul este înregistrat în jurnal.",
     notFoundTitle: "Bucătăria nu este disponibilă.",
     notFoundBody: "Poate nu există sau nu ai voie să o vezi.",

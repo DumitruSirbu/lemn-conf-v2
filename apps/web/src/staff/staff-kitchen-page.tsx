@@ -74,7 +74,8 @@ import { useUnhide } from "./use-unhide";
 // width, so the focus order is what the person sees on a desktop (the list stands under the picture in the first
 // column) and on a phone. A deliberate accessibility choice (WCAG 2.4.3) that departs from the mockup's phone order,
 // which put the list after the cards. Every string a client or a staff member typed (a name, an address, a phone, a
-// note) is a React text child: nothing here builds markup from one, and no address or phone is made a link.
+// note) is a React text child: nothing here builds markup from one. Only the profile's e-mail and phone become links,
+// and only through `contact-links.ts`, which refuses any value it cannot validate (ADR 0185 decision 7).
 //
 // What staff write here (a note, a request status, making a hidden kitchen visible again) is the three components the
 // page mounts in its columns and its banner; each makes its own request and hands the page the kitchen's new shape

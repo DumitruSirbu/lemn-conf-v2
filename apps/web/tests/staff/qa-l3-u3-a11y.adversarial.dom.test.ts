@@ -232,6 +232,8 @@ describe.each(LOCALES)("the structure of the page in %s", (locale) => {
         "BUTTON",
         "A",
         ...listControls.map(() => "BUTTON"),
+        "A",
+        "A",
         "SELECT",
         "BUTTON",
         "TEXTAREA",
@@ -247,6 +249,13 @@ describe.each(LOCALES)("the structure of the page in %s", (locale) => {
         CATALOGUES[locale].staffKitchen.open3d,
       );
       expect(inPage.slice(6, 6 + listControls.length)).toEqual(listControls);
+      const afterList = 6 + listControls.length;
+      expect(inPage[afterList]?.getAttribute("href")).toBe(
+        "mailto:ana.popescu@mail.md",
+      );
+      expect(inPage[afterList + 1]?.getAttribute("href")).toBe(
+        "tel:+37378900555",
+      );
       const [firstControl] = inPage;
       if (firstControl === undefined) throw new Error("no control in the page");
       const firstInPage = everything.indexOf(firstControl);

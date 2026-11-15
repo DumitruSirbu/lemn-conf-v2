@@ -167,6 +167,17 @@ function clientOf(client: Clients): unknown {
     : { email: "bare@mail.md", name: null, phone: null, address: null };
 }
 
+const OTHER_THAN_OPEN_3D_AND_CONTACT_ACTIONS =
+  "a:not([data-testid='staff-kitchen-open-3d']):not([data-testid='staff-kitchen-profile-write']):not([data-testid='staff-kitchen-profile-call'])";
+
+/** A client with no phone is offered no call; one with no account is offered neither action. */
+function contactHrefsOf(client: Clients): readonly string[] {
+  if (client === "none") return [];
+  return client === "full"
+    ? ["mailto:ana.popescu@mail.md", "tel:+37378900555"]
+    : ["mailto:bare@mail.md"];
+}
+
 function statusOf(status: Statuses): unknown {
   if (status === "none") return null;
   return wireChangedStatus(
@@ -291,20 +302,22 @@ describe.each(LOCALES)(
       }
     }
 
-    it("draws without a failure, one title, one way back, the caption, no editor, no link to write or to call, and a field only where a staff member can act", async () => {
+    it("draws without a failure, one title, one way back, the caption, no editor, a link to write or to call only for the profile's own e-mail and phone, and a field only where a staff member can act", async () => {
       await drawEach(everyCombination(["none"]), (combination) => {
         const container = harness.container();
         const page = requireIn(container, PAGE);
 
         expect(allIn(container, "h1")).toHaveLength(1);
         expect(
-          allIn(page, "a:not([data-testid='staff-kitchen-open-3d'])"),
+          allIn(page, OTHER_THAN_OPEN_3D_AND_CONTACT_ACTIONS),
         ).toHaveLength(1);
         expect(page.textContent).toContain(words.accessLogged);
         expect(canvases.editorMounts).toBe(0);
         expect(
-          allIn(container, "a[href^='mailto:' i], a[href^='tel:' i]"),
-        ).toHaveLength(0);
+          allIn(container, "a[href^='mailto:' i], a[href^='tel:' i]").map(
+            (anchor) => anchor.getAttribute("href"),
+          ),
+        ).toEqual(contactHrefsOf(combination.client));
         expect(allIn(page, "input")).toHaveLength(
           combination.documents === "both" ? VERSION_CHOICES : 0,
         );
