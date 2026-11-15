@@ -180,6 +180,8 @@ describe("the adapter's wall depth is the domain's map row", () => {
   // `wall-2door-700-over-fridge`, which is the three placements ADR 0101 rules over and the two
   // catalogue rows they resolve to. Measuring one of the two left the other free to go on taking
   // the map row, which is the exact defect the decision is about.
+  /** The owner's number, written here and not read from the rule under test. */
+  const OVER_THE_FRIDGE_DEPTH_MM = 700;
   const DEEP_TOP_BUILD_IDS = [
     "wall-2door-600-deep-top",
     "wall-2door-700-over-fridge",
@@ -190,12 +192,18 @@ describe("the adapter's wall depth is the domain's map row", () => {
       DEEP_TOP_BUILD_IDS.map((buildId) => ({ cabinetDepthMm, buildId })),
     ),
   )(
-    "builds $buildId to the cabinet-depth line and not the map row at $cabinetDepthMm mm",
+    "builds $buildId to the depth its column answers and not the map row at $cabinetDepthMm mm",
     ({ cabinetDepthMm, buildId }) => {
       const deepTop = buildDecomposedBody(kitAt(cabinetDepthMm), buildId);
 
+      // The cabinet-depth line, except over the freestanding fridge, where it is the deepest declared depth, 700 at
+      // every setting (ADR 0183 decision 4, wave W3b).
+      const builtToMm =
+        buildId === "wall-2door-700-over-fridge"
+          ? OVER_THE_FRIDGE_DEPTH_MM
+          : cabinetDepthMm;
       expect(depthMmOf(deepTop, "carcass_shell")).toBe(
-        cabinetDepthMm - WALL_FRONT_ASSEMBLY_MM,
+        builtToMm - WALL_FRONT_ASSEMBLY_MM,
       );
       expect(depthMmOf(deepTop, "carcass_shell")).not.toBe(
         domainWallDepthMm(cabinetDepthMm) - WALL_FRONT_ASSEMBLY_MM,

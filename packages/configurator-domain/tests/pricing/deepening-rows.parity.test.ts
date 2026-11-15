@@ -28,6 +28,12 @@ const measured = measureDeepeningRows(shallow, deep);
 /** The rows the catalogue declares as a manufactured size: an appliance whose depth is a machine's. */
 const DOES_NOT_DEEPEN = ["fridge-free", "fridge-free-700"];
 
+/** The seeded cabinet over that machine is built to the deepest declared depth at both settings, so its finished depth
+ *  is the same in both kitchens and it is not measured as deepening (ADR 0183 decision 4, wave W3b). That costs the
+ *  price nothing: it is priced as `wall-cabinet` (`catalogEquivalentId`), which deepens, and the deepening set is
+ *  consulted by the priced-as id. */
+const BUILT_TO_THE_SAME_DEPTH_AT_BOTH = ["wall-2door-700-over-fridge"];
+
 const BASE_ROWS = [
   "base-cabinet",
   "base-3drawer",
@@ -73,10 +79,21 @@ describe("the shipped catalogue at 600 and 700 (the A-6 parity sweep)", () => {
     }
   });
 
+  it("leaves the seeded cabinet over the fridge out, and its priced-as row in", () => {
+    for (const buildId of BUILT_TO_THE_SAME_DEPTH_AT_BOTH) {
+      expect(shallow.has(buildId)).toBe(true);
+      expect(measured.has(buildId)).toBe(false);
+      expect(shallow.get(buildId)?.catalogEquivalentId).toBe("wall-cabinet");
+    }
+    expect(measured.has("wall-cabinet")).toBe(true);
+  });
+
   it("is every row of the catalogue except the appliances that do not deepen: nothing else is missed or added", () => {
     const everyRow = [...shallow.keys()];
     const expected = everyRow.filter(
-      (buildId) => !DOES_NOT_DEEPEN.includes(buildId),
+      (buildId) =>
+        !DOES_NOT_DEEPEN.includes(buildId) &&
+        !BUILT_TO_THE_SAME_DEPTH_AT_BOTH.includes(buildId),
     );
 
     expect([...measured].sort()).toEqual(expected.sort());

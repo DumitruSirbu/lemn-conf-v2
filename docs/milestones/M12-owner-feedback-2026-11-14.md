@@ -677,7 +677,14 @@ says "default stands" the owner did not overturn the proposed default.
   superseded by owner Q7-3); ADR 0178 F2 (its `priced` column now also yields per-cabinet lines on the detail read).
 - Launch item [sec S6]: the written privacy notice must say staff see a client's profile name, phone and address with
   the kitchens the client sends (the notice is a placeholder today).
-- ADR 0101 d4: dated note (byte identity at 600 superseded for `p24` only).
+- ADR 0101 d1 and d4: dated note owed. d4: byte identity at 600 superseded for `p24` only. d1 (W3b logic review,
+  2026-11-15): the replacement assertion's text still names the lifted arm only, while the gate now asserts the
+  **fridge arm** for `p24` (and the lifted arm for `p22`, `p23`).
+- DEVELOPMENT-SPEC §7, the `0.33` paragraph (`:371`): *"over a full-height column … the carcass is as deep as the
+  column"* is false over the freestanding fridge (742 column, 700 body). **Annotated in place 2026-11-15 by the
+  architect**, citing ADR 0183 d4; the original sentence is kept.
+- ADR 0183: dated note on decisions 5 and 7 for seeded rows **written 2026-11-15** (stored seeded `p24` loads at 0.700
+  at 600 even with no fridge, until the next depth change; read-time, no migration).
 - Backlog (2026-11-15): replacing a generated fridge with a tower or a pantry is refused while the cabinet hangs over it
   (ADR 0183 Amendment A).
 - Backlog: `generateKitchen` throws for U rooms at a 2000 mm ceiling at `HEAD` (*"a U's hob has no hood over it"*),

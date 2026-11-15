@@ -112,6 +112,8 @@ export {
   columnBuildDepthM,
   columnBuildDepthMm,
   declaresALiftedColumnDepth,
+  declaresTheDeepestCabinetDepth,
+  deepestDeclaredCabinetDepthMm,
   depthFollowsSetting,
   FOLLOWS_CABINET_DEPTH,
   FOLLOWS_CABINET_DEPTH_ON_WALL_MAP,

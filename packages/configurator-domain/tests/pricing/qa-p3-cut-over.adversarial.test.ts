@@ -533,7 +533,13 @@ describe("P3 deepening rows (A-6): measured from the 600 and 700 catalogues, and
       (buildId) => !measured.has(buildId),
     );
 
-    expect(notDeeper.sort()).toEqual(["fridge-free", "fridge-free-700"]);
+    // The seeded cabinet over the fridge is built to the deepest declared depth at both settings, so it is measured as
+    // not deepening; it is priced as `wall-cabinet`, which deepens (ADR 0183 decisions 4 and 6, wave W3b).
+    expect(notDeeper.sort()).toEqual([
+      "fridge-free",
+      "fridge-free-700",
+      "wall-2door-700-over-fridge",
+    ]);
     for (const row of [
       "wall-cabinet",
       "wall-lift",

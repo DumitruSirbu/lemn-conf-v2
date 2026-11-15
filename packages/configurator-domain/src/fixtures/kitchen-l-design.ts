@@ -46,6 +46,7 @@ import {
 } from "../front-population.js";
 import {
   cabinetDepthRuleOf,
+  deepestDeclaredCabinetDepthMm,
   FOLLOWS_CABINET_DEPTH,
   FOLLOWS_CABINET_DEPTH_ON_WALL_MAP,
   IS_A_MANUFACTURED_SIZE,
@@ -95,6 +96,13 @@ export const WALL_CORNER_X_TOP_BUILD_ID = "wall-corner-x-900-top";
  *  wall map. see ADR 0101 */
 function liftedTopSeatDepthMm(cabinetDepthMm: number): number {
   return cabinetDepthMm - WALL_FRONT_ASSEMBLY_MM;
+}
+
+/** The seat of the cabinet hanging over the freestanding fridge: the deepest declared cabinet depth less the front
+ *  assembly, 661 at every setting. Not the cabinet-depth line (`liftedTopSeatDepthMm`): the fridge is a 742 mm machine
+ *  at every setting, so what hangs over it is built to the deepest depth. see ADR 0183 decision 4 */
+function overTheFridgeSeatDepthMm(): number {
+  return deepestDeclaredCabinetDepthMm() - WALL_FRONT_ASSEMBLY_MM;
 }
 
 /** A seeded base body's hinged leaves: one `BASE_DOOR_BAND_HEIGHT_MM` band holding `leavesPerBand` leaves. */
@@ -630,11 +638,13 @@ export function buildSeededBodyDefinitions(
         // The one seeded wall body that is neither 700 nor 400: a 750 mm box, so a 744 mm band.
         fronts: wallLeaves({ frameHeightMm: 750, leavesPerBand: 2 }),
         kind: "wall_cabinet",
-        // Follows the cabinet-depth line, not the freestanding fridge's 742 mm it hangs over, which is a
-        // machine's depth and follows no setting.
-        frameDepthMm: liftedTopSeatDepthMm(cabinetDepthMm),
-        // For `wall-2door-600-deep-top`'s reason.
+        // The fridge arm of `columnBuildDepthMm`: the deepest declared cabinet depth at every setting, not the
+        // cabinet-depth line and not the 742 mm of the machine it hangs over (ADR 0183 decision 4).
+        frameDepthMm: overTheFridgeSeatDepthMm(),
+        // For `wall-2door-600-deep-top`'s reason, and the arm is the fridge's. The gate holds this declaration to the
+        // column's own answer (`seeded-equivalent-depth-agreement.test.ts`), so it cannot drift from the fridge's.
         builtDepthFollowsALiftedColumn: true,
+        builtDepthFollowsTheDeepestCabinetDepth: true,
         frameHeightMm: 750,
         ...namedAfterCatalogEquivalent("wall-cabinet"),
       },

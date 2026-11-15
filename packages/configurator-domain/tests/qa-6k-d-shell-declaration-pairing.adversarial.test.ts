@@ -29,6 +29,7 @@ import { wallCarcassDepthMm } from "../src/catalog.js";
 import {
   columnBuildDepthMm,
   declaresALiftedColumnDepth,
+  declaresTheDeepestCabinetDepth,
 } from "../src/cabinet-depth-rule.js";
 import { declaredCabinetDepthsMm } from "../src/worktop-depth.js";
 
@@ -42,7 +43,8 @@ import { declaredCabinetDepthsMm } from "../src/worktop-depth.js";
  *  **Two declarations answer, not one** (ADR 0101 decision 1). A wall row standing over a
  *  full-height column is out of the head-clearance cap's reach, so its finished depth is
  *  `columnBuildDepthMm`'s lifted arm — the cabinet-depth line — and not the map's carcass row. That
- *  is read off `builtDepthFollowsALiftedColumn`, which is where the product states it; inferring it
+ *  is read off `builtDepthFollowsALiftedColumn`, which is where the product states it, and the arm off
+ *  `builtDepthFollowsTheDeepestCabinetDepth` (ADR 0183 decision 4: the fridge's cabinet); inferring it
  *  from a build id or from a suspiciously large `frameDepthMm` is what ADR 0022 forbids.
  *
  *  The `pinned` arm is kept although nothing declares one since ADR 0101 unpinned the deep tops:
@@ -60,7 +62,7 @@ function declaredFinishedDepthMm(
     ? columnBuildDepthMm({
         cabinetDepthMm,
         hasFullHeightUnder: true,
-        hasDeepWallBodyUnder: false,
+        hasDeepWallBodyUnder: declaresTheDeepestCabinetDepth(definition),
       })
     : wallCarcassDepthMm(cabinetDepthMm);
 }

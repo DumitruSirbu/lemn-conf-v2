@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import {
   cabinetDepthRuleOf,
   columnBuildDepthMm,
+  declaresTheDeepestCabinetDepth,
   depthFollowsSetting,
   pinnedAtFinishedDepthMm,
   UndeclaredCabinetDepthRuleError,
@@ -453,21 +454,37 @@ describe("ADR 0101: the deep top cabinets follow the setting, over the whole cat
   }
 
   it.each(DEEP_TOP_BUILD_IDS)(
-    "%s finishes at the cabinet-depth line at both declared depths",
+    "%s finishes at its column's build depth at both declared depths",
     (buildId) => {
       for (const cabinetDepthMm of DECLARED_DEPTHS_MM) {
-        // Compared against `columnBuildDepthMm`'s lifted arm, not a literal 600/700 pair, so a third declared depth
-        // needs no edit here (ADR 0101).
+        // Compared against `columnBuildDepthMm`, not a literal 600/700 pair, so a third declared depth needs no edit
+        // here (ADR 0101). The arm is the row's own declaration: the cabinet-depth line for a deep top, the deepest
+        // declared depth for the cabinet over the freestanding fridge (ADR 0183 decision 4).
         expect(finishedDepthMm(entryOf(cabinetDepthMm, buildId))).toBe(
           columnBuildDepthMm({
             cabinetDepthMm,
             hasFullHeightUnder: true,
-            hasDeepWallBodyUnder: false,
+            hasDeepWallBodyUnder: declaresTheDeepestCabinetDepth(
+              entryOf(cabinetDepthMm, buildId),
+            ),
           }),
         );
       }
     },
   );
+
+  it("moves the cabinet-depth line's row with the setting and holds the fridge arm's row at the deepest depth", () => {
+    expect(
+      DECLARED_DEPTHS_MM.map((cabinetDepthMm) =>
+        finishedDepthMm(entryOf(cabinetDepthMm, "wall-2door-600-deep-top")),
+      ),
+    ).toEqual([...DECLARED_DEPTHS_MM]);
+    expect(
+      DECLARED_DEPTHS_MM.map((cabinetDepthMm) =>
+        finishedDepthMm(entryOf(cabinetDepthMm, "wall-2door-700-over-fridge")),
+      ),
+    ).toEqual(DECLARED_DEPTHS_MM.map(() => 700));
+  });
 
   it("declares that a lifted column answers its depth, rather than being deep by arithmetic", () => {
     for (const buildId of DEEP_TOP_BUILD_IDS) {
@@ -479,6 +496,10 @@ describe("ADR 0101: the deep top cabinets follow the setting, over the whole cat
       });
       // ADR 0101 decision 1: the equivalence gate reads this off the entry, never its name or number.
       expect(entry.builtDepthFollowsALiftedColumn).toBe(true);
+      // ADR 0183 decision 4: only the cabinet over the freestanding fridge answers the deepest declared depth.
+      expect(declaresTheDeepestCabinetDepth(entry)).toBe(
+        buildId === "wall-2door-700-over-fridge",
+      );
     }
   });
 
@@ -499,14 +520,23 @@ describe("ADR 0101: the deep top cabinets follow the setting, over the whole cat
     // Guards the sweep itself: a catalogue that somehow answered "nothing moved" for everything
     // would satisfy the per-row check below trivially.
     expect(rows.filter((row) => row.moved).length).toBeGreaterThan(20);
-    expect(rows.filter((row) => !row.moved).map((row) => row.buildId)).toEqual([
-      "fridge-free-700",
+    // The cabinet over the freestanding fridge follows the setting by rule and does not move: it answers the fridge
+    // arm, 700 at every setting (ADR 0183 decision 4, wave W3b). It is named, so a second row that stands still fails.
+    const BUILT_TO_THE_DEEPEST_DEPTH = ["wall-2door-700-over-fridge"];
+    expect(
+      rows
+        .filter((row) => !row.moved)
+        .map((row) => row.buildId)
+        .sort(),
+    ).toEqual([
       "fridge-free",
+      "fridge-free-700",
+      ...BUILT_TO_THE_DEEPEST_DEPTH,
     ]);
     for (const row of rows) {
       expect({ buildId: row.buildId, moved: row.moved }).toEqual({
         buildId: row.buildId,
-        moved: row.follows,
+        moved: row.follows && !BUILT_TO_THE_DEEPEST_DEPTH.includes(row.buildId),
       });
     }
   });

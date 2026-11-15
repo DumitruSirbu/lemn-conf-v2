@@ -207,15 +207,17 @@ describe("wave 6Z work item 1 — every offered body, every target, both setting
     // **Measured on 2026-09-08, and asserted exactly rather than as a floor.** A floor goes on
     // passing while the population quietly halves; these two numbers move only when the catalogue,
     // the fixture or the offer list moves, and each of those deserves a reader. The second is the
-    // one that matters: 28 of the 786 inserts actually re-planned a standing body, so the verdict
+    // one that matters: 24 of the 786 inserts actually re-planned a standing body, so the verdict
     // above is a statement about the re-plan and not about inserts in general.
     //
     // 24 became 28 on 2026-11-15 (M12 wave W3a, ADR 0183 decision 4): swapping the freestanding fridge `p7` for a
-    // fridge now re-plans the cabinet over it, `p24`, from the seeded 600 to the fridge arm's 700 in each of the four
-    // states at setting 600 (measured: those four rows, `placement p7` / `fridge-free`, and no other row is new).
+    // fridge re-planned the cabinet over it, `p24`, from the seeded 600 to the fridge arm's 700 in each of the four
+    // states at setting 600. It is 24 again from wave W3b, the same day: the seeded `p24` records the fridge arm's 700
+    // at 600 already, so that swap re-plans nothing (the count of 24 is measured; that the four that left are W3a's
+    // four rows follows from W3a's note above).
     expect([
       swept.length,
       swept.filter((row) => row.replannedSomething).length,
-    ]).toEqual([786, 28]);
+    ]).toEqual([786, 24]);
   });
 });

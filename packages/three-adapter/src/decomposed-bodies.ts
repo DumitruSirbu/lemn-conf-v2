@@ -5,6 +5,7 @@ import * as THREE from "three";
 import {
   cornerAssemblyWidthsMm,
   CORNER_WALL_UNIT_TEMPLATES,
+  deepestDeclaredCabinetDepthMm,
   KITCHEN_L_DESIGN,
   toMetres,
   WORKTOP_DEPTH_MM,
@@ -203,15 +204,24 @@ export function buildDecomposedBody(
           ),
         ),
       );
-    // The two deep tops are the only wall rows here that read the cabinet depth, not the wall depth (ADR 0101): they
-    // hang over full-height columns, so §5.2's head-clearance cap is lifted and they build to the cabinet-depth line.
-    // The domain declares the same (`liftedTopSeatDepthMm`).
+    // The two deep tops read the cabinet depth, not the wall depth (ADR 0101): they hang over full-height columns, so
+    // §5.2's head-clearance cap is lifted and they build to the cabinet-depth line. The domain declares the same
+    // (`liftedTopSeatDepthMm`).
     case "wall-2door-600-deep-top":
       return hidePushOpenHandles(
         kit.make.wallCabinet(0.6, 2, 0.4, kit.depths.cabinetDepthM),
       );
+    // Over the freestanding fridge, a 742 mm machine at every setting, so it is built to the deepest declared cabinet
+    // depth at every setting and not to the cabinet-depth line (ADR 0183 decision 4). The domain declares the same
+    // (`overTheFridgeSeatDepthMm`). `buildKitchen()` still builds it at the line, so the decomposition parity gate
+    // holds this body to `buildKitchen()` at the deepest depth instead.
     case "wall-2door-700-over-fridge":
-      return kit.make.wallCabinet(0.7, 2, 0.75, kit.depths.cabinetDepthM);
+      return kit.make.wallCabinet(
+        0.7,
+        2,
+        0.75,
+        toMetres(deepestDeclaredCabinetDepthMm()),
+      );
     default:
       throw new Error(
         `No decomposition builder registered for buildId "${buildId}"`,

@@ -208,3 +208,17 @@ note cited beside them: (1) delete-then-insert of a body that does not reach und
 700 (the documented interim); (2) delete-then-insert of a body whose span does reach under `strad`'s column re-plans it to
 600; (3) after the interim, a 600 → 700 → 600 round trip leaves `strad` at 600; (4) the one-command swap still re-plans to
 600 (unchanged). If (2) or (3) is red, that is a W3a defect and goes back to the implementer.
+
+## Dated note — 2026-11-15: decisions 5 and 7 for seeded rows (W3b logic review)
+
+[relayed from the W3b logic review by the coordinator; ADR 0038 and ADR 0080 d5 cited as relayed, not re-read here]
+
+- **A seeded body's depth is read from its catalogue row at load.** `wall-2door-700-over-fridge` (`p24`) declares the
+  fridge arm (W3b), so a stored document holding the seeded `p24` loads at 0.700 at setting 600 (it loaded at 0.600 at
+  `HEAD`) — **even with no fridge under it** — until the next depth change re-plans it. This is a read-time answer, not
+  a migration, of the kind ADR 0038 (pre-release: no stored designs, no migrations) and ADR 0080 d5 accept.
+- **Decision 5's** *"at setting 600 only a wall body over a freestanding fridge changes"* is about **fresh states**
+  (generated, inserted, re-planned bodies), not about stored documents holding a seeded row.
+- **Decision 7's** *"a stored body over a fridge keeps its recorded depth until a command re-plans it"* is about
+  **rebuilt bodies** (those standing on a catalogue equivalent with a recorded seat), not seeded rows, whose depth is
+  their row's.

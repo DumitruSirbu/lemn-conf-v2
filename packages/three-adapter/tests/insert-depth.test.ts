@@ -64,8 +64,8 @@ const OVER_THE_FRIDGE_VOID_Y0_M = 1.85;
 const CABINET_DEPTH_LINE_MM = 600;
 
 /** What a wall body over the freestanding fridge is built to at every setting: the deepest declared cabinet depth, not
- *  the cabinet-depth line and not the machine's 742 (ADR 0183 decision 4, M12 wave W3a). The seeded `p24` still records
- *  600 until W3b; a body built here, by swap or by insert, is 700. */
+ *  the cabinet-depth line and not the machine's 742 (ADR 0183 decision 4, M12 waves W3a and W3b). The seeded `p24`
+ *  records it too, so a body built here, by swap or by insert, is the depth it replaces. */
 const OVER_THE_FRIDGE_DEPTH_MM = 700;
 
 /** The clearance of the fridge column: a 680 mm appliance plus its two door bars. It is what the

@@ -47,6 +47,11 @@ const DEEPER_MM = 700;
 /** The one body in this kitchen whose depth no setting reaches: a freestanding machine. */
 const MANUFACTURED_SIZE_ID = "p7";
 
+/** The cabinet over that machine: built to the deepest declared cabinet depth at every setting, so its recorded depth
+ *  is the same at 600 and 700 too (ADR 0183 decision 4, M12 wave W3b; it was the cabinet-depth line until then). It is
+ *  priced as `wall-cabinet`, so the depth line still reaches its price. */
+const OVER_THE_MACHINE_ID = "p24";
+
 /** What each chain gains at the corner between the two settings — ADR 0089's own deltas. */
 const ALONG_WALL_SLIDE_MM = { baseFormula: 100, wallMap: 70 } as const;
 
@@ -112,7 +117,7 @@ function priceOf(design: Design): PricingResult {
 }
 
 describe("depth reaches the price as one depth line", () => {
-  it("rebuilds every body to a new depth except the machine that follows no setting", () => {
+  it("rebuilds every body to a new depth except the machine that follows no setting and the cabinet over it", () => {
     const change = deepenTheKitchen();
 
     expect(change.shallow.settings?.cabinetDepthMm ?? DEFAULT_MM).toBe(
@@ -123,8 +128,8 @@ describe("depth reaches the price as one depth line", () => {
     const unchanged = [...change.frameDepthsAfter]
       .filter(([id, depthM]) => change.frameDepthsBefore.get(id) === depthM)
       .map(([id]) => id);
-    // Named, not counted: "25 of 26 moved" would also hold if the wrong one stood still.
-    expect(unchanged).toEqual([MANUFACTURED_SIZE_ID]);
+    // Named, not counted: "24 of 26 moved" would also hold if the wrong two stood still.
+    expect(unchanged).toEqual([MANUFACTURED_SIZE_ID, OVER_THE_MACHINE_ID]);
     expect(change.frameDepthsAfter.size).toBeGreaterThan(20);
   });
 

@@ -63,6 +63,22 @@ const DEEP_TOPS = [
 /** The depth the pin held these bodies at, at every setting, until 2026-09-07. */
 const THE_DELETED_PIN_M = 0.6;
 
+/** The one deep top that hangs over the freestanding fridge, and the finished depth it is built to at every setting:
+ *  the deepest declared cabinet depth, the owner's number, written here and not read from the rule under test (ADR 0183
+ *  decision 4, wave W3b). The other two answer the cabinet-depth line. */
+const OVER_THE_FRIDGE_BUILD_ID = "wall-2door-700-over-fridge";
+const OVER_THE_FRIDGE_FINISHED_MM = 700;
+
+/** The finished depth a deep top is built to in a kitchen of this depth. */
+function finishedDepthOfDeepTopMm(
+  buildId: string,
+  cabinetDepthMm: number,
+): number {
+  return buildId === OVER_THE_FRIDGE_BUILD_ID
+    ? OVER_THE_FRIDGE_FINISHED_MM
+    : cabinetDepthMm;
+}
+
 /** The three deep-top placements in the built room, found by the level they stand at: two at 2200
  *  and one at 1850 over the fridge. Wall B is rotated, so the depth axis of a wall-B body is the
  *  room's x. */
@@ -136,7 +152,7 @@ describe("the deep tops read the cabinet depth and are blind to the wall depth",
     { cabinetDepthMm: 600, wallDepthMm: WALL_DEPTH_MM[700] },
     { cabinetDepthMm: 700, wallDepthMm: WALL_DEPTH_MM[600] },
   ])(
-    "builds to the cabinet depth at $cabinetDepthMm mm even given a $wallDepthMm mm wall row",
+    "builds to the depth its column answers at $cabinetDepthMm mm even given a $wallDepthMm mm wall row",
     ({ cabinetDepthMm, wallDepthMm }) => {
       const kit = kitAt(cabinetDepthMm, wallDepthMm);
 
@@ -148,7 +164,9 @@ describe("the deep tops read the cabinet depth and are blind to the wall depth",
       ).toEqual(
         DEEP_TOPS.map(({ buildId }) => ({
           buildId,
-          shellMm: cabinetDepthMm - FRONT_ASSEMBLY_MM,
+          shellMm:
+            finishedDepthOfDeepTopMm(buildId, cabinetDepthMm) -
+            FRONT_ASSEMBLY_MM,
         })),
       );
     },
@@ -161,13 +179,45 @@ describe("ADR 0101 decision 4: the 600 mm kitchen is identical, and the 700 mm o
   // identical."* The comparison is against the expression the wave deleted — `wallCabinet(W, doors,
   // H, PINNED_DEEP_TOP_DEPTH_M)` with the pin's own `0.6` — over the whole structure dump: every
   // node's name, type, geometry, material, visibility, transform and mesh outer size.
-  it.each(DEEP_TOPS)(
+  //
+  // **Superseded for the cabinet over the fridge only** (ADR 0183 decision 4, wave W3b): it is built 700 deep at 600,
+  // so it departs from the pin there and is held below to what it now is. The deep tops over the oven tower and the
+  // pantry stay identical.
+  const DEEP_TOPS_ON_THE_CABINET_DEPTH_LINE = DEEP_TOPS.filter(
+    ({ buildId }) => buildId !== OVER_THE_FRIDGE_BUILD_ID,
+  );
+  const OVER_THE_FRIDGE = DEEP_TOPS.filter(
+    ({ buildId }) => buildId === OVER_THE_FRIDGE_BUILD_ID,
+  );
+
+  it("keeps one deep top on each side of that supersession, or the identity below is about nothing", () => {
+    expect(DEEP_TOPS_ON_THE_CABINET_DEPTH_LINE).toHaveLength(1);
+    expect(OVER_THE_FRIDGE).toHaveLength(1);
+  });
+
+  it.each(DEEP_TOPS_ON_THE_CABINET_DEPTH_LINE)(
     "$buildId is byte-identical at 600 mm to the pinned expression it replaced",
     (deepTop) => {
       const kit = pairedKitAt(600);
 
       expect(dump(buildDecomposedBody(kit, deepTop.buildId))).toEqual(
         dump(asThePinBuiltIt(kit, deepTop)),
+      );
+    },
+  );
+
+  it.each(OVER_THE_FRIDGE)(
+    "$buildId departs from that expression at 600 mm and is the same body at 700 mm as at 600 mm",
+    (deepTop) => {
+      const at600 = dump(
+        buildDecomposedBody(pairedKitAt(600), deepTop.buildId),
+      );
+
+      expect(at600).not.toEqual(
+        dump(asThePinBuiltIt(pairedKitAt(600), deepTop)),
+      );
+      expect(at600).toEqual(
+        dump(buildDecomposedBody(pairedKitAt(700), deepTop.buildId)),
       );
     },
   );

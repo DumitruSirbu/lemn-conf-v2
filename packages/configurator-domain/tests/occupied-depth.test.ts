@@ -180,7 +180,8 @@ describe("the shipped kitchen, body by body", () => {
     "wall-2door-800-top": 330,
     "wall-corner-return-570-top": 330,
     "wall-2door-600-deep-top": 600,
-    "wall-2door-700-over-fridge": 600,
+    // The deepest declared depth at every setting, over a 742 mm machine (ADR 0183 decision 4, wave W3b).
+    "wall-2door-700-over-fridge": 700,
   };
 
   it("answers the space each shipped body fills, and not its seat", () => {

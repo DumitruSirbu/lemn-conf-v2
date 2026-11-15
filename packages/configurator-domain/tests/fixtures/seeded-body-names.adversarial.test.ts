@@ -194,10 +194,12 @@ describe("6A2 adversarial: the rename is closed for every seeded row, not only t
       (row) => !migratedRows.has(row),
     );
 
-    // The one wall row no **resize** can ever reach: `p24` is its only placement and it sits over
-    // the fixed-width fridge, so `COLUMN_MEMBER_NOT_RESIZABLE` refuses every width trip. Its name is
-    // therefore correct-by-construction rather than by round trip, and it is listed here so a row
-    // *joining* this list is a visible change.
+    // The one wall row no **resize** reaches *in the seeded kitchen*: `p24` is its only placement and it sits over
+    // the fixed-width fridge, so `COLUMN_MEMBER_NOT_RESIZABLE` refuses every width trip while the fridge stands.
+    // Measured 2026-11-15 (M12 wave W3b QA, store): once the fridge is deleted the same resize is accepted and
+    // migrates `p24` to `wall-cabinet`, so "never" holds for the seeded state and not for every state. Its name is
+    // therefore correct-by-construction rather than by round trip here, and it is listed so a row *joining* this
+    // list is a visible change.
     //
     // **Named for the resize path alone, and that qualification is the point** (ADR 0101 decision
     // 2). Since that wave this row follows the cabinet-depth setting like every other wall row —

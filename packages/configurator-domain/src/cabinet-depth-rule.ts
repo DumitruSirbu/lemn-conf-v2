@@ -170,8 +170,8 @@ export interface ColumnBuildDepthQuery {
  *    §7's `nominalDepthMm` reads. This is §7's `min(d, cap)` head-clearance rule, not a geometry limit
  *    (`wallCabinet(W, doors, H, D)` builds any depth it is handed). It lives in the domain because it
  *    depends on what stands under the opening, which the adapter cannot see.
- *  - A full-height member lifts it to the cabinet-depth line: 600 at 600, 700 at 700. The three deep
- *    tops on wall B answer through this arm.
+ *  - A full-height member lifts it to the cabinet-depth line: 600 at 600, 700 at 700. The two deep
+ *    tops over the oven tower and the pantry answer through this arm.
  *  - A member under the column declares that what hangs over it covers it (the freestanding fridge): the
  *    deepest declared cabinet depth, 700 at every setting, so a cabinet over a 742 mm machine is not 142 mm
  *    shallower than it at 600. Checked first, because it also stands under a full-height member.
@@ -199,14 +199,25 @@ export function columnBuildDepthM(column: ColumnBuildDepthQuery): BuildDepthM {
   return toMetres(columnBuildDepthMm(column)) as BuildDepthM;
 }
 
-/** Whether this entry declares that a rebuild answers its depth through the lifted arm above
- *  (ADR 0101 decision 1). The one reader of `BodyDefinition.builtDepthFollowsALiftedColumn`: an absent
- *  declaration reads as *no*, and a row the catalogue does not hold declares nothing, so the ordinary
+/** Whether this entry declares that a rebuild answers its depth through the column's lifted or fridge arm above
+ *  (ADR 0101 decision 1, ADR 0183 decision 4). The one reader of `BodyDefinition.builtDepthFollowsALiftedColumn`: an
+ *  absent declaration reads as *no*, and a row the catalogue does not hold declares nothing, so the ordinary
  *  equivalence comparison applies. */
 export function declaresALiftedColumnDepth(
   definition: { readonly builtDepthFollowsALiftedColumn?: boolean } | undefined,
 ): boolean {
   return definition?.builtDepthFollowsALiftedColumn === true;
+}
+
+/** Whether this entry declares that the column's answer for it is the fridge arm above: the deepest declared cabinet
+ *  depth, not the cabinet-depth line (ADR 0183 decision 4). The one reader of
+ *  `BodyDefinition.builtDepthFollowsTheDeepestCabinetDepth`, absent as `declaresALiftedColumnDepth` is. */
+export function declaresTheDeepestCabinetDepth(
+  definition:
+    | { readonly builtDepthFollowsTheDeepestCabinetDepth?: boolean }
+    | undefined,
+): boolean {
+  return definition?.builtDepthFollowsTheDeepestCabinetDepth === true;
 }
 
 /** The cabinet-depth line: the setting itself. Named because 600 stands for three facts here (the

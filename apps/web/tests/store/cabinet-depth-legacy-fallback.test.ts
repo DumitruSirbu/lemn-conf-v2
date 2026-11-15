@@ -513,11 +513,19 @@ describe("a legacy document differs from its sourced twin only where the source 
 });
 
 describe("an entry that sits on a build ceiling at one declared setting only", () => {
-  /** The hazard (ADR 0080 amendment K): the follow arm reads a depth on `columnBuildDepthM` as its own previous
+  /** The hazard (ADR 0080 second amendment §K): the follow arm reads a depth on `columnBuildDepthM` as its own previous
    *  answer, so an entry on the ceiling at one setting only is carried to the setting where it is not (a pinned 600
-   *  reaches 700). Empty since ADR 0101: every shipped entry follows the setting. The sweep stays falsifiable by the
-   *  declared witness below (ADR 0093 decision 1). */
-  const KNOWN_HAZARD_ENTRIES: readonly string[] = [];
+   *  reaches 700). Empty from ADR 0101 until ADR 0183 decision 4 (M12 wave W3b): the seeded cabinet over the
+   *  freestanding fridge is built to the deepest declared depth, 700, at every setting, so the row re-entered §K's set.
+   *  It is flagged under `hasFullHeightUnder: true` without the fridge arm: on the lifted ceiling at 700, not at 600.
+   *  Declared, not swept past, and kept fixture-bounded by §K's own reason: the fridge's 742 always wins its column, so
+   *  the row is never that column's depth source. That is measured by `qa-m12-w3b-over-the-fridge.adversarial.test.ts`
+   *  (I2). The only reach is a design arriving with no fridge and no extents, where deleting the cabinet leaves a
+   *  member-less column at 0.700 (ADR 0080 decision 4's surplus arm; the twins agree). The sweep stays falsifiable by
+   *  the declared witness below (ADR 0093 decision 1). */
+  const KNOWN_HAZARD_ENTRIES: readonly string[] = [
+    "wall-2door-700-over-fridge",
+  ];
 
   function sitsOnTheCeiling(
     catalogAt: (cabinetDepthMm: number) => BodyCatalog,
@@ -562,7 +570,7 @@ describe("an entry that sits on a build ceiling at one declared setting only", (
     return { hazards: [...hazards].sort(), onTheCeilingAtBoth };
   }
 
-  it("is no entry of the shipped catalogue", () => {
+  it("is exactly the declared entries of the shipped catalogue", () => {
     const { hazards, onTheCeilingAtBoth } = hazardsIn(buildKitchenLBodyCatalog);
 
     expect(hazards).toStrictEqual([...KNOWN_HAZARD_ENTRIES].sort());
@@ -572,18 +580,21 @@ describe("an entry that sits on a build ceiling at one declared setting only", (
     expect(declaredCabinetDepthsMm().length).toBeGreaterThan(1);
   });
 
-  // The arm's witness (ADR 0093 decision 2): the list above is empty, so the same sweep runs over a catalogue
-  // holding a top pinned at 600 at every setting. Breaking `sitsOnTheCeiling` turns this red where the shipped
-  // catalogue cannot.
+  // The arm's witness (ADR 0093 decision 2): the declared list above holds a row that stands on a ceiling for a
+  // different reason, so the same sweep also runs over a catalogue holding a top pinned at 600 at every setting, the
+  // hazard's own shape. Breaking `sitsOnTheCeiling` turns this red where the shipped catalogue alone could not tell.
   it("is found by the same sweep on a catalogue that holds one", () => {
     const { hazards } = hazardsIn(catalogWithAPinnedTop);
 
-    expect(hazards).toStrictEqual([PINNED_TOP_WITNESS_BUILD_ID]);
+    expect(hazards).toStrictEqual(
+      [PINNED_TOP_WITNESS_BUILD_ID, ...KNOWN_HAZARD_ENTRIES].sort(),
+    );
   });
 
   // Fixture-bounded safety, not a structural guarantee: `B|1.80` records the pin but always holds a full-height
   // member, so it is never member-less. It becomes reachable when a member-less column's depth is a pinned 600 while
-  // `hasFullHeightUnder` is true. Measured on the witness fixture, since the shipped one has no hazard entry.
+  // `hasFullHeightUnder` is true. Measured on the witness fixture for the pinned top; the shipped row's own reach is
+  // stated on `KNOWN_HAZARD_ENTRIES` above.
   it("is unreachable on this fixture, for a reason the fixture supplies", () => {
     const store = createConfiguratorStore({
       design: designWithAPinnedTop(),

@@ -36,12 +36,13 @@ function referenceRoomWallSeatMm(definition: BodyDefinition): number {
  *  following the map cannot hide by being filtered out. `hood`/`hood-600` seat at `2 × 600 − 500`: ADR 0039 decisions
  *  1-2 exempt the hood from the map and hang it at the front, and `frameDepthMm` is twice the rear overhang (ADR 0018);
  *  its 500 survives as `nominalDepthMm`. The two deep top cabinets stand over full-height columns where §7's
- *  head-clearance cap is lifted, and seat at the declared 600 less the front assembly (ADR 0036 decision 1). */
+ *  head-clearance cap is lifted, and seat at the declared 600 less the front assembly (ADR 0036 decision 1); the
+ *  one over the freestanding fridge seats at the deepest declared 700 less it (ADR 0183 decision 4). */
 const DEPTH_DECIDED_INDEPENDENTLY_MM: Readonly<Record<string, number>> = {
   hood: 2 * 600 - 500,
   "hood-600": 2 * 600 - 500,
   "wall-2door-600-deep-top": 600 - WALL_FRONT_ASSEMBLY_MM,
-  "wall-2door-700-over-fridge": 600 - WALL_FRONT_ASSEMBLY_MM,
+  "wall-2door-700-over-fridge": 700 - WALL_FRONT_ASSEMBLY_MM,
 };
 
 /** The nine seeded wall/top rows measured as already correct at 330, plus §7's wall entries; counted so the sweep

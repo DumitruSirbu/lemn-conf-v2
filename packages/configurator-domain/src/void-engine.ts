@@ -136,9 +136,15 @@ export interface BodyDefinition {
   /** Whether this body's depth follows the cabinet-depth setting (ADR 0058 decision 2). Optional because `BodyCatalog`
    *  is a port; `refuseUndeclaredDepthRules` refuses an undeclared row at assembly. */
   readonly depthRule?: CabinetDepthRule;
-  /** True when a rebuild takes its depth from `columnBuildDepthM`'s lifted arm, not the equivalent's `frameDepthMm`
-   *  (ADR 0101 decision 1). Declared, never inferred; read via `declaresALiftedColumnDepth`; absent means false. */
+  /** True when a rebuild takes its depth from `columnBuildDepthM`'s lifted or fridge arm, not the equivalent's
+   *  `frameDepthMm` (ADR 0101 decision 1, ADR 0183 decision 4). Declared, never inferred; read via
+   *  `declaresALiftedColumnDepth`; absent means false. */
   readonly builtDepthFollowsALiftedColumn?: boolean;
+  /** True when that column answer is the fridge arm: the deepest declared cabinet depth, not the cabinet-depth line
+   *  (ADR 0183 decision 4). Only meaningful beside `builtDepthFollowsALiftedColumn`, which it implies, because the
+   *  column that has a freestanding fridge under it also has a full-height member under it. Declared, never inferred;
+   *  read via `declaresTheDeepestCabinetDepth`; absent means false. */
+  readonly builtDepthFollowsTheDeepestCabinetDepth?: boolean;
   /** What this body declares about the wall body that hangs over it: today, that generation owes one (ADR 0183
    *  decision 1). Declared, never inferred from `kind`, id or role; absent means none is owed. Read via
    *  `isAWallBodyOwedOver`. */

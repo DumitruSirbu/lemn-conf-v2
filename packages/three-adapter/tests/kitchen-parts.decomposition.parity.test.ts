@@ -11,6 +11,7 @@
 // shell plus exactly the placement-owned decomposition.
 import * as THREE from "three";
 import {
+  declaresTheDeepestCabinetDepth,
   deriveCabinetWorldTransform,
   derivePlacementRecords,
   KITCHEN_L_BODY_CATALOG,
@@ -63,12 +64,33 @@ const SEATED_HOB_GROUP_NAME = "induction_cooktop";
  *  restating the arithmetic of the thing it checks. */
 const REFERENCE_BODY_COUNT = 27;
 
+/** The deepest declared cabinet depth, written as the owner's number (ADR 0183 decision 4), the depth the one body that
+ *  declares it is built to at every setting. */
+const DEEPEST_CABINET_DEPTH_MM = 700;
+
 let kit: Kit;
+let deepestKit: Kit;
 
 beforeAll(() => {
   installHeadlessDocument();
   kit = makeKit({ createCanvas: createHeadlessCanvas });
+  deepestKit = makeKit({
+    createCanvas: createHeadlessCanvas,
+    cabinetDepthMm: DEEPEST_CABINET_DEPTH_MM,
+  });
 });
+
+/** **The one declared departure from the whole-scene render at the default depth** (ADR 0183 decision 4, wave W3b).
+ *  `buildKitchen()` is diffed against the vendored reference and stays as it is, so at 600 it still builds the cabinet
+ *  over the freestanding fridge to the cabinet-depth line. The seeded body, which declares the deepest cabinet depth,
+ *  is built 700 deep at every setting; it is therefore held to `buildKitchen()` at the deepest depth, where the same
+ *  body is built by that independent path, and the 600 render is shown (below) to differ, so the departure cannot be
+ *  one that stopped occurring. Read off the row's declaration, never the id. */
+function departsFromTheDefaultDepthRender(placement: DesignPlacement): boolean {
+  return declaresTheDeepestCabinetDepth(
+    KITCHEN_L_BODY_CATALOG.get(placement.body.buildId),
+  );
+}
 
 function mountPlacement(
   room: THREE.Group,
@@ -92,6 +114,71 @@ function findChildAtPosition(
       Math.abs(child.position.y - position.y) <= FLOAT_EPSILON_METRES &&
       Math.abs(child.position.z - position.z) <= FLOAT_EPSILON_METRES,
   );
+}
+
+/** Where the whole-scene render at the default depth stands the body of a placement that departs from it: seated for
+ *  the cabinet-depth line, `cabinetDepth` less the front assembly, as every body over a full-height column was before
+ *  the fridge's cabinet took the deepest depth. */
+function oldDefaultDepthPosition(
+  placement: DesignPlacement,
+  record: PlacementRecord,
+): THREE.Vector3 {
+  const { position } = deriveCabinetWorldTransform({
+    wall: placement.wall,
+    alongM: placement.alongMm / 1000,
+    y0M: placement.y0Mm / 1000,
+    depthM: kit.depths.cabinetDepthM - kit.depths.frontAssemblyDepthM,
+    roomWidthM: KITCHEN_L_DESIGN.room.widthMm / 1000,
+  });
+  return new THREE.Vector3(position.x, record.frame.y0, position.z);
+}
+
+/** The twin, in the render at the deepest depth, of a body built to that depth: found by its height and its distance
+ *  from the wall, which the deepest depth fixes, and not by its place along the wall, which the depth change slides
+ *  (ADR 0089: the along-wall chain moves 100 mm at the corner between 600 and 700, and says nothing about the body). */
+function findDeepestRenderTwin(
+  room: THREE.Group,
+  position: THREE.Vector3,
+): THREE.Object3D {
+  const twins = room.children.filter(
+    (child) =>
+      child.name === "wall_cabinet" &&
+      Math.abs(child.position.x - position.x) <= FLOAT_EPSILON_METRES &&
+      Math.abs(child.position.y - position.y) <= FLOAT_EPSILON_METRES,
+  );
+  expect(
+    twins,
+    "wall-B wall cabinets at that height and distance",
+  ).toHaveLength(1);
+  return required(twins[0], "the render's twin at the deepest depth");
+}
+
+/** A wall-B body's own structure with where it stands along its wall (the room's z) set aside: that place is the
+ *  kitchen's, not the body's. */
+function alongWallPositionIgnored(node: StructureNode): StructureNode {
+  return {
+    ...node,
+    position: [node.position[0], node.position[1], 0],
+  };
+}
+
+/** A body's own structure with where it stands in the room set aside entirely. */
+function rootPositionIgnored(node: StructureNode): StructureNode {
+  return { ...node, position: [0, 0, 0] };
+}
+
+function positionOf(
+  placement: DesignPlacement,
+  record: PlacementRecord,
+): THREE.Vector3 {
+  const { position } = deriveCabinetWorldTransform({
+    wall: placement.wall,
+    alongM: placement.alongMm / 1000,
+    y0M: placement.y0Mm / 1000,
+    depthM: record.frame.d,
+    roomWidthM: KITCHEN_L_DESIGN.room.widthMm / 1000,
+  });
+  return new THREE.Vector3(position.x, position.y, position.z);
 }
 
 function expectNumbersClose(
@@ -160,6 +247,7 @@ function expectStructureMatches(
 
 describe("decomposed kitchen-l placements reproduce the whole-scene render", () => {
   const referenceRoom = () => kit.builders["kitchen-l"]();
+  const deepestReferenceRoom = () => deepestKit.builders["kitchen-l"]();
   const records = derivePlacementRecords(
     KITCHEN_L_DESIGN,
     KITCHEN_L_BODY_CATALOG,
@@ -176,18 +264,54 @@ describe("decomposed kitchen-l placements reproduce the whole-scene render", () 
       const room = new THREE.Group();
       const body = mountPlacement(room, placement, record);
 
-      const reference = required(
-        findChildAtPosition(referenceRoom(), body.position),
-        `reference body at ${JSON.stringify(body.position)} for ${placement.id}`,
-      );
-
+      const departs = departsFromTheDefaultDepthRender(placement);
+      const reference = departs
+        ? findDeepestRenderTwin(deepestReferenceRoom(), body.position)
+        : required(
+            findChildAtPosition(referenceRoom(), body.position),
+            `reference body at ${JSON.stringify(body.position)} for ${placement.id}`,
+          );
+      const actual = withoutSeatedHob(describeStructure(body));
+      const expected = describeStructure(reference);
       expectStructureMatches(
-        withoutSeatedHob(describeStructure(body)),
-        describeStructure(reference),
+        departs ? alongWallPositionIgnored(actual) : actual,
+        departs ? alongWallPositionIgnored(expected) : expected,
         placement.id,
       );
     },
   );
+
+  // The departure is exactly one body, and it is real: at the default depth `buildKitchen()` still draws its twin
+  // at the cabinet-depth line, shallower, so holding the seeded body to that render would fail. Without this the
+  // branch above could be satisfied by a departure that no longer departs from anything.
+  it("departs from the default depth render for exactly one placement, which that render's own body does not match", () => {
+    const departing = KITCHEN_L_DESIGN.placements.filter(
+      departsFromTheDefaultDepthRender,
+    );
+    expect(departing.map(({ id }) => id)).toEqual(["p24"]);
+
+    const placement = required(departing[0], "the departing placement");
+    const record = required(recordsById.get(placement.id), placement.id);
+    const body = mountPlacement(new THREE.Group(), placement, record);
+    const atTheOldSeat = required(
+      findChildAtPosition(
+        referenceRoom(),
+        new THREE.Vector3(
+          ...oldDefaultDepthPosition(placement, record).toArray(),
+        ),
+      ),
+      `the default depth render's twin of ${placement.id}`,
+    );
+
+    // The root's whole position is set aside, so the throw has to come from the body's own geometry (its depth) and
+    // not from the seat the two renders stand it at.
+    expect(() => {
+      expectStructureMatches(
+        rootPositionIgnored(describeStructure(body)),
+        rootPositionIgnored(describeStructure(atTheOldSeat)),
+      );
+    }).toThrow();
+  });
 
   // The half the line above sets aside, asserted in full rather than dropped: the seated hob is the
   // same body, in the same world place, as the cooktop `buildKitchen()` still draws on its own.
@@ -259,18 +383,11 @@ describe("decomposed kitchen-l placements reproduce the whole-scene render", () 
     let claims = 0;
     for (const placement of KITCHEN_L_DESIGN.placements) {
       const record = required(recordsById.get(placement.id), placement.id);
-      const transform = deriveCabinetWorldTransform({
-        wall: placement.wall,
-        alongM: placement.alongMm / 1000,
-        y0M: placement.y0Mm / 1000,
-        depthM: record.frame.d,
-        roomWidthM: KITCHEN_L_DESIGN.room.widthMm / 1000,
-      });
-      const position = new THREE.Vector3(
-        transform.position.x,
-        transform.position.y,
-        transform.position.z,
-      );
+      // The departing body claims the render's twin where the render seated it (see
+      // `departsFromTheDefaultDepthRender`); every other body claims it at its own transform.
+      const position = departsFromTheDefaultDepthRender(placement)
+        ? oldDefaultDepthPosition(placement, record)
+        : positionOf(placement, record);
       for (const claimed of claimedReferenceChildren(
         room,
         placement,

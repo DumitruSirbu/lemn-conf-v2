@@ -24,12 +24,21 @@ import { describe, expect, it } from "vitest";
 import {
   columnBuildDepthMm,
   declaresALiftedColumnDepth,
+  declaresTheDeepestCabinetDepth,
   depthFollowsSetting,
 } from "../src/cabinet-depth-rule.js";
-import { buildKitchenLBodyCatalog } from "../src/fixtures/kitchen-l-design.js";
+import {
+  buildKitchenLBodyCatalog,
+  KITCHEN_L_DESIGN,
+} from "../src/fixtures/kitchen-l-design.js";
 import { occupiedDepthOfEntryM } from "../src/occupied-depth.js";
 import { declaredCabinetDepthsMm } from "../src/worktop-depth.js";
-import type { BodyCatalog, BodyDefinition } from "../src/void-engine.js";
+import type {
+  BodyCatalog,
+  BodyDefinition,
+  Column,
+} from "../src/void-engine.js";
+import { createWorld } from "./support/kitchen-world.js";
 
 /** Metres, and the finished depths compared here are millimetre quantities divided by 1000, so this
  *  is far tighter than any disagreement the gate exists to catch and looser than the float noise
@@ -53,6 +62,35 @@ function pairedRows(
       definition.catalogEquivalentId !== undefined &&
       catalog.get(definition.catalogEquivalentId) !== undefined,
   );
+}
+
+interface LiftedPlacement {
+  readonly id: string;
+  readonly buildId: string;
+  readonly definition: BodyDefinition;
+  readonly column: Column;
+}
+
+/** Every placement of the seeded kitchen, at this setting, whose row declares a lifted-column depth, with the column
+ *  the design puts it in. The columns are the real ones (`createWorld` derives them as the store does), so the arm each
+ *  row is held to is the one a rebuild would take. */
+function liftedPlacementsAt(
+  cabinetDepthMm: number,
+): readonly LiftedPlacement[] {
+  const catalog = buildKitchenLBodyCatalog(cabinetDepthMm);
+  const world = createWorld(
+    { ...KITCHEN_L_DESIGN, settings: { cabinetDepthMm } },
+    catalog,
+  );
+  return world.records.flatMap((record) => {
+    const definition = catalog.get(record.buildId);
+    const column = world.columns.get(record.col);
+    return definition !== undefined &&
+      column !== undefined &&
+      declaresALiftedColumnDepth(definition)
+      ? [{ id: record.id, buildId: record.buildId, definition, column }]
+      : [];
+  });
 }
 
 function disagreeingPairs(cabinetDepthMm: number): readonly Disagreement[] {
@@ -170,30 +208,79 @@ describe("a seeded entry and its catalogue equivalent declare one depth", () => 
     );
 
     // **The replacement assertion.** The skipped comparison is swapped for the one that is true of
-    // these rows: their finished depth is `columnBuildDepthMm`'s lifted arm at this setting, which
-    // is the cabinet-depth line — 600 at 600 and 700 at 700, against `wall-cabinet`'s 330 and 400.
+    // these rows: their finished depth is what `columnBuildDepthMm` answers for the column each one
+    // stands over, which is the cabinet-depth line over a tower or a pantry (600 at 600, 700 at 700,
+    // against `wall-cabinet`'s 330 and 400) and the deepest declared depth over the freestanding fridge
+    // (700 at both; ADR 0183 decision 4). The arm is read off the column the seeded design puts each
+    // row in, never off the row's id, and the row's own declaration is then held to it, so a row that
+    // declares the fridge arm over a column the fridge does not stand under, or the reverse, fails here.
     it.each(declaredCabinetDepthsMm())(
-      "finishes at its column's build depth at %i mm",
+      "finishes at its own column's build depth at %i mm",
       (cabinetDepthMm) => {
-        const liftedBuildDepthM =
-          columnBuildDepthMm({
-            cabinetDepthMm,
-            hasFullHeightUnder: true,
-            hasDeepWallBodyUnder: false,
-          }) / 1000;
-        const paired = pairedRows(buildKitchenLBodyCatalog(cabinetDepthMm));
+        const lifted = liftedPlacementsAt(cabinetDepthMm);
 
-        const lifted = paired.filter(([, definition]) =>
-          declaresALiftedColumnDepth(definition),
-        );
         expect(lifted.length).toBeGreaterThan(0);
-        for (const [buildId, definition] of lifted) {
-          expect(occupiedDepthOfEntryM({ buildId, definition })).toBeCloseTo(
-            liftedBuildDepthM,
+        for (const { buildId, definition, column } of lifted) {
+          expect(
+            occupiedDepthOfEntryM({ buildId, definition }),
+            buildId,
+          ).toBeCloseTo(
+            columnBuildDepthMm({
+              cabinetDepthMm,
+              hasFullHeightUnder: column.hasFullHeightUnder,
+              hasDeepWallBodyUnder: column.hasDeepWallBodyUnder,
+            }) / 1000,
             FINISHED_DEPTH_TOLERANCE_DIGITS,
+          );
+          expect(declaresTheDeepestCabinetDepth(definition), buildId).toBe(
+            column.hasDeepWallBodyUnder,
           );
         }
       },
     );
+
+    // **The two arms are separate claims, pinned by placement.** At 700 they coincide, so a swept
+    // comparison alone could not tell the arms apart there; at 600 they differ, which is where this
+    // is non-vacuous: the over-fridge body answers the fridge arm and the two tops the lifted one.
+    it.each([
+      { id: "p22", cabinetDepthMm: 600, finishedMm: 600 },
+      { id: "p23", cabinetDepthMm: 600, finishedMm: 600 },
+      { id: "p24", cabinetDepthMm: 600, finishedMm: 700 },
+      { id: "p22", cabinetDepthMm: 700, finishedMm: 700 },
+      { id: "p23", cabinetDepthMm: 700, finishedMm: 700 },
+      { id: "p24", cabinetDepthMm: 700, finishedMm: 700 },
+    ])(
+      "finishes $id at $finishedMm mm at $cabinetDepthMm mm",
+      ({ id, cabinetDepthMm, finishedMm }) => {
+        const placed = liftedPlacementsAt(cabinetDepthMm).find(
+          (candidate) => candidate.id === id,
+        );
+        if (placed === undefined) throw new Error(`${id} is not a lifted row`);
+
+        expect(
+          Math.round(
+            1000 *
+              occupiedDepthOfEntryM({
+                buildId: placed.buildId,
+                definition: placed.definition,
+              }),
+          ),
+        ).toBe(finishedMm);
+      },
+    );
+
+    it("answers the two arms differently at 600, so the pins above tell them apart", () => {
+      const arms = new Set(
+        liftedPlacementsAt(600).map(({ column }) =>
+          columnBuildDepthMm({
+            cabinetDepthMm: 600,
+            hasFullHeightUnder: column.hasFullHeightUnder,
+            hasDeepWallBodyUnder: column.hasDeepWallBodyUnder,
+          }),
+        ),
+      );
+
+      expect([...arms].sort()).toEqual([600, 700]);
+    });
   });
 });

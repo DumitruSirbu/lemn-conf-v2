@@ -47,6 +47,7 @@ import {
   CAPPED_SEAT_MM,
   extentOver,
   LIFTED_SEAT_AT_600_MM,
+  LIFTED_SEAT_AT_700_MM,
   LIFTED_SEAT_MM,
   recordOver,
   spansOverlapByMoreThanNothing,
@@ -688,7 +689,9 @@ describe("the seeded kitchen keeps its three deep tops, each over a full-height 
     ).toEqual([
       LIFTED_SEAT_AT_600_MM,
       LIFTED_SEAT_AT_600_MM,
-      LIFTED_SEAT_AT_600_MM,
+      // p24 hangs over the freestanding fridge: the deepest declared depth's seat, 661, at every setting (ADR 0183
+      // decision 4, wave W3b).
+      LIFTED_SEAT_AT_700_MM,
     ]);
   });
 });

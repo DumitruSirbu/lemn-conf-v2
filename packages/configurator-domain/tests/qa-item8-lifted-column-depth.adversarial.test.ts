@@ -57,11 +57,25 @@ const DEEP_TOPS = [
 
 /** ADR 0101's measured table: how far the column beneath stands proud of the top above it. 38 mm behind the oven
  *  tower's handles, one millimetre behind the top at the pantry (the flush relationship the owner reported as right),
- *  and the fridge's manufactured 742 less the line. */
+ *  and the fridge's manufactured 742 less what hangs over it. That was 142 at 600 (the cabinet-depth line) until ADR 0183
+ *  decision 4 (wave W3b) built the cabinet over the fridge to the deepest declared depth, so it is 42 at both settings:
+ *  the machine's door front stands 42 mm proud of the 700, expected (M12 Q3-4). */
 const STEPS_MM = {
-  600: { p22: 38, p23: -1, p24: 142 },
+  600: { p22: 38, p23: -1, p24: 42 },
   700: { p22: 38, p23: -1, p24: 42 },
 } as const;
+
+/** What the cabinet over the freestanding fridge finishes at, at every setting (ADR 0183 decision 4): written as the
+ *  owner's number, not read from the rule under test. */
+const OVER_THE_FRIDGE_FINISHED_MM = 700;
+
+/** The finished depth a deep top is built to at a setting: the cabinet-depth line, except over the fridge. */
+function finishedDepthOfDeepTopMm(
+  placementId: string,
+  cabinetDepthMm: number,
+): number {
+  return placementId === "p24" ? OVER_THE_FRIDGE_FINISHED_MM : cabinetDepthMm;
+}
 
 /** §5.2's head-clearance cap as the finished depth of a capped wall body: ADR 0028's map, written here as data rather
  *  than read from the module under test. */
@@ -289,13 +303,14 @@ describe("the three deep tops, measured against the columns they hang over", () 
     return result.design;
   }
 
-  // All three finish on the cabinet-depth line at both declared depths (600 in a 600 mm kitchen, 700 in a 700 mm one).
+  // `p22` and `p23` finish on the cabinet-depth line at both declared depths (600 in a 600 mm kitchen, 700 in a 700 mm
+  // one); `p24` finishes at the deepest declared depth at both (ADR 0183 decision 4).
   // Asked of the placement and of the catalogue entry in one assertion, because they are two numbers reached by two
   // routes and only their agreement is the ruling: after a depth change the placement carries a rebuilt `seatDepthMm`
   // and would keep reading 700 even if the entry were re-pinned at 600, while a design loaded at 700 with no stored
   // seat gets the entry's declaration (ADR 0079 decision 10's pairing invariant).
   it.each(declaredCabinetDepthsMm())(
-    "finishes every deep top on the cabinet-depth line at %i mm, by both routes",
+    "finishes every deep top at the depth its column answers at %i mm, by both routes",
     (cabinetDepthMm) => {
       const finishedMm = measuredAt(cabinetDepthMm);
       const catalog = buildKitchenLBodyCatalog(cabinetDepthMm);
@@ -316,8 +331,8 @@ describe("the three deep tops, measured against the columns they hang over", () 
       ).toEqual(
         DEEP_TOPS.map(({ placementId }) => ({
           placementId,
-          placedMm: cabinetDepthMm,
-          declaredMm: cabinetDepthMm,
+          placedMm: finishedDepthOfDeepTopMm(placementId, cabinetDepthMm),
+          declaredMm: finishedDepthOfDeepTopMm(placementId, cabinetDepthMm),
         })),
       );
     },

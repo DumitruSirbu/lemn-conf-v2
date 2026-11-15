@@ -13,6 +13,7 @@ import {
   columnBuildDepthMm,
   declaredCabinetDepthsMm,
   declaresALiftedColumnDepth,
+  declaresTheDeepestCabinetDepth,
   toMetres,
   wallCarcassDepthMm,
   type BodyDefinition,
@@ -192,12 +193,13 @@ function declaredFinishedDepthMm(
   if (rule.follows !== "cabinet-depth") return undefined;
   // **Two declarations answer, not one** (ADR 0101 decision 1). A wall row over a full-height column
   // is out of the head-clearance cap's reach, so its finished depth is `columnBuildDepthMm`'s lifted
-  // arm and not the map's row. Read off the entry, never guessed from its id or its size.
+  // arm (the deepest declared depth for the cabinet over the fridge, ADR 0183 decision 4) and not the map's
+  // row. Read off the entry, never guessed from its id or its size.
   return declaresALiftedColumnDepth(definition)
     ? columnBuildDepthMm({
         cabinetDepthMm,
         hasFullHeightUnder: true,
-        hasDeepWallBodyUnder: false,
+        hasDeepWallBodyUnder: declaresTheDeepestCabinetDepth(definition),
       })
     : wallCarcassDepthMm(cabinetDepthMm);
 }
