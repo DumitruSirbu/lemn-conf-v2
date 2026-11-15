@@ -64,7 +64,7 @@ function EmailAction({ email }: { readonly email: string }) {
     <a
       className={styles.factAction}
       href={link.href}
-      aria-label={profile.writeTo(isolated(link.value))}
+      aria-label={profile.writeLabel(isolated(link.value))}
       data-testid="staff-kitchen-profile-write"
     >
       {profile.write}
@@ -82,7 +82,7 @@ function PhoneAction({ phone }: { readonly phone: string }) {
     <a
       className={styles.factAction}
       href={link.href}
-      aria-label={profile.callTo(isolated(link.value))}
+      aria-label={profile.callLabel(isolated(link.value))}
       data-testid="staff-kitchen-profile-call"
     >
       {profile.call}

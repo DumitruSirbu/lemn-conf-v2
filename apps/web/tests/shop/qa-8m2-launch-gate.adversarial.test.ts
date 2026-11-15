@@ -93,6 +93,10 @@ const NOTICE_MODULES = [
   "lib/server/mail/lead-notification.ts",
 ];
 
+/** The staff page's client-contact link builder: it links a client's own profile e-mail, never the shop's
+ *  (ADR 0185 decision 7). */
+const CLIENT_CONTACT_LINK_BUILDER = "staff/contact-links.ts";
+
 describe("criterion 1, attacked: no other way to reach the shop's number is written in the application", () => {
   const files = sourceFiles(SOURCE_ROOT).map((path) => ({
     path: path.slice(SOURCE_ROOT.length + 1),
@@ -114,12 +118,12 @@ describe("criterion 1, attacked: no other way to reach the shop's number is writ
     ).toEqual([]);
   });
 
-  it("holds no mailto: link (the shop is reached by phone only) outside the notice's customer button", () => {
+  it("holds no mailto: link (the shop is reached by phone only) outside the notice's customer button and the staff client-contact builder", () => {
     expect(
       files
         .filter(({ text }) => /\bmailto:/i.test(text))
         .map(({ path }) => path),
-    ).toEqual(NOTICE_MODULES);
+    ).toEqual([...NOTICE_MODULES, CLIENT_CONTACT_LINK_BUILDER]);
   });
 
   it("holds the placeholder's digits only in the module that derives the addresses", () => {

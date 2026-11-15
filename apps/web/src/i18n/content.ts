@@ -1655,10 +1655,10 @@ export function resolveStaffKitchenCopy(translate: ContentTranslator) {
       phone: translate("staffKitchen.profilePhone"),
       address: translate("staffKitchen.profileAddress"),
       call: translate("staffKitchen.profileCall"),
-      callTo: (phone: string) =>
-        translate("staffKitchen.profileCallTo", { phone }),
+      callLabel: (number: string) =>
+        translate("staffKitchen.profileCallTo", { number }),
       write: translate("staffKitchen.profileWrite"),
-      writeTo: (email: string) =>
+      writeLabel: (email: string) =>
         translate("staffKitchen.profileWriteTo", { email }),
     },
     accessLogged: translate("staffKitchen.accessLogged"),

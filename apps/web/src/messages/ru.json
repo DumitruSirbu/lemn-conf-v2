@@ -1176,7 +1176,7 @@
     "profilePhone": "Телефон",
     "profileAddress": "Адрес / населённый пункт",
     "profileCall": "Позвонить",
-    "profileCallTo": "Позвонить по номеру {phone}",
+    "profileCallTo": "Позвонить по номеру {number}",
     "profileWrite": "Написать",
     "profileWriteTo": "Написать на {email}",
     "accessLogged": "Доступ фиксируется в журнале.",

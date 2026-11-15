@@ -1553,7 +1553,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     // into its accessible name.
     profileAddress: "Adresă / localitate",
     profileCall: "Sună",
-    profileCallTo: "Sună la {phone}",
+    profileCallTo: "Sună la {number}",
     profileWrite: "Scrie",
     profileWriteTo: "Scrie la {email}",
     accessLogged: "Accesul este înregistrat în jurnal.",

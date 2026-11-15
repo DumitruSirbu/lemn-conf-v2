@@ -16,12 +16,20 @@ const NOTICE_MODULES = [
   "lib/server/mail/lead-notification.ts",
 ];
 
+/** The staff page's client-contact link builder: it links a client's own profile phone and e-mail, never the shop's
+ *  (ADR 0185 decision 7). */
+const CLIENT_CONTACT_LINK_BUILDER = "staff/contact-links.ts";
+
 /** Each scheme's holders: the module that derives the shop's addresses holds both, and the one anchor that opens
  *  WhatsApp holds its own. */
 const SCHEMES = {
   "tel:": {
     pattern: /\btel:/,
-    holders: [...NOTICE_MODULES, "shop/shop-phone.ts"],
+    holders: [
+      ...NOTICE_MODULES,
+      "shop/shop-phone.ts",
+      CLIENT_CONTACT_LINK_BUILDER,
+    ],
   },
   "wa.me/": {
     pattern: /\bwa\.me\//,

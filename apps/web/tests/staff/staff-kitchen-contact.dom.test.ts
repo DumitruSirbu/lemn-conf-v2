@@ -174,7 +174,7 @@ describe.each(LOCALES)("the profile contact block in %s", (locale) => {
       words("profileWriteTo", { email: isolated("ana.popescu@mail.md") }),
     );
     expect(requireIn(container, CALL).getAttribute("aria-label")).toBe(
-      words("profileCallTo", { phone: isolated("+37369123456") }),
+      words("profileCallTo", { number: isolated("+37369123456") }),
     );
     expect(requireIn(container, PROFILE).textContent).toContain("069 123 456");
   });

@@ -1179,7 +1179,7 @@ declare const messages: {
     "profilePhone": "Telefon",
     "profileAddress": "Adresă / localitate",
     "profileCall": "Sună",
-    "profileCallTo": "Sună la {phone}",
+    "profileCallTo": "Sună la {number}",
     "profileWrite": "Scrie",
     "profileWriteTo": "Scrie la {email}",
     "accessLogged": "Accesul este înregistrat în jurnal.",
