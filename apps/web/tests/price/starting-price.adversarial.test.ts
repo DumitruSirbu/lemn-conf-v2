@@ -451,6 +451,9 @@ describe("only these modules may go near a price, and only one of them may round
       // The staff kitchen's two estimates: it copies the stored total of the request as sent, and carries the total the
       // one pricing query gives the kitchen now (`priceAgainstBook`); it derives and rounds nothing.
       "lib/server/staff/staff-kitchen-estimates.ts",
+      // The staff kitchen answer's builders copy the request's stored cabinet lines (`amountMinor`) into the wire member by
+      // member; they pass stored integers through and round nothing.
+      "lib/server/staff/staff-responses.ts",
       "panel/editor-panel.tsx",
       "panel/panel-model.ts",
       "panel/use-panel-view.ts",
@@ -490,14 +493,18 @@ describe("only these modules may go near a price, and only one of them may round
       // builder, which words each amount at ten lei; the model and the component derive and round nothing.
       "staff/staff-cabinet-list-model.ts",
       "staff/staff-cabinet-list.tsx",
-      // The staff kitchen's summary card prints the price line `describeKitchenPrice` makes, as the kitchen card does,
-      // and names the book's two tiers from the same priced design; it derives and rounds nothing.
+      // The staff kitchen's header facts (built here, drawn by the cabinet list's header) print the price line
+      // `describeKitchenPrice` makes, as the kitchen card does, and name the book's two tiers from the same priced design;
+      // it derives and rounds nothing.
       "staff/staff-kitchen-view.tsx",
       // Reads the two estimates' `totalMinor` off the wire member by member and keeps them as they came; it derives and
       // rounds nothing.
       "staff/staff-kitchens-marks-reading.ts",
       // The wire's types name the two estimates' `totalMinor`; it holds no code.
       "staff/staff-kitchens-wire-contract.ts",
+      // Reads the stored cabinet lines' `amountMinor` off the answer entry by entry, keeping safe integers as they came; it
+      // rounds nothing.
+      "staff/staff-kitchens-wire-reading.ts",
     ]);
   });
 

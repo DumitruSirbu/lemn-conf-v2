@@ -729,7 +729,7 @@ describe("which module rounds what", () => {
       expect(CODE.get(path), path).not.toMatch(rowSources);
   });
 
-  it("lets the staff cabinet list's model take exactly four builders from the row sources, and nothing else of them", () => {
+  it("lets the staff cabinet list's model take exactly five builders from the row sources, and nothing else of them", () => {
     const code = CODE.get("staff/staff-cabinet-list-model.ts") ?? "";
     const importsFrom = (source: string): string[] => {
       const match = new RegExp(
@@ -746,6 +746,7 @@ describe("which module rounds what", () => {
     expect(importsFrom("@/price/price-breakdown-model")).toEqual([
       "describeBreakdownRows",
       "describeGroupHeading",
+      "describeStoredLineAmount",
     ]);
     expect(importsFrom("@/review/review-model")).toEqual([
       "describeRowDetails",

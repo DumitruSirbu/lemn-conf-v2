@@ -454,6 +454,12 @@ function toUnplacedRow(
  *  line reaches zero, and `0` beside a body is a number that is not a price. */
 function describeRowAmount(amountMinor: number, content: Content): string {
   if (amountMinor === 0) return content.priceBreakdown.included;
+  return describeStoredLineAmount(amountMinor);
+}
+
+/** A priced line's amount, stored with a sent request, at the ten lei every line is shown to: the one call of the line
+ *  formatter, so a surface that lists stored amounts words them as the rows do. */
+export function describeStoredLineAmount(amountMinor: number): string {
   return describeLineAmount(amountMinor);
 }
 

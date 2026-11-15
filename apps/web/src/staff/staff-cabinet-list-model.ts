@@ -9,9 +9,9 @@ import type { Content } from "@/i18n/content";
 import {
   describeBreakdownRows,
   describeGroupHeading,
+  describeStoredLineAmount,
 } from "@/price/price-breakdown-model";
 import { priceFloorOf, type PriceBookRoot } from "@/price/price-book-root";
-import { describeLineAmount } from "@/price/starting-price";
 import {
   describeRowDetails,
   rowDetailOf,
@@ -228,7 +228,7 @@ function sentAmountTextsOf(
   const texts = new Map<string, string>();
   for (const { placementId, amountMinor } of sentLines) {
     if (amountMinor > 0) {
-      texts.set(placementId, describeLineAmount(amountMinor));
+      texts.set(placementId, describeStoredLineAmount(amountMinor));
     } else {
       texts.delete(placementId);
     }
