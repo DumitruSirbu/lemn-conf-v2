@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { memo, useEffect, useId, useState } from "react";
 
 import type { Design } from "@lemnaria/configurator-domain";
 
@@ -56,8 +56,11 @@ export function KitchenVersionSwitch({
  * The picture of the copy on screen. The view hydrates its store while it renders, so the picture of the other copy is
  * taken off the page in one commit and this copy's drawn in the next: two views mounted at once would write the store
  * under each other's feet, and a change of the document under one mount is not something the view supports.
+ *
+ * Memoised because the canvas draws on demand and any rerender of it is a redraw: without it, every change elsewhere on
+ * the page (a status saved, a note added) redrew the scene, which on a machine with no GPU blocks the page for seconds.
  */
-export function VersionedKitchenView({
+export const VersionedKitchenView = memo(function VersionedKitchenView({
   design,
   isCurrentVariantOfSent,
 }: {
@@ -75,4 +78,4 @@ export function VersionedKitchenView({
       isCurrentVariantOfSent={isCurrentVariantOfSent}
     />
   );
-}
+});
