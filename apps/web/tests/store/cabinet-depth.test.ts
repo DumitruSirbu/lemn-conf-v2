@@ -20,6 +20,10 @@ import { assertSourcesExplainTheirDepths } from "../support/frozen-source-invari
 
 const OCCURRED_AT = "2026-09-04T12:00:00.000Z";
 const DEEPER_MM = 700;
+/** The seeded cabinet over the freestanding fridge and the seat it has once built to the deepest declared depth, 700,
+ *  less the 39 mm a fronted wall carcass's door and handle take (ADR 0183 decision 4). */
+const OVER_THE_FRIDGE_ID = "p24";
+const OVER_THE_FRIDGE_SEAT_M = 0.661;
 /** Not offered, and below no floor, so the refusal it earns is `UNKNOWN_CABINET_DEPTH`, not the dishwasher floor's. */
 const UNDECLARED_MM = 650;
 
@@ -329,8 +333,13 @@ describe("the round trip a customer takes, measured where they can see it", () =
     );
     expect(moved.length).toBeGreaterThan(0);
 
-    // Every placement comes back, so a body seated right by luck cannot carry one that was not.
-    expect(seatedDepthsByPlacementId(store)).toEqual(startedAt);
+    // Every placement comes back, so a body seated right by luck cannot carry one that was not. The exception is the
+    // seeded `p24`, the cabinet over the freestanding fridge: it was recorded at 600 and the first depth change takes
+    // it to the fridge arm's 700 (ADR 0183 decision 4, M12 wave W3a), where it stays at every setting afterwards.
+    expect(seatedDepthsByPlacementId(store)).toEqual(
+      new Map(startedAt).set(OVER_THE_FRIDGE_ID, OVER_THE_FRIDGE_SEAT_M),
+    );
+    expect(deepened.get(OVER_THE_FRIDGE_ID)).toBe(OVER_THE_FRIDGE_SEAT_M);
   });
 });
 

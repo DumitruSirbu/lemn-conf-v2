@@ -274,14 +274,16 @@ function frozenDepthAtThisSetting(query: FrozenDepthQuery): PublishedDepth {
   //                   surplus, and is kept.
   //   false -> true : a 400 published under the capped arm meets a 600 `atFreezeM`, reads as a
   //                   surplus, and the MAX deepens it to `declaredM`.
-  const { hasFullHeightUnder } = query.column;
+  const { hasFullHeightUnder, hasDeepWallBodyUnder } = query.column;
   const declaredM = columnBuildDepthM({
     cabinetDepthMm: query.input.cabinetDepthMm,
     hasFullHeightUnder,
+    hasDeepWallBodyUnder,
   });
   const atFreezeM = columnBuildDepthM({
     cabinetDepthMm: query.input.previousCabinetDepthMm,
     hasFullHeightUnder,
+    hasDeepWallBodyUnder,
   });
 
   // A depth this rule itself could have published is not information (ADR 0080 decision 4): it

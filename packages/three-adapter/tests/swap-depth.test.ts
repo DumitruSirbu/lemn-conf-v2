@@ -113,6 +113,13 @@ function seatDepthMmOf(design: Design, placementId: string): number {
   return toMillimetres(recordOf(design, placementId).frame.d);
 }
 
+/** What a wall body over the freestanding fridge is built to at every setting (ADR 0183 decision 4, M12 wave W3a): the
+ *  deepest declared cabinet depth. The seeded `p24` records 600 until W3b moves it, so its swap is the one that changes. */
+const OVER_THE_FRIDGE_DEPTH_MM = 700;
+const BUILT_DEEP_OVER_THE_FRIDGE_MM: Readonly<Record<string, number>> = {
+  p24: OVER_THE_FRIDGE_DEPTH_MM,
+};
+
 interface SwapCase {
   readonly id: string;
   readonly buildId: string;
@@ -161,9 +168,11 @@ describe("a swap never changes a wall body's depth", () => {
   // at the width it stands at. Ranges make 700 an ordinary two-door width — two honest 350 mm leaves
   // — so every replaceable wall body is rebuildable as itself again, with no exclusion to remember.
   it.each(replaceableWallBodies())(
-    "$id ($buildId) is rebuilt as $equivalentId at its own $depthMm mm",
+    "$id ($buildId) is rebuilt as $equivalentId at its own $depthMm mm (700 where the fridge arm governs)",
     ({ id, equivalentId, depthMm }) => {
-      expect(swapDepthMm(id, equivalentId)).toBe(depthMm);
+      expect(swapDepthMm(id, equivalentId)).toBe(
+        BUILT_DEEP_OVER_THE_FRIDGE_MM[id] ?? depthMm,
+      );
     },
   );
 
@@ -171,7 +180,7 @@ describe("a swap never changes a wall body's depth", () => {
   // silently stopped covering it would read green. 600 is the depth, not the width: `p24` stands over
   // the fridge, where §7's head-clearance cap is lifted.
   it("rebuilds the 700 mm over-fridge cabinet as its own catalogue entry", () => {
-    expect(swapDepthMm("p24", "wall-cabinet")).toBe(600);
+    expect(swapDepthMm("p24", "wall-cabinet")).toBe(OVER_THE_FRIDGE_DEPTH_MM);
   });
 });
 
@@ -189,7 +198,7 @@ describe("§7's head-clearance cap follows what is under the opening", () => {
     { id: "p13", underneath: "the hob's worktop", depthMm: 330 },
     { id: "p22", underneath: "a tall oven tower", depthMm: 600 },
     { id: "p23", underneath: "a tall pantry", depthMm: 600 },
-    { id: "p24", underneath: "the fridge", depthMm: 600 },
+    { id: "p24", underneath: "the fridge", depthMm: OVER_THE_FRIDGE_DEPTH_MM },
   ])(
     "$id sits over $underneath, so a wall cabinet is built to $depthMm mm",
     ({ id, depthMm }) => {

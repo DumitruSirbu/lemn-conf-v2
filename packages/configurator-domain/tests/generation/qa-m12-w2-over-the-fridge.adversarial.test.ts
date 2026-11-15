@@ -883,12 +883,19 @@ describe("what a customer can do to a generated kitchen with the cabinet over it
   });
 });
 
-describe("generation is the only reader of the declaration", () => {
-  it("is read by `generate-kitchen.ts` and by no other production module that is not its own definition or the barrel", () => {
-    const sourceRoot = path.resolve(
-      path.dirname(fileURLToPath(import.meta.url)),
-      "../../src",
-    );
+// Relaxed by M12 wave W3a (ADR 0183 Amendment A, W2 logic review R1.3): this block said "generation is the only reader of
+// the declaration". W3a adds a second fact to the declaration, that a wall body over the row is built to the deepest
+// declared depth, and the depth rule has to read it, through the column that `withCurrentFullHeightMembers` answers. So
+// the readers are now "generation and the depth rule", and each fact keeps exactly one reader: generation reads
+// `isOwedByGeneration` and the depth rule reads `isBuiltToTheDeepestCabinetDepth`, never the other's.
+describe("generation and the depth rule are the only readers of the declaration", () => {
+  const sourceRoot = path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    "../../src",
+  );
+
+  /** The production modules, relative to `src`, whose text matches `pattern`. */
+  function modulesMatching(pattern: RegExp): string[] {
     const readers: string[] = [];
     const visit = (directory: string): void => {
       for (const entry of readdirSync(directory, { withFileTypes: true })) {
@@ -896,17 +903,61 @@ describe("generation is the only reader of the declaration", () => {
         if (entry.isDirectory()) visit(full);
         else if (
           entry.name.endsWith(".ts") &&
-          readFileSync(full, "utf8").includes("isAWallBodyOwedOver(")
+          pattern.test(readFileSync(full, "utf8"))
         ) {
           readers.push(path.relative(sourceRoot, full));
         }
       }
     };
     visit(sourceRoot);
+    return readers.sort();
+  }
 
-    expect(readers.sort()).toEqual([
+  it("owes a body by `isAWallBodyOwedOver`, read by `generate-kitchen.ts` and by no other module that is not its own definition or the barrel", () => {
+    expect(modulesMatching(/isAWallBodyOwedOver\(/)).toEqual([
       "generation/generate-kitchen.ts",
       "wall-body-over-it.ts",
     ]);
+  });
+
+  it("builds a body deep by `declaresADeepWallBodyOver`, read by `void-engine.ts` (the column's answer) and by no other module that is not its own definition", () => {
+    // A read is a call or a function passed as a callback; an import or an export list names it with a comma.
+    expect(modulesMatching(/declaresADeepWallBodyOver[()]/)).toEqual([
+      "void-engine.ts",
+      "wall-body-over-it.ts",
+    ]);
+  });
+
+  it("names the two fields only in the declaration's own module, whatever reads them", () => {
+    expect(modulesMatching(/isBuiltToTheDeepestCabinetDepth/)).toEqual([
+      "wall-body-over-it.ts",
+    ]);
+    expect(modulesMatching(/isOwedByGeneration/)).toEqual([
+      "wall-body-over-it.ts",
+    ]);
+  });
+
+  it("reads the declaration off a definition only in its own module and in `void-engine.ts`'s raw carrier copy", () => {
+    // `derivePlacementRecords` copies the declaration onto the record untouched so the column's answer can be derived
+    // over records alone; a catalogue row or fixture only assigns it, which the leading dot excludes.
+    expect(modulesMatching(/\.wallBodyOverIt/)).toEqual([
+      "void-engine.ts",
+      "wall-body-over-it.ts",
+    ]);
+  });
+
+  it("keeps generation off the depth fact and the depth rule off the generation fact", () => {
+    expect(
+      modulesMatching(/isBuiltToTheDeepestCabinetDepth/).filter((module) =>
+        module.startsWith("generation/"),
+      ),
+    ).toEqual([]);
+    expect(
+      modulesMatching(/isOwedByGeneration/).filter(
+        (module) =>
+          !module.startsWith("generation/") &&
+          module !== "wall-body-over-it.ts",
+      ),
+    ).toEqual([]);
   });
 });

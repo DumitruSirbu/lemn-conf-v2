@@ -387,7 +387,12 @@ describe("the ratchet as an anti-invariant", () => {
       .map(
         (cabinetDepthMm) =>
           Math.round(
-            1e6 * columnBuildDepthM({ cabinetDepthMm, hasFullHeightUnder }),
+            1e6 *
+              columnBuildDepthM({
+                cabinetDepthMm,
+                hasFullHeightUnder,
+                hasDeepWallBodyUnder: false,
+              }),
           ) / 1000,
       );
   }

@@ -136,6 +136,7 @@ function evaluateFitWidth(buildId: string, openingWidthMm: number) {
     top: 0.86,
     regions: [[0, 0.86]],
     hasFullHeightUnder: true,
+    hasDeepWallBodyUnder: false,
   };
   return evaluateInsertFit({
     body,

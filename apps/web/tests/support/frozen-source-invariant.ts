@@ -90,6 +90,7 @@ function isTheKnownLiftedColumnDefect(query: RecordedSourceQuery): boolean {
     columnBuildDepthMm({
       cabinetDepthMm: query.cabinetDepthMm,
       hasFullHeightUnder: true,
+      hasDeepWallBodyUnder: false,
     }) - occupiedDepth.frontAssemblyMm,
   );
   return query.members.some(

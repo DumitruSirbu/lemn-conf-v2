@@ -19,11 +19,17 @@ import {
 import {
   CAPPED_SEAT_AT_600_MM,
   LIFTED_SEAT_AT_600_MM,
+  LIFTED_SEAT_AT_700_MM,
 } from "../support/span-overlap-fixtures.js";
 import { syntheticWorld } from "../support/synthetic-world.js";
 
 const WALL_ROW_FLOOR_M = 1.5;
 const TOP_ROW_FLOOR_M = 2.2;
+/** The tall member in these worlds is the freestanding fridge, so a body over it is built to the fridge arm, the
+ *  deepest declared depth, at the 600 setting (ADR 0183 decision 4, wave W3a): the seat of a fronted 700 carcass. The
+ *  assertions here are that the overlap lifts the cap at all, which the cabinet-depth line's 561 no longer says. */
+const FRIDGE_ARM_SEAT_AT_600_MM = LIFTED_SEAT_AT_700_MM;
+
 const FRIDGE_WIDTH_MM = 700;
 const NEIGHBOUR_WIDTH_MM = 600;
 
@@ -197,7 +203,7 @@ describe("over a full-height member the body is built deep (insert)", () => {
         WALL_ROW_FLOOR_M,
         "wall-cabinet",
       ),
-    ).toBe(LIFTED_SEAT_AT_600_MM);
+    ).toBe(FRIDGE_ARM_SEAT_AT_600_MM);
   });
 });
 
@@ -353,7 +359,7 @@ describe("replace, beside and over", () => {
     ]);
 
     expect(swappedSeat(world, "upper", "wall-lift")).toBe(
-      LIFTED_SEAT_AT_600_MM,
+      FRIDGE_ARM_SEAT_AT_600_MM,
     );
   });
 });

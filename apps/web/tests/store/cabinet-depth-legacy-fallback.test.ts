@@ -136,7 +136,11 @@ function reload(store: Store): Store {
 /** The build ceiling this rule answers with at one setting: 330/400 with nothing full-height under the opening,
  *  600/700 with one. */
 function ceilingM(cabinetDepthMm: number, hasFullHeightUnder: boolean): number {
-  return columnBuildDepthM({ cabinetDepthMm, hasFullHeightUnder });
+  return columnBuildDepthM({
+    cabinetDepthMm,
+    hasFullHeightUnder,
+    hasDeepWallBodyUnder: false,
+  });
 }
 
 describe("a depth the fallback itself produced follows the setting back down", () => {

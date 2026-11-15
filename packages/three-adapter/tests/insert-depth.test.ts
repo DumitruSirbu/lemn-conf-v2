@@ -63,6 +63,11 @@ const OVER_THE_FRIDGE_VOID_Y0_M = 1.85;
  *  the depth entry 10 closes at. Written as the expectation rather than imported. */
 const CABINET_DEPTH_LINE_MM = 600;
 
+/** What a wall body over the freestanding fridge is built to at every setting: the deepest declared cabinet depth, not
+ *  the cabinet-depth line and not the machine's 742 (ADR 0183 decision 4, M12 wave W3a). The seeded `p24` still records
+ *  600 until W3b; a body built here, by swap or by insert, is 700. */
+const OVER_THE_FRIDGE_DEPTH_MM = 700;
+
 /** The clearance of the fridge column: a 680 mm appliance plus its two door bars. It is what the
  *  uncapped arm used to hand the probe, and stating it is what keeps the assertion below from being
  *  read as "the two routes happen to agree". */
@@ -266,7 +271,7 @@ describe("swap and delete-then-insert over the fridge column (backlog entry 10)"
     );
   }
 
-  it("builds to the cabinet-depth line, not to the column's 742 mm clearance", () => {
+  it("builds to the deepest declared depth, not to the column's 742 mm clearance and not the cabinet-depth line", () => {
     const emptied = emptiedFridgeTop();
 
     // The trap, stated: the fridge is still standing, so the cap is lifted and the opening still
@@ -280,14 +285,14 @@ describe("swap and delete-then-insert over the fridge column (backlog entry 10)"
     const builtDepthMm = depthOfMm(result.design, result.effect.placementId);
 
     // An open shelf has no front assembly, so its recorded seat *is* its finished depth.
-    expect(builtDepthMm).toBe(CABINET_DEPTH_LINE_MM);
+    expect(builtDepthMm).toBe(OVER_THE_FRIDGE_DEPTH_MM);
     expect(builtDepthMm).not.toBe(FRIDGE_COLUMN_CLEARANCE_MM);
   });
 
-  it("agrees with the swap route at 600 — the smaller of the two numbers entry 10 measured", () => {
+  it("agrees with the swap route at 700, the fridge arm — never the 742 entry 10 measured", () => {
     // The literal is the assertion. "They must agree" would also be satisfied by both routes
     // drifting up to the clearance MAX, and 742 is the one number in ADR 0060's table no cabinet was
-    // ever built to; 600 is what the seeded design chose over this fridge deliberately.
+    // ever built to; 700 is the owner's number for a cabinet over this fridge (ADR 0183 decision 4).
     const opening = voidAt(
       emptiedFridgeTop(),
       FRIDGE_COLUMN,
@@ -319,8 +324,8 @@ describe("swap and delete-then-insert over the fridge column (backlog entry 10)"
       reinserted.effect.placementId,
     );
 
-    expect(bySwapMm).toBe(CABINET_DEPTH_LINE_MM);
-    expect(byInsertMm).toBe(CABINET_DEPTH_LINE_MM);
+    expect(bySwapMm).toBe(OVER_THE_FRIDGE_DEPTH_MM);
+    expect(byInsertMm).toBe(OVER_THE_FRIDGE_DEPTH_MM);
   });
 });
 
@@ -329,9 +334,10 @@ describe("the map governs the head-clearance rule and nothing else", () => {
   // cabinets to 330 and reintroduces backlog entry 5's defect in the opposite direction.
   it.each([
     { id: "p22", underneath: "a tall oven tower", depthMm: 600 },
-    { id: "p24", underneath: "the fridge", depthMm: 600 },
+    // The fridge's column answers the fridge arm, 700 at the 600 setting (ADR 0183 decision 4, wave W3a).
+    { id: "p24", underneath: "the fridge", depthMm: 700 },
   ])(
-    "$id keeps its $depthMm mm over $underneath, where the cap is lifted",
+    "$id is built to $depthMm mm over $underneath, where the cap is lifted",
     ({ id, depthMm }) => {
       const seeded = loadWorld(KITCHEN_L_DESIGN);
       const result = insertBody({

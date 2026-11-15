@@ -61,6 +61,13 @@ const CAPPED_BY_HEAD_CLEARANCE_MM: Readonly<Record<string, number>> = {
   p13: 330,
 };
 
+/** The one seeded wall body that hangs over a freestanding fridge: the column builds what goes over a body that
+ *  declares so to the deepest declared cabinet depth, 700, at every setting (ADR 0183 decision 4, wave W3a). Its own
+ *  recorded 600 is not what a replacement is built to; the row's `frameDepthMm` follows the rule in W3b. */
+const BUILT_DEEP_OVER_THE_FRIDGE_MM: Readonly<Record<string, number>> = {
+  p24: 700,
+};
+
 /** ADR 0036 decision 1: a declared dimension is the finished cabinet, so `wallCabinet` builds its shell at the
  *  declared depth less an 18 mm door and the 21 mm its bar handle stands proud. A seeded wall row's `frame.d` is
  *  therefore the shell (291 where the cabinet is 330), and a replacement is built against the declared depth.
@@ -109,7 +116,9 @@ describe("insertBody — the depth a swap in place builds against (§5.3)", () =
       id: record.id,
       buildId: record.buildId,
       depthMm:
-        CAPPED_BY_HEAD_CLEARANCE_MM[record.id] ?? declaredDepthMm(record),
+        CAPPED_BY_HEAD_CLEARANCE_MM[record.id] ??
+        BUILT_DEEP_OVER_THE_FRIDGE_MM[record.id] ??
+        declaredDepthMm(record),
     })),
   )(
     "builds a replacement for $id ($buildId) against its own $depthMm mm, not its column's",

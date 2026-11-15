@@ -147,6 +147,7 @@ describe("criterion 5H-5 — every key is in exactly one half", () => {
       top: 0.82,
       regions: [[0, 0.82]],
       hasFullHeightUnder: false,
+      hasDeepWallBodyUnder: false,
     };
   }
 

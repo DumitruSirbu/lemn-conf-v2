@@ -42,15 +42,29 @@ function frontAssemblyOf(buildId: string): number {
   return rule.frontAssemblyMm;
 }
 
+/** The two live facts a column publishes, passed whole so a column that answers the deep-body arm (a freestanding
+ *  fridge under it) is expected at the deepest depth too. Wall B's full-height cabinet is no fridge. */
+type ColumnDepthFacts = Pick<
+  Column,
+  "hasFullHeightUnder" | "hasDeepWallBodyUnder"
+>;
+const LIFTED_COLUMN: ColumnDepthFacts = {
+  hasFullHeightUnder: true,
+  hasDeepWallBodyUnder: false,
+};
+const CAPPED_COLUMN: ColumnDepthFacts = {
+  hasFullHeightUnder: false,
+  hasDeepWallBodyUnder: false,
+};
+
 /** The seat the column decides for a wall carcass, lifted or capped — `resolveDepthM`'s two arms
  *  expressed through the one declaration they both read. */
 function seatTheColumnDecides(
   cabinetDepthMm: number,
-  hasFullHeightUnder: boolean,
+  depthFacts: ColumnDepthFacts,
 ): number {
   return (
-    columnBuildDepthMm({ cabinetDepthMm, hasFullHeightUnder }) -
-    FRONT_ASSEMBLY_MM
+    columnBuildDepthMm({ cabinetDepthMm, ...depthFacts }) - FRONT_ASSEMBLY_MM
   );
 }
 
@@ -233,13 +247,13 @@ describe("the §5.3 swap reaches the re-plan, at every declared setting", () => 
     ({ cabinetDepthMm }) => {
       const store = setDepth(createStore(), cabinetDepthMm);
       expect(seatMmOf(store, DEEP_TOP)).toBe(
-        seatTheColumnDecides(cabinetDepthMm, true),
+        seatTheColumnDecides(cabinetDepthMm, LIFTED_COLUMN),
       );
 
       swapInPlace(store, FULL_HEIGHT_UNDER_IT, "base-cabinet");
 
       expect(seatMmOf(store, DEEP_TOP)).toBe(
-        seatTheColumnDecides(cabinetDepthMm, false),
+        seatTheColumnDecides(cabinetDepthMm, CAPPED_COLUMN),
       );
       expect(placement(store, DEEP_TOP).body.buildId).toBe(REPLANNED_BUILD_ID);
     },
@@ -261,7 +275,7 @@ describe("the §5.3 swap reaches the re-plan, at every declared setting", () => 
       expect(publishedExtents(store)).toEqual(before);
       // Non-vacuity: the swap did move the standing top.
       expect(seatMmOf(store, DEEP_TOP)).toBe(
-        seatTheColumnDecides(cabinetDepthMm, false),
+        seatTheColumnDecides(cabinetDepthMm, CAPPED_COLUMN),
       );
     },
   );
@@ -284,7 +298,7 @@ describe("the §5.3 swap reaches the re-plan, at every declared setting", () => 
       // Non-vacuity: both routes reached the same re-planned state.
       expect(seatMmOf(bySwap, DEEP_TOP)).toBe(seatMmOf(byDelete, DEEP_TOP));
       expect(seatMmOf(bySwap, DEEP_TOP)).toBe(
-        seatTheColumnDecides(cabinetDepthMm, false),
+        seatTheColumnDecides(cabinetDepthMm, CAPPED_COLUMN),
       );
     },
   );
@@ -298,8 +312,8 @@ describe("the re-plan does not accumulate across a delete and a re-insert", () =
     ({ cabinetDepthMm }) => {
       const store = setDepth(createStore(), cabinetDepthMm);
       const alongM = alongWallMOf(store, DEEP_TOP);
-      const capped = seatTheColumnDecides(cabinetDepthMm, false);
-      const lifted = seatTheColumnDecides(cabinetDepthMm, true);
+      const capped = seatTheColumnDecides(cabinetDepthMm, CAPPED_COLUMN);
+      const lifted = seatTheColumnDecides(cabinetDepthMm, LIFTED_COLUMN);
 
       remove(store, FULL_HEIGHT_UNDER_IT);
       const seats: number[] = [seatMmOf(store, DEEP_TOP)];
@@ -347,7 +361,7 @@ describe("the re-plan does not accumulate across a delete and a re-insert", () =
     expect(
       first.placements.find((candidate) => candidate.id === DEEP_TOP)?.body
         .seatDepthMm,
-    ).toBe(seatTheColumnDecides(Math.max(...DECLARED_DEPTHS), false));
+    ).toBe(seatTheColumnDecides(Math.max(...DECLARED_DEPTHS), CAPPED_COLUMN));
   });
 });
 
@@ -429,7 +443,7 @@ describe("the commands that must not re-plan", () => {
   it("moves no depth when the full-height member under the top is resized", () => {
     const deepest = Math.max(...DECLARED_DEPTHS);
     const store = setDepth(createStore(), deepest);
-    const lifted = seatTheColumnDecides(deepest, true);
+    const lifted = seatTheColumnDecides(deepest, LIFTED_COLUMN);
     expect(seatMmOf(store, DEEP_TOP)).toBe(lifted);
     const widthBefore = placement(store, DEEP_TOP).body.widthMm;
 
@@ -468,7 +482,7 @@ describe("the commands that must not re-plan", () => {
       const store = setDepth(createStore(), cabinetDepthMm);
       remove(store, FULL_HEIGHT_UNDER_IT);
       expect(seatMmOf(store, DEEP_TOP)).toBe(
-        seatTheColumnDecides(cabinetDepthMm, true),
+        seatTheColumnDecides(cabinetDepthMm, LIFTED_COLUMN),
       );
 
       store.getState().select({ kind: "placement", id: DEEP_TOP });
@@ -476,7 +490,7 @@ describe("the commands that must not re-plan", () => {
       expect(store.getState().lastRejection).toBeNull();
 
       expect(seatMmOf(store, DEEP_TOP)).toBe(
-        seatTheColumnDecides(cabinetDepthMm, false),
+        seatTheColumnDecides(cabinetDepthMm, CAPPED_COLUMN),
       );
     },
   );
@@ -493,15 +507,21 @@ describe("a setting change after a re-plan still lands on the declared line", ()
     const store = setDepth(createStore(), from);
     remove(store, FULL_HEIGHT_UNDER_IT);
     insertAt(store, alongWallMOf(store, DEEP_TOP), 0, "base-cabinet");
-    expect(seatMmOf(store, DEEP_TOP)).toBe(seatTheColumnDecides(from, false));
+    expect(seatMmOf(store, DEEP_TOP)).toBe(
+      seatTheColumnDecides(from, CAPPED_COLUMN),
+    );
 
     setDepth(store, to);
 
-    expect(seatMmOf(store, DEEP_TOP)).toBe(seatTheColumnDecides(to, false));
+    expect(seatMmOf(store, DEEP_TOP)).toBe(
+      seatTheColumnDecides(to, CAPPED_COLUMN),
+    );
 
     setDepth(store, from);
 
-    expect(seatMmOf(store, DEEP_TOP)).toBe(seatTheColumnDecides(from, false));
+    expect(seatMmOf(store, DEEP_TOP)).toBe(
+      seatTheColumnDecides(from, CAPPED_COLUMN),
+    );
   });
 
   // The key slide, where a re-plan could quietly cost a column: a depth change moves wall B's runs by different
@@ -565,7 +585,7 @@ describe("a deepening re-plan writes no colour either", () => {
     // Key presence, never the rendered value: a value assertion passes while the key is being stamped.
     expect("finish" in placement(store, DEEP_TOP).body).toBe(false);
     expect(seatMmOf(store, DEEP_TOP)).toBe(
-      seatTheColumnDecides(Math.max(...DECLARED_DEPTHS), true),
+      seatTheColumnDecides(Math.max(...DECLARED_DEPTHS), LIFTED_COLUMN),
     );
   });
 
@@ -582,7 +602,7 @@ describe("a deepening re-plan writes no colour either", () => {
     insertAt(store, alongWallMOf(store, DEEP_TOP), 0, "tall-pantry");
 
     expect(seatMmOf(store, DEEP_TOP)).toBe(
-      seatTheColumnDecides(Math.max(...DECLARED_DEPTHS), true),
+      seatTheColumnDecides(Math.max(...DECLARED_DEPTHS), LIFTED_COLUMN),
     );
     expect(placement(store, DEEP_TOP).body.finish).toEqual(chosen);
   });

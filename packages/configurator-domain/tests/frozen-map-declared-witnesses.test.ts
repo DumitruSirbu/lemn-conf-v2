@@ -33,7 +33,13 @@ function ceilingMm(
   cabinetDepthMm: number,
   hasFullHeightUnder: boolean,
 ): number {
-  return columnBuildDepthM({ cabinetDepthMm, hasFullHeightUnder }) * 1000;
+  return (
+    columnBuildDepthM({
+      cabinetDepthMm,
+      hasFullHeightUnder,
+      hasDeepWallBodyUnder: false,
+    }) * 1000
+  );
 }
 
 function memberLessLegacyColumn(
@@ -51,6 +57,7 @@ function memberLessLegacyColumn(
     top: 2.6,
     regions: [[0, 2.6]],
     hasFullHeightUnder,
+    hasDeepWallBodyUnder: false,
   };
 }
 
@@ -144,4 +151,40 @@ describe("declared witnesses: a member-less legacy column that reads full-height
       ).toBeCloseTo(expectedMm, CLOSE_TO_MM_DIGITS);
     },
   );
+});
+
+// ADR 0183 decision 4 (M12 wave W3a): the third arm of `columnBuildDepthM` reaches the fallback too, in `declaredM` and in
+// `atFreezeM` alike. A column that a fridge keeps deep answers 700 at both settings, so a legacy 700 follows nothing and
+// stays 700 in both directions; dropping the fact from `declaredM` alone publishes 600 at the shallow setting.
+describe("declared witnesses: a member-less legacy column that reads deep under a freestanding fridge", () => {
+  const OVER_THE_FRIDGE_MM = 700;
+
+  function deepLegacyColumn(frozenMm: number): Column {
+    return {
+      ...memberLessLegacyColumn(frozenMm, true),
+      hasDeepWallBodyUnder: true,
+    };
+  }
+
+  it.each([
+    { previousMm: DEEP_MM, nowMm: SHALLOW_MM },
+    { previousMm: SHALLOW_MM, nowMm: DEEP_MM },
+  ])(
+    "keeps a frozen 700 at 700 going from $previousMm to $nowMm, because the deepest declared depth is not the setting",
+    ({ previousMm, nowMm }) => {
+      expect(
+        publishedMm(deepLegacyColumn(OVER_THE_FRIDGE_MM), previousMm, nowMm),
+      ).toBeCloseTo(OVER_THE_FRIDGE_MM, CLOSE_TO_MM_DIGITS);
+    },
+  );
+
+  it("follows the setting instead where the same column is not deep, so the case above can fail", () => {
+    expect(
+      publishedMm(
+        memberLessLegacyColumn(OVER_THE_FRIDGE_MM, true),
+        DEEP_MM,
+        SHALLOW_MM,
+      ),
+    ).toBeCloseTo(SHALLOW_MM, CLOSE_TO_MM_DIGITS);
+  });
 });

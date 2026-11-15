@@ -155,7 +155,11 @@ describe("a catalogue built at 700 describes a different kitchen", () => {
   it("moves the head-clearance cap with the catalogue's nominal, at both depths", () => {
     for (const cabinetDepthMm of DECLARED_DEPTHS_MM) {
       expect(
-        columnBuildDepthMm({ cabinetDepthMm, hasFullHeightUnder: false }),
+        columnBuildDepthMm({
+          cabinetDepthMm,
+          hasFullHeightUnder: false,
+          hasDeepWallBodyUnder: false,
+        }),
       ).toBe(entryAt(cabinetDepthMm, "wall-cabinet").nominalDepthMm);
     }
   });
@@ -455,7 +459,11 @@ describe("ADR 0101: the deep top cabinets follow the setting, over the whole cat
         // Compared against `columnBuildDepthMm`'s lifted arm, not a literal 600/700 pair, so a third declared depth
         // needs no edit here (ADR 0101).
         expect(finishedDepthMm(entryOf(cabinetDepthMm, buildId))).toBe(
-          columnBuildDepthMm({ cabinetDepthMm, hasFullHeightUnder: true }),
+          columnBuildDepthMm({
+            cabinetDepthMm,
+            hasFullHeightUnder: true,
+            hasDeepWallBodyUnder: false,
+          }),
         );
       }
     },

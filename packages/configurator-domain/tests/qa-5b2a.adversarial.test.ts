@@ -364,6 +364,8 @@ describe("a document with no emptyColumns key", () => {
         [1.85, 2.6],
       ],
       hasFullHeightUnder: true,
+      // The seeded fridge declares that a wall body over it is built to the deepest depth (ADR 0183 decision 4).
+      hasDeepWallBodyUnder: true,
     });
   });
 
@@ -439,6 +441,7 @@ describe("a restored empty column against the space it replaced", () => {
       top: 2.6,
       regions: [[0, 2.6]],
       hasFullHeightUnder: false,
+      hasDeepWallBodyUnder: false,
     };
     const formerMembers: Column = {
       ...singleInterval,
@@ -476,6 +479,7 @@ describe("a restored empty column against the space it replaced", () => {
       top: 2.6,
       regions: [[1.5, 2.6]],
       hasFullHeightUnder: false,
+      hasDeepWallBodyUnder: false,
     };
 
     const voids = recomputeVoids([], new Map([[CLEARED_KEY, raised]]));

@@ -106,6 +106,7 @@ describe("the lifted column records a source that does not declare its depth", (
       columnBuildDepthM({
         cabinetDepthMm: DEEPER_MM,
         hasFullHeightUnder: true,
+        hasDeepWallBodyUnder: false,
       }),
       9,
     );

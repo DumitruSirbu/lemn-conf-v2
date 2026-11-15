@@ -57,7 +57,11 @@ function declaredFinishedDepthMm(
   if (rule.follows === "pinned") return rule.pinnedFinishedDepthMm;
   if (rule.follows !== "cabinet-depth") return undefined;
   return declaresALiftedColumnDepth(definition)
-    ? columnBuildDepthMm({ cabinetDepthMm, hasFullHeightUnder: true })
+    ? columnBuildDepthMm({
+        cabinetDepthMm,
+        hasFullHeightUnder: true,
+        hasDeepWallBodyUnder: false,
+      })
     : wallCarcassDepthMm(cabinetDepthMm);
 }
 

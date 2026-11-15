@@ -116,7 +116,13 @@ function ceilingMm(
   cabinetDepthMm: number,
   hasFullHeightUnder: boolean,
 ): number {
-  return columnBuildDepthM({ cabinetDepthMm, hasFullHeightUnder }) * 1000;
+  return (
+    columnBuildDepthM({
+      cabinetDepthMm,
+      hasFullHeightUnder,
+      hasDeepWallBodyUnder: false,
+    }) * 1000
+  );
 }
 
 /** The previous fallback as a reference model: the deeper-only MAX with no freeze-time question at all. */
@@ -209,7 +215,11 @@ describe("the surplus predicate's own boundary", () => {
 
     const { d, hasFullHeightUnder } = columnOf(store, WALL_KEY);
     expect(d).toBe(
-      columnBuildDepthM({ cabinetDepthMm: DEEPER_MM, hasFullHeightUnder }),
+      columnBuildDepthM({
+        cabinetDepthMm: DEEPER_MM,
+        hasFullHeightUnder,
+        hasDeepWallBodyUnder: false,
+      }),
     );
   });
 });

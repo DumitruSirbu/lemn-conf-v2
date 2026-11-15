@@ -95,9 +95,7 @@ function affectedColumnKeys(input: DependentReplanInput): ReadonlySet<string> {
     input.recordsBefore,
   );
   for (const [key, column] of input.columns) {
-    if (before.get(key)?.hasFullHeightUnder !== column.hasFullHeightUnder) {
-      keys.add(key);
-    }
+    if (depthFactsDiffer(before.get(key), column)) keys.add(key);
   }
 
   const placed = input.recordsAfter.find(
@@ -113,6 +111,18 @@ function affectedColumnKeys(input: DependentReplanInput): ReadonlySet<string> {
     }
   }
   return keys;
+}
+
+/** Whether the column's two live depth facts differ between the records before the insert and after it. The deep-body
+ *  fact is compared beside `hasFullHeightUnder` because it can flip alone: a fridge swapped for a tower that does not
+ *  overlap a neighbouring column leaves that column lifted by another full-height member, yet no longer covering the
+ *  body over it (ADR 0183 decision 4). */
+function depthFactsDiffer(before: Column | undefined, after: Column): boolean {
+  if (before === undefined) return true;
+  return (
+    before.hasFullHeightUnder !== after.hasFullHeightUnder ||
+    before.hasDeepWallBodyUnder !== after.hasDeepWallBodyUnder
+  );
 }
 
 /** One placement, re-planned or passed through **by identity**. Asks what the column decides *before*

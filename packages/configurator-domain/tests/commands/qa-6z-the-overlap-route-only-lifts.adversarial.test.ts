@@ -75,8 +75,11 @@ function seatTheColumnDecides(
   hasFullHeightUnder: boolean,
 ): number {
   return (
-    columnBuildDepthMm({ cabinetDepthMm, hasFullHeightUnder }) -
-    FRONT_ASSEMBLY_MM
+    columnBuildDepthMm({
+      cabinetDepthMm,
+      hasFullHeightUnder,
+      hasDeepWallBodyUnder: false,
+    }) - FRONT_ASSEMBLY_MM
   );
 }
 

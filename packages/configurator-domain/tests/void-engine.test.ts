@@ -117,6 +117,7 @@ function makeColumn(overrides: Partial<Column> = {}): Column {
     top: 2.6,
     regions: [[0, 2.6]],
     hasFullHeightUnder: false,
+    hasDeepWallBodyUnder: false,
     ...overrides,
   };
 }

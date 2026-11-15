@@ -8,7 +8,7 @@ import {
   WALL_CORNER_RETURN_TOP_KIND,
 } from "./body-kinds.js";
 import { toMillimetres } from "./millimetres.js";
-import { A_WALL_BODY_IS_OWED_OVER_IT } from "./wall-body-over-it.js";
+import { A_WALL_BODY_IS_OWED_AND_BUILT_DEEP_OVER_IT } from "./wall-body-over-it.js";
 import {
   CARRIES_SINK,
   MIN_WIDTH_M,
@@ -805,8 +805,9 @@ export function buildInsertableBodyDefinitions(
         // The one insertable entry that is not cabinetry (ADR 0058 decision 2): a machine built at 680 mm, 742 deep at
         // every setting.
         depthRule: IS_A_MANUFACTURED_SIZE,
-        // ADR 0183 decision 1: generation hangs a wall cabinet on it; no other full-height row declares this (E7).
-        wallBodyOverIt: A_WALL_BODY_IS_OWED_OVER_IT,
+        // ADR 0183 decisions 1 and 4: generation hangs a wall cabinet on it and that cabinet is built 700 deep; no other
+        // full-height row declares this (E7).
+        wallBodyOverIt: A_WALL_BODY_IS_OWED_AND_BUILT_DEEP_OVER_IT,
         canFinish: false,
         // Never painted: a machine somebody else builds is not painted with the kitchen.
         finishRule: IS_NEVER_PAINTED,

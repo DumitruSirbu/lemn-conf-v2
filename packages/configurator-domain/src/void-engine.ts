@@ -21,7 +21,10 @@ import {
 } from "./kitchen-handle/kitchen-handle.js";
 import { drawnFinishOf } from "./resolved-finish.js";
 import type { SeatRule } from "./seat-rule.js";
-import type { WallBodyOverIt } from "./wall-body-over-it.js";
+import {
+  declaresADeepWallBodyOver,
+  type WallBodyOverIt,
+} from "./wall-body-over-it.js";
 import { bodyFinishRuleOf, type BodyFinishRule } from "./body-finish-rule.js";
 import {
   alongWallCoordinate,
@@ -210,6 +213,9 @@ export interface PlacementRecord {
   /** Copied raw off the definition so `deepestMember` can break a tie without the catalogue (ADR 0079 decision 6). Read
    *  via `depthFollowsSetting`; `cabinetDepthRuleOf` throws when absent (ADR 0079 amendment D). */
   readonly depthRule?: CabinetDepthRule;
+  /** Copied raw off the definition, like `depthRule`, so `withCurrentFullHeightMembers` can answer
+   *  `Column.hasDeepWallBodyUnder` over records alone (ADR 0183 decision 4). Read via `declaresADeepWallBodyOver`. */
+  readonly wallBodyOverIt?: WallBodyOverIt;
   readonly col: string;
   readonly wall: DesignWall;
   /** Which room corner this body is a structural piece of (`cornerOf`, ADR 0121); absent if none. `"right"` occurs
@@ -256,11 +262,18 @@ export interface Column {
   /** Whether a full-height member stands under this column, lifting §7's wall-carcass depth cap; stated positively
    *  so an emptied run keeps the cap (ADR 0011 third correction). Live, not frozen: `withCurrentFullHeightMembers`. */
   readonly hasFullHeightUnder: boolean;
+  /** Whether a full-height member under this column declares that a wall body over it is built to the deepest declared
+   *  cabinet depth: the freestanding fridge (ADR 0183 decision 4). Live like `hasFullHeightUnder`, never frozen. */
+  readonly hasDeepWallBodyUnder: boolean;
 }
 
-/** A column's frozen half (ADR 0011 Gap D). `hasFullHeightUnder` stays current only because every `Column` reaching
- *  `insert-fit.ts` passes through `withCurrentFullHeightMembers`; a second route breaks it silently. */
-export type ColumnExtent = Omit<Column, "hasFullHeightUnder">;
+/** A column's frozen half (ADR 0011 Gap D). `hasFullHeightUnder` and `hasDeepWallBodyUnder` stay current only because
+ *  every `Column` reaching `insert-fit.ts` passes through `withCurrentFullHeightMembers`; a second route breaks them
+ *  silently. */
+export type ColumnExtent = Omit<
+  Column,
+  "hasFullHeightUnder" | "hasDeepWallBodyUnder"
+>;
 
 /** The `kind` of an opening with no body; not in `catalog.kinds`, so it resolves to `catalog.unknownKind`. Selection
  *  labels a void `catalog.emptySlot` instead; latent, as only `COLUMN_MISMATCH` (an invariant break) names one. */
@@ -360,6 +373,9 @@ export function derivePlacementRecords(
       occupiedDepth: definition.occupiedDepth,
       ...(definition.depthRule !== undefined
         ? { depthRule: definition.depthRule }
+        : {}),
+      ...(definition.wallBodyOverIt !== undefined
+        ? { wallBodyOverIt: definition.wallBodyOverIt }
         : {}),
       col: deriveColumnKey(placement.wall, frame),
       wall: placement.wall,
@@ -842,19 +858,21 @@ export function rederiveTouchedColumns(
   return withCurrentFullHeightMembers(updated, recordsAfter);
 }
 
-/** Re-answers `hasFullHeightUnder` over frozen extents and changes nothing else (ADR 0011 Gap D). It is not a load-time
- *  fact, so every caller that re-derives records after a mutation must call this. */
+/** Re-answers `hasFullHeightUnder` and `hasDeepWallBodyUnder` over frozen extents and changes nothing else (ADR 0011
+ *  Gap D). Neither is a load-time fact, so every caller that re-derives records after a mutation must call this. */
 export function withCurrentFullHeightMembers(
   columns: ReadonlyMap<string, ColumnExtent>,
   records: readonly PlacementRecord[],
 ): ReadonlyMap<string, Column> {
   const answered = new Map<string, Column>();
   for (const [key, column] of columns) {
+    const membersUnder = records.filter((record) =>
+      isFullHeightUnder(record, column),
+    );
     answered.set(key, {
       ...column,
-      hasFullHeightUnder: records.some((record) =>
-        isFullHeightUnder(record, column),
-      ),
+      hasFullHeightUnder: membersUnder.length > 0,
+      hasDeepWallBodyUnder: membersUnder.some(declaresADeepWallBodyOver),
     });
   }
   return answered;

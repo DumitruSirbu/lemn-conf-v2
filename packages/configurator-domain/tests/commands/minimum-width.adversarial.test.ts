@@ -258,6 +258,7 @@ describe("a millimetre-set entry honours its own minimum width too", () => {
       top: 0.86,
       regions: [[0, 0.86]],
       hasFullHeightUnder: true,
+      hasDeepWallBodyUnder: false,
     };
     return evaluateInsertFit({
       body,
@@ -389,6 +390,7 @@ describe("the shipped fixed-set entries resolve exactly as they did before the f
             top: 2.6,
             regions: [[0, 2.6]],
             hasFullHeightUnder: true,
+            hasDeepWallBodyUnder: false,
           },
         });
         const label = `${buildId} @ ${String(openingWidthMm)} mm`;

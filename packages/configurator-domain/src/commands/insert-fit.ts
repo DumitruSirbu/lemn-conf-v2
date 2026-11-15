@@ -682,6 +682,7 @@ function resolveDepthM(input: InsertFitInput): BuildDepthM {
   const declaredM = columnBuildDepthM({
     cabinetDepthMm: input.cabinetDepthMm,
     hasFullHeightUnder: column.hasFullHeightUnder,
+    hasDeepWallBodyUnder: column.hasDeepWallBodyUnder,
   });
   if (column.hasFullHeightUnder) return declaredM;
   // The floor is the column's clearance, not the opening's: a swap publishes the outgoing body's own

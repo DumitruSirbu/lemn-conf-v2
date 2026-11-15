@@ -34,6 +34,9 @@ import { productKitAt } from "./support/wall-unit.js";
 
 const OCCURRED_AT = "2026-11-15T09:00:00.000Z";
 const MM = 0.001;
+
+/** The owner's number (ADR 0183 decision 4), in metres: what a cabinet over the freestanding fridge is built to. */
+const OVER_THE_FRIDGE_DEPTH_M = 0.7;
 const ONE_MM_M = 1 * MM;
 const SHARED_FACE_TOLERANCE_M = 0.0005;
 const OPENING_TOP_MM = 2600;
@@ -219,12 +222,14 @@ describe("the real probe seats the cabinet over every placed fridge, and Three b
             label,
           ).toBeLessThanOrEqual(ONE_MM_M);
 
-          // The setting's depth until W3a (ADR 0183 decision 4): never deeper than the fridge's own 742.
+          // The deepest declared depth at every setting, since W3a (ADR 0183 decision 4): the owner's 700, never the
+          // setting's, and never deeper than the fridge's own 742. Its back face is on the wall plane (asserted above), so
+          // the extra depth grows into the room and not into the wall.
           expect(depthOf(cabinetBox, cabinet.wall), label).toBeLessThanOrEqual(
             0.742 + ONE_MM_M,
           );
           expect(depthOf(cabinetBox, cabinet.wall), label).toBeCloseTo(
-            cabinetDepthMm * MM,
+            OVER_THE_FRIDGE_DEPTH_M,
             2,
           );
 

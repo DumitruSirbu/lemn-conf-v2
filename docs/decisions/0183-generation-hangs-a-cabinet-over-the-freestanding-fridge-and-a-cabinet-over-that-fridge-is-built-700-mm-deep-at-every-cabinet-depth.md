@@ -172,3 +172,39 @@ with a tower or a pantry is refused. Accepted as known behaviour for now.
 in a **sibling field** of `WallBodyOverIt`, not inside `isOwedByGeneration`'s meaning; the depth rule reads that field,
 so QA's test "generation is the only reader of the declaration" is relaxed to "generation and the depth rule are the
 only readers", with that reason recorded beside the test.
+
+## Dated note — 2026-11-15: a delete then an insert that does not reach under a straddling wall body leaves its depth as recorded (W3a ruling)
+
+**Question (W3a QA, relayed by the coordinator).** At setting 600: fridge 0..700, pantry 700..1300, a wall cabinet
+`strad` 650..1000 overhanging the fridge by 50 mm, built 700. A one-command swap of the fridge for a housing or tower
+re-plans `strad` to 600 (W3a compares `hasDeepWallBodyUnder` beside `hasFullHeightUnder`). Deleting the fridge, then
+inserting a housing or tower where it stood, leaves `strad` at 700: the delete re-plans nothing, and the insert neither
+flips a flag on `strad`'s column (the pantry keeps it lifted, the deep flag already went false at the delete) nor
+reaches under it.
+
+**Ruling: accepted as ADR 0103's documented consequence (option a). No code change.**
+
+- ADR 0103 rules the trigger as *"an insert into the column beneath a standing body"* (`0103-…:50-53`) and the delete
+  side out of scope **permanently**, by owner ruling: *"the interim state after a delete … is accepted as transient … no
+  mirror wave for the delete side, and none is to be opened"* (`:54-62`, `:166-169`). The re-plan's three clauses
+  implement exactly that (`commands/replan-dependent-members.ts:73-114` [src]): the occupied key, a flipped depth fact,
+  or the inserted body overlapping the column. A housing or tower is 600 wide [inf: inserted into the fridge's 700 void
+  at 0..600, which is what leaves 650..1000 un-overlapped; falsified if QA's insert lands overlapping], so none fires.
+- **The pre-W3a arm behaves the same** [inf, read from the same three clauses]: a wall body straddling a lifting
+  column by 50 mm and a non-lifting one, lifted to the cabinet-depth line; delete the lifting body (flag flips false, no
+  re-plan); insert a non-lifting body that does not reach 650..700 — no flip, no overlap, no re-plan, and the body keeps
+  its lifted depth over nothing. W3a's new fact inherits the trigger; it does not get a wider one.
+- **Option b rejected.** Re-planning bodies in columns the insert neither went beneath nor changed would widen ADR 0103's
+  owner-ruled trigger, for both arms, to repair a state the owner accepted. If staff or the owner find the stale depth
+  wrong on screen, that is a change to ADR 0103 and its own ruling, not a W3a fix.
+- **Reach [inf].** Generation never produces it: its cabinet over the fridge spans exactly the fridge (decision 1). It
+  needs a customer to place a wall body straddling the fridge's edge, then delete and replace the fridge in two steps
+  with a narrower body.
+- **It clears itself** on the next change that re-plans that column: an insert whose span reaches under `strad`, or a
+  cabinet-depth change (which re-plans wall bodies at the new depth) [inf: QA confirms both].
+
+**Tests.** The four QA tests that assert "swap and delete-then-insert agree (600)" are rewritten, not deleted, with this
+note cited beside them: (1) delete-then-insert of a body that does not reach under `strad` leaves `strad` at its recorded
+700 (the documented interim); (2) delete-then-insert of a body whose span does reach under `strad`'s column re-plans it to
+600; (3) after the interim, a 600 → 700 → 600 round trip leaves `strad` at 600; (4) the one-command swap still re-plans to
+600 (unchanged). If (2) or (3) is red, that is a W3a defect and goes back to the implementer.

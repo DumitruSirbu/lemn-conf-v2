@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import {
   columnBuildDepthM,
   columnBuildDepthMm,
+  deepestDeclaredCabinetDepthMm,
 } from "../src/cabinet-depth-rule.js";
 import { normaliseBand } from "../src/bands.js";
 import { INSERTABLE_BODY_DEFINITIONS } from "../src/catalog.js";
@@ -19,6 +20,7 @@ import {
 import { toMetres, toMillimetres } from "../src/millimetres.js";
 import { occupiedDepthM } from "../src/occupied-depth.js";
 import {
+  declaredCabinetDepthsMm,
   declaredWorktopDepthsMm,
   UnknownWorktopDepthError,
   WORKTOP_DEPTH_MM,
@@ -41,6 +43,11 @@ const CAPPED_BUILD_DEPTH_MM = 330;
  *  lifts the cap. ADR 0060's measurement table: every shipped number at or below it is cabinetry and
  *  every number above it is an appliance or an appliance's handle. */
 const LIFTED_BUILD_DEPTH_MM = 600;
+
+/** The deepest declared cabinet depth, the owner's number (ADR 0183 decision 4): the build depth over a freestanding
+ *  fridge at every setting. Written here as the expectation rather than read from the module under test; the pin test
+ *  below fails when a new depth row moves the module's answer. */
+const FRIDGE_ARM_BUILD_DEPTH_MM = 700;
 
 /** The depths the uncapped arm used to build: a formula's output that nobody manufactures (BACKLOG entry 15). Named so
  *  the anti-invariant is explicit rather than implied. */
@@ -123,20 +130,81 @@ const INSERTABLE_BUILD_IDS = INSERTABLE_BODY_DEFINITIONS.map(([id]) => id);
 describe("the build depth is declared, never the clearance MAX (ADR 0060 decision 2)", () => {
   it("is the map's wall depth where the cap applies, at every declared cabinet depth", () => {
     expect(
-      columnBuildDepthMm({ cabinetDepthMm: 600, hasFullHeightUnder: false }),
+      columnBuildDepthMm({
+        cabinetDepthMm: 600,
+        hasFullHeightUnder: false,
+        hasDeepWallBodyUnder: false,
+      }),
     ).toBe(330);
     expect(
-      columnBuildDepthMm({ cabinetDepthMm: 700, hasFullHeightUnder: false }),
+      columnBuildDepthMm({
+        cabinetDepthMm: 700,
+        hasFullHeightUnder: false,
+        hasDeepWallBodyUnder: false,
+      }),
     ).toBe(400);
   });
 
   it("is the cabinet-depth line where a full-height member lifts the cap", () => {
     expect(
-      columnBuildDepthMm({ cabinetDepthMm: 600, hasFullHeightUnder: true }),
+      columnBuildDepthMm({
+        cabinetDepthMm: 600,
+        hasFullHeightUnder: true,
+        hasDeepWallBodyUnder: false,
+      }),
     ).toBe(600);
     expect(
-      columnBuildDepthMm({ cabinetDepthMm: 700, hasFullHeightUnder: true }),
+      columnBuildDepthMm({
+        cabinetDepthMm: 700,
+        hasFullHeightUnder: true,
+        hasDeepWallBodyUnder: false,
+      }),
     ).toBe(700);
+  });
+
+  it("is the deepest declared cabinet depth where a member under the column declares its wall body covers it, at every setting", () => {
+    // ADR 0183 decision 4: the third arm. It is checked before the lifted one because the same column is also
+    // full-height, and it ignores the setting, so a cabinet over a 742 mm machine is 700 deep in a 600 kitchen.
+    for (const cabinetDepthMm of declaredCabinetDepthsMm()) {
+      for (const hasFullHeightUnder of [false, true]) {
+        expect(
+          columnBuildDepthMm({
+            cabinetDepthMm,
+            hasFullHeightUnder,
+            hasDeepWallBodyUnder: true,
+          }),
+        ).toBe(FRIDGE_ARM_BUILD_DEPTH_MM);
+      }
+    }
+  });
+
+  it("keeps the two-arm answer where the question is answered no", () => {
+    expect(
+      columnBuildDepthMm({
+        cabinetDepthMm: 600,
+        hasFullHeightUnder: true,
+        hasDeepWallBodyUnder: false,
+      }),
+    ).toBe(LIFTED_BUILD_DEPTH_MM);
+    expect(
+      columnBuildDepthMm({
+        cabinetDepthMm: 600,
+        hasFullHeightUnder: false,
+        hasDeepWallBodyUnder: false,
+      }),
+    ).toBe(CAPPED_BUILD_DEPTH_MM);
+  });
+
+  it("pins the deepest declared depth to the owner's 700 (W3a-5), so a new depth row takes the decision again", () => {
+    // `max(declaredCabinetDepthsMm())` and nothing else. A third row deeper than 700 moves it and fails here, instead
+    // of silently moving every cabinet over a fridge.
+    expect(deepestDeclaredCabinetDepthMm()).toBe(FRIDGE_ARM_BUILD_DEPTH_MM);
+    expect(deepestDeclaredCabinetDepthMm()).toBe(
+      Math.max(...declaredCabinetDepthsMm()),
+    );
+    expect(UNMANUFACTURED_DEPTHS_MM).not.toContain(
+      deepestDeclaredCabinetDepthMm(),
+    );
   });
 
   it("answers a declared size at every row of the map, on both arms", () => {
@@ -147,6 +215,7 @@ describe("the build depth is declared, never the clearance MAX (ADR 0060 decisio
         const buildDepthMm = columnBuildDepthMm({
           cabinetDepthMm,
           hasFullHeightUnder,
+          hasDeepWallBodyUnder: false,
         });
         expect(Number.isInteger(buildDepthMm)).toBe(true);
         expect(UNMANUFACTURED_DEPTHS_MM).not.toContain(buildDepthMm);
@@ -166,6 +235,7 @@ describe("the build depth is declared, never the clearance MAX (ADR 0060 decisio
         columnBuildDepthMm({
           cabinetDepthMm: undeclaredDepthMm,
           hasFullHeightUnder,
+          hasDeepWallBodyUnder: false,
         }),
       ).toThrow(UnknownWorktopDepthError);
     }
@@ -174,7 +244,11 @@ describe("the build depth is declared, never the clearance MAX (ADR 0060 decisio
   it("states the same number in metres as in millimetres", () => {
     for (const cabinetDepthMm of declaredWorktopDepthsMm()) {
       for (const hasFullHeightUnder of [false, true]) {
-        const query = { cabinetDepthMm, hasFullHeightUnder };
+        const query = {
+          cabinetDepthMm,
+          hasFullHeightUnder,
+          hasDeepWallBodyUnder: false,
+        };
         expect(columnBuildDepthM(query)).toBeCloseTo(
           toMetres(columnBuildDepthMm(query)),
           9,
@@ -184,13 +258,13 @@ describe("the build depth is declared, never the clearance MAX (ADR 0060 decisio
   });
 });
 
-describe("entry 10's divergence closes at 600, over the fridge column", () => {
+describe("entry 10's divergence closes, over the fridge column", () => {
   // `p7` is the freestanding fridge and `p24` the wall body over it; `B|2.45` is the key both share.
   const FRIDGE_COLUMN = "B|2.45";
   const OVER_THE_FRIDGE = "p24";
   const CATALOGUE_WALL_BODY = "wall-cabinet";
 
-  it("agrees at exactly 600 — the smaller of the two numbers entry 10 measured", () => {
+  it("agrees at the fridge arm's 700, never the machine's 742", () => {
     const world = seeded();
     const record = world.records.find(
       (candidate) => candidate.id === OVER_THE_FRIDGE,
@@ -202,11 +276,14 @@ describe("entry 10's divergence closes at 600, over the fridge column", () => {
     expect(toMillimetres(world.columns.get(FRIDGE_COLUMN)?.d ?? 0)).toBe(742);
     expect(world.columns.get(FRIDGE_COLUMN)?.hasFullHeightUnder).toBe(true);
 
+    // Over a freestanding fridge the column answers the fridge arm, not the cabinet-depth line: 600 became 700 at
+    // setting 600 in M12 wave W3a (ADR 0183 decision 4), and the two routes still agree.
+    expect(world.columns.get(FRIDGE_COLUMN)?.hasDeepWallBodyUnder).toBe(true);
     expect(swapDepthMm(world, OVER_THE_FRIDGE, CATALOGUE_WALL_BODY)).toBe(
-      LIFTED_BUILD_DEPTH_MM,
+      FRIDGE_ARM_BUILD_DEPTH_MM,
     );
     expect(deleteThenInsertDepthMm(world, record, CATALOGUE_WALL_BODY)).toBe(
-      LIFTED_BUILD_DEPTH_MM,
+      FRIDGE_ARM_BUILD_DEPTH_MM,
     );
   });
 
@@ -278,7 +355,12 @@ describe("both routes into a slot land on one depth, over every column", () => {
     // Not merely that the two routes match but that they match on one of ADR 0060 decision 2's two declared numbers;
     // a pair agreeing on a formula's output would pass the test above and fail this one.
     const world = seeded();
-    const declared = new Set([CAPPED_BUILD_DEPTH_MM, LIFTED_BUILD_DEPTH_MM]);
+    // The fridge arm is the third declared number (ADR 0183 decision 4): the seeded `p24` stands over the fridge.
+    const declared = new Set([
+      CAPPED_BUILD_DEPTH_MM,
+      LIFTED_BUILD_DEPTH_MM,
+      FRIDGE_ARM_BUILD_DEPTH_MM,
+    ]);
     const measured = new Set<number>();
 
     for (const record of world.records) {
@@ -299,6 +381,7 @@ describe("both routes into a slot land on one depth, over every column", () => {
     // arm alone.
     expect(measured.has(CAPPED_BUILD_DEPTH_MM)).toBe(true);
     expect(measured.has(LIFTED_BUILD_DEPTH_MM)).toBe(true);
+    expect(measured.has(FRIDGE_ARM_BUILD_DEPTH_MM)).toBe(true);
     expect([...measured].filter((depthMm) => !declared.has(depthMm))).toEqual(
       [],
     );
@@ -327,7 +410,7 @@ describe("a shallow body over a full-height member is never written (decision 4)
     expect(toMillimetres(occupiedDepthM(outgoing))).toBe(CAPPED_BUILD_DEPTH_MM);
 
     expect(swapDepthMm(world, OVER_THE_FRIDGE, "wall-cabinet")).toBe(
-      LIFTED_BUILD_DEPTH_MM,
+      FRIDGE_ARM_BUILD_DEPTH_MM,
     );
   });
 
@@ -340,11 +423,16 @@ describe("a shallow body over a full-height member is never written (decision 4)
       withDeeperBodyOverTheFridge(),
     ].map((world) => swapDepthMm(world, OVER_THE_FRIDGE, "wall-cabinet"));
 
-    expect(answers).toEqual([600, 600, 600]);
+    expect(answers).toEqual([
+      FRIDGE_ARM_BUILD_DEPTH_MM,
+      FRIDGE_ARM_BUILD_DEPTH_MM,
+      FRIDGE_ARM_BUILD_DEPTH_MM,
+    ]);
     expect(
       columnBuildDepthMm({
         cabinetDepthMm: WORKTOP_DEPTH_MM,
         hasFullHeightUnder: true,
+        hasDeepWallBodyUnder: false,
       }),
     ).toBe(LIFTED_BUILD_DEPTH_MM);
   });

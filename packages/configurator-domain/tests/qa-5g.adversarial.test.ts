@@ -289,6 +289,7 @@ function frozenColumn(key: string, centreMm: number, widthMm: number): Column {
     ry: 0,
     regions: [[0, 2.6]],
     hasFullHeightUnder: false,
+    hasDeepWallBodyUnder: false,
   } as Column;
 }
 

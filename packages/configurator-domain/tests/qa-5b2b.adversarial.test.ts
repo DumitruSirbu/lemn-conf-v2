@@ -69,6 +69,7 @@ function columnAt(alongM: number, overrides: Partial<Column> = {}): Column {
     top: 0.82,
     regions: [[0, 0.82]],
     hasFullHeightUnder: false,
+    hasDeepWallBodyUnder: false,
     ...overrides,
   };
 }
@@ -407,6 +408,7 @@ describe("a restored column's one region snaps where the session's several did",
       top: 2.6,
       regions: [...regions],
       hasFullHeightUnder: false,
+      hasDeepWallBodyUnder: false,
     };
   }
 

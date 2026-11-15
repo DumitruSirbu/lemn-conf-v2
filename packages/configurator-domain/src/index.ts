@@ -125,7 +125,7 @@ export {
   type ColumnBuildDepthQuery,
 } from "./cabinet-depth-rule.js";
 export {
-  A_WALL_BODY_IS_OWED_OVER_IT,
+  A_WALL_BODY_IS_OWED_AND_BUILT_DEEP_OVER_IT,
   isAWallBodyOwedOver,
   type WallBodyOverIt,
 } from "./wall-body-over-it.js";

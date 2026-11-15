@@ -10,6 +10,7 @@ import { toMetres } from "./millimetres.js";
 // Type-only, so this module gains no runtime dependency on the clearance side.
 import type { ClearanceM } from "./occupied-depth.js";
 import {
+  declaredCabinetDepthsMm,
   requireDeclaredCabinetDepthMm,
   wallDepthMmForWorktop,
 } from "./worktop-depth.js";
@@ -156,10 +157,14 @@ export interface ColumnBuildDepthQuery {
   /** `Column.hasFullHeightUnder`: whether a full-height member stands under this column, which is
    *  what lifts §5.2's head-clearance cap. */
   readonly hasFullHeightUnder: boolean;
+  /** `Column.hasDeepWallBodyUnder`: whether a member under this column declares that a wall body over it is built
+   *  to the deepest declared cabinet depth (ADR 0183 decision 4). Absent means no, so a caller that has no such
+   *  member to ask about passes `false`. */
+  readonly hasDeepWallBodyUnder: boolean;
 }
 
 /** The build depth is a declared size, never a measurement of what happens to stand there
- *  (ADR 0060 decision 2). Two answers:
+ *  (ADR 0060 decision 2, amended by ADR 0183 decision 4). Three answers:
  *
  *  - The cap applies: the map's wall depth for this cabinet depth (330 at 600, 400 at 700), the row
  *    §7's `nominalDepthMm` reads. This is §7's `min(d, cap)` head-clearance rule, not a geometry limit
@@ -167,6 +172,9 @@ export interface ColumnBuildDepthQuery {
  *    depends on what stands under the opening, which the adapter cannot see.
  *  - A full-height member lifts it to the cabinet-depth line: 600 at 600, 700 at 700. The three deep
  *    tops on wall B answer through this arm.
+ *  - A member under the column declares that what hangs over it covers it (the freestanding fridge): the
+ *    deepest declared cabinet depth, 700 at every setting, so a cabinet over a 742 mm machine is not 142 mm
+ *    shallower than it at 600. Checked first, because it also stands under a full-height member.
  *
  *  Never the clearance MAX: a formula produced depths nobody makes (703 and 742 mm). A cabinet depth the
  *  map does not declare throws on either arm, checked once at the entry by
@@ -174,9 +182,16 @@ export interface ColumnBuildDepthQuery {
  *  number arrives from a stored document through `migrateDesign`. */
 export function columnBuildDepthMm(column: ColumnBuildDepthQuery): number {
   const cabinetDepthMm = requireDeclaredCabinetDepthMm(column.cabinetDepthMm);
+  if (column.hasDeepWallBodyUnder) return deepestDeclaredCabinetDepthMm();
   return column.hasFullHeightUnder
     ? cabinetDepthLineMm(cabinetDepthMm)
     : wallDepthMmForWorktop(cabinetDepthMm);
+}
+
+/** The deepest depth the map declares, read from it rather than written: a new depth row moves this, and the test that
+ *  pins it to the owner's 700 fails until the decision is taken again (ADR 0183 decision 4). */
+export function deepestDeclaredCabinetDepthMm(): number {
+  return Math.max(...declaredCabinetDepthsMm());
 }
 
 /** `columnBuildDepthMm` in the unit the command layer plans in. */

@@ -176,8 +176,11 @@ describe("a seeded entry and its catalogue equivalent declare one depth", () => 
       "finishes at its column's build depth at %i mm",
       (cabinetDepthMm) => {
         const liftedBuildDepthM =
-          columnBuildDepthMm({ cabinetDepthMm, hasFullHeightUnder: true }) /
-          1000;
+          columnBuildDepthMm({
+            cabinetDepthMm,
+            hasFullHeightUnder: true,
+            hasDeepWallBodyUnder: false,
+          }) / 1000;
         const paired = pairedRows(buildKitchenLBodyCatalog(cabinetDepthMm));
 
         const lifted = paired.filter(([, definition]) =>

@@ -244,10 +244,12 @@ describe("the lifted arm's guard: what counts as standing under an opening", () 
         lifted: columnBuildDepthMm({
           cabinetDepthMm,
           hasFullHeightUnder: true,
+          hasDeepWallBodyUnder: false,
         }),
         capped: columnBuildDepthMm({
           cabinetDepthMm,
           hasFullHeightUnder: false,
+          hasDeepWallBodyUnder: false,
         }),
       }).toEqual({
         lifted: cabinetDepthMm,

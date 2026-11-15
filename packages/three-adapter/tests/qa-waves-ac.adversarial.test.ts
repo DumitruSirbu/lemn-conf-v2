@@ -146,7 +146,9 @@ describe("a deep wall carcass survives repeated swaps (ADR 0018 round trip)", ()
   it.each([
     { id: "p22", underneath: "a tall oven tower", depthMm: 600 },
     { id: "p23", underneath: "a tall pantry", depthMm: 600 },
-    { id: "p24", underneath: "the fridge", depthMm: 600 },
+    // The first swap takes the fridge arm, 700 at the 600 setting, and the nine after it hold it
+    // (ADR 0183 decision 4, wave W3a; ADR 0018's round trip is unchanged).
+    { id: "p24", underneath: "the fridge", depthMm: 700 },
     // M5 wave 5A: the cap over a worktop is the worktop → wall depth map's row, 330 at the shipped
     // 600 mm worktop, where it was an independent 400.
     { id: "p13", underneath: "the hob's worktop", depthMm: 330 },

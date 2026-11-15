@@ -215,6 +215,7 @@ describe("a delete-freed surplus, through a depth change", () => {
       columnBuildDepthM({
         cabinetDepthMm: DEEPER_MM,
         hasFullHeightUnder: columnOf(store, SURPLUS_KEY).hasFullHeightUnder,
+        hasDeepWallBodyUnder: columnOf(store, SURPLUS_KEY).hasDeepWallBodyUnder,
       }),
     ).toBeLessThan(frozenM);
   });
@@ -264,6 +265,7 @@ describe("a delete-freed surplus, through a depth change", () => {
       const declaredM = columnBuildDepthM({
         cabinetDepthMm: DEEPER_MM,
         hasFullHeightUnder: columnOf(store, "A|0.30").hasFullHeightUnder,
+        hasDeepWallBodyUnder: columnOf(store, "A|0.30").hasDeepWallBodyUnder,
       });
 
       setDepth(store, DEEPER_MM);
@@ -531,6 +533,7 @@ describe("over sequences of commands rather than single transitions", () => {
     readonly measuredM: number | undefined;
     /** Read off the column so `followsTheFallbackDown` asks the store's own question (ADR 0080 decision 4). */
     readonly hasFullHeightUnder: boolean;
+    readonly hasDeepWallBodyUnder: boolean;
   }
 
   const TOLERANCE_M = 1e-9;
@@ -576,6 +579,7 @@ describe("over sequences of commands rather than single transitions", () => {
             sourceEquivalentId: definition?.catalogEquivalentId ?? source,
             measuredM: measured.get(key)?.d,
             hasFullHeightUnder: column.hasFullHeightUnder,
+            hasDeepWallBodyUnder: column.hasDeepWallBodyUnder,
           },
         ];
       }),
@@ -607,6 +611,7 @@ describe("over sequences of commands rather than single transitions", () => {
           columnBuildDepthM({
             cabinetDepthMm,
             hasFullHeightUnder: was.hasFullHeightUnder,
+            hasDeepWallBodyUnder: was.hasDeepWallBodyUnder,
           }) - was.depthM,
         ) < TOLERANCE_M,
     );

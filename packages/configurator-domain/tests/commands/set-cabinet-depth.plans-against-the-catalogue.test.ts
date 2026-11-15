@@ -285,11 +285,12 @@ describe("what the clearing must not reach", () => {
     }
   });
 
-  // The three deep tops on every path: their depth is answered by `columnBuildDepthM`'s lifted arm because each
-  // hangs over a full-height column (ADR 0101), so a walked route leaves them at the cabinet-depth line and a
-  // route back through 600 returns them to it.
-  it("lands the three deep tops on the cabinet-depth line, on every path", () => {
-    const deepTopIds = ["p22", "p23", "p24"] as const;
+  // The two deep tops over the pantry and the oven tower on every path: their depth is answered by
+  // `columnBuildDepthM`'s lifted arm because each hangs over a full-height column (ADR 0101), so a walked route
+  // leaves them at the cabinet-depth line and a route back through 600 returns them to it. `p24` hangs over the
+  // freestanding fridge and is the third arm's: 700 at every setting (ADR 0183 decision 4, wave W3a).
+  it("lands the deep tops over the pantry and tower on the cabinet-depth line, and the one over the fridge on 700, on every path", () => {
+    const deepTopIds = ["p22", "p23"] as const;
 
     const walked = [
       DEFAULT_CABINET_DEPTH_MM,
@@ -308,6 +309,10 @@ describe("what the clearing must not reach", () => {
       expect(seatMm(home, id), id).toBe(
         DEFAULT_CABINET_DEPTH_MM - WALL_FRONT_ASSEMBLY_MM,
       );
+    }
+
+    for (const design of [walked, home]) {
+      expect(seatMm(design, "p24")).toBe(DEEPER_MM - WALL_FRONT_ASSEMBLY_MM);
     }
   });
 

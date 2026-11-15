@@ -2,7 +2,8 @@
 // schedule the save. Every product rule lives in `@lemnaria/configurator-domain`.
 //
 // A column's extent is frozen load-time state, derived at creation and in `hydrate` and never by a command
-// (ADR 0011 Gap D). Only `hasFullHeightUnder` is re-answered after every command (`applyCommandResult`).
+// (ADR 0011 Gap D). Only `hasFullHeightUnder` and `hasDeepWallBodyUnder` are re-answered after every command
+// (`applyCommandResult`).
 import {
   buildKitchenLBodyCatalog,
   cabinetDepthMmOf,
@@ -91,8 +92,8 @@ export interface ConfiguratorState {
    *  the same map the commands do. Derived from `catalogAt`, never passed in: a 700 mm design can never be
    *  held beside a map built at 600. */
   readonly catalog: BodyCatalog;
-  /** Extent frozen at load time, `hasFullHeightUnder` live (file header). The published face: `voids` derive
-   *  from it so nothing past a wall's end is offered or drawn (ADR 0069). */
+  /** Extent frozen at load time, `hasFullHeightUnder` and `hasDeepWallBodyUnder` live (file header). The published
+   *  face: `voids` derive from it so nothing past a wall's end is offered or drawn (ADR 0069). */
   readonly columns: ReadonlyMap<string, Column>;
   /** The same map without ADR 0069's wall-end cap: what a command is handed and the document is projected
    *  from (ADR 0090 Amendment B). A command whose `effect.columns` replaces the map whole must edit this

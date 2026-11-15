@@ -350,6 +350,10 @@ slice (six production files).
 - **W3a-4 (round trip and re-plan).** 600 → 700 → 600 leaves the over-fridge body at 700 throughout and every other body
   at its `HEAD` value at each step; deleting the fridge and inserting a pantry in its column re-plans the body above to
   600; deleting the pantry and re-inserting the fridge re-plans it to 700.
+- **W3a-4b (ruling 2026-11-15, ADR 0183 dated note).** A wall body that straddles the fridge's edge keeps its recorded
+  depth after a delete followed by an insert that does not reach under its column (ADR 0103's accepted interim, both
+  arms alike); an insert that does reach under it, or a cabinet-depth round trip, re-plans it; the one-command swap
+  re-plans it at once.
 - **W3a-5.** The value is `max(declaredCabinetDepthsMm())`, and a test pins it to 700 (the owner's number) so a new depth
   row fails that test.
 - **W3a-6 (must not).** The capped arm never exceeds the column's clearance; no body anywhere sits past the wall plane

@@ -26,9 +26,9 @@ export type Selection = {
 export interface AppliedCommandState {
   readonly design: Design;
   readonly records: readonly PlacementRecord[];
-  /** The published face: frozen extents with `hasFullHeightUnder` re-answered from the new records and every
-   *  member-less column bounded by its wall's length. Openings, the scene and inserts derive from it (ADR 0069:
-   *  nothing past a wall's end is ever offered). */
+  /** The published face: frozen extents with `hasFullHeightUnder` and `hasDeepWallBodyUnder` re-answered from the new
+   *  records and every member-less column bounded by its wall's length. Openings, the scene and inserts derive from it
+   *  (ADR 0069: nothing past a wall's end is ever offered). */
   readonly columns: ReadonlyMap<string, Column>;
   /** The recorded face: the same map without ADR 0069's wall-end cap, which the document is projected from
    *  (ADR 0090 Amendment B). A pass that derives its answer from the room may bound what the map publishes and
@@ -56,9 +56,9 @@ export interface ApplyCommandResultInput {
   readonly catalog: BodyCatalog;
   /** A column's extent is frozen at load time (ADR 0011 Gap D): an input to the recompute, never an output,
    *  since recomputing it from the mutated records would shrink a column to fit what is left and a delete would
-   *  free space that produces no void. `hasFullHeightUnder` is the one field outside that extent and is
-   *  re-answered. This is the store's recorded face, not its published one (ADR 0090 Amendment B): the
-   *  wall-bounded map would carry ADR 0069's cap into the next command's record and out through
+   *  free space that produces no void. `hasFullHeightUnder` and `hasDeepWallBodyUnder` are the only fields outside
+   *  that extent and are re-answered. This is the store's recorded face, not its published one (ADR 0090 Amendment B):
+   *  the wall-bounded map would carry ADR 0069's cap into the next command's record and out through
    *  `projectFrozenMap`. */
   readonly columns: ReadonlyMap<string, Column>;
   /** What is selected now, which a whole-kitchen command leaves where it was: it points at no cabinet. Every

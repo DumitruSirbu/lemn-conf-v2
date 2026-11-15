@@ -51,6 +51,7 @@ function emptyColumnAt(
     top: 0.82,
     regions: [[0, 0.82]],
     hasFullHeightUnder: false,
+    hasDeepWallBodyUnder: false,
     ...overrides,
   };
 }

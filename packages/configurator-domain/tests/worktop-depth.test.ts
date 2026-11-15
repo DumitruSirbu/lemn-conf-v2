@@ -82,6 +82,7 @@ describe("the map is the single source for both of §7's and §5.2's numbers", (
       columnBuildDepthMm({
         cabinetDepthMm: WORKTOP_DEPTH_MM,
         hasFullHeightUnder: false,
+        hasDeepWallBodyUnder: false,
       }),
     ).toBe(expectedWallDepthMm);
   });

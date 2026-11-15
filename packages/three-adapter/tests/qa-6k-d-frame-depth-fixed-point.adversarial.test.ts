@@ -194,7 +194,11 @@ function declaredFinishedDepthMm(
   // is out of the head-clearance cap's reach, so its finished depth is `columnBuildDepthMm`'s lifted
   // arm and not the map's row. Read off the entry, never guessed from its id or its size.
   return declaresALiftedColumnDepth(definition)
-    ? columnBuildDepthMm({ cabinetDepthMm, hasFullHeightUnder: true })
+    ? columnBuildDepthMm({
+        cabinetDepthMm,
+        hasFullHeightUnder: true,
+        hasDeepWallBodyUnder: false,
+      })
     : wallCarcassDepthMm(cabinetDepthMm);
 }
 

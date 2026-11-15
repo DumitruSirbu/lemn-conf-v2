@@ -285,6 +285,7 @@ describe("an extent this wave cannot re-answer exactly", () => {
       const declaredM = columnBuildDepthM({
         cabinetDepthMm: DEEPER_MM,
         hasFullHeightUnder: false,
+        hasDeepWallBodyUnder: false,
       });
       expect(frozenM).toBeLessThan(declaredM);
       expect(columnOf(store, WALL_KEY).d).toBeCloseTo(declaredM, 6);
@@ -307,6 +308,7 @@ describe("an extent this wave cannot re-answer exactly", () => {
         columnBuildDepthM({
           cabinetDepthMm: DEEPER_MM,
           hasFullHeightUnder: false,
+          hasDeepWallBodyUnder: false,
         }),
       );
       expect(columnOf(store, DISHWASHER_KEY).d).toBeCloseTo(frozenM, 6);
@@ -455,6 +457,7 @@ describe("a published depth names the body it came from", () => {
       columnBuildDepthM({
         cabinetDepthMm: DEEPER_MM,
         hasFullHeightUnder: true,
+        hasDeepWallBodyUnder: false,
       }),
       9,
     );
@@ -583,6 +586,7 @@ describe("a source survives exactly when the depth it explains survives", () => 
     const declaredM = columnBuildDepthM({
       cabinetDepthMm: DEEPER_MM,
       hasFullHeightUnder: columnOf(store, WALL_KEY).hasFullHeightUnder,
+      hasDeepWallBodyUnder: columnOf(store, WALL_KEY).hasDeepWallBodyUnder,
     });
 
     store.getState().setCabinetDepth(DEEPER_MM);
@@ -611,6 +615,8 @@ describe("a source survives exactly when the depth it explains survives", () => 
       columnBuildDepthM({
         cabinetDepthMm: DEEPER_MM,
         hasFullHeightUnder: columnOf(store, DISHWASHER_KEY).hasFullHeightUnder,
+        hasDeepWallBodyUnder: columnOf(store, DISHWASHER_KEY)
+          .hasDeepWallBodyUnder,
       }),
     );
     expect(columnOf(store, DISHWASHER_KEY).d).toBeCloseTo(frozenM, 9);

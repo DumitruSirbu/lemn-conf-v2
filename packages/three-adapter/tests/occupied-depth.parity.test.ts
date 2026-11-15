@@ -344,6 +344,9 @@ describe("every seeded body fills the depth its catalogue entry declares", () =>
   });
 });
 
+const OVER_THE_FRIDGE_PLACEMENT_ID = "p24";
+const OVER_THE_FRIDGE_DEPTH_MM = 700;
+
 describe("remove → opening → rebuild puts the body back into the space it left", () => {
   function recordsOf(design: Design): PlacementRecord[] {
     return derivePlacementRecords(design, KITCHEN_L_BODY_CATALOG);
@@ -409,7 +412,14 @@ describe("remove → opening → rebuild puts the body back into the space it le
         depthM: rebuildDepthM(kit, buildId, rebuilt.frame.d),
       });
 
-      expect(measuredOccupiedMm(group, rebuilt.frame.d)).toBe(vacatedMm);
+      // `p24` is the one body that does not come back at its own depth: it hangs over the freestanding fridge, whose
+      // column builds what goes over it to the deepest declared depth, 700, at every setting (ADR 0183 decision 4,
+      // M12 wave W3a), while the seeded body still records 600. W3b moves the seeded row, and with it this exception.
+      const expectedMm =
+        placement.id === OVER_THE_FRIDGE_PLACEMENT_ID
+          ? OVER_THE_FRIDGE_DEPTH_MM
+          : vacatedMm;
+      expect(measuredOccupiedMm(group, rebuilt.frame.d)).toBe(expectedMm);
     },
   );
 });
