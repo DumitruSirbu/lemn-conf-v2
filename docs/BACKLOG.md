@@ -342,6 +342,14 @@ status corrections, in one of these two files:
 | 309 | Cross-site popup can spend a staff member's kitchen-opening budget (no COOP) | open.md — recorded 2026-11-13 (M11 W3b security); low |
 | 310 | Two image-header readers (preset and domain): fold the preset's onto the domain's; animated-PNG question | open.md — recorded 2026-11-14 (M11 W4a clean-code review); low |
 | 311 | Account erasure must remove design thumbnails (hard-delete every design, or delete the rows); test asserts none remain | open.md — recorded 2026-11-14 (M11 W4a security review); obligation on the deferred erasure wave |
+| 312 | Replacing a generated fridge with a tower or pantry is refused while a cabinet hangs over it | open.md — recorded 2026-11-15 (M12 W2, ADR 0183 Amendment A) |
+| 313 | e2e specs edited in M12 were not run | open.md — recorded 2026-11-15 (M12 close) |
+| 314 | `qa-u3b` domain property flaked under parallel load (passed alone) | open.md — recorded 2026-11-15 (M12) |
+| 315 | A test-only `Column` factory (clean-code finding) | open.md — recorded 2026-11-15 (M12 W3a review R1.4) |
+| 316 | About 25 design rows on the shared preview database from M12's visual run | open.md — recorded 2026-11-15 (M12); owner may clean |
+| 317 | `generateKitchen` throws for U rooms at a 2000 mm ceiling at `HEAD` (hob has no hood) | open.md — recorded 2026-11-15 (M12 plan §10) |
+| 318 | 390 px camera presets do not frame the fridge column in generated L and linear rooms | open.md — recorded 2026-11-15 (M12 visual run); observation |
+| 319 | `UnknownBodyError` on a current copy with an unknown build id | open.md — recorded 2026-11-15 (M12); pre-existing |
 
 *Notes at the 8J2, 8U and 8V close (2026-10-17) on existing entries:* 145 (facing-labels flaky again), 160 (closed), 232 (the non-live recipe does not hold) carry dated notes in `open.md`.
 

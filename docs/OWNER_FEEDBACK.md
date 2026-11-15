@@ -1,11 +1,14 @@
 # Owner feedback inbox
 
-Running list of owner feedback, recorded as given. **Nothing here is built yet.** Each item is fixed later, in a wave
-that follows `docs/WORKFLOW.md`. Evidence tier of every entry: **[owner]** unless noted. The previous round
+Running list of owner feedback, recorded as given. Each item is fixed in a wave that follows `docs/WORKFLOW.md`. **Round
+2026-11-14 is built (2026-11-15) on branch `fix/owner-feedback-2026-11-14`, committed, not pushed, not closed** (plan
+[`milestones/M12-owner-feedback-2026-11-14.md`](milestones/M12-owner-feedback-2026-11-14.md); each item below carries a
+*Built* line, with commit hashes relayed by the coordinator). The owner's text is unchanged. Evidence tier of every entry:
+**[owner]** unless noted. The previous round
 (2026-11-07, M11) is archived: [`archive/OWNER_FEEDBACK-2026-11-07.md`](archive/OWNER_FEEDBACK-2026-11-07.md), so is
 the 2026-10-17 request [`archive/OWNER_FIXES.md`](archive/OWNER_FIXES.md).
 
-## Round 2026-11-14 (eight screenshots; recorded only, no plan yet)
+## Round 2026-11-14 (eight screenshots; originally recorded only; **built in M12, 2026-11-15**)
 
 ### 1 — Global handles setting is ignored by corner cabinets
 
@@ -13,12 +16,14 @@ the 2026-10-17 request [`archive/OWNER_FIXES.md`](archive/OWNER_FIXES.md).
   handle; they should take the global one.
 - **Screenshot:** the configurator with the corner wall cabinet ("Dulap suspendat de colț", Perete A, 900 × 700 mm)
   selected; its panel shows a note ("Here needs to be added the handlers selection").
+- **Built [M12 W1, `359812ba`; ADR 0182]:** five corner bodies take the kitchen's handle (the sixth, `base-corner-return-320`, stays without).
 
 ### 2 — Corner cabinets cannot be given a custom handle
 
 - **Owner's words:** for corner cabinets it is not possible to choose a custom handle; add the selector.
 - **Wanted:** the handle choice in the structural (corner) cabinet panel, like other cabinets, below the colour
   picker and "Preia culoarea bucătăriei". Pairs with item 1.
+- **Built [M12 W1, `359812ba`; ADR 0182]:** the handle selector appears on the five bodies.
 
 ### 3 — The cabinet above the full-size fridge is often missing, and too shallow at depth 600
 
@@ -29,6 +34,10 @@ the 2026-10-17 request [`archive/OWNER_FIXES.md`](archive/OWNER_FIXES.md).
   The overview shows the wall cabinet above the fridge set back from the fridge's front edge.
 - **Wanted:** the generator always places that cabinet, and its depth is 700 mm so it covers the fridge.
 - **Check first [inference]:** the generation rules (ADR 0167) and the fridge column's top fill.
+- **Built [M12 W2 `1b13a4e1`, W3a `bd238d46`, W3b `563e4351`; ADR 0183 and Amendment A]:** generation hangs the cabinet over the
+  freestanding fridge, and it is built 700 mm deep at every cabinet-depth setting. **Deviation to know:** it is placed
+  wherever it fits, from a 2501 mm ceiling (shortened at 2501-2599), not "always"; below that it is not placed (coordinator ruling
+  2026-11-15, owner told the same day).
 
 ### 4 — Profile menu: rename the staff entry and make it stand out
 
@@ -39,6 +48,7 @@ the 2026-10-17 request [`archive/OWNER_FIXES.md`](archive/OWNER_FIXES.md).
 - **Clarified [owner, 2026-11-14]:** keep the entry in the profile-icon menu, renamed "Panoul de administrare", as the
   **last** option, visually separated (a divider or its own group) from the profile-related links above it. The
   earlier wording was not about "Ieși de pe toate dispozitivele".
+- **Built [M12 W4, `4e0e49e6`]:** "Panoul de administrare", last in the menu.
 
 ### 5 — Staff hardware class: "Activă în configurator" is hard to read as the way to disable
 
@@ -48,12 +58,15 @@ the 2026-10-17 request [`archive/OWNER_FIXES.md`](archive/OWNER_FIXES.md).
   such toggles here.
 - **Also:** screenshot of the Materiale page (MDF vopsit mat, "Activ în configurator · Activ") came with no text
   [inference: same row, same complaint; confirm].
+- **Built [M12 W5, `b0f6c63a`; ADR 0184]:** a stated status plus a "Dezactivează" / "Activează" button, for hardware, material and
+  accessory pages (the owner's default on the Materiale question stood, plan §9 Q5-1).
 
 ### 6 — Staff "Bucătării clienți": "Status cerere" filter layout
 
 - **Page:** Ciorne tab. The "Status cerere" select (disabled) sits beside the "Doar modificate" checkbox, with the
   hint "Disponibil doar la „Trimise"" under it; the boxed area is the problem.
 - **Owner's words:** fix the layout; do **not** move the input up, just add the info/warning text below.
+- **Built [M12 W4, `4e0e49e6`]:** the hint sits under the select (the plan's W4-4 criteria).
 
 ### 7 — Staff request page: the kitchen link, the cabinet list, the price
 
@@ -73,3 +86,7 @@ the 2026-10-17 request [`archive/OWNER_FIXES.md`](archive/OWNER_FIXES.md).
   designul"), placed in an accordion so it can be toggled hide/show.
 - **Part 3 (question):** when the actual price and the sent price differ (the client sent, then edited, so the price
   changed), is that shown? Both lines read "De la 57 000 MDL" in the screenshot.
+- **Built [M12 W6a-W6f; ADR 0185]:** part 1: a read-only link card, the `LM-` reference removed (W6a `b77142ee`). Part 2: every
+  cabinet in an accordion (W6c `483f5356`; sent copy's stored amounts and the profile address, W6d `c1083ef3` with fix
+  `390c3a6b`; the settings head the list, W6e `5a4bf11f`). Part 3: the price card says when the price differs (W6b
+  `7e7d85ae`). Also, from the owner's 2026-11-14 ruling Q7-3: a profile contact block with "Sună" / "Scrie" (W6f `b48d4684`).

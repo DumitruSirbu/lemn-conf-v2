@@ -58,3 +58,9 @@ coordinator. The scribe ran nothing. Nothing is built.
 - **O-L3-3 (S7 Traduceri) is unchanged.** On 2026-10-26 the owner (relayed, OQ-3) named it as where Russian comes from:
   "all the translations should be done through files and a separate functionality for this". Until it exists, a row the
   dashboard creates renders its Romanian in both locales ([ADR 0178](0178-the-m10-dashboard-storage-lifecycle-defaults-notice-seen-and-digest.md) A-21).
+
+**Dated note, 2026-11-15 (M12; owner rulings of 2026-11-14, relayed by the coordinator; the scribe read no source).**
+O-L3-1 (c) is changed in two ways, both in [ADR 0185](0185-the-staff-kitchen-page-leads-with-a-read-only-link-lists-every-cabinet-in-an-accordion-and-says-when-the-price-now-differs-from-the-price-sent.md):
+**Q7-1** removes the request reference from the staff kitchen page (built W6a, `b77142ee`); **Q7-3** keeps the profile contact
+and extends it with "Sună" (`tel:`) and "Scrie" (`mailto:`) links and the profile's address on the detail page (d2, d7; built
+W6d `c1083ef3` and W6f `b48d4684`). No request personal column is read (ADR 0153 d1 is kept).

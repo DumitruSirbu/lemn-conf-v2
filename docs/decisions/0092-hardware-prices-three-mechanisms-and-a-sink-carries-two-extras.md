@@ -1244,3 +1244,8 @@ is superseded in part by this amendment.
 - **The seeded default kitchen's hardware totals do not move** (OQ-28c): its 16 push fronts are top-row door leaves, and
   only push-to-open drawers change price.
 - **The drafted push-runner rates are placeholders**, as the lift rates are; the owner sets real ones in the dashboard.
+
+**Dated note, 2026-11-15 (M12 W1; relayed, the scribe read no source).** Decision 3's rule (`canHandle` disqualifies the
+recorded mode, nothing more) is kept. Its examples naming the corner returns as bodies with `canHandle` false are **no longer
+true for five corner bodies** (the sixth, `base-corner-return-320`, still is): see
+[ADR 0182](0182-a-corner-cabinet-that-carries-a-handle-takes-the-kitchens-handle-and-a-handle-choice-of-its-own.md).

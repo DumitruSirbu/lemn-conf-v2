@@ -87,6 +87,35 @@ function projectedIds(design: Design): string[][] {
   );
 }
 
+function idOfBody(design: Design, buildId: string): string {
+  const placement = design.placements.find(
+    (candidate) => candidate.body.buildId === buildId,
+  );
+  if (placement === undefined) throw new Error(`no ${buildId} in the design`);
+  return placement.id;
+}
+
+function bodyOf(
+  design: Design,
+  id: string,
+): Design["placements"][number]["body"] {
+  const placement = design.placements.find((candidate) => candidate.id === id);
+  if (placement === undefined) throw new Error(`no placement ${id}`);
+  return placement.body;
+}
+
+/** The same design with one placement's body replaced by another build, its size and position unchanged. */
+function swappedForBody(design: Design, id: string, buildId: string): Design {
+  return {
+    ...design,
+    placements: design.placements.map((placement) =>
+      placement.id === id
+        ? { ...placement, body: { ...placement.body, buildId } }
+        : placement,
+    ),
+  };
+}
+
 const SENT = KITCHEN_L_DESIGN;
 const SENT_IDS = SENT.placements.map(({ id }) => id);
 const [FIRST_ID, SECOND_ID] = SENT_IDS;
@@ -238,6 +267,55 @@ describe("the marks against the other copy", () => {
       expect(changeOf(list, SECOND_ID)).toBe("same");
     },
   );
+
+  it.each(["sent", "current"] as const)(
+    "marks a cabinet swapped for a different one of the same size as differing, with the %s copy on screen",
+    (version) => {
+      const swappedId = idOfBody(SENT, "base-dishwasher-600");
+      const current = swappedForBody(SENT, swappedId, "base-drawer3-600");
+      expect(current.placements.map(({ id }) => id)).toEqual(SENT_IDS);
+      expect(bodyOf(current, swappedId).widthMm).toBe(
+        bodyOf(SENT, swappedId).widthMm,
+      );
+      expect(bodyOf(current, swappedId).heightMm).toBe(
+        bodyOf(SENT, swappedId).heightMm,
+      );
+
+      const list = listOf({
+        design: version === "current" ? current : SENT,
+        version,
+        other: version === "current" ? SENT : current,
+      });
+
+      expect(changeOf(list, swappedId)).toBe("differs");
+      expect(
+        list.groups
+          .flatMap((group) => group.rows)
+          .filter((row) => row.change !== "same")
+          .map((row) => row.placementId),
+      ).toEqual([swappedId]);
+      expect(list.holdsChanges).toBe(true);
+    },
+  );
+
+  it("marks a swap that mints a new placement id as the old body removed and the new one added, as the insert command does", () => {
+    const swappedId = idOfBody(SENT, "base-dishwasher-600");
+    const swapped = swappedForBody(SENT, swappedId, "base-drawer3-600");
+    const current: Design = {
+      ...swapped,
+      placements: swapped.placements.map((placement) =>
+        placement.id === swappedId
+          ? { ...placement, id: "swapped-in" }
+          : placement,
+      ),
+    };
+
+    const list = listOf({ design: current, version: "current", other: SENT });
+
+    expect(changeOf(list, swappedId)).toBe("removed");
+    expect(changeOf(list, "swapped-in")).toBe("added");
+    expect(list.bodyCount).toBe(SENT.placements.length);
+  });
 
   it("puts a group only the sent copy fills where the projection puts it, and not after the groups that follow it", () => {
     const fullGroups = projectedIds(SENT);
@@ -454,76 +532,67 @@ describe.each(CATALOGUES)(
         ({ pricing }) => pricing.ok,
       );
 
-      test.prop(
-        [
-          fc.constantFrom(...kitchens),
-          fc.array(fc.boolean(), { minLength: 40, maxLength: 40 }),
-          fc.array(fc.boolean(), { minLength: 40, maxLength: 40 }),
-        ],
-        { numRuns: 40 },
-      )(
-        "lists the projection's groups, the review's rows and amounts, and one row per body, as the current copy",
-        (kitchen, droppedMask, widenedMask) => {
-          const ids = kitchen.design.placements.map(({ id }) => id);
-          const dropped = new Set(
-            ids.filter((_id, index) => droppedMask[index]),
-          );
-          const changed = new Set(
-            ids.filter((id, index) => widenedMask[index] && !dropped.has(id)),
-          );
-          const sent = kitchen.design;
-          const current = widened(without(sent, dropped), changed);
-          const list = describeCabinetList({
-            shown: { design: current, version: "current" },
-            other: sent,
-            content: words,
-            priceBook: SAMPLE_PRICE_ROOT,
-            sentLines: [],
-          });
-          if (list.kind !== "available") return;
-          const currentReview = describeReview({
-            content: words,
-            ...priceAndProject(current),
-          });
-          const sentReview = describeReview({
-            content: words,
-            ...priceAndProject(sent),
-          });
-          if (
-            currentReview.kind !== "available" ||
-            sentReview.kind !== "available"
-          )
-            return;
+      it("lists the projection's groups, the review's rows and amounts, and one row per body, as the current copy", () => {
+        let runsReadAgainstReviews = 0;
 
-          const rows = list.groups.flatMap((group) => group.rows);
-          expect(rows).toHaveLength(current.placements.length + dropped.size);
-          expect(list.bodyCount).toBe(current.placements.length);
-          expectGroupsInProjectionOrder(list, current, dropped, sent);
-          const amountOfReview = new Map(
-            currentReview.groups.flatMap((g) =>
-              g.rows.map((r) => [r.key, r.amountText]),
-            ),
-          );
-          for (const row of rows) {
-            const isRemoved = dropped.has(row.placementId);
-            const detail = (isRemoved ? sentReview : currentReview).rowDetails[
-              row.placementId
-            ];
-            expect(row.name).toBe(detail?.name);
-            expect(row.facts).toEqual(detail?.facts);
-            expect(row.amountText).toBe(
-              isRemoved ? undefined : amountOfReview.get(row.placementId),
-            );
-            expect(row.change).toBe(
-              isRemoved
-                ? "removed"
-                : changed.has(row.placementId)
-                  ? "differs"
-                  : "same",
-            );
-          }
-        },
-      );
+        fc.assert(
+          fc.property(
+            fc.constantFrom(...kitchens),
+            MASK_OF_BODIES,
+            MASK_OF_BODIES,
+            (kitchen, droppedMask, widenedMask) => {
+              const ids = kitchen.design.placements.map(({ id }) => id);
+              const dropped = new Set(
+                ids.filter((_id, index) => droppedMask[index]),
+              );
+              const changed = new Set(
+                ids.filter(
+                  (id, index) => widenedMask[index] && !dropped.has(id),
+                ),
+              );
+              const sent = kitchen.design;
+              const current = widened(without(sent, dropped), changed);
+              const list = describeCabinetList({
+                shown: { design: current, version: "current" },
+                other: sent,
+                content: words,
+                priceBook: SAMPLE_PRICE_ROOT,
+                sentLines: [],
+              });
+              if (list.kind !== "available") {
+                throw new Error(
+                  "the current copy, compared with the sent copy, was not listed",
+                );
+              }
+
+              const rows = list.groups.flatMap((group) => group.rows);
+              expect(rows).toHaveLength(
+                current.placements.length + dropped.size,
+              );
+              expect(list.bodyCount).toBe(current.placements.length);
+              expectGroupsInProjectionOrder(list, current, dropped, sent);
+              for (const row of rows) {
+                expect(row.change).toBe(
+                  dropped.has(row.placementId)
+                    ? "removed"
+                    : changed.has(row.placementId)
+                      ? "differs"
+                      : "same",
+                );
+              }
+              const reviews = reviewsOf({ current, sent, words });
+              if (reviews === undefined) return;
+              runsReadAgainstReviews += 1;
+              expectRowsFromReviews({ rows, dropped, reviews });
+            },
+          ),
+          { seed: SEED, numRuns: 40 },
+        );
+
+        expect(runsReadAgainstReviews).toBeGreaterThanOrEqual(
+          MIN_RUNS_READ_AGAINST_REVIEWS,
+        );
+      });
 
       test.prop([fc.constantFrom(...kitchens)], { numRuns: 20 })(
         "lists exactly the projection's groups for the copy on screen when it is compared with nothing",
@@ -550,6 +619,81 @@ describe.each(CATALOGUES)(
     });
   },
 );
+
+const SEED = 20261115;
+
+/** The runs of one property whose rows were read against both copies' reviews: a generator that drops or widens so much
+ *  that no copy is priced would otherwise leave the name, facts and amount assertions with nothing to check. */
+const MIN_RUNS_READ_AGAINST_REVIEWS = 5;
+
+/** Which of a kitchen's first forty bodies to touch: none, a few or most, so that some copies stay priced. */
+const MASK_OF_BODIES = fc.oneof(
+  { weight: 2, arbitrary: sparseMask(10) },
+  { weight: 1, arbitrary: sparseMask(2) },
+);
+
+function sparseMask(oneIn: number): fc.Arbitrary<boolean[]> {
+  return fc.array(
+    fc.integer({ min: 0, max: oneIn - 1 }).map((draw) => draw === 0),
+    { minLength: 40, maxLength: 40 },
+  );
+}
+
+/** The reviews of both copies; nothing when either copy has none (a copy the book refuses has no review to read). */
+function reviewsOf({
+  current,
+  sent,
+  words,
+}: {
+  readonly current: Design;
+  readonly sent: Design;
+  readonly words: ReturnType<typeof contentFor>;
+}):
+  | { readonly current: AvailableReview; readonly sent: AvailableReview }
+  | undefined {
+  const currentReview = describeReview({
+    content: words,
+    ...priceAndProject(current),
+  });
+  const sentReview = describeReview({
+    content: words,
+    ...priceAndProject(sent),
+  });
+  return currentReview.kind === "available" && sentReview.kind === "available"
+    ? { current: currentReview, sent: sentReview }
+    : undefined;
+}
+
+/** A removed row is the sent review's, without an amount; every other row is the current review's, amount included. */
+function expectRowsFromReviews({
+  rows,
+  dropped,
+  reviews,
+}: {
+  readonly rows: readonly AvailableCabinetList["groups"][number]["rows"][number][];
+  readonly dropped: ReadonlySet<string>;
+  readonly reviews: {
+    readonly current: AvailableReview;
+    readonly sent: AvailableReview;
+  };
+}): void {
+  const amountOfReview = new Map(
+    reviews.current.groups.flatMap((g) =>
+      g.rows.map((r) => [r.key, r.amountText]),
+    ),
+  );
+  for (const row of rows) {
+    const isRemoved = dropped.has(row.placementId);
+    const detail = (isRemoved ? reviews.sent : reviews.current).rowDetails[
+      row.placementId
+    ];
+    expect(row.name).toBe(detail?.name);
+    expect(row.facts).toEqual(detail?.facts);
+    expect(row.amountText).toBe(
+      isRemoved ? undefined : amountOfReview.get(row.placementId),
+    );
+  }
+}
 
 function reviewHeadingsOf(
   design: Design,

@@ -322,3 +322,10 @@ loads"* and *"in every reachable state"* is what ADR 0102 fills; it is not an er
   decision 1, with ADR 0102's own Amendment A. **Do not carry this forward as open.** The same ruling
   opened a second one the owner asked for — a body already standing is re-planned when something is
   inserted beneath it — which is wave 6Z and touches nothing in this record.
+
+**Dated note, 2026-11-15 (M12 W3a/W3b; relayed from the plan §10 and the coordinator, the scribe read no source).**
+Decision 4's "the 600 mm kitchen is byte-identical" is **superseded for `p24` only**: W3b (`563e4351`) moves it from 600 to 700
+at setting 600; every other placement stays byte-identical (W3a-2, `bd238d46`). Decision 1's replacement assertion for that
+row, whose text names the lifted arm only, now asserts the **fridge arm** for `p24` (the lifted arm remains for `p22`, `p23`),
+per [ADR 0183](0183-generation-hangs-a-cabinet-over-the-freestanding-fridge-and-a-cabinet-over-that-fridge-is-built-700-mm-deep-at-every-cabinet-depth.md)
+d4: a third declared answer for a body over a freestanding fridge.

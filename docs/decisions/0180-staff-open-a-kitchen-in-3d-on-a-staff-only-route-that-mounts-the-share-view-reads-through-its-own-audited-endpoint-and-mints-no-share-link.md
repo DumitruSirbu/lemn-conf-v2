@@ -176,3 +176,8 @@ F1 (the route file's cross-site guard and `HEAD`, the `private, no-store` body; 
 key list, the classification, the round-trip test; d3), F3 (no row and a defined refusal when no copy is readable; the
 `version` check after admission; the language switch's second row accepted; d2, d8). The security read found no
 exploitable design flaw [sec, relayed].
+
+**Dated note, 2026-11-15 (M12 W6a, `b77142ee`; relayed, the scribe read no source).** Decisions 1, 5 and 7 are kept. The
+"Deschide în 3D" link is now drawn inside a read-only link card ("Link către bucătărie · Doar citire") that also shows the
+address and a "Copiază linkul" button; no share link is minted. See
+[ADR 0185](0185-the-staff-kitchen-page-leads-with-a-read-only-link-lists-every-cabinet-in-an-accordion-and-says-when-the-price-now-differs-from-the-price-sent.md) d1.

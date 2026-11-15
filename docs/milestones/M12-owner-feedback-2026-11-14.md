@@ -695,3 +695,36 @@ says "default stands" the owner did not overturn the proposed default.
   measured 25 of 25 U rooms on the architect's grid on 2026-11-14; outside M12.
 - M11 plan: W5 marked discharged by the v3 mockup (the scribe confirms with the coordinator).
 - Decisions index rows 0182-0185.
+
+## 11. Close-out records, 2026-11-15 (scribe; coordinator-relayed; nothing run by the scribe)
+
+**Status: W0-W6f committed on `fix/owner-feedback-2026-11-14`, HEAD `b48d4684`; not pushed; no PR; NOT closed and NOT
+archived.** Commits: `348a157f` W0, `359812ba` W1, `1b13a4e1` W2, `bd238d46` W3a, `563e4351` W3b, `4e0e49e6` W4, `b0f6c63a`
+W5, `b77142ee` W6a, `7e7d85ae` W6b, `483f5356` W6c, `c1083ef3` W6d with fix `390c3a6b`, `5a4bf11f` W6e, `b48d4684` W6f.
+Per the coordinator each wave had QA, review and verify, and hooks passed on each commit; the scribe saw no gate output.
+
+**Verification evidence not yet in.** The milestone test audit (§7; report to land in `docs/test-audits/`) is **in progress,
+result not known**. `pnpm ci:local` is **running, result not known**. The e2e specs edited in this milestone were **not run**
+(backlog 313). The coordinator-relayed visual run created about 25 design rows on the shared preview database (backlog 316).
+
+**Deviations, with rationale (all recorded elsewhere).**
+- W2: placed wherever the insert succeeds, from a 2501 mm ceiling (§4, §9 Q3-1, ADR 0183 Amendment A).
+- W5: a status and a button instead of frame D4B's switch (ADR 0184); W5's notes: the accessory page reads "Activ · Activ",
+  and the hardware and material hint reads as active when the item is inactive (owner to rule with the copy).
+- W6e: one DOM and reading order at every width, departing from the mockup's phone order for WCAG 2.4.3 (coordinator ruling);
+  the starting price is drawn for a draft only.
+- W6f: `tel:` links only for numbers the phone allowlist accepts (after the security review; criterion W6f-1).
+- ADR 0183 d4 reading: whether a 50 mm overhang makes the cabinet 700 mm deep is an open owner question.
+
+**§10 items discharged by the scribe on 2026-11-15** (dated notes appended; sources are the plan and the coordinator's relay,
+no source file read): ADR 0021 (d2), ADR 0092 (d3), ADR 0060 (the third arm), ADR 0101 (d1 and d4), ADR 0174 (O-L3-1 by Q7-1
+and Q7-3), ADR 0180 (the link card), ADR 0104 Amendment I (items 4, 5, 7 departures, W6e's phone order),
+`docs/design/README.md` (v3 mockups and departures), decisions index rows 0182-0185, and the STATUS row and next steps.
+
+**§10 items still owed.**
+- ADR 0120's row on ADR 0021 (the table row; not edited, its layout was not read).
+- The M11 plan's W5 line: marked discharged by the v3 mockup is still **unconfirmed by the coordinator**.
+- Backlog entries 312-319: written for the index (`docs/BACKLOG.md`); the detail entries for `docs/backlog/open.md` are in
+  the text the caller must append (see the scribe's report; the scribe's overwrite of that file is the reason).
+- Owner items: STATUS section 3. Launch item [sec S6]: the privacy notice wording.
+- Archive this plan to `milestones/done/` only after the audit, `ci:local`, the push and the PR are recorded.

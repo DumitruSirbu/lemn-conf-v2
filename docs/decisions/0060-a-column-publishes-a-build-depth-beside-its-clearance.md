@@ -164,3 +164,8 @@ Not amending decision 4's wording above — it is dated and stands as written, a
 appended rather than folded in, per this project's rule that a decision record accumulates rather
 than erases. A reader relying on "no route puts a 330 mm body over a column" for anything beyond
 decision 3's stability should read this correction first.
+
+**Dated note, 2026-11-15 (M12 W3a, `bd238d46`; relayed, the scribe read no source).** Decision 2's declared build depth gains
+a third arm: a wall body over a freestanding fridge is built to the deepest declared cabinet depth (700), not the setting and
+not the fridge's 742. Still declared, never measured. See
+[ADR 0183](0183-generation-hangs-a-cabinet-over-the-freestanding-fridge-and-a-cabinet-over-that-fridge-is-built-700-mm-deep-at-every-cabinet-depth.md) d4.

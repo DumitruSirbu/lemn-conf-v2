@@ -1067,3 +1067,15 @@ constants; by the rule above, the code measures and does not hard-code them.
 
 **Decision 8's widths.** Dated note D3 above already marks decision 8's table as superseded by measurement; the order is now
 A to E and the figures above are the latest relayed ones. Nothing in decisions 1 to 9 is otherwise changed.
+
+**Amendment I, 2026-11-15 (M12 departures from frames; relayed by the coordinator, the scribe read no source and
+rendered no mockup).** Frames are not edited; these builds depart from them, recorded here as decision 1 requires:
+- **Item 4, `Lemnaria Cont Lot 2.dc.html` frame `STAFF`:** the frame puts the staff entry first; the owner's order puts
+  "Panoul de administrare" **last**, set apart (W4, `4e0e49e6`). Russian is drafted.
+- **Item 5, frame D4B (`Lemnaria Dashboard.dc.html`):** D4B draws a track switch; the build is a stated status plus a
+  "Dezactivează" / "Activează" button, per [ADR 0184](0184-an-items-availability-on-its-staff-page-is-a-stated-status-and-a-separate-named-action-not-a-switch.md)
+  (W5, `b0f6c63a`).
+- **Item 7, `Bucatarii clienti.dc.html` (v3):** the contact block is sourced from the account **profile**, not the request
+  (owner Q7-3, ADR 0185 d7); and **W6e** (`5a4bf11f`) uses one DOM and reading order at every width, which departs from the
+  mockup's phone order (coordinator ruling, WCAG 2.4.3); the starting price is drawn for a draft only. The mockup's
+  "Clientul a modificat…" line is not used where the kitchen is unchanged (ADR 0185 d5).

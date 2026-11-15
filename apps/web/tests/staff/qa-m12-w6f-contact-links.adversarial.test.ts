@@ -56,6 +56,105 @@ function digitPositionsOf(value: string): number[] {
   );
 }
 
+const DIGIT = fc.constantFrom(...Array.from("0123456789"));
+const NON_ZERO_DIGIT = fc.constantFrom(...Array.from("123456789"));
+const ALPHANUMERIC = fc.constantFrom(
+  ...Array.from(
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+  ),
+);
+// What a person types between digits: a space, a no-break space, a hyphen, a general-punctuation dash, round brackets.
+const PHONE_SEPARATORS = [
+  "",
+  " ",
+  "\u00A0",
+  "-",
+  "\u2010",
+  "\u2013",
+  "\u2015",
+  "(",
+  ")",
+] as const;
+
+function joined(parts: readonly string[]): string {
+  return parts.join("");
+}
+
+/** A number the builder dials, typed with separators between its digits: the population the generator below never hits. */
+const DIALLABLE_TYPING = fc
+  .tuple(
+    fc.constantFrom("+", "0"),
+    NON_ZERO_DIGIT,
+    fc.array(DIGIT, { minLength: 7, maxLength: 13 }),
+    fc.array(fc.constantFrom(...PHONE_SEPARATORS), {
+      minLength: 21,
+      maxLength: 21,
+    }),
+  )
+  .map(([lead, first, rest, separators]) => {
+    const digitsTyped = [
+      first,
+      ...rest.slice(0, lead === "0" ? 7 : rest.length),
+    ];
+    const typed = digitsTyped.map(
+      (digit, at) => `${digit}${separators[at] ?? ""}`,
+    );
+    return `${lead}${joined(typed)}`;
+  });
+
+/** An address of letters, digits and dots that the builder links as stored. */
+const LINKABLE_ADDRESS_TYPING = fc
+  .tuple(
+    fc.array(ALPHANUMERIC, { minLength: 1, maxLength: 8 }),
+    fc.array(ALPHANUMERIC, { minLength: 1, maxLength: 8 }),
+    fc.array(fc.constantFrom(...Array.from("abcdefghijklmnopqrstuvwxyz")), {
+      minLength: 2,
+      maxLength: 6,
+    }),
+  )
+  .map(
+    ([local, label, topLevel]) =>
+      `${joined(local)}@${joined(label)}.${joined(topLevel)}`,
+  );
+
+/** Linked and refused values mixed, so that a property's assertion is reached by both kinds. */
+const ANY_PHONE_TYPING = fc.oneof(
+  { weight: 1, arbitrary: DIALLABLE_TYPING },
+  { weight: 1, arbitrary: fc.string({ unit: "binary", maxLength: 40 }) },
+);
+const ANY_ADDRESS_TYPING = fc.oneof(
+  { weight: 1, arbitrary: LINKABLE_ADDRESS_TYPING },
+  { weight: 1, arbitrary: fc.string({ unit: "binary", maxLength: 40 }) },
+);
+
+const MIN_LINKED_RUNS = 100;
+const MIN_REFUSED_RUNS = 100;
+const RUNS_PER_PROPERTY = 4000;
+
+/**
+ * Asks `answerOf` for every value of a list, then again for the whole list reversed and for each value on its own
+ * between the others, and returns each value's answers: a builder that carries state from one call to the next (a global
+ * regex's `lastIndex`) answers one value differently the second time.
+ */
+function answersAcrossInterleavedCalls<Answer>(
+  values: readonly string[],
+  answerOf: (value: string) => Answer,
+): Answer[][] {
+  const answersByValue = new Map<string, Answer[]>();
+  const record = (value: string): void => {
+    const answers = answersByValue.get(value) ?? [];
+    answers.push(answerOf(value));
+    answersByValue.set(value, answers);
+  };
+  values.forEach(record);
+  [...values].reverse().forEach(record);
+  values.forEach((value) => {
+    record(value);
+    record(value);
+  });
+  return values.map((value) => answersByValue.get(value) ?? []);
+}
+
 describe("mailLinkOf boundaries", () => {
   it("links an address of exactly 254 characters and refuses one of 255 (the account field's bound)", () => {
     const at254 = `${"a".repeat(254 - "@mail.md".length)}@mail.md`;
@@ -129,13 +228,32 @@ describe("mailLinkOf boundaries", () => {
     expect(performance.now() - startedAt).toBeLessThan(1000);
   });
 
-  it("is deterministic: the same stored string gives an equal answer every time", () => {
+  it("is deterministic: the same stored string gives an equal answer every time, between calls on other strings", () => {
+    let linkedValues = 0;
+    let refusedValues = 0;
+
     fc.assert(
-      fc.property(fc.string({ unit: "binary" }), (typed) => {
-        expect(mailLinkOf(typed)).toEqual(mailLinkOf(typed));
-      }),
+      fc.property(
+        fc.array(ANY_ADDRESS_TYPING, { minLength: 1, maxLength: 6 }),
+        (stored) => {
+          const answers = answersAcrossInterleavedCalls(stored, mailLinkOf);
+
+          stored.forEach((typed, at) => {
+            const answersOfTyped = answers[at] ?? [];
+            expect(answersOfTyped.length).toBeGreaterThanOrEqual(2);
+            for (const answer of answersOfTyped) {
+              expect(answer).toEqual(answersOfTyped[0]);
+            }
+            if (answersOfTyped[0] === null) refusedValues += 1;
+            else linkedValues += 1;
+          });
+        },
+      ),
       { seed: SEED, numRuns: 500 },
     );
+
+    expect(linkedValues).toBeGreaterThanOrEqual(MIN_LINKED_RUNS);
+    expect(refusedValues).toBeGreaterThanOrEqual(MIN_REFUSED_RUNS);
   });
 
   it("never lets a mailto: href carry a character that starts a second part of a URL, from any Unicode string", () => {
@@ -233,24 +351,55 @@ describe("phoneLinkOf boundaries", () => {
   });
 
   it("builds a tel: of ASCII digits only, whatever Unicode it is given", () => {
+    let linked = 0;
+    let refused = 0;
+
     fc.assert(
-      fc.property(fc.string({ unit: "binary", maxLength: 40 }), (typed) => {
+      fc.property(ANY_PHONE_TYPING, (typed) => {
         const link = phoneLinkOf(typed);
         if (link === null) {
+          refused += 1;
           return;
         }
+        linked += 1;
         expect(link.href).toMatch(/^tel:\+[1-9][0-9]{6,14}$/);
+        expect(link.value).toBe(link.href.slice("tel:".length));
       }),
-      { seed: SEED, numRuns: 4000 },
+      { seed: SEED, numRuns: RUNS_PER_PROPERTY },
     );
+
+    expect(linked).toBeGreaterThanOrEqual(MIN_LINKED_RUNS);
+    expect(refused).toBeGreaterThanOrEqual(MIN_REFUSED_RUNS);
   });
 
-  it("is deterministic: the same typed number gives an equal answer every time", () => {
+  it("is deterministic: the same typed number gives an equal answer every time, between calls on other numbers", () => {
+    let linkedValues = 0;
+    let refusedValues = 0;
+
     fc.assert(
-      fc.property(fc.string({ unit: "binary" }), (typed) => {
-        expect(phoneLinkOf(typed)).toEqual(phoneLinkOf(typed));
-      }),
+      fc.property(
+        fc.array(ANY_PHONE_TYPING, { minLength: 1, maxLength: 6 }),
+        (typedNumbers) => {
+          const answers = answersAcrossInterleavedCalls(
+            typedNumbers,
+            phoneLinkOf,
+          );
+
+          typedNumbers.forEach((_typed, at) => {
+            const answersOfTyped = answers[at] ?? [];
+            expect(answersOfTyped.length).toBeGreaterThanOrEqual(2);
+            for (const answer of answersOfTyped) {
+              expect(answer).toEqual(answersOfTyped[0]);
+            }
+            if (answersOfTyped[0] === null) refusedValues += 1;
+            else linkedValues += 1;
+          });
+        },
+      ),
       { seed: SEED, numRuns: 500 },
     );
+
+    expect(linkedValues).toBeGreaterThanOrEqual(MIN_LINKED_RUNS);
+    expect(refusedValues).toBeGreaterThanOrEqual(MIN_REFUSED_RUNS);
   });
 });

@@ -23,7 +23,8 @@ it open. Deviating is a decision to record in `../decisions/`.
 | [8U](8U-merge-adjacent-empty-spaces.md) | Merge adjacent empty spaces (an M8 sub-wave plan). | Built and reviewed; S5 not built; plan not archived |
 | [M8C](M8C-generation-fill-and-preset-authoring.md) | Generation fills every free wall-run end; the owner saves, lists and uses presets. Mobile-gated (P4, P8). | Waves F0 to P9 committed (2026-10-18); not closed: owner obligations open (plan banner) |
 | [M8B](M8B-customer-profiles.md) | Customer profiles: e-mail and password, a dashboard, claiming anonymous designs. Mobile-gated. | Planned; no wave dispatched |
-| [M11](M11-owner-feedback-2026-11-07.md) | Owner feedback of 2026-11-07: account icon on My kitchens, share-sheet row, card thumbnails, contact prefill, staff open-in-3D. | In progress (2026-11-13); W0 and W1 committed, W2-W5 not started |
+| [M11](M11-owner-feedback-2026-11-07.md) | Owner feedback of 2026-11-07: account icon on My kitchens, share-sheet row, card thumbnails, contact prefill, staff open-in-3D. | Merged as PR #17 (per the M12 plan header); not archived; W4a-W5 state not recorded in STATUS, confirm before archiving |
+| [M12](M12-owner-feedback-2026-11-14.md) | Owner feedback of 2026-11-14: corner handles, the cabinet over the fridge, the account menu, staff availability, the staff kitchen page. | In progress (2026-11-15); W0-W6f committed, audit and `ci:local` results not known, not pushed |
 | [M9](M9-delivery-preparation.md) | Delivery preparation: hosting, providers, the launch gate. Inherits M8's waves 8R, 8S. | Proposed stub; no plan, no waves |
 | [8q-s0-measurements](8q-s0-measurements.md) | Measurement record for the 8Q wave. | No status in STATUS; 8Q2 is done |
 | [migration-environment-safety-check](migration-environment-safety-check.md) | Standalone plan: migration environment safety check. | No status in STATUS |

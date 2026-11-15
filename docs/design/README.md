@@ -99,6 +99,13 @@ figure already read `60.000`, and the application's grouping is not decided by t
   account control as the configurator's header anyway (owner feedback item 1, `docs/archive/OWNER_FEEDBACK-2026-11-07.md`), so the A9
   frames are **departed from on that point** and nothing else. Plan: [`M11-owner-feedback-2026-11-07.md`](../milestones/M11-owner-feedback-2026-11-07.md),
   wave W1a. An ADR 0104 amendment recording the departure is owed (the plan's §9). The mockup file is not edited.
+- **Dated note 2026-11-15 (M12; relayed by the coordinator and the M12 plan; the scribe rendered nothing and ran no checksum).**
+  The v3 mockups (`Bucatarii clienti.dc.html`, new; also the toolbar for item 6) were copied into `docs/design/mockups/`
+  in M12's W0 commit `348a157f`. The build **departs** from them in these places (record: ADR 0104 Amendment I): the staff
+  menu entry is last, not first (frame `STAFF` of Lot 2); availability is a status plus a button, not D4B's track switch;
+  the staff contact block comes from the account profile, not the request; one reading order at every width, not the
+  mockup's phone order (WCAG 2.4.3). The v3 staff-nav grouping and `Personal.dc.html`, `Traduceri.dc.html` are not built.
+  Mockup files are not edited.
 
 `support.js` was in this list until 2026-10-18. The screen files already loaded it, so before that
 date the tracked mockups could not render on their own; it is now copied because the v2 preset

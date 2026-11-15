@@ -99,3 +99,9 @@ but the regression coverage silently changed meaning, and that is worth a record
   nothing renders differently in the scene today.
 - **Open, carried:** whether §11 row 20 should regain a production route. Until it does, its two
   regression rows prove the engine, not the product.
+
+**Dated note, 2026-11-15 (M12 close; relayed from the coordinator, the scribe read no source).** Decision 2's `canHandle:
+false` for corners is **superseded for five bodies** by [ADR 0182](0182-a-corner-cabinet-that-carries-a-handle-takes-the-kitchens-handle-and-a-handle-choice-of-its-own.md)
+(owner request of 2026-11-14, built in M12 W1, `359812ba`): they take the kitchen's handle and offer a handle choice of
+their own; `base-corner-return-320` keeps `canHandle: false`. `canFinish`, `canReplace`, `canDelete` and the fixed width are
+unchanged. The sentence this record marks "the thing to revisit" is the one revisited.

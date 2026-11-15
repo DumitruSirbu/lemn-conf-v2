@@ -3519,3 +3519,36 @@ consumer, if practical. **Owner:** unassigned.
 including client-deleted and hidden ones, or delete `design_thumbnails` rows explicitly. Migration `0030`'s foreign key is
 `on delete cascade` from `designs (id)`, so a hard delete removes the row. Its test must assert that **no thumbnail row
 remains** for the account. **Owner:** the account-erasure wave (not scheduled).
+
+
+## 312. Replacing a generated fridge with a tower or pantry is refused while a cabinet hangs over it — RECORDED 2026-11-15 (M12 W2; ADR 0183 Amendment A)
+
+**Observed (coordinator ruling, relayed; not re-run by the scribe).** Generation now hangs a wall cabinet over a freestanding fridge. While it hangs there, swapping that fridge for a tower or a pantry is refused. Accepted as known behaviour in M12, not built. **To do:** decide whether the swap should remove or re-plan the cabinet. **Owner:** unassigned.
+
+## 313. The e2e specs edited in M12 were not run — RECORDED 2026-11-15 (M12 close)
+
+**Observed (coordinator's relay).** Specs were edited during M12 and not run in this milestone. `pnpm ci:local` includes the e2e gate; its result is not known at writing. **To do:** read the `ci:local` result; if e2e did not run or failed, run the edited specs. **Owner:** the M12 close.
+
+## 314. The `qa-u3b` domain property flaked under parallel load — RECORDED 2026-11-15 (M12)
+
+**Observed (coordinator's relay).** The property failed once under parallel load and passed when run alone. Cause not diagnosed. **Cost of deciding:** re-run it under load with a recorded seed. **Owner:** unassigned.
+
+## 315. A test-only `Column` factory — RECORDED 2026-11-15 (M12 W3a clean-code review R1.4)
+
+**Observed (relayed from the review).** Tests build `Column` values by hand; a test-only factory would keep them in step with W3a's new field. **Owner:** unassigned; low.
+
+## 316. About 25 design rows sit on the shared PREVIEW database from M12's visual run — RECORDED 2026-11-15 (M12)
+
+**Observed (coordinator's relay).** A visual run created them through the normal save route. The scribe deleted nothing (add-only rule, `best-practices/environments-and-resources.md`). **Owner:** the owner may clean them up.
+
+## 317. `generateKitchen` throws for U rooms at a 2000 mm ceiling at `HEAD` — RECORDED 2026-11-15 (M12 plan §10)
+
+**Observed (architect's measurement, 2026-11-14, plan §10).** 25 of 25 U rooms on the architect's grid throw *"a U's hob has no hood over it"*. Pre-existing, outside M12. **Owner:** unassigned.
+
+## 318. The 390 px camera presets do not frame the fridge column in generated L and linear rooms — RECORDED 2026-11-15 (M12 visual run); OBSERVATION
+
+**Observed (coordinator's relay).** Related to entry 16 (no camera preset frames a wall run's end at the mobile viewport). Not investigated. **Owner:** unassigned.
+
+## 319. `UnknownBodyError` on a current copy with an unknown build id — RECORDED 2026-11-15 (M12); PRE-EXISTING
+
+**Observed (coordinator's relay; not re-read by the scribe).** Found during M12; not caused by it. **Owner:** unassigned.
