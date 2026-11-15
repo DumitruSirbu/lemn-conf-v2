@@ -390,10 +390,7 @@ function toBreakdownGroup(
 ): BreakdownGroup {
   return {
     key: `${group.wall}-${group.band}`,
-    heading: content.priceBreakdown.groupHeading(
-      group.wall,
-      content.priceBreakdown.bandHeadings[group.band],
-    ),
+    heading: describeGroupHeading(group, content),
     rows: group.entries.map((entry) => ({
       key: entry.placementId,
       label: describePlacementLabel(entry, content),
@@ -403,6 +400,17 @@ function toBreakdownGroup(
       ),
     })),
   };
+}
+
+/** A group's heading, *Perete A · bază*: the one wording of it, for every surface that lists the projection's groups. */
+export function describeGroupHeading(
+  group: Pick<DisplayGroup, "wall" | "band">,
+  content: Content,
+): string {
+  return content.priceBreakdown.groupHeading(
+    group.wall,
+    content.priceBreakdown.bandHeadings[group.band],
+  );
 }
 
 /** A body's name without its width: the first line of a two-line row. The label above is this and the width, from

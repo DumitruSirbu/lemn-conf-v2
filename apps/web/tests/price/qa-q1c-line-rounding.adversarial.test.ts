@@ -684,6 +684,8 @@ describe("which module rounds what", () => {
         "review/review-groups.tsx",
         "settings/global-settings.tsx",
         "staff/kitchen-estimates.tsx",
+        "staff/staff-cabinet-list-model.ts",
+        "staff/staff-cabinet-list.tsx",
         "staff/staff-kitchen-view.tsx",
         THE_FORMATTER,
       ]),
@@ -703,6 +705,9 @@ describe("which module rounds what", () => {
         "price/price-breakdown.tsx",
         "review/review-model.ts",
         "review/use-review.ts",
+        // ADR 0185 decision 4: the staff cabinet list takes each current row's amount from the breakdown's one builder,
+        // so it cannot word an amount the review words otherwise.
+        "staff/staff-cabinet-list-model.ts",
       ]),
     );
   });
@@ -710,14 +715,46 @@ describe("which module rounds what", () => {
   it("gives the staff kitchen, the account card and the share view no row: they import neither row model nor row component", () => {
     const rowSources =
       /price-breakdown-model|price\/price-breakdown"|review\/review-model|review-groups|review\/use-review/;
+    // One staff module lists the review's own rows by design (ADR 0185 decisions 3 and 4): the cabinet list's model, and
+    // only through the named builders pinned below. The component that draws it is held to the rule here.
+    const rowListingModel = "staff/staff-cabinet-list-model.ts";
     const quiet = [...CODE.keys()].filter(
       (path) =>
-        /^(staff|account|share)\//.test(path) || path.startsWith("app/s/"),
+        path !== rowListingModel &&
+        (/^(staff|account|share)\//.test(path) || path.startsWith("app/s/")),
     );
 
     expect(quiet.length).toBeGreaterThan(20);
     for (const path of quiet)
       expect(CODE.get(path), path).not.toMatch(rowSources);
+  });
+
+  it("lets the staff cabinet list's model take exactly four builders from the row sources, and nothing else of them", () => {
+    const code = CODE.get("staff/staff-cabinet-list-model.ts") ?? "";
+    const importsFrom = (source: string): string[] => {
+      const match = new RegExp(
+        `import\\s*\\{([^}]*)\\}\\s*from\\s*"${source}"`,
+        "u",
+      ).exec(code);
+      return (match?.[1] ?? "")
+        .split(",")
+        .map((name) => name.trim().replace(/^type\s+/u, ""))
+        .filter((name) => name !== "" && !/^[A-Z]/u.test(name))
+        .sort();
+    };
+
+    expect(importsFrom("@/price/price-breakdown-model")).toEqual([
+      "describeBreakdownRows",
+      "describeGroupHeading",
+    ]);
+    expect(importsFrom("@/review/review-model")).toEqual([
+      "describeRowDetails",
+      "rowDetailOf",
+    ]);
+    expect(code).not.toMatch(
+      /review-groups|review\/use-review|price\/price-breakdown"/,
+    );
+    expect(code).not.toMatch(/\bdescribeReview\b|\bdescribePriceBreakdown\b/);
   });
 
   it("prints a row only through a model's amountText: the row components hold no arithmetic of their own", () => {

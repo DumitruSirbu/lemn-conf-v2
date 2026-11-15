@@ -486,6 +486,10 @@ describe("only these modules may go near a price, and only one of them may round
       // The staff kitchen's two estimates are told through the formatter, as every other total is; the module derives and
       // rounds nothing.
       "staff/kitchen-estimates.tsx",
+      // The staff cabinet list (ADR 0185 decisions 3 and 4) lists the current copy's rows through the breakdown's one
+      // builder, which words each amount at ten lei; the model and the component derive and round nothing.
+      "staff/staff-cabinet-list-model.ts",
+      "staff/staff-cabinet-list.tsx",
       // The staff kitchen's summary card prints the price line `describeKitchenPrice` makes, as the kitchen card does,
       // and names the book's two tiers from the same priced design; it derives and rounds nothing.
       "staff/staff-kitchen-view.tsx",

@@ -601,15 +601,25 @@ describe.each(LOCALES)(
         expect(has("staff-kitchen-current-variant")).toBe(false);
       });
 
-      it("marks the bodies only the current copy holds as new, and the rest as the same, whichever copy is shown", async () => {
+      it("marks the bodies only the current copy holds as new after sending on the current copy, and lists only the bodies of the copy as sent on that one", async () => {
         answers(changedKitchen());
         await mount(locale);
-        const expected = [
-          ...Array.from({ length: FEWER_BODIES }, () => "same"),
-          ...Array.from({ length: BODIES_ADDED }, () => "added"),
-        ];
 
-        expect([...cabinetChanges()].sort()).toEqual([...expected].sort());
+        expect([...cabinetChanges()].sort()).toEqual(
+          [
+            ...Array.from({ length: FEWER_BODIES }, () => "same"),
+            ...Array.from({ length: BODIES_ADDED }, () => "added"),
+          ].sort(),
+        );
+        expect(textOf("staff-kitchen-cabinets")).toContain(
+          changes.highlightNote,
+        );
+        expect(textOf("staff-kitchen-cabinets")).toContain(
+          changes.rowNewAfterSending,
+        );
+        expect(
+          allIn(container(), '[data-testid="staff-kitchen-cabinet-amount"]'),
+        ).toHaveLength(FEWER_BODIES + BODIES_ADDED);
         click(
           requireIn(
             container(),
@@ -618,11 +628,15 @@ describe.each(LOCALES)(
         );
         await settle();
 
-        expect([...cabinetChanges()].sort()).toEqual([...expected].sort());
-        expect(textOf("staff-kitchen-cabinets")).toContain(
-          changes.highlightNote,
+        expect(cabinetChanges()).toEqual(
+          Array.from({ length: FEWER_BODIES }, () => "same"),
         );
-        expect(textOf("staff-kitchen-cabinets")).toContain(changes.rowAdded);
+        expect(textOf("staff-kitchen-cabinets")).not.toContain(
+          changes.rowNewAfterSending,
+        );
+        expect(
+          allIn(container(), '[data-testid="staff-kitchen-cabinet-amount"]'),
+        ).toHaveLength(0);
       });
 
       it("marks a body the client took out as removed", async () => {
@@ -640,13 +654,19 @@ describe.each(LOCALES)(
         expect(textOf("staff-kitchen-cabinets")).toContain(changes.rowRemoved);
       });
 
-      it("draws no switch when the two copies are the same kitchen", async () => {
+      it("draws no switch when the two copies are the same kitchen, and still lists every body of the one copy, unmarked", async () => {
         answers(changedKitchen({ kitchen: { asSent: WIRE_DESIGN } }));
 
         await mount(locale);
 
         expect(has("staff-kitchen-versions")).toBe(false);
-        expect(has("staff-kitchen-cabinets")).toBe(false);
+        expect(has("staff-kitchen-cabinets")).toBe(true);
+        expect(cabinetChanges()).toEqual(
+          Array.from({ length: FEWER_BODIES + BODIES_ADDED }, () => "same"),
+        );
+        expect(textOf("staff-kitchen-cabinets")).not.toContain(
+          changes.highlightNote,
+        );
       });
 
       it("marks a setting that differs between the copies, and says what the sent copy had only beside the current one", async () => {
@@ -704,7 +724,7 @@ describe.each(LOCALES)(
         ).toHaveLength(0);
       });
 
-      it("says the cabinet list cannot be shown, and keeps the rest, when a body of the current copy is one no catalogue holds", async () => {
+      describe("a body of the current copy that no catalogue holds, with the copy as sent on screen", () => {
         const unknownBody = {
           ...(WIRE_DESIGN as { placements: { body: object }[] }),
           placements: (
@@ -721,20 +741,24 @@ describe.each(LOCALES)(
               : placement,
           ),
         };
-        answers(
-          changedKitchen({
-            changedAfterSeen: false,
-            kitchen: { design: unknownBody },
-          }),
-        );
 
-        await mount(locale);
+        it("lists the copy as sent alone, with no mark, when that is the one on screen", async () => {
+          answers(
+            changedKitchen({
+              changedAfterSeen: false,
+              kitchen: { design: unknownBody },
+            }),
+          );
 
-        expect(textOf("staff-kitchen-cabinets")).toBe(
-          changes.cabinetsUnavailable,
-        );
-        expect(has("staff-kitchen-versions")).toBe(true);
-        expect(has("staff-kitchen-estimates")).toBe(true);
+          await mount(locale);
+
+          expect(cabinetChanges()).toEqual(
+            Array.from({ length: FEWER_BODIES + BODIES_ADDED }, () => "same"),
+          );
+          expect(textOf("staff-kitchen-cabinets")).not.toContain(
+            changes.cabinetsUnavailable,
+          );
+        });
       });
 
       it("draws no switch when the copy as sent cannot be read", async () => {

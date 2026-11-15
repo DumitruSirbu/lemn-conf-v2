@@ -19,6 +19,8 @@ const SCREEN_FILES = [
   "staff/staff-kitchen-dates.ts",
   "staff/bidi-isolate.ts",
   "staff/staff-kitchen-view.tsx",
+  "staff/staff-cabinet-list.tsx",
+  "staff/staff-cabinet-list-model.ts",
   "staff/use-staff-kitchen.ts",
   "staff/staff-read-request.ts",
   "app/[locale]/staff/kitchens/[id]/page.tsx",

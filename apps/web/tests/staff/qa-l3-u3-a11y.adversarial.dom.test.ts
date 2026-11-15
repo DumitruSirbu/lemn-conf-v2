@@ -213,12 +213,17 @@ describe.each(LOCALES)("the structure of the page in %s", (locale) => {
       await harness.mount({ locale });
     });
 
-    it("is the way back, the camera chips, the copy button and the open-in-3D link of the link card under the picture, the status select and its button, then the note field and its button, in the order they are drawn, after the frame's own controls", () => {
+    it("is the way back, the camera chips, the copy button and the open-in-3D link of the link card under the picture, the cabinet list's expand-all and group buttons, the status select and its button, then the note field and its button, in the order they are drawn, after the frame's own controls", () => {
       const container = harness.container();
       const page = requireIn(container, PAGE);
       const everything = allIn(container, FOCUSABLE);
       const inPage = allIn(page, FOCUSABLE);
+      const listControls = allIn(
+        page,
+        '[data-testid="staff-kitchen-cabinets"] button',
+      );
 
+      expect(listControls.length).toBeGreaterThan(1);
       expect(inPage.map((element) => element.tagName)).toEqual([
         "A",
         "BUTTON",
@@ -226,6 +231,7 @@ describe.each(LOCALES)("the structure of the page in %s", (locale) => {
         "BUTTON",
         "BUTTON",
         "A",
+        ...listControls.map(() => "BUTTON"),
         "SELECT",
         "BUTTON",
         "TEXTAREA",
@@ -240,6 +246,7 @@ describe.each(LOCALES)("the structure of the page in %s", (locale) => {
       expect(inPage[5]?.textContent).toBe(
         CATALOGUES[locale].staffKitchen.open3d,
       );
+      expect(inPage.slice(6, 6 + listControls.length)).toEqual(listControls);
       const [firstControl] = inPage;
       if (firstControl === undefined) throw new Error("no control in the page");
       const firstInPage = everything.indexOf(firstControl);

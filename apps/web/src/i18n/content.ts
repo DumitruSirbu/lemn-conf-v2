@@ -1725,12 +1725,12 @@ export function resolveStaffChangesCopy(translate: ContentTranslator) {
         translate("staffChanges.versionCurrent", { when }),
     },
     cabinets: {
-      tableLabel: translate("staffChanges.tableLabel"),
-      columnBody: translate("staffChanges.columnBody"),
-      columnSize: translate("staffChanges.columnSize"),
-      size: (size: string) => translate("staffChanges.sizeValue", { size }),
       differs: translate("staffChanges.rowDiffers"),
-      added: translate("staffChanges.rowAdded"),
+      newAfterSending: translate("staffChanges.rowNewAfterSending"),
+      expandAll: translate("staffChanges.cabinetsExpandAll"),
+      collapseAll: translate("staffChanges.cabinetsCollapseAll"),
+      groupCount: (count: number) =>
+        translate("staffChanges.cabinetGroupCount", { count }),
       removed: translate("staffChanges.rowRemoved"),
       wasInSent: (value: string) =>
         translate("staffChanges.rowWasInSent", { value }),

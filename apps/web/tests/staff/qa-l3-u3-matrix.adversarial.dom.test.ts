@@ -516,6 +516,8 @@ describe.each(LOCALES)(
             const isKnown =
               button.closest('[role="group"]') !== null ||
               button.closest('[data-testid="staff-kitchen-link"]') !== null ||
+              button.closest('[data-testid="staff-kitchen-cabinets"]') !==
+                null ||
               button.closest('[data-testid="staff-status-control"]') !== null ||
               button.closest("form") !== null ||
               button.closest('[data-testid="staff-kitchen-hidden-banner"]') !==

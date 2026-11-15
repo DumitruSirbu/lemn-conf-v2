@@ -274,7 +274,8 @@ export function rowDetailOf(
   return detail;
 }
 
-function describeRowDetails(
+/** Every listed body's two lines by placement id: the review's, and any surface that lists the same bodies. */
+export function describeRowDetails(
   groups: readonly DisplayGroup[],
   content: Content,
 ): Readonly<Record<string, ReviewRowDetail>> {

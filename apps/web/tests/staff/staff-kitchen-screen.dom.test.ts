@@ -351,6 +351,7 @@ describe.each(LOCALES)("the kitchen page in %s", (locale) => {
         const isKnown =
           button.closest('[role="group"]') !== null ||
           button.closest('[data-testid="staff-kitchen-link"]') !== null ||
+          button.closest('[data-testid="staff-kitchen-cabinets"]') !== null ||
           button.closest('[data-testid="staff-status-control"]') !== null ||
           button.closest('[data-testid="staff-notes"]') !== null;
         expect(isKnown, button.outerHTML.slice(0, 80)).toBe(true);

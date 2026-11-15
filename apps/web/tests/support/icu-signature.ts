@@ -170,5 +170,6 @@ export function isExactValueSwitch(branches: readonly string[]): boolean {
  *  added one: `priceDashboard.lifecycle.deleteBlockedAccessoryBody`. The dialogs' words for a switched-off accessory added
  *  one: `priceDashboard.lifecycle.usedByAccessory`. The staff menu's counter of changed kitchens (wave K4b)
  *  added one: `priceDashboard.nav.changedKitchens`. The digest's line about kitchens left for the next e-mail (wave K4)
- *  added one: `staffChanges.digest.moreWaiting`. */
-export const PLURAL_NODES_PER_CATALOGUE = 49;
+ *  added one: `staffChanges.digest.moreWaiting`. The staff cabinet list's group count (M12 W6c) added one:
+ *  `staffChanges.cabinetGroupCount`. */
+export const PLURAL_NODES_PER_CATALOGUE = 50;

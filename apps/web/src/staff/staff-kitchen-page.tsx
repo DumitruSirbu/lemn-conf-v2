@@ -9,6 +9,8 @@ import {
   type RefObject,
 } from "react";
 
+import type { Design } from "@lemnaria/configurator-domain";
+
 import { useReloadOnPageRestore } from "@/account/use-claim";
 import type { AppLocale } from "@/i18n/routing";
 import { formatRelativeAge } from "@/account/kitchens/relative-age";
@@ -22,12 +24,12 @@ import {
 import { KitchenEstimates } from "./kitchen-estimates";
 import { copiesRelationOf } from "./kitchen-estimates-model";
 import { SeenNotice } from "./kitchen-seen-notice";
-import type { KitchenVersion } from "./kitchen-version-rows";
+import type { KitchenVersion, KitchenVersions } from "./kitchen-version-rows";
 import {
-  KitchenVersionCabinets,
   KitchenVersionSwitch,
   VersionedKitchenView,
 } from "./kitchen-version-switch";
+import { StaffCabinetList } from "./staff-cabinet-list";
 import { FailedKitchens } from "./staff-kitchens-states";
 import type { StaffKitchenOpenedWire } from "./staff-kitchens-wire-contract";
 import { OpenIn3dLink } from "./staff-kitchen-3d-link";
@@ -277,8 +279,12 @@ function ReadyKitchen({
               version={versionLabels === undefined ? undefined : shownVersion}
             />
           )}
-          {versions === undefined || versionLabels === undefined ? null : (
-            <KitchenVersionCabinets versions={versions} shown={shownVersion} />
+          {shown === undefined ? null : (
+            <StaffCabinetList
+              design={shown.design}
+              shownVersion={shownVersion}
+              other={otherCopyOf(versions, shownVersion)}
+            />
           )}
         </div>
         <div className={styles.contactColumn}>
@@ -312,10 +318,7 @@ function ReadyKitchen({
                 ? {}
                 : {
                     comparison: {
-                      design:
-                        shownVersion === "current"
-                          ? versions.sent
-                          : versions.current,
+                      design: otherCopyOf(versions, shownVersion),
                       isShownCurrent: shownVersion === "current",
                     },
                   })}
@@ -332,6 +335,23 @@ function ReadyKitchen({
       </div>
     </>
   );
+}
+
+/** The copy the one on screen is compared with. */
+function otherCopyOf(
+  versions: KitchenVersions,
+  shownVersion: KitchenVersion,
+): Design;
+function otherCopyOf(
+  versions: KitchenVersions | undefined,
+  shownVersion: KitchenVersion,
+): Design | undefined;
+function otherCopyOf(
+  versions: KitchenVersions | undefined,
+  shownVersion: KitchenVersion,
+): Design | undefined {
+  if (versions === undefined) return undefined;
+  return shownVersion === "current" ? versions.sent : versions.current;
 }
 
 /** The words of the version switch, once both copies can be read and the kitchen has a sent day to name the first by. */

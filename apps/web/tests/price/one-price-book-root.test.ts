@@ -97,6 +97,7 @@ describe("no client module names a book", () => {
       "contact/use-contact-submission.ts",
       "price/use-price-notice.ts",
       "price/use-priced-design.ts",
+      "staff/staff-cabinet-list.tsx",
       "staff/staff-kitchen-view.tsx",
     ]);
   });

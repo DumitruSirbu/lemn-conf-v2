@@ -2503,13 +2503,17 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     versionLabel: "Versiunea",
     versionSent: "Trimisă · {date}",
     versionCurrent: "Actuală · {when}",
-    tableLabel: "Corpuri",
-    columnBody: "Corp / setare",
-    columnSize: "Mărime",
     rowDiffers: "diferă",
-    rowAdded: "nou în versiunea actuală",
     rowRemoved: "scos în versiunea actuală",
     rowWasInSent: "în cea trimisă: {value}",
+    // Drafted, not approved (M12 W6c; ADR 0185 decision 3): the v3 mockup's words for a cabinet added after sending
+    // ("Nou după trimitere") and for the list's "Extinde tot" / "Restrânge tot". The per-group count is the agent's own,
+    // worded as the other cabinet counts are (the bare noun in every arm).
+    rowNewAfterSending: "Nou după trimitere",
+    cabinetsExpandAll: "Extinde tot",
+    cabinetsCollapseAll: "Restrânge tot",
+    cabinetGroupCount:
+      "{count, plural, one {{count, number, ::group-off} corp} few {{count, number, ::group-off} corpuri} other {{count, number, ::group-off} corpuri}}",
     estimateSent: "Estimare · trimisă",
     estimateCurrent: "Estimare · actuală",
     // Drafted, not approved (M12 W6b; ADR 0185 decision 5): the v3 mockup's price card, whose words it writes for the two
@@ -2529,7 +2533,6 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       "Prețul de acum se calculează cu prețurile și regulile de azi.",
     highlightNote:
       "Rândurile evidențiate diferă între versiuni; nu arătăm o comparație detaliată.",
-    sizeValue: "{size} mm",
     cabinetsUnavailable:
       "Lista corpurilor nu poate fi afișată pentru această versiune.",
     changedWhileOpen:

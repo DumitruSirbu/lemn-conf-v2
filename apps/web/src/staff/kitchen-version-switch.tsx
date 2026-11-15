@@ -1,24 +1,17 @@
 "use client";
 
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useState } from "react";
 
 import type { Design } from "@lemnaria/configurator-domain";
 
-import { useContent, useStaffChangesCopy } from "@/i18n/use-content";
+import { useStaffChangesCopy } from "@/i18n/use-content";
 
-import {
-  holdsDifferingRows,
-  versionRowsOf,
-  type KitchenVersion,
-  type KitchenVersions,
-  type VersionRow,
-} from "./kitchen-version-rows";
+import type { KitchenVersion } from "./kitchen-version-rows";
 import styles from "./kitchen-version-switch.module.css";
 import { StaffKitchenView } from "./staff-kitchen-view";
 
-// "Trimisă" and "Actuală" (frame D10B): which copy of the kitchen the picture, the cabinet list and the summary show,
-// and the list that marks the bodies the two copies do not share. The words of each choice are told by the page, which
-// knows the dates.
+// "Trimisă" and "Actuală" (frame D10B): which copy of the kitchen the picture, the cabinet list and the summary show.
+// The words of each choice are told by the page, which knows the dates.
 
 const VERSIONS: readonly KitchenVersion[] = ["sent", "current"];
 
@@ -81,69 +74,5 @@ export function VersionedKitchenView({
       design={design}
       isCurrentVariantOfSent={isCurrentVariantOfSent}
     />
-  );
-}
-
-export function KitchenVersionCabinets({
-  versions,
-  shown,
-}: {
-  readonly versions: KitchenVersions;
-  readonly shown: KitchenVersion;
-}) {
-  const copy = useStaffChangesCopy().cabinets;
-  const content = useContent();
-  const rows = useMemo(
-    () => versionRowsOf({ versions, shown, content }),
-    [versions, shown, content],
-  );
-  if (rows === undefined) {
-    return (
-      <p className={styles.unavailable} data-testid="staff-kitchen-cabinets">
-        {copy.unavailable}
-      </p>
-    );
-  }
-  return (
-    <div className={styles.cabinets} data-testid="staff-kitchen-cabinets">
-      <table className={styles.table} aria-label={copy.tableLabel}>
-        <thead>
-          <tr>
-            <th scope="col">{copy.columnBody}</th>
-            <th scope="col">{copy.columnSize}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <CabinetRow key={row.placementId} row={row} />
-          ))}
-        </tbody>
-      </table>
-      {holdsDifferingRows(rows) ? (
-        <p className={styles.note}>{copy.highlightNote}</p>
-      ) : null}
-    </div>
-  );
-}
-
-function CabinetRow({ row }: { readonly row: VersionRow }) {
-  const copy = useStaffChangesCopy().cabinets;
-  const marks = {
-    same: undefined,
-    differs: copy.differs,
-    added: copy.added,
-    removed: copy.removed,
-  } as const;
-  const mark = marks[row.change];
-  return (
-    <tr data-testid="staff-kitchen-cabinet" data-change={row.change}>
-      <th scope="row">
-        <span className={styles.name}>{row.name}</span>
-        {mark === undefined ? null : (
-          <span className={styles.mark}>{mark}</span>
-        )}
-      </th>
-      <td>{copy.size(row.size)}</td>
-    </tr>
   );
 }
