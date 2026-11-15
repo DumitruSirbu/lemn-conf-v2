@@ -722,7 +722,10 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
         ).toStrictEqual({
           isSent: cell.isSent,
           isHidden: cell.isHidden,
-          client: cell.owner === "live" ? clientOf(owner) : null,
+          client:
+            cell.owner === "live"
+              ? { ...clientOf(owner), address: owner.address }
+              : null,
           hasRequest: cell.hasRequest,
           status: shownStatusOf(cell),
           changedBy:

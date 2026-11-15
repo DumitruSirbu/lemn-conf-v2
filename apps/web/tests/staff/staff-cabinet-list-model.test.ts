@@ -19,6 +19,7 @@ import {
   type CabinetList,
 } from "@/staff/staff-cabinet-list-model";
 import type { KitchenVersion } from "@/staff/kitchen-version-rows";
+import type { StaffSentCabinetLineWire } from "@/staff/staff-kitchens-wire-contract";
 
 import roMessages from "../../src/messages/ro.json";
 import { CATALOGUES, contentFor } from "../support/catalogues";
@@ -33,12 +34,14 @@ function listOf(input: {
   readonly version: KitchenVersion;
   readonly other?: Design;
   readonly priceBook?: PriceBookRoot;
+  readonly sentLines?: readonly StaffSentCabinetLineWire[];
 }): AvailableCabinetList {
   const list: CabinetList = describeCabinetList({
     shown: { design: input.design, version: input.version },
     other: input.other,
     content,
     priceBook: input.priceBook ?? SAMPLE_PRICE_ROOT,
+    sentLines: input.sentLines ?? [],
   });
   if (list.kind !== "available") throw new Error("the copy was not listed");
   return list;
@@ -144,6 +147,7 @@ describe("the groups and rows of one copy", () => {
         other: undefined,
         content,
         priceBook: SAMPLE_PRICE_ROOT,
+        sentLines: [],
       }),
     ).toEqual({ kind: "unavailable" });
   });
@@ -272,7 +276,7 @@ describe("the amounts", () => {
     }
   });
 
-  it("gives the sent copy no amount on any row, and never prices it", () => {
+  it("gives the sent copy no amount on any row when nothing was stored, and never prices it", () => {
     const bookThatMustNotBeRead = {
       kind: "active",
       versionId: "unread",
@@ -322,6 +326,124 @@ describe("the amounts", () => {
   });
 });
 
+describe("the sent copy's stored amounts (ADR 0185 decision 4; W6d-1)", () => {
+  // Each stored amount is far from what today's book prices the body at, so a model that priced the sent copy would differ.
+  const STORED_AMOUNT_MINOR = 987_650_000;
+  const storedLineOf = (placementId: string): StaffSentCabinetLineWire => ({
+    placementId,
+    amountMinor: STORED_AMOUNT_MINOR + SENT_IDS.indexOf(placementId) * 1_000,
+  });
+  const allStored = SENT_IDS.map(storedLineOf);
+  const amountOf = (list: AvailableCabinetList, id: string) =>
+    list.groups.flatMap((g) => g.rows).find((row) => row.placementId === id)
+      ?.amountText;
+
+  it("draws on each sent row the amount stored for that placement, at the ten lei a line is shown to", () => {
+    const list = listOf({
+      design: SENT,
+      version: "sent",
+      sentLines: allStored,
+    });
+
+    for (const id of SENT_IDS) {
+      expect(amountOf(list, id)).toBe(
+        describeLineAmount(storedLineOf(id).amountMinor),
+      );
+    }
+    expect(amountOf(list, FIRST_ID)).toBe("9 876 500");
+  });
+
+  it("never reads the book for the sent copy, and draws no amount the stored lines do not carry", () => {
+    const bookThatMustNotBeRead = {
+      kind: "active",
+      versionId: "unread",
+      get book(): never {
+        throw new Error("the sent copy was priced");
+      },
+      availability: { revision: "0", disabled: [] },
+    } as unknown as PriceBookRoot;
+
+    const list = listOf({
+      design: SENT,
+      version: "sent",
+      priceBook: bookThatMustNotBeRead,
+      sentLines: allStored.filter(
+        ({ placementId }) => placementId !== FIRST_ID,
+      ),
+    });
+
+    expect(amountOf(list, FIRST_ID)).toBeUndefined();
+    expect(
+      list.groups
+        .flatMap((g) => g.rows)
+        .filter((row) => row.placementId !== FIRST_ID)
+        .every((row) => row.amountText !== undefined),
+    ).toBe(true);
+    expect(
+      list.groups
+        .flatMap((g) => g.rows)
+        .find((row) => row.placementId === FIRST_ID),
+    ).not.toHaveProperty("amountText");
+  });
+
+  it("draws no amount, and no zero, for a stored zero, which cannot be told apart as included or as supplied by the customer", () => {
+    const list = listOf({
+      design: SENT,
+      version: "sent",
+      sentLines: [{ placementId: FIRST_ID, amountMinor: 0 }],
+    });
+
+    expect(list.groups.flatMap((g) => g.rows)).not.toContainEqual(
+      expect.objectContaining({ amountText: expect.anything() as unknown }),
+    );
+  });
+
+  it("draws the stored amount of a placement named __proto__ or constructor on that row alone, and changes no prototype", () => {
+    const [first, second, ...rest] = SENT.placements;
+    if (first === undefined || second === undefined) throw new Error("no body");
+    const renamed: Design = {
+      ...SENT,
+      placements: [
+        { ...first, id: "__proto__" },
+        { ...second, id: "constructor" },
+        ...rest,
+      ],
+    };
+    const lines: readonly StaffSentCabinetLineWire[] = [
+      { placementId: "__proto__", amountMinor: 111_110 },
+      { placementId: "constructor", amountMinor: 222_220 },
+      { placementId: "toString", amountMinor: 333_330 },
+    ];
+
+    const list = listOf({ design: renamed, version: "sent", sentLines: lines });
+
+    const rows = list.groups.flatMap((g) => g.rows);
+    expect(rows.find((r) => r.placementId === "__proto__")?.amountText).toBe(
+      describeLineAmount(111_110),
+    );
+    expect(rows.find((r) => r.placementId === "constructor")?.amountText).toBe(
+      describeLineAmount(222_220),
+    );
+    expect(rows.filter((r) => r.amountText !== undefined)).toHaveLength(2);
+    expect(Object.prototype).not.toHaveProperty("amountText");
+  });
+
+  it("is not read for the current copy, whose amounts are today's book, nor for a body only the sent copy holds", () => {
+    const current = without(SENT, new Set([FIRST_ID]));
+    const todays = listOf({ design: current, version: "current", other: SENT });
+
+    const withStored = listOf({
+      design: current,
+      version: "current",
+      other: SENT,
+      sentLines: allStored,
+    });
+
+    expect(withStored).toEqual(todays);
+    expect(amountOf(withStored, FIRST_ID)).toBeUndefined();
+  });
+});
+
 describe.each(CATALOGUES)(
   "over generated kitchens, in %s",
   (locale, messages) => {
@@ -356,6 +478,7 @@ describe.each(CATALOGUES)(
             other: sent,
             content: words,
             priceBook: SAMPLE_PRICE_ROOT,
+            sentLines: [],
           });
           if (list.kind !== "available") return;
           const currentReview = describeReview({
@@ -410,6 +533,7 @@ describe.each(CATALOGUES)(
             other: undefined,
             content: words,
             priceBook: SAMPLE_PRICE_ROOT,
+            sentLines: [],
           });
           if (list.kind !== "available") throw new Error("not listed");
 

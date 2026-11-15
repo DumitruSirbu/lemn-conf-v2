@@ -92,7 +92,7 @@ function withoutIsolates(text: string): string {
 function typedEverywhere(typed: string): Record<string, unknown> {
   return wireKitchen({
     kitchen: { name: typed },
-    client: { email: typed, name: typed, phone: typed },
+    client: { email: typed, name: typed, phone: typed, address: typed },
     request: { reference: typed, sentAt: SENT_AT },
     status: wireChangedStatus("contacted", { email: typed, name: typed }),
   });

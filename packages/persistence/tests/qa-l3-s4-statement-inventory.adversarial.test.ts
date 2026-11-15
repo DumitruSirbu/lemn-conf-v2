@@ -4,6 +4,8 @@ import { inspect } from "node:util";
 
 import { fc } from "@fast-check/vitest";
 import {
+  MAX_IDENTIFIER_LENGTH,
+  MAX_PLACEMENTS,
   STAFF_KITCHEN_PAGE_SIZE,
   STAFF_KITCHEN_SEARCH_MAX_LENGTH,
   isUnstorableText,
@@ -90,9 +92,11 @@ function aKitchenRow(overrides: Record<string, unknown> = {}) {
     client_email: null,
     client_name: null,
     client_phone: null,
+    client_address: null,
     request_ms: null,
     priced_total_minor: null,
     priced_currency: null,
+    priced_cabinet_lines: [],
     sent_schema_version: null,
     sent_document: null,
     stored_status: null,
@@ -257,7 +261,7 @@ const INTENDED_COLUMNS: Readonly<Record<string, readonly string[]>> = {
     "account_id",
     "revision",
   ],
-  accounts: ["id", "email", "email_normal_form", "name", "phone"],
+  accounts: ["id", "email", "email_normal_form", "name", "phone", "address"],
   design_request_states: [
     "design_id",
     "status",
@@ -290,8 +294,9 @@ const ORDER_BY_THE_VIEW_TOKEN_HASH_TIE_BREAK =
 /**
  * Columns M10 wave S4 lets some of the reader's statements name and the others not: the revision is read by the list (to
  * judge changed-since-seen in SQL) and by the kitchen (which also displays it), `design_revision` by both for the same
- * judgement, and `priced` by the kitchen alone (the one column `0026`'s grant adds, of which it takes the total and the
- * currency). Each stays out of every statement not named here, and the notes statement names none of them.
+ * judgement, `priced` by the kitchen alone (the one column `0026`'s grant adds, of which it takes the total, the
+ * currency and the cabinet lines), and the profile's postal `address` by the kitchen alone. Each stays out of every
+ * statement not named here, and the notes statement names none of them.
  */
 const COLUMNS_ONLY_SOME_STATEMENTS_NAME: Readonly<
   Record<string, readonly string[]>
@@ -299,12 +304,12 @@ const COLUMNS_ONLY_SOME_STATEMENTS_NAME: Readonly<
   revision: ["list", "kitchen"],
   design_revision: ["list", "kitchen"],
   priced: ["kitchen"],
+  address: ["kitchen"],
 };
 
 /** Columns that must never be named by a statement of this reader, whatever alias they sit behind. */
 const COLUMNS_THE_READER_NEVER_NAMES = [
   "password_hash",
-  "address",
   "role",
   "visitor_hash",
   "write_token_hash",
@@ -489,6 +494,18 @@ const SQL_WORDS_THE_STATEMENTS_USE = new Set([
   "request_ms",
   "priced_total_minor",
   "priced_currency",
+  "client_address",
+  "priced_cabinet_lines",
+  "jsonb_agg",
+  "length",
+  "jsonb_build_object",
+  "jsonb",
+  "jsonb_array_elements",
+  "ordinality",
+  "entry",
+  "line",
+  "item_number",
+  "stored",
   "revision",
   "is_changed",
   "seen_at",
@@ -791,7 +808,7 @@ describe("what is refused before any statement", () => {
       await newReader().readOne(id);
 
       expect(queryDriver.statements.map(({ values }) => values)).toEqual([
-        [id],
+        [MAX_IDENTIFIER_LENGTH, MAX_PLACEMENTS, id],
       ]);
     }
   });
@@ -866,6 +883,10 @@ const KEYS_OF_A_READING = new Set([
   "seenAt",
   "sentAt",
   "sentTotal",
+  "sentCabinetLines",
+  "placementId",
+  "amountMinor",
+  "address",
   "status",
   "text",
   "total",
@@ -885,9 +906,8 @@ function keysDeep(value: unknown, into = new Set<string>()): Set<string> {
 }
 
 describe("a row that holds more than the statement names", () => {
-  it("copies the four fields of the client and no other column the row carries, on the list and on one kitchen", async () => {
+  it("copies the four fields of the client (and the kitchen's address and cabinet pairs) and no other column the row carries, on the list and on one kitchen", async () => {
     const extras = {
-      client_address: LEAK,
       client_password_hash: LEAK,
       client_role: LEAK,
       client_email_normal_form: LEAK,
@@ -905,11 +925,17 @@ describe("a row that holds more than the statement names", () => {
       client_name: "Ana",
       client_phone: "+37360111000",
     };
-    answerQueryWith([aListedRow({ ...client, ...extras })]);
+    answerQueryWith([
+      aListedRow({ ...client, ...extras, client_address: LEAK }),
+    ]);
     answerQueryWith([
       aKitchenRow({
         ...client,
         ...extras,
+        client_address: null,
+        priced_cabinet_lines: [
+          { placementId: "base-1", amountMinor: 1, label: LEAK },
+        ],
         request_ms: "1790000000000",
       }),
     ]);

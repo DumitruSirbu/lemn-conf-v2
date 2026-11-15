@@ -100,6 +100,8 @@ function newFakeWorld(): KitchenWorld & {
         email: anEmail(),
         name: spec.name === undefined ? `Name ${marker}` : spec.name,
         phone: spec.phone === undefined ? null : spec.phone,
+        address:
+          spec.address === undefined ? `Strada ${marker} 17` : spec.address,
       };
       fake.plantAccount({
         id: accountId,
@@ -107,6 +109,7 @@ function newFakeWorld(): KitchenWorld & {
         emailNormalForm: spec.emailNormalForm ?? client.email.toLowerCase(),
         name: client.name,
         phone: client.phone,
+        address: client.address,
       });
       return Promise.resolve(client);
     },
@@ -149,6 +152,9 @@ function newFakeWorld(): KitchenWorld & {
         createdAt: spec.createdAt,
         designRevision: spec.designRevision ?? "1",
         pricedTotal: spec.pricedTotal ?? null,
+        ...(spec.pricedLines === undefined
+          ? {}
+          : { pricedLines: spec.pricedLines }),
       });
       return Promise.resolve({ clientRequestId, reference });
     },

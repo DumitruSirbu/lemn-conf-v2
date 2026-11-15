@@ -32,11 +32,18 @@ export type StaffThumbnailDesign = Pick<
   "room" | "placements" | "emptyColumns" | "columnExtents" | "settings"
 >;
 
-/** The kitchen's client, from the profile. No postal address, id or credential. */
+/** The client a list row names, from the profile: e-mail, name and phone. The list never carries the postal address, an
+ *  id or a credential. */
 export interface StaffClientWire {
   readonly email: string;
   readonly name: string | null;
   readonly phone: string | null;
+}
+
+/** The client of one kitchen's page: the list's members and the profile's postal address as stored, `null` when none was
+ *  given. Only the page's answer carries `address`. No id or credential. */
+export interface StaffKitchenClientWire extends StaffClientWire {
+  readonly address: string | null;
 }
 
 /** A staff member or client a row names, as it reads now: `null` where the account no longer resolves. */
@@ -70,6 +77,13 @@ export interface StaffKitchenListWire {
   readonly kitchens: readonly StaffListedKitchenWire[];
 }
 
+/** One cabinet line of the snapshot stored with the sent request: the placement it priced and its amount in minor units,
+ *  as stored and never priced again. A line of any other kind is not on the wire. */
+export interface StaffSentCabinetLineWire {
+  readonly placementId: string;
+  readonly amountMinor: number;
+}
+
 export interface StaffKitchenRequestWire {
   readonly sentAt: string;
 }
@@ -101,8 +115,13 @@ export interface StaffKitchenWire {
     readonly sentAt: string | null;
     readonly updatedAt: string;
   };
-  readonly client: StaffClientWire | null;
+  readonly client: StaffKitchenClientWire | null;
   readonly request: StaffKitchenRequestWire | null;
+  /**
+   * The cabinet lines stored with the latest request, at most `MAX_PLACEMENTS`; empty for a kitchen with no request and
+   * for a snapshot whose lines this build cannot read.
+   */
+  readonly sentCabinetLines: readonly StaffSentCabinetLineWire[];
   /** `null` for a draft. */
   readonly status: StaffKitchenStatusWire | null;
   /** Newest first. */

@@ -92,6 +92,7 @@ function Harness({
       design: version === "current" ? current : sent,
       shownVersion: version,
       other: version === "current" ? sent : current,
+      sentLines: [],
     }),
   );
 }

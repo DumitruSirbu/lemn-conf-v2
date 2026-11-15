@@ -820,6 +820,7 @@ describe("what a client or a colleague typed", () => {
       email: `${MARKUP}@mail.md`,
       name: `Ana ${MARKUP}`,
       phone: `tel:${MARKUP}`,
+      address: `Strada ${MARKUP}`,
     },
     request: { reference: `LEM-${MARKUP}`, sentAt: "2026-10-17T11:08:00.000Z" },
     status: wireChangedStatus("contacted", {
@@ -863,7 +864,7 @@ describe("a right-to-left override left open in a draft's sender", () => {
     const typed = "\u202Eevil@mail.md";
     kitchenAnswers(() => ({
       body: wireDraftKitchen({
-        client: { email: typed, name: null, phone: null },
+        client: { email: typed, name: null, phone: null, address: null },
       }),
     }));
 

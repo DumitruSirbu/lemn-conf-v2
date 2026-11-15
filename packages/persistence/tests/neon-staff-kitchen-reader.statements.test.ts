@@ -3,6 +3,8 @@ import { join } from "node:path";
 
 import {
   INITIAL_REQUEST_STATUS,
+  MAX_IDENTIFIER_LENGTH,
+  MAX_PLACEMENTS,
   STAFF_KITCHEN_PAGE_SIZE,
   staffKitchenOffsetOf,
 } from "@lemnaria/configurator-domain";
@@ -50,6 +52,7 @@ const COMMA_BELOW_S = ROMANIAN_COMMA_BELOW_LETTERS.charAt(0);
 const COMMA_BELOW_T = ROMANIAN_COMMA_BELOW_LETTERS.charAt(2);
 const OPERATIONS = ["listPage", "countChanged", "readOne"] as const;
 const NOTHING_FOUND = [{ total: 0, changed_count: 0, id: null }];
+const LEAK = "LEAK-MARKER-w6d";
 const READABLE_ACCOUNT_COLUMNS = ["id", "email", "name", "phone"];
 
 function squashedEffectiveSeenRevision(): string {
@@ -122,9 +125,11 @@ function aKitchenRow(overrides: Record<string, unknown> = {}) {
     client_email: null,
     client_name: null,
     client_phone: null,
+    client_address: null,
     request_ms: null,
     priced_total_minor: null,
     priced_currency: null,
+    priced_cabinet_lines: [],
     sent_schema_version: null,
     sent_document: null,
     stored_status: null,
@@ -446,7 +451,7 @@ describe("the list statement", () => {
     );
   });
 
-  it("reads the client's id, e-mail, name and phone, and no postal address, credential or token", async () => {
+  it("reads the client's id, e-mail, name and phone, and neither selects nor searches the postal address, a credential or a token", async () => {
     const text = normalised(await sentByList(aQuery({ search: "ana" })));
 
     expect(columnsReferencedThrough("a", text)).toEqual(
@@ -462,6 +467,19 @@ describe("the list statement", () => {
     ]) {
       expect(text).not.toContain(forbidden);
     }
+  });
+});
+
+describe("the changed-count statement", () => {
+  it("names no postal address, and reads no account at all", async () => {
+    resetQueryDriver();
+    answerQueryWith([{ changed_count: 0 }]);
+    await newReader().countChanged();
+
+    const text = normalised(loneStatement());
+
+    expect(text).not.toContain("address");
+    expect(text).not.toContain("accounts");
   });
 });
 
@@ -493,7 +511,11 @@ describe("the statements for one kitchen", () => {
       "and (d.sent_at is not null or d.account_id is not null)",
     );
     expect(text).not.toContain("hidden_by_client_at is null");
-    expect(kitchen.values).toEqual([DESIGN_ID]);
+    expect(kitchen.values).toEqual([
+      MAX_IDENTIFIER_LENGTH,
+      MAX_PLACEMENTS,
+      DESIGN_ID,
+    ]);
   });
 
   it("takes the notes of the kitchen newest first with the id as the tie-break", async () => {
@@ -526,7 +548,7 @@ describe("the statements for one kitchen", () => {
     expect(normalised(kitchen)).not.toMatch(/\breference\b/);
   });
 
-  it("reads of the snapshot `priced` the total and the currency alone, as the two text members the statement names, and never the snapshot whole", async () => {
+  it("reads of the snapshot `priced` the total, the currency and the cabinet lines alone, and never the snapshot whole", async () => {
     const { kitchen } = await sentByFoundReadOne();
     const text = normalised(kitchen);
 
@@ -535,11 +557,34 @@ describe("the statements for one kitchen", () => {
     );
     expect(pricedReads.sort()).toEqual([
       "-> currency",
+      "-> lines",
+      "-> lines",
       "-> totalminor",
       "->> currency",
       "->> totalminor",
     ]);
-    expect(text.match(/\bpriced\b/g)).toHaveLength(4);
+    expect(text.match(/\bpriced\b/g)).toHaveLength(6);
+  });
+
+  it("projects the stored lines in SQL to the placement id and the amount of the cabinet lines only, in the snapshot's order, at most MAX_PLACEMENTS", async () => {
+    const { kitchen } = await sentByFoundReadOne();
+    const text = normalised(kitchen);
+
+    expect(text).toContain(
+      "jsonb_build_object( 'placementid', stored.line -> 'placementid', 'amountminor', stored.line -> 'amountminor' ) order by stored.item_number",
+    );
+    expect(text).toContain("where entry.line ->> 'kind' = 'cabinet'");
+    expect(text).toContain("order by entry.item_number limit ?::int");
+    expect(kitchen.values.slice(0, 2)).toEqual([
+      MAX_IDENTIFIER_LENGTH,
+      MAX_PLACEMENTS,
+    ]);
+    expect(text).toContain(
+      "and jsonb_typeof(entry.line -> 'placementid') = 'string' and length(entry.line ->> 'placementid') <= ?::int order by entry.item_number limit ?::int",
+    );
+    expect(text).toContain(
+      "case when jsonb_typeof(cs.priced -> 'lines') = 'array' then cs.priced -> 'lines' else '[]'::jsonb end",
+    );
   });
 
   it("judges the kitchen's own changed flag in the statement that reads its revision, for a sent kitchen only", async () => {
@@ -615,11 +660,11 @@ describe("the statements for one kitchen", () => {
     expect(text.match(/token_hash/g)).toHaveLength(1);
   });
 
-  it("reads the client's and the account-behind-a-change's e-mail, name and phone only", async () => {
+  it("reads the client's e-mail, name, phone and postal address, and the account-behind-a-change's and the author's e-mail and name only", async () => {
     const { kitchen, notes } = await sentByFoundReadOne();
 
     for (const [alias, statement, expected] of [
-      ["a", kitchen, READABLE_ACCOUNT_COLUMNS],
+      ["a", kitchen, [...READABLE_ACCOUNT_COLUMNS, "address"]],
       ["changer", kitchen, ["id", "email", "name"]],
       ["author", notes, ["id", "email", "name"]],
     ] as const) {
@@ -627,10 +672,11 @@ describe("the statements for one kitchen", () => {
         new Set(expected),
       );
     }
-    for (const forbidden of ["address", "password", "email_normal_form"]) {
+    for (const forbidden of ["password", "email_normal_form"]) {
       expect(normalised(kitchen)).not.toContain(forbidden);
       expect(normalised(notes)).not.toContain(forbidden);
     }
+    expect(normalised(notes)).not.toContain("address");
   });
 });
 
@@ -1238,4 +1284,157 @@ describe("the total a request was sent at", () => {
       ).toBeNull();
     },
   );
+});
+
+describe("the cabinet lines a request was sent with, as the kitchen's statement answers them", () => {
+  async function sentLinesOf(storedLines: unknown) {
+    answerQueryWith([aKitchenRow({ priced_cabinet_lines: storedLines })]);
+    answerQueryWith([]);
+    const reading = await newReader().readOne(DESIGN_ID);
+    return reading.kind === "found"
+      ? reading.kitchen.sentCabinetLines
+      : "not found";
+  }
+
+  it("are the placement id and amount of each pair, as the statement projects them", async () => {
+    expect(
+      await sentLinesOf([
+        { placementId: "base-1", amountMinor: 150_000 },
+        { placementId: "wall-1", amountMinor: 0 },
+      ]),
+    ).toEqual([
+      { placementId: "base-1", amountMinor: 150_000 },
+      { placementId: "wall-1", amountMinor: 0 },
+    ]);
+  });
+
+  it("copy the two members of a pair and no other member the answer carries", async () => {
+    const lines = await sentLinesOf([
+      { placementId: "base-1", amountMinor: 1, label: LEAK, suppliedBy: LEAK },
+    ]);
+
+    expect(JSON.stringify(lines)).not.toContain(LEAK);
+  });
+
+  it.each([
+    ["an id of 65 characters", { placementId: "x".repeat(65), amountMinor: 1 }],
+    ["a numeric id", { placementId: 5, amountMinor: 1 }],
+    ["a null id", { placementId: null, amountMinor: 1 }],
+    ["a string amount", { placementId: "a", amountMinor: "500" }],
+    ["a fractional amount", { placementId: "a", amountMinor: 1.5 }],
+    [
+      "an amount past the safe integers",
+      { placementId: "a", amountMinor: 2 ** 53 },
+    ],
+    ["an infinite amount", { placementId: "a", amountMinor: Infinity }],
+    ["a negative amount", { placementId: "a", amountMinor: -1 }],
+    ["a null amount", { placementId: "a", amountMinor: null }],
+    ["a pair with no amount", { placementId: "a" }],
+    ["a scalar", "a"],
+    ["a null", null],
+  ])("drop %s and keep the pair beside it", async (_label, unreadable) => {
+    const lines = await sentLinesOf([
+      unreadable,
+      { placementId: "kept", amountMinor: 3 },
+    ]);
+
+    expect(lines).toEqual([{ placementId: "kept", amountMinor: 3 }]);
+  });
+
+  it.each([
+    ["a string", "[]"],
+    ["an object", { placementId: "a", amountMinor: 1 }],
+    ["a null", null],
+    ["a number", 7],
+    ["a missing column", undefined],
+  ])(
+    "read as none when the answer is %s, and do not fail the page",
+    async (_label, stored) => {
+      expect(await sentLinesOf(stored)).toEqual([]);
+    },
+  );
+
+  it("are at most MAX_PLACEMENTS even when the answer carries more, the first ones", async () => {
+    const lines = await sentLinesOf(
+      Array.from({ length: MAX_PLACEMENTS + 3 }, (_, index) => ({
+        placementId: `p${String(index)}`,
+        amountMinor: index,
+      })),
+    );
+
+    expect(lines).toHaveLength(MAX_PLACEMENTS);
+    expect(lines).not.toContainEqual({
+      placementId: `p${String(MAX_PLACEMENTS)}`,
+      amountMinor: MAX_PLACEMENTS,
+    });
+  });
+
+  it("carry an id such as __proto__ as a plain string and change no prototype", async () => {
+    const lines = await sentLinesOf(
+      JSON.parse(
+        '[{"placementId":"__proto__","amountMinor":1},{"placementId":"constructor","amountMinor":2}]',
+      ),
+    );
+
+    expect(lines).toEqual([
+      { placementId: "__proto__", amountMinor: 1 },
+      { placementId: "constructor", amountMinor: 2 },
+    ]);
+    expect(Object.prototype).not.toHaveProperty("placementId");
+  });
+});
+
+describe("the postal address, as the kitchen's statement answers it", () => {
+  async function clientOfKitchen(overrides: Record<string, unknown>) {
+    answerQueryWith([aKitchenRow(overrides)]);
+    answerQueryWith([]);
+    const reading = await newReader().readOne(DESIGN_ID);
+    return reading.kind === "found" ? reading.kitchen.client : "not found";
+  }
+
+  const CLIENT = {
+    client_id: "C".repeat(21),
+    client_email: "ana@example.invalid",
+    client_name: "Ana",
+    client_phone: "+37360111000",
+  };
+
+  it("is carried exactly as stored, and null when the profile holds none", async () => {
+    expect(
+      await clientOfKitchen({ ...CLIENT, client_address: "Str. Florilor 4" }),
+    ).toEqual({
+      id: CLIENT.client_id,
+      email: CLIENT.client_email,
+      name: "Ana",
+      phone: CLIENT.client_phone,
+      address: "Str. Florilor 4",
+    });
+    expect(
+      await clientOfKitchen({ ...CLIENT, client_address: null }),
+    ).toMatchObject({ address: null });
+  });
+
+  it("is refused as an unexpected answer when it is not text", async () => {
+    answerQueryWith([aKitchenRow({ ...CLIENT, client_address: 12 })]);
+    answerQueryWith([]);
+
+    const failure = await failureOf(() => newReader().readOne(DESIGN_ID));
+
+    expect(failure.failure).toBe("unexpected-answer");
+  });
+
+  it("is not read from a list row that carries one", async () => {
+    answerQueryWith([
+      aListedRow({ ...CLIENT, client_address: "Str. Secreta 1" }),
+    ]);
+
+    const page = await newReader().listPage(aQuery());
+
+    expect(page.kitchens[0]?.client).toStrictEqual({
+      id: CLIENT.client_id,
+      email: CLIENT.client_email,
+      name: "Ana",
+      phone: CLIENT.client_phone,
+    });
+  });
 });

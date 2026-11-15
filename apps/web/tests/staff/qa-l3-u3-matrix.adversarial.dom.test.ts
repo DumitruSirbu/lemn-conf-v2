@@ -158,8 +158,13 @@ function notesOf(load: NoteLoad): unknown[] {
 function clientOf(client: Clients): unknown {
   if (client === "none") return null;
   return client === "full"
-    ? { email: "ana.popescu@mail.md", name: "Ana Popescu", phone: "078900555" }
-    : { email: "bare@mail.md", name: null, phone: null };
+    ? {
+        email: "ana.popescu@mail.md",
+        name: "Ana Popescu",
+        phone: "078900555",
+        address: "Strada Florilor 4",
+      }
+    : { email: "bare@mail.md", name: null, phone: null, address: null };
 }
 
 function statusOf(status: Statuses): unknown {

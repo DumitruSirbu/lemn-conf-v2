@@ -1,5 +1,7 @@
 import {
   KITCHEN_L_DESIGN,
+  MAX_IDENTIFIER_LENGTH,
+  MAX_PLACEMENTS,
   STAFF_KITCHEN_PAGE_SIZE,
 } from "@lemnaria/configurator-domain";
 import type {
@@ -27,6 +29,8 @@ export interface ClientAccount {
   readonly email: string;
   readonly name: string | null;
   readonly phone: string | null;
+  /** The profile's postal address as stored. */
+  readonly address: string | null;
 }
 
 export interface StaffAccount {
@@ -60,6 +64,11 @@ export interface RequestSpec {
     readonly totalMinor: number;
     readonly currency: "MDL";
   };
+  /**
+   * The snapshot's `lines` member as stored, of whatever shape (a string and an object included). Absent: the snapshot
+   * has no `lines` member.
+   */
+  readonly pricedLines?: unknown;
 }
 
 export interface SentCopySpec {
@@ -104,6 +113,8 @@ export interface KitchenWorld {
   aClient(spec?: {
     readonly name?: string | null;
     readonly phone?: string | null;
+    /** Defaults to an address only this world's accounts hold; `null` stores none. */
+    readonly address?: string | null;
     /** What the e-mail search reads. Defaults to the e-mail in lower case. */
     readonly emailNormalForm?: string;
   }): Promise<ClientAccount>;
@@ -858,6 +869,36 @@ export function describeStaffKitchenReaderContract(
       });
     });
 
+    it("carries no postal address on a list row, whether the profile holds one or not", async () => {
+      const world = await newWorld();
+      const withAddress = await world.aClient({
+        address: `Strada ${world.marker} 9`,
+      });
+      const withoutAddress = await world.aClient({ address: null });
+      const era = world.nextEra();
+      const first = await world.aKitchen({
+        client: withAddress,
+        sentAt: at(era, 1),
+        updatedAt: at(era, 1),
+      });
+      const second = await world.aKitchen({
+        client: withoutAddress,
+        sentAt: at(era, 2),
+        updatedAt: at(era, 2),
+      });
+
+      const page = await world.reader.listPage(
+        queryOf({ search: world.marker }),
+      );
+
+      for (const kitchen of [first, second]) {
+        expect(
+          Object.keys(listedOf(page, kitchen).client ?? {}).sort(),
+        ).toEqual(["email", "id", "name", "phone"]);
+      }
+      expect(JSON.stringify(page)).not.toContain(`Strada ${world.marker} 9`);
+    });
+
     it("keeps a kitchen whose account no longer resolves, with no client", async () => {
       const world = await newWorld();
       const client = await world.aClient();
@@ -964,11 +1005,12 @@ export function describeStaffKitchenReaderContract(
       expect(unreadableDetail.id).toBe(unreadable);
     });
 
-    it("carries the client's e-mail, name and phone", async () => {
+    it("carries the client's e-mail, name, phone and postal address exactly as stored", async () => {
       const world = await newWorld();
       const client = await world.aClient({
         name: "Ion Client",
         phone: "+37360123456",
+        address: `Strada Florilor 4, ap. 2 ${world.marker}`,
       });
       const kitchen = await world.aKitchen({
         client,
@@ -982,7 +1024,25 @@ export function describeStaffKitchenReaderContract(
         email: client.email,
         name: "Ion Client",
         phone: "+37360123456",
+        address: `Strada Florilor 4, ap. 2 ${world.marker}`,
       });
+    });
+
+    it("carries a null address for a profile that holds none, and no client for a kitchen no account owns", async () => {
+      const world = await newWorld();
+      const client = await world.aClient({ address: null });
+      const owned = await world.aKitchen({
+        client,
+        updatedAt: world.nextEra(),
+      });
+      const unowned = await world.aKitchen({
+        client: null,
+        sentAt: at(world.nextEra(), 1),
+        updatedAt: world.nextEra(),
+      });
+
+      expect((await foundKitchen(world, owned)).client?.address).toBeNull();
+      expect((await foundKitchen(world, unowned)).client).toBeNull();
     });
   });
 
@@ -1470,6 +1530,7 @@ export function describeStaffKitchenReaderContract(
   describeChangedAfterSeen(suiteName, newWorld);
   describeTheChangedCount(suiteName, newWorld);
   describeTheTotalSent(suiteName, newWorld);
+  describeTheCabinetLinesSent(suiteName, newWorld);
 }
 
 /** A sent kitchen of the world's client, with the request it was sent by at revision 1: not changed. */
@@ -2072,6 +2133,170 @@ function describeTheTotalSent(
         totalMinor: 0,
         currency: "MDL",
       });
+    });
+  });
+}
+
+const PLACED_LINE = { kind: "cabinet" } as const;
+
+function cabinetLine(placementId: unknown, amountMinor: unknown): unknown {
+  return { ...PLACED_LINE, placementId, amountMinor };
+}
+
+async function sentLinesOf(
+  world: KitchenWorld,
+  pricedLines: unknown,
+): Promise<StaffKitchenDetail["sentCabinetLines"]> {
+  const client = await world.aClient();
+  const era = world.nextEra();
+  const kitchen = await world.aKitchen({
+    client,
+    sentAt: at(era, 1),
+    updatedAt: at(era, 1),
+  });
+  await world.aRequest({
+    designId: kitchen,
+    createdAt: at(era, 1),
+    pricedTotal: { totalMinor: 1_000_000, currency: "MDL" },
+    ...(pricedLines === undefined ? {} : { pricedLines }),
+  });
+  return (await foundKitchen(world, kitchen)).sentCabinetLines;
+}
+
+function describeTheCabinetLinesSent(
+  suiteName: string,
+  newWorld: () => Promise<KitchenWorld>,
+): void {
+  describe(`${suiteName}: the cabinet lines a request was sent with`, () => {
+    it("are the placement id and amount of the stored cabinet lines in the snapshot's order, and of no other kind of line", async () => {
+      const world = await newWorld();
+
+      const lines = await sentLinesOf(world, [
+        { kind: "material", placementId: "wall-1", amountMinor: 7 },
+        cabinetLine("base-1", 150_000),
+        { kind: "depth", placementId: "base-1", amountMinor: 9_000 },
+        { kind: "accessory", placementId: "base-2", amountMinor: 11 },
+        cabinetLine("wall-1", 0),
+        cabinetLine("base-2", 99_990),
+      ]);
+
+      expect(lines).toEqual([
+        { placementId: "base-1", amountMinor: 150_000 },
+        { placementId: "wall-1", amountMinor: 0 },
+        { placementId: "base-2", amountMinor: 99_990 },
+      ]);
+      expect(lines.map((line) => Object.keys(line).sort())).toEqual([
+        ["amountMinor", "placementId"],
+        ["amountMinor", "placementId"],
+        ["amountMinor", "placementId"],
+      ]);
+    });
+
+    it("are those of the newest request, and none for a kitchen with no request or a snapshot with no lines", async () => {
+      const world = await newWorld();
+      const client = await world.aClient();
+      const era = world.nextEra();
+      const resent = await world.aKitchen({
+        client,
+        sentAt: at(era, 1),
+        updatedAt: at(era, 1),
+      });
+      const unasked = await world.aKitchen({ client, updatedAt: at(era, 2) });
+      await world.aRequest({
+        designId: resent,
+        createdAt: at(era, 1),
+        pricedLines: [cabinetLine("old", 1)],
+      });
+      await world.aRequest({
+        designId: resent,
+        createdAt: at(era, 5),
+        pricedLines: [cabinetLine("new", 2)],
+      });
+
+      expect((await foundKitchen(world, resent)).sentCabinetLines).toEqual([
+        { placementId: "new", amountMinor: 2 },
+      ]);
+      expect((await foundKitchen(world, unasked)).sentCabinetLines).toEqual([]);
+      expect(await sentLinesOf(world, undefined)).toEqual([]);
+    });
+
+    it("are at most MAX_PLACEMENTS, counted after the other kinds of line are set aside, the first ones in the snapshot's order", async () => {
+      const world = await newWorld();
+      const others = Array.from({ length: 5 }, (_, index) => ({
+        kind: "depth",
+        placementId: `depth-${String(index)}`,
+        amountMinor: 1,
+      }));
+      const cabinets = Array.from({ length: MAX_PLACEMENTS + 5 }, (_, index) =>
+        cabinetLine(`p${String(index)}`, index * 10),
+      );
+
+      const lines = await sentLinesOf(world, [...others, ...cabinets]);
+
+      expect(lines).toHaveLength(MAX_PLACEMENTS);
+      expect(lines[0]).toEqual({ placementId: "p0", amountMinor: 0 });
+      expect(lines.at(-1)).toEqual({
+        placementId: `p${String(MAX_PLACEMENTS - 1)}`,
+        amountMinor: (MAX_PLACEMENTS - 1) * 10,
+      });
+    });
+
+    it("leave out a line whose id is not a string of at most MAX_IDENTIFIER_LENGTH or whose amount is not a safe integer, and keep its neighbours", async () => {
+      const world = await newWorld();
+
+      const lines = await sentLinesOf(world, [
+        cabinetLine("x".repeat(MAX_IDENTIFIER_LENGTH), 1),
+        cabinetLine("x".repeat(MAX_IDENTIFIER_LENGTH + 1), 2),
+        cabinetLine(42, 3),
+        cabinetLine(null, 4),
+        cabinetLine("string-amount", "500"),
+        cabinetLine("float-amount", 1.5),
+        cabinetLine("past-safe", 2 ** 53),
+        cabinetLine("negative", -1),
+        cabinetLine("null-amount", null),
+        { kind: "cabinet", placementId: "no-amount" },
+        { kind: "cabinet", amountMinor: 8 },
+        cabinetLine("kept", 5),
+      ]);
+
+      expect(lines).toEqual([
+        { placementId: "x".repeat(MAX_IDENTIFIER_LENGTH), amountMinor: 1 },
+        { placementId: "kept", amountMinor: 5 },
+      ]);
+    });
+
+    it("read as no lines when the snapshot's lines member is a string, an object, a number, a null or an array holding no object", async () => {
+      const world = await newWorld();
+
+      for (const stored of [
+        "cabinet",
+        { kind: "cabinet", placementId: "a", amountMinor: 1 },
+        7,
+        null,
+        [1, "cabinet", null, [cabinetLine("nested", 1)]],
+      ]) {
+        expect(await sentLinesOf(world, stored)).toEqual([]);
+      }
+    });
+
+    it("carry an id such as __proto__ or constructor as a plain string, changing no other line and no prototype", async () => {
+      const world = await newWorld();
+
+      const lines = await sentLinesOf(world, [
+        cabinetLine("__proto__", 1),
+        cabinetLine("constructor", 2),
+        cabinetLine("toString", 3),
+        cabinetLine("base-1", 4),
+      ]);
+
+      expect(lines).toEqual([
+        { placementId: "__proto__", amountMinor: 1 },
+        { placementId: "constructor", amountMinor: 2 },
+        { placementId: "toString", amountMinor: 3 },
+        { placementId: "base-1", amountMinor: 4 },
+      ]);
+      expect(Object.getPrototypeOf(lines[0])).toBe(Object.prototype);
+      expect(Object.prototype).not.toHaveProperty("placementId");
     });
   });
 }

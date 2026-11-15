@@ -21,6 +21,7 @@ import {
   type CabinetListRow,
 } from "./staff-cabinet-list-model";
 import { useIsDesktop } from "./staff-kitchens-list";
+import type { StaffSentCabinetLineWire } from "./staff-kitchens-wire-contract";
 
 // Every cabinet of the copy on screen, in an accordion of the client's review groups (ADR 0185 decisions 3 and 4). The
 // words are the model's and the catalogue's. What staff opened or closed lives here, in memory, while the page is open:
@@ -35,12 +36,15 @@ export interface StaffCabinetListProps {
   readonly shownVersion: KitchenVersion;
   /** The other copy, when the page holds both and they differ. */
   readonly other: Design | undefined;
+  /** What the sent request stored for each cabinet: the sent copy's amounts. */
+  readonly sentLines: readonly StaffSentCabinetLineWire[];
 }
 
 export function StaffCabinetList({
   design,
   shownVersion,
   other,
+  sentLines,
 }: StaffCabinetListProps) {
   const content = useContent();
   const priceBook = usePriceBookRoot();
@@ -51,8 +55,9 @@ export function StaffCabinetList({
         other,
         content,
         priceBook,
+        sentLines,
       }),
-    [design, shownVersion, other, content, priceBook],
+    [design, shownVersion, other, content, priceBook, sentLines],
   );
   const expansion = useGroupExpansion(
     list.kind === "available" ? list.groups.map((group) => group.key) : [],

@@ -538,7 +538,7 @@ production files).
   `accounts` is table-wide, `0017:28`).
 - **W6d-5 (privacy notice, owed) [sec S6].** The privacy notice is still a placeholder
   (`apps/web/src/account/privacy-notice-stub.tsx`). This wave records, in its commit and in plan §10, that the written
-  notice must say staff see a client's profile name, phone and address with the kitchens the client sends; it does not
+  notice must say staff see a client's profile name, phone and address with the kitchens the client saves to their account or sends; it does not
   claim the notice already says so.
 - **W6d-6 [sec S2].** The three stale comments are rewritten to the new truth (address read on the detail only; `priced`
   yields the total, the currency and the cabinet lines).
@@ -673,10 +673,14 @@ says "default stands" the owner did not overturn the proposed default.
   frames Lot 2 `STAFF` (item 4), D4B (item 5) and S3 v3 (contact block sourced from the profile, not the request; route
   address).
 - ADR 0185: Accepted after the security read of 2026-11-14 (done; recorded in the ADR). Index row owed.
-- Dated notes from the security read [sec S2]: ADR 0173 (`:64`, the postal address on the staff profile block,
-  superseded by owner Q7-3); ADR 0178 F2 (its `priced` column now also yields per-cabinet lines on the detail read).
+- ~~Dated notes from the security read [sec S2]: ADR 0173 (`:64`, the postal address on the staff profile block,
+  superseded by owner Q7-3); ADR 0178 F2 (its `priced` column now also yields per-cabinet lines on the detail read).~~
+  **Written 2026-11-15 by the architect** (appended dated notes at the end of ADR 0173 and ADR 0178).
+- ADR 0185: dated note on decision 4 as built in W6d **written 2026-11-15** (a sent zero shows no amount; duplicate ids
+  take the later line; negatives dropped; strict wire, deploy-skew accepted; the privacy line reworded to saved or
+  sent kitchens).
 - Launch item [sec S6]: the written privacy notice must say staff see a client's profile name, phone and address with
-  the kitchens the client sends (the notice is a placeholder today).
+  the kitchens the client saves to their account or sends (the notice is a placeholder today).
 - ADR 0101 d1 and d4: dated note owed. d4: byte identity at 600 superseded for `p24` only. d1 (W3b logic review,
   2026-11-15): the replacement assertion's text still names the lifted arm only, while the gate now asserts the
   **fridge arm** for `p24` (and the lifted arm for `p22`, `p23`).

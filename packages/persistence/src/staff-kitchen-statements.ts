@@ -1,5 +1,7 @@
 import {
   INITIAL_REQUEST_STATUS,
+  MAX_IDENTIFIER_LENGTH,
+  MAX_PLACEMENTS,
   STAFF_KITCHEN_PAGE_SIZE,
   staffKitchenOffsetOf,
 } from "@lemnaria/configurator-domain";
@@ -28,7 +30,9 @@ import {
  * mark above the kitchen's revision hides nothing. The list states the comparison
  * once (the `changed` CTE) and reads it for the row flag, the `onlyChanged` filter, the changed-first order and the
  * count; the kitchen's statement states it beside the revision it displays. `0026`'s grant lets the kitchen's statement
- * read `contact_submissions.priced`, of which it takes the total and the currency alone.
+ * read `contact_submissions.priced`, of which it takes the total, the currency and the cabinet lines (`placementId` and
+ * `amountMinor` of each, at most `MAX_PLACEMENTS`), never the snapshot whole. Only the kitchen's statement reads
+ * `accounts.address`; the list's selects and searches the e-mail and the name alone.
  */
 
 /**
@@ -192,8 +196,9 @@ export function staffKitchenStatement<Statement>(
         8640000000000000
       ))::bigint::text as updated_ms,
       a.id as client_id, a.email as client_email, a.name as client_name, a.phone as client_phone,
+      a.address as client_address,
       latest.created_ms as request_ms,
-      latest.priced_total_minor, latest.priced_currency,
+      latest.priced_total_minor, latest.priced_currency, latest.priced_cabinet_lines,
       sent_copy.schema_version as sent_schema_version, sent_copy.design_document as sent_document,
       s.status as stored_status, s.changed_by_account_id as changed_by_id,
       floor(least(
@@ -212,7 +217,21 @@ export function staffKitchenStatement<Statement>(
         case when jsonb_typeof(cs.priced -> 'totalMinor') = 'number' then cs.priced ->> 'totalMinor' end
           as priced_total_minor,
         case when jsonb_typeof(cs.priced -> 'currency') = 'string' then cs.priced ->> 'currency' end
-          as priced_currency
+          as priced_currency,
+        (select coalesce(jsonb_agg(jsonb_build_object(
+            'placementId', stored.line -> 'placementId', 'amountMinor', stored.line -> 'amountMinor'
+          ) order by stored.item_number), '[]'::jsonb)
+          from (
+            select entry.line, entry.item_number
+            from jsonb_array_elements(
+              case when jsonb_typeof(cs.priced -> 'lines') = 'array' then cs.priced -> 'lines' else '[]'::jsonb end
+            ) with ordinality as entry(line, item_number)
+            where entry.line ->> 'kind' = 'cabinet'
+              and jsonb_typeof(entry.line -> 'placementId') = 'string'
+              and length(entry.line ->> 'placementId') <= ${MAX_IDENTIFIER_LENGTH}::int
+            order by entry.item_number
+            limit ${MAX_PLACEMENTS}::int
+          ) stored) as priced_cabinet_lines
       from contact_submissions cs
       where cs.design_id = d.id
       order by cs.created_at desc, cs.client_request_id desc

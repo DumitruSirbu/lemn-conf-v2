@@ -26,12 +26,13 @@ import type {
   StaffKitchenWire,
 } from "./staff-kitchens-wire-contract";
 import {
-  clientFrom,
+  kitchenClientFrom,
   isInstant,
   noteFrom,
   ownValueOf,
   personFrom,
   recognisedStatusOf,
+  sentCabinetLinesOfAnswer,
 } from "./staff-kitchens-wire-reading";
 
 // One client's kitchen for staff (frames S3A to S3I). The kitchen is asked for once when the page opens and again
@@ -231,12 +232,16 @@ function failedStep(failure: StaffKitchenFailure): KitchenStep {
  */
 export function staffKitchenFrom(body: unknown): StaffKitchenWire | undefined {
   const kitchen = kitchenFrom(ownValueOf(body, "kitchen"));
-  const client = clientFrom(ownValueOf(body, "client"));
+  const client = kitchenClientFrom(ownValueOf(body, "client"));
+  const sentCabinetLines = sentCabinetLinesOfAnswer(
+    ownValueOf(body, "sentCabinetLines"),
+  );
   const request = requestFrom(ownValueOf(body, "request"));
   const status = statusFrom(ownValueOf(body, "status"));
   const notes = notesFrom(ownValueOf(body, "notes"));
   const notesTruncated = ownValueOf(body, "notesTruncated");
   if (kitchen === undefined || client === undefined) return undefined;
+  if (sentCabinetLines === undefined) return undefined;
   if (request === undefined || status === undefined) return undefined;
   if (notes === undefined || typeof notesTruncated !== "boolean") {
     return undefined;
@@ -246,6 +251,7 @@ export function staffKitchenFrom(body: unknown): StaffKitchenWire | undefined {
   return {
     kitchen,
     client: client.value,
+    sentCabinetLines,
     request: request.value,
     status: status.value,
     notes,

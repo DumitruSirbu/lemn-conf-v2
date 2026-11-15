@@ -343,6 +343,10 @@ describe("what the answer holds", () => {
       designId: kitchen.id,
       reference: "LM-2026-0042",
       createdAt: SENT_AT,
+      pricedLines: [
+        { kind: "cabinet", placementId: "base-1", amountMinor: 150_000 },
+        { kind: "depth", placementId: "base-1", amountMinor: 9_000 },
+      ],
     });
     staffWorld.reader.plantSentCopy({
       clientRequestId,
@@ -383,18 +387,20 @@ describe("what the answer holds", () => {
       "notes",
       "notesTruncated",
       "request",
+      "sentCabinetLines",
       "sentEstimate",
       "status",
     ]);
   });
 
-  it("names every member at every level and no account id or postal address anywhere", async () => {
+  it("names every member at every level and no account id anywhere, and the postal address on the client alone", async () => {
     const { staff, client, kitchen } = await plantARichKitchen();
 
     const answer = await open(kitchen.id, { cookie: staff.session.cookie });
     const body = (await jsonOf(answer)) as {
       kitchen: Record<string, unknown>;
       client: Record<string, unknown>;
+      sentCabinetLines: Record<string, unknown>[];
       request: Record<string, unknown>;
       status: Record<string, unknown>;
       notes: Record<string, unknown>[];
@@ -414,8 +420,12 @@ describe("what the answer holds", () => {
       email: client.email,
       name: client.name,
       phone: client.phone,
+      address: client.postalAddress,
     });
     expect(body.request).toEqual({ sentAt: SENT_AT.toISOString() });
+    expect(body.sentCabinetLines).toEqual([
+      { placementId: "base-1", amountMinor: 150_000 },
+    ]);
     expect(JSON.stringify(body)).not.toContain("LM-2026-0042");
     expect(body.status).toEqual({
       value: "contacted",
@@ -437,7 +447,7 @@ describe("what the answer holds", () => {
     const text = JSON.stringify(body);
     expect(text).not.toContain(client.id);
     expect(text).not.toContain(staff.account.id);
-    expect(text).not.toContain(client.postalAddress);
+    expect(text.split(client.postalAddress)).toHaveLength(2);
   });
 
   it("carries the as-sent copy beside the current document", async () => {

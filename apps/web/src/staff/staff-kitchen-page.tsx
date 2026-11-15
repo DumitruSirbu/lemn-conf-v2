@@ -284,6 +284,7 @@ function ReadyKitchen({
               design={shown.design}
               shownVersion={shownVersion}
               other={otherCopyOf(versions, shownVersion)}
+              sentLines={wire.sentCabinetLines}
             />
           )}
         </div>

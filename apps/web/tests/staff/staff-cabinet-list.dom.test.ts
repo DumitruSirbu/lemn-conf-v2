@@ -8,7 +8,9 @@ import { KITCHEN_L_DESIGN, type Design } from "@lemnaria/configurator-domain";
 import { createElement, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+import { describeLineAmount } from "@/price/starting-price";
 import { StaffCabinetList } from "@/staff/staff-cabinet-list";
+import type { StaffSentCabinetLineWire } from "@/staff/staff-kitchens-wire-contract";
 
 import roMessages from "../../src/messages/ro.json";
 import ruMessages from "../../src/messages/ru.json";
@@ -60,9 +62,11 @@ afterEach(() => {
 function Harness({
   sent,
   current,
+  sentLines = [],
 }: {
   readonly sent: Design;
   readonly current: Design;
+  readonly sentLines?: readonly StaffSentCabinetLineWire[];
 }) {
   const [version, setVersion] = useState<"sent" | "current">("current");
   return createElement(
@@ -78,13 +82,18 @@ function Harness({
       design: version === "current" ? current : sent,
       shownVersion: version,
       other: version === "current" ? sent : current,
+      sentLines,
     }),
   );
 }
 
 function mount(
   locale: TestLocale,
-  designs: { sent: Design; current: Design } = {
+  designs: {
+    sent: Design;
+    current: Design;
+    sentLines?: readonly StaffSentCabinetLineWire[];
+  } = {
     sent: KITCHEN_L_DESIGN,
     current: KITCHEN_L_DESIGN,
   },
@@ -241,6 +250,32 @@ describe.each(LOCALES)("the cabinet list in %s", (locale) => {
       allIn(container, '[data-testid="staff-kitchen-cabinet-amount"]'),
     ).toHaveLength(0);
     expect(allIn(container, '[data-change="added"]')).toHaveLength(0);
+  });
+
+  it("draws on the sent copy the amounts stored for its placements, and none for a placement with no stored line", () => {
+    const [first, second] = KITCHEN_L_DESIGN.placements;
+    if (first === undefined || second === undefined) throw new Error("no body");
+    const container = mount(locale, {
+      sent: KITCHEN_L_DESIGN,
+      current: KITCHEN_L_DESIGN,
+      sentLines: [
+        { placementId: first.id, amountMinor: 123_450_000 },
+        { placementId: second.id, amountMinor: 76_540_000 },
+      ],
+    });
+    const amountTexts = () =>
+      allIn(container, '[data-testid="staff-kitchen-cabinet-amount"]').map(
+        (amount) => amount.textContent,
+      );
+    const todays = amountTexts();
+
+    click(requireIn(container, '[data-testid="switch"]'));
+
+    expect(amountTexts().sort()).toEqual(
+      [describeLineAmount(123_450_000), describeLineAmount(76_540_000)].sort(),
+    );
+    expect(todays).toHaveLength(KITCHEN_L_DESIGN.placements.length);
+    expect(todays).not.toContain(describeLineAmount(123_450_000));
   });
 
   it("lists a body the client took out with the removed mark and no amount", () => {

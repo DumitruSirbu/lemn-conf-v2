@@ -306,7 +306,12 @@ describe.each(LOCALES)(
 describe("what the page does with a kitchen over a whole visit", () => {
   const TYPED = {
     kitchen: { name: SENTINEL },
-    client: { email: `${SENTINEL}@mail.md`, name: SENTINEL, phone: SENTINEL },
+    client: {
+      email: `${SENTINEL}@mail.md`,
+      name: SENTINEL,
+      phone: SENTINEL,
+      address: null,
+    },
     request: { sentAt: "2026-10-17T11:08:00.000Z" },
     status: wireChangedStatus("contacted", {
       email: `${SENTINEL}@x.md`,

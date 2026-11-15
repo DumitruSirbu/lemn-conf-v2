@@ -232,6 +232,12 @@ const EXPECTED_CLASSIFICATION: Readonly<
     reason:
       "adversarial QA of L3-S4: runs the staff kitchen reader's statements inside a repeatable-read transaction it rolls back, but pages the unfiltered list and requires its planted kitchens first, which another file's live changed kitchen outranks (M8B Lot 3 L3-S4 QA; exclusive since 2026-11-12)",
   },
+  "qa-m12-w6d-sent-lines-on-postgres.adversarial.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "adversarial QA of M12 W6d: runs the staff kitchen statement over hostile stored snapshots and addresses inside a transaction it rolls back after each test, and asserts no whole-table figure (a search names a string only its own planted account holds)",
+  },
   "qa-m10-s4-seen-and-digest-on-postgres.adversarial.test.ts": {
     gate: "live test database",
     lock: "shared",

@@ -628,3 +628,13 @@ OQ-44: **the draft's deletion stays on restore**, as M10 ruling 12 records it (a
 leaves that row alone; the release notes, section 4, say the same). The same answer confirmed OQ-41, OQ-42 and OQ-43
 (defaults). Read A-15 through ruling 12 and OQ-44 in `docs/milestones/done/M10-price-dashboard.md` (archived; the ruling
 text lives there). Nothing above is edited.
+
+## Dated note — 2026-11-15: F2's `priced` column also yields per-cabinet lines (ADR 0185)
+
+Appended; nothing above is changed. The F2 grant (`GRANT SELECT (priced) ON TABLE public.contact_submissions TO
+app_designs`, migration `0026:48-55`) is unchanged and no wider grant is made. What the staff kitchen **detail**
+statement reads from that one column grows: besides the sent total and currency, it projects the snapshot's cabinet
+lines, in SQL, to `{placementId, amountMinor}` for lines of kind `cabinet` only, at most `MAX_PLACEMENTS`, so the sent
+copy's cabinet list shows the amounts stored at sending, never priced again (ADR 0154;
+[ADR 0185](0185-the-staff-kitchen-page-leads-with-a-read-only-link-lists-every-cabinet-in-an-accordion-and-says-when-the-price-now-differs-from-the-price-sent.md)
+decision 4 and its security read S5). `priced` stays classed non-personal (`0008`'s header); ADR 0153 d1 holds.

@@ -334,6 +334,7 @@ describe("the kitchen as it is read", () => {
       email: "ana.popescu@mail.md",
       name: "Ana Popescu",
       phone: "078900555",
+      address: null,
     });
     expect(kitchen?.request).toEqual({ sentAt: "2026-10-17T11:08:00.000Z" });
     expect(kitchen?.status).toEqual({
@@ -415,7 +416,7 @@ describe("the kitchen as it is read", () => {
   it.each([
     [
       "a client with no e-mail",
-      { client: { email: 4, name: null, phone: null } },
+      { client: { email: 4, name: null, phone: null, address: null } },
     ],
     ["a request dated nothing", { request: { sentAt: "soon" } }],
     ["a status that is not an object", { status: "new" }],

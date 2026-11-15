@@ -1,5 +1,6 @@
 import {
   INITIAL_REQUEST_STATUS,
+  MAX_PLACEMENTS,
   STAFF_KITCHEN_PAGE_SIZE,
   staffKitchenOffsetOf,
 } from "@lemnaria/configurator-domain";
@@ -15,16 +16,20 @@ import {
   NOTES_READ_LIMIT,
   foldRomanianSearchText,
   isWellFormedDesignId,
+  ownMember,
   requireValidStaffKitchenQuery,
+  sentCabinetLinesFrom,
   shownStaffStatusOf,
 } from "./staff-kitchen-reader.js";
 import type {
   StaffKitchenClient,
   StaffKitchenDetail,
+  StaffKitchenDetailClient,
   StaffKitchenNote,
   StaffKitchenPage,
   StaffKitchenReader,
   StaffKitchenReading,
+  StaffKitchenSentCabinetLine,
   StaffKitchenSentTotal,
   StaffKitchenStatus,
   StaffListedKitchen,
@@ -38,6 +43,8 @@ export interface PlantedStaffAccount {
   readonly emailNormalForm?: string;
   readonly name: string | null;
   readonly phone: string | null;
+  /** The profile's postal address, which only the kitchen's read returns. Absent: none was given. */
+  readonly address?: string | null;
 }
 
 /** A row of `designs`. `design` is `null` for a document this build cannot read. */
@@ -56,7 +63,7 @@ export interface PlantedStaffKitchen {
 
 /**
  * A row of `contact_submissions`, with the columns the application role cannot read left out: it may read
- * `design_revision` and, since `0026`, `priced`, of which the reader takes the total and the currency.
+ * `design_revision` and, since `0026`, `priced`, of which the reader takes the total, the currency and the cabinet lines.
  */
 export interface PlantedStaffRequest {
   readonly clientRequestId: string;
@@ -68,6 +75,8 @@ export interface PlantedStaffRequest {
   readonly designRevision?: DesignRevision;
   /** The total stored in the snapshot. Absent or `null`: the request stored no snapshot, as an intent request. */
   readonly pricedTotal?: StaffKitchenSentTotal | null;
+  /** The snapshot's `lines` as stored, of whatever shape: the reader keeps the cabinet lines it can read. */
+  readonly pricedLines?: unknown;
 }
 
 /** What the reader needs of the seen marks: `FakeKitchenChangeStore` holds them. */
@@ -292,12 +301,13 @@ export class FakeStaffKitchenReader implements StaffKitchenReader {
       isHidden: kitchen.isHidden,
       sentAt: kitchen.sentAt,
       updatedAt: kitchen.updatedAt,
-      client: clientOf(this.accountOf(kitchen)),
+      client: detailClientOf(this.accountOf(kitchen)),
       request:
         latestRequest === undefined
           ? null
           : { sentAt: latestRequest.createdAt },
       sentTotal: latestRequest?.pricedTotal ?? null,
+      sentCabinetLines: cabinetLinesOf(latestRequest?.pricedLines),
       asSent: this.asSentOf(latestRequest),
       status: this.statusOf(kitchen.id, isSent),
       notes: this.notesOf(kitchen.id),
@@ -432,6 +442,29 @@ function clientOf(
   if (account === undefined) return null;
   const { id, email, name, phone } = account;
   return { id, email, name, phone };
+}
+
+function detailClientOf(
+  account: PlantedStaffAccount | undefined,
+): StaffKitchenDetailClient | null {
+  const client = clientOf(account);
+  if (client === null) return null;
+  return { ...client, address: account?.address ?? null };
+}
+
+/** What the statement projects, then the reader's own reading of it: the first `MAX_PLACEMENTS` cabinet lines. */
+function cabinetLinesOf(
+  storedLines: unknown,
+): readonly StaffKitchenSentCabinetLine[] {
+  if (!Array.isArray(storedLines)) return [];
+  const projected = (storedLines as readonly unknown[])
+    .filter((entry) => ownMember(entry, "kind") === "cabinet")
+    .slice(0, MAX_PLACEMENTS)
+    .map((entry) => ({
+      placementId: ownMember(entry, "placementId") ?? null,
+      amountMinor: ownMember(entry, "amountMinor") ?? null,
+    }));
+  return sentCabinetLinesFrom(projected);
 }
 
 function byOrderOf(

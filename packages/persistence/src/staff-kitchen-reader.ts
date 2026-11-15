@@ -1,4 +1,6 @@
 import {
+  MAX_IDENTIFIER_LENGTH,
+  MAX_PLACEMENTS,
   STAFF_KITCHEN_SEARCH_MAX_LENGTH,
   STAFF_KITCHEN_SEGMENTS,
   isRequestStatus,
@@ -71,13 +73,19 @@ export class StaffKitchenReaderError extends Error {
  */
 export type ShownStaffStatus = RequestStatus | "unrecognised" | null;
 
-/** The account behind a kitchen, from the profile: the e-mail as typed, and the two optional profile fields. The postal
- *  address and every credential column are never read. */
+/** The account behind a kitchen on the list, from the profile: the e-mail as typed, and the two optional profile fields.
+ *  The list never reads the postal address or a credential column. */
 export interface StaffKitchenClient {
   readonly id: string;
   readonly email: string;
   readonly name: string | null;
   readonly phone: string | null;
+}
+
+/** The account behind one kitchen: the list's fields and the profile's postal address as stored (`null` when none was
+ *  given). Only the kitchen's read selects the address; no credential column is read. */
+export interface StaffKitchenDetailClient extends StaffKitchenClient {
+  readonly address: string | null;
 }
 
 export interface StaffListedKitchen {
@@ -148,13 +156,22 @@ export interface StaffKitchenNote {
 
 /**
  * The total the latest request was priced at when it was sent, as stored in its snapshot
- * (`contact_submissions.priced`): never priced again, so a later publish does not move it (ADR 0154). Only these two
- * members of the snapshot are read.
+ * (`contact_submissions.priced`): never priced again, so a later publish does not move it (ADR 0154). With the
+ * snapshot's cabinet lines (`StaffKitchenSentCabinetLine`), the only members of the snapshot that are read.
  */
 export interface StaffKitchenSentTotal {
   /** Minor units, a whole number a `number` holds exactly. */
   readonly totalMinor: number;
   readonly currency: PriceBookCurrency;
+}
+
+/**
+ * One cabinet line of the snapshot stored with the latest request: the placement it priced and the amount it was priced
+ * at, in minor units, a whole number a `number` holds exactly. A line of any other kind is not read.
+ */
+export interface StaffKitchenSentCabinetLine {
+  readonly placementId: string;
+  readonly amountMinor: number;
 }
 
 export interface StaffKitchenDetail {
@@ -173,7 +190,7 @@ export interface StaffKitchenDetail {
   readonly isHidden: boolean;
   readonly sentAt: Date | null;
   readonly updatedAt: Date;
-  readonly client: StaffKitchenClient | null;
+  readonly client: StaffKitchenDetailClient | null;
   readonly request: StaffKitchenRequest | null;
   /**
    * The total stored with the latest request: `null` for a kitchen with no request, and for a request whose snapshot
@@ -181,6 +198,12 @@ export interface StaffKitchenDetail {
    * unpriced request" in the application's own data.
    */
   readonly sentTotal: StaffKitchenSentTotal | null;
+  /**
+   * The cabinet lines stored with the latest request, at most `MAX_PLACEMENTS`, in the snapshot's order; empty for a
+   * kitchen with no request and for a snapshot whose lines this build cannot read. A line this build cannot read is
+   * left out, never read as a zero.
+   */
+  readonly sentCabinetLines: readonly StaffKitchenSentCabinetLine[];
   /** The kitchen as the shop's notice carried it, from the newest unrevoked copy of the latest request; `null` when
    *  none exists or this build cannot read it. */
   readonly asSent: Design | null;
@@ -242,6 +265,49 @@ export const ROMANIAN_COMMA_BELOW_LETTERS = String.fromCodePoint(
   0x21a,
   0x21b,
 );
+
+/**
+ * The cabinet lines of a stored snapshot, as the kitchen's statement projects them. Anything that is not an array reads
+ * as no lines; of the first `MAX_PLACEMENTS` entries, one is kept only when its id is a string of at most
+ * `MAX_IDENTIFIER_LENGTH` and its amount a non-negative safe integer. Shared by every store of this port, so they agree.
+ */
+export function sentCabinetLinesFrom(
+  stored: unknown,
+): readonly StaffKitchenSentCabinetLine[] {
+  if (!Array.isArray(stored)) return [];
+  return (stored as readonly unknown[])
+    .slice(0, MAX_PLACEMENTS)
+    .flatMap((entry) => {
+      const line = sentCabinetLineFrom(entry);
+      return line === undefined ? [] : [line];
+    });
+}
+
+function sentCabinetLineFrom(
+  entry: unknown,
+): StaffKitchenSentCabinetLine | undefined {
+  const placementId = ownMember(entry, "placementId");
+  const amountMinor = ownMember(entry, "amountMinor");
+  if (!isStoredPlacementId(placementId)) return undefined;
+  if (!isStoredAmount(amountMinor)) return undefined;
+  return { placementId, amountMinor };
+}
+
+/** A member the value holds itself, never one it inherits; `undefined` for a value that is not an object. */
+export function ownMember(value: unknown, name: string): unknown {
+  if (typeof value !== "object" || value === null) return undefined;
+  return Object.hasOwn(value, name)
+    ? (value as Readonly<Record<string, unknown>>)[name]
+    : undefined;
+}
+
+function isStoredPlacementId(value: unknown): value is string {
+  return typeof value === "string" && value.length <= MAX_IDENTIFIER_LENGTH;
+}
+
+function isStoredAmount(value: unknown): value is number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+}
 
 export function isWellFormedDesignId(value: unknown): value is string {
   return typeof value === "string" && DESIGN_ID_SHAPE.test(value);

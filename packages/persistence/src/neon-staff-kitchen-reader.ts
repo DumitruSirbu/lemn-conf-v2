@@ -26,11 +26,13 @@ import {
   StaffKitchenReaderError,
   isWellFormedDesignId,
   requireValidStaffKitchenQuery,
+  sentCabinetLinesFrom,
   shownStaffStatusOf,
 } from "./staff-kitchen-reader.js";
 import type {
   StaffKitchenClient,
   StaffKitchenDetail,
+  StaffKitchenDetailClient,
   StaffKitchenNote,
   StaffKitchenPage,
   StaffKitchenReader,
@@ -66,9 +68,10 @@ const WHOLE_NUMBER_TEXT = /^(0|[1-9][0-9]*)$/;
  *
  * A kitchen its client deleted is excluded by every statement; one it hid is not. The `contact_submissions` clause
  * names only the seven columns the application role may select (the reader uses `client_request_id`, `design_id`,
- * `design_revision` and `created_at`, and never `reference`) and `priced`, the one column `0026`'s grant adds, of which it takes
- * the total and the currency alone, never a column the client typed; `accounts` is read for its e-mail, name and phone
- * alone. Whether a kitchen changed after staff saw it is judged in SQL, and the revision stays opaque here.
+ * `design_revision` and `created_at`, and never `reference`) and `priced`, the one column `0026`'s grant adds, of which it
+ * takes the total, the currency and the cabinet lines, never a column the client typed; `accounts` is read for its
+ * e-mail, name and phone, and for its postal address by the kitchen's statement alone. Whether a kitchen changed after
+ * staff saw it is judged in SQL, and the revision stays opaque here.
  */
 export class NeonStaffKitchenReader implements StaffKitchenReader {
   private readonly sql: ApplicationSql;
@@ -234,9 +237,10 @@ function detailFrom(row: Row, noteRows: readonly Row[]): StaffKitchenDetail {
     isHidden: requiredBoolean(row["is_hidden"], operation),
     sentAt: optionalInstant(row["sent_ms"], operation),
     updatedAt: requiredInstant(row["updated_ms"], operation),
-    client: clientFrom(row, operation),
+    client: detailClientFrom(row, operation),
     request: requestFrom(row, operation),
     sentTotal: sentTotalFrom(row, operation),
+    sentCabinetLines: sentCabinetLinesFrom(row["priced_cabinet_lines"]),
     asSent: readableDesignOrNull(
       row["sent_schema_version"],
       row["sent_document"],
@@ -259,6 +263,15 @@ function clientFrom(
     name: optionalText(row["client_name"], operation),
     phone: optionalText(row["client_phone"], operation),
   };
+}
+
+function detailClientFrom(
+  row: Row,
+  operation: StaffKitchenReaderOperation,
+): StaffKitchenDetailClient | null {
+  const client = clientFrom(row, operation);
+  if (client === null) return null;
+  return { ...client, address: optionalText(row["client_address"], operation) };
 }
 
 function requestFrom(

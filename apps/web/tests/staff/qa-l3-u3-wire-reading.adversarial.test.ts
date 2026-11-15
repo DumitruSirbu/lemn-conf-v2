@@ -231,7 +231,7 @@ describe("the null members the contract allows", () => {
   it("reads a client whose name and phone are null", () => {
     const kitchen = staffKitchenFrom(
       wireKitchen({
-        client: { email: "a@b.md", name: null, phone: null },
+        client: { email: "a@b.md", name: null, phone: null, address: null },
       }),
     );
 
@@ -239,6 +239,7 @@ describe("the null members the contract allows", () => {
       email: "a@b.md",
       name: null,
       phone: null,
+      address: null,
     });
   });
 });
@@ -506,18 +507,20 @@ describe("what is handed on is the contract's members and nothing the server add
   const SECRET = "SECRET-FROM-THE-SERVER";
 
   function withExtras(): Json {
-    const extras = {
+    // The client's `address` is a contract member of this answer; anywhere else it is an extra.
+    const extrasOfTheClient = {
       accountId: SECRET,
-      address: SECRET,
       postalPhone: SECRET,
       password: SECRET,
     };
+    const extras = { ...extrasOfTheClient, address: SECRET };
     const wire = validWire() as Record<string, Record<string, unknown>>;
     return {
       ...wire,
       ...extras,
       kitchen: { ...wire.kitchen, ...extras },
-      client: { ...wire.client, ...extras, id: SECRET },
+      client: { ...wire.client, ...extrasOfTheClient, id: SECRET },
+      sentCabinetLines: [{ placementId: "base-1", amountMinor: 1, ...extras }],
       request: { ...wire.request, ...extras },
       status: {
         ...wire.status,
@@ -546,6 +549,7 @@ describe("what is handed on is the contract's members and nothing the server add
         "notes",
         "notesTruncated",
         "request",
+        "sentCabinetLines",
         "status",
       ].sort(),
     );
@@ -562,9 +566,14 @@ describe("what is handed on is the contract's members and nothing the server add
       ].sort(),
     );
     expect(Object.keys(kitchen?.client ?? {}).sort()).toEqual([
+      "address",
       "email",
       "name",
       "phone",
+    ]);
+    expect(Object.keys(kitchen?.sentCabinetLines[0] ?? {}).sort()).toEqual([
+      "amountMinor",
+      "placementId",
     ]);
     expect(Object.keys(kitchen?.request ?? {}).sort()).toEqual(["sentAt"]);
     expect(Object.keys(kitchen?.status ?? {}).sort()).toEqual([
@@ -721,7 +730,7 @@ describe("any value at all", () => {
     const kitchen = staffKitchenFrom(
       wireKitchen({
         kitchen: { name: huge },
-        client: { email: huge, name: huge, phone: huge },
+        client: { email: huge, name: huge, phone: huge, address: huge },
         request: { sentAt: MOMENT },
       }),
     );

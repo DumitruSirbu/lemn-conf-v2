@@ -19,6 +19,7 @@ const CHANGED_AT = "2026-10-18T11:22:00.000Z";
 export interface WireKitchenOverrides {
   readonly kitchen?: Record<string, unknown>;
   readonly client?: unknown;
+  readonly sentCabinetLines?: unknown;
   readonly request?: unknown;
   readonly status?: unknown;
   readonly notes?: unknown;
@@ -50,7 +51,9 @@ export function wireKitchen({
       email: "ana.popescu@mail.md",
       name: "Ana Popescu",
       phone: "078900555",
+      address: null,
     },
+    sentCabinetLines: [],
     request: { sentAt: SENT_AT },
     status: { value: "new", changedBy: null, changedAt: null },
     notes: [],

@@ -1,17 +1,21 @@
 import {
   DesignSchema,
+  MAX_IDENTIFIER_LENGTH,
+  MAX_PLACEMENTS,
   isRequestStatus,
   type RequestStatus,
 } from "@lemnaria/configurator-domain";
 
 import type {
   StaffClientWire,
+  StaffKitchenClientWire,
   StaffKitchenListWire,
   StaffKitchenNoteWire,
   StaffListedKitchenWire,
   StaffNoteAddedWire,
   StaffPersonWire,
   StaffRequestStatusWire,
+  StaffSentCabinetLineWire,
   StaffStatusSavedWire,
   StaffThumbnailDesign,
 } from "./staff-kitchens-wire-contract";
@@ -113,6 +117,48 @@ export function clientFrom(
   if (name !== null && typeof name !== "string") return undefined;
   if (phone !== null && typeof phone !== "string") return undefined;
   return { value: { email, name, phone } };
+}
+
+/** The client of one kitchen's page: the list's members and the profile's address, `null` or text. `undefined` for a client
+ *  the contract does not allow; `{ value: null }` for a sent kitchen no account owns. */
+export function kitchenClientFrom(
+  raw: unknown,
+): { readonly value: StaffKitchenClientWire | null } | undefined {
+  const client = clientFrom(raw);
+  if (client === undefined) return undefined;
+  if (client.value === null) return { value: null };
+  const address = ownValueOf(raw, "address");
+  if (address !== null && typeof address !== "string") return undefined;
+  return { value: { ...client.value, address } };
+}
+
+/**
+ * The cabinet lines a kitchen's answer holds: only an array of at most `MAX_PLACEMENTS` entries is read, and an entry is
+ * kept only when its id is text of at most `MAX_IDENTIFIER_LENGTH` and its amount a non-negative safe integer. A line that
+ * is not is left out, never read as a zero. A member that is not an array refuses the whole read (`undefined`); a bad
+ * entry is only dropped.
+ */
+export function sentCabinetLinesOfAnswer(
+  raw: unknown,
+): readonly StaffSentCabinetLineWire[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  return (raw as readonly unknown[])
+    .slice(0, MAX_PLACEMENTS)
+    .flatMap((entry) => {
+      const line = sentCabinetLineFrom(entry);
+      return line === undefined ? [] : [line];
+    });
+}
+
+function sentCabinetLineFrom(
+  entry: unknown,
+): StaffSentCabinetLineWire | undefined {
+  const placementId = ownValueOf(entry, "placementId");
+  const amountMinor = ownValueOf(entry, "amountMinor");
+  if (typeof placementId !== "string") return undefined;
+  if (placementId.length > MAX_IDENTIFIER_LENGTH) return undefined;
+  if (!isCount(amountMinor)) return undefined;
+  return { placementId, amountMinor };
 }
 
 /** A status this build does not name is told as unrecognised, never as one it does: a new kitchen is a claim. */

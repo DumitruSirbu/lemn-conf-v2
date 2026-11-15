@@ -1091,6 +1091,7 @@ describe("the wire contract's key sets against a hostile reader", () => {
         email: "seen@example.test",
         name: null,
         phone: "+373",
+        address: `${LEAK}-list-address`,
       },
       touched,
       "client",
@@ -1204,10 +1205,18 @@ describe("the wire contract's key sets against a hostile reader", () => {
             email: "c@example.test",
             name: "C",
             phone: null,
+            address: "Strada Mare 1",
           },
           touched,
           "client",
         ),
+        sentCabinetLines: [
+          hostile(
+            { placementId: "base-1", amountMinor: 150_000 },
+            touched,
+            "line",
+          ),
+        ],
         request: hostile(
           { reference: "LM-1", sentAt: SENT_AT },
           touched,
@@ -1261,6 +1270,7 @@ describe("the wire contract's key sets against a hostile reader", () => {
       "notes",
       "notesTruncated",
       "request",
+      "sentCabinetLines",
       "sentEstimate",
       "status",
     ]);
@@ -1278,7 +1288,10 @@ describe("the wire contract's key sets against a hostile reader", () => {
       "sentAt",
       "updatedAt",
     ]);
-    expect(keysOf(body.client)).toEqual(["email", "name", "phone"]);
+    expect(keysOf(body.client)).toEqual(["address", "email", "name", "phone"]);
+    expect(body.sentCabinetLines).toEqual([
+      { placementId: "base-1", amountMinor: 150_000 },
+    ]);
     expect(text).not.toContain(clientAccountId);
     expect(keysOf(body.request)).toEqual(["sentAt"]);
     expect(keysOf(body.status)).toEqual(["changedAt", "changedBy", "value"]);

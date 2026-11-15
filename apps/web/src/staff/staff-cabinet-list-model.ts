@@ -11,6 +11,7 @@ import {
   describeGroupHeading,
 } from "@/price/price-breakdown-model";
 import { priceFloorOf, type PriceBookRoot } from "@/price/price-book-root";
+import { describeLineAmount } from "@/price/starting-price";
 import {
   describeRowDetails,
   rowDetailOf,
@@ -22,12 +23,13 @@ import {
   projectedGroupsOf,
   type KitchenVersion,
 } from "./kitchen-version-rows";
+import type { StaffSentCabinetLineWire } from "./staff-kitchens-wire-contract";
 
 // The cabinet list of the staff kitchen page (ADR 0185 decisions 3 and 4) as a value: the groups and their order are
 // `projectDesignForDisplay`'s, each row's name and facts are the review's own row detail, and a row's amount is the
-// priced cabinet line of the copy on screen, read only for the current copy. Nothing here sorts a body, words a fact or
-// prices a figure of its own, and nothing prices the sent copy: its rows carry no amount until the stored lines are
-// read (W6d), and an amount is never drawn as zero.
+// priced cabinet line of the copy on screen: the current copy's, priced with the active book, and the sent copy's, as
+// stored with the request. Nothing here sorts a body, words a fact or prices a figure of its own, and nothing prices the
+// sent copy: its amounts are the stored ones, and an amount is never drawn as zero.
 
 /** How a body stands between the two copies. `added` is a body only the current copy holds; `removed` one only the sent
  *  copy holds. */
@@ -75,6 +77,8 @@ export interface DescribeCabinetListInput {
   readonly other: Design | undefined;
   readonly content: Content;
   readonly priceBook: PriceBookRoot;
+  /** The cabinet lines stored with the sent request: read for the sent copy's rows only, never for the current copy's. */
+  readonly sentLines: readonly StaffSentCabinetLineWire[];
 }
 
 const UNAVAILABLE: UnavailableCabinetList = { kind: "unavailable" };
@@ -127,12 +131,20 @@ function comparisonOf(
 }
 
 function shownRows(
-  { shown, content, priceBook }: DescribeCabinetListInput,
+  { shown, content, priceBook, sentLines }: DescribeCabinetListInput,
   shownGroups: readonly DisplayGroup[],
   otherGroups: readonly DisplayGroup[] | undefined,
 ): readonly CabinetListRow[] {
   const details = describeRowDetails(shownGroups, content);
-  const amounts = amountTextsOf({ shown, shownGroups, content, priceBook });
+  const amounts =
+    shown.version === "sent"
+      ? sentAmountTextsOf(sentLines)
+      : currentAmountTextsOf({
+          design: shown.design,
+          shownGroups,
+          content,
+          priceBook,
+        });
   const counterparts = entriesById(otherGroups);
   return entriesOf(shownGroups).map((entry) =>
     rowOf({
@@ -206,23 +218,41 @@ function changeOf({
 }
 
 /**
- * Each placement's amount as the review words it, from the one builder the review calls, so the two cannot print
- * different amounts for a body. Only the current copy is priced, with the active book; the sent copy is never priced
- * here, and a copy the book refuses has no amounts at all.
+ * The sent copy's amounts: the stored line of each placement, at the ten lei a line is shown to, and never priced again.
+ * A stored zero has no wording here (a customer-supplied or an included body cannot be told apart from it), so it is
+ * left out, as is a placement with no stored line. A placement the lines name twice takes the later line.
  */
-function amountTextsOf({
-  shown,
+function sentAmountTextsOf(
+  sentLines: readonly StaffSentCabinetLineWire[],
+): ReadonlyMap<string, string> {
+  const texts = new Map<string, string>();
+  for (const { placementId, amountMinor } of sentLines) {
+    if (amountMinor > 0) {
+      texts.set(placementId, describeLineAmount(amountMinor));
+    } else {
+      texts.delete(placementId);
+    }
+  }
+  return texts;
+}
+
+/**
+ * Each placement's amount as the review words it, from the one builder the review calls, so the two cannot print
+ * different amounts for a body. The current copy is priced with the active book, and a copy the book refuses has no
+ * amounts at all.
+ */
+function currentAmountTextsOf({
+  design,
   shownGroups,
   content,
   priceBook,
 }: {
-  readonly shown: DescribeCabinetListInput["shown"];
+  readonly design: Design;
   readonly shownGroups: readonly DisplayGroup[];
   readonly content: Content;
   readonly priceBook: PriceBookRoot;
 }): ReadonlyMap<string, string> | undefined {
-  if (shown.version !== "current") return undefined;
-  const priced = priceFloorOf(priceBook, shown.design);
+  const priced = priceFloorOf(priceBook, design);
   if (priced === undefined) return undefined;
   const { groups } = describeBreakdownRows({
     content,

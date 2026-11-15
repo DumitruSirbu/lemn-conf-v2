@@ -178,7 +178,7 @@ when they differ, a warning card "Diferă" with "La trimitere" and "Acum" and th
   reading.
 - **Privacy notice, owed** [sec S6]: the notice is still a placeholder (`apps/web/src/account/privacy-notice-stub.tsx`
   [src]). When it is written it must say that Lemnaria's staff see a client's profile name, phone and address with the
-  kitchens the client sends. Recorded as an owed launch item, not built here.
+  kitchens the client saves to their account or sends (corrected 2026-11-15: staff may open saved, unsent kitchens too). Recorded as an owed launch item, not built here.
 - The D10B list (`KitchenVersionCabinets`) and the summary card are replaced by the accordion; their tests move with
   them.
 
@@ -207,3 +207,19 @@ No blocker; accept after these changes, all folded in above:
 - **N1** — the link's origin is `window.location.origin` after mount or `LEMNARIA_PUBLIC_ORIGIN`, never request headers.
 - **N2** — the unread `reference` leaves the detail wire and statement (decision 2).
 - **N4** — the address is labelled "Adresă / localitate", the profile's wording.
+
+## Dated note — 2026-11-15: decision 4 as built in W6d (reviews of W6d, relayed by the coordinator)
+
+- **A stored zero line shows no amount on the sent copy.** The current copy words the same body "inclus" / "Neinclus"
+  from the priced line's `suppliedBy` (ADR 0107: a body the customer supplies, or one drawn and not sold, is worded,
+  never shown as a zero). The S5 projection carries `{placementId, amountMinor}` only, with no `suppliedBy`, so a sent
+  zero cannot be worded, and W6c-5 forbids drawing a zero; it therefore shows nothing. The two copies can differ for
+  that body. Matching them would need an amendment to S5 adding `suppliedBy` to the projection, reviewed by security;
+  **not now.**
+- **A duplicated placement id in a snapshot takes the later line.** **A negative amount is dropped** (no amount for that
+  row), alongside S5's id-length and safe-integer checks.
+- **The detail read refuses a wire missing `sentCabinetLines` or `client.address`** — a strict contract between the
+  server and the page. A page from one deploy reading a server from the other may refuse until both match; that
+  deploy-skew is accepted.
+- The privacy-notice line in *Consequences* is reworded to "the kitchens the client saves to their account or sends":
+  staff may open a client's saved, unsent kitchens, so the profile data reaches staff with those too.

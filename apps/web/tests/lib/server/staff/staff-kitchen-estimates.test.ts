@@ -38,6 +38,7 @@ function aKitchen(
     client: null,
     request: null,
     sentTotal: STORED_TOTAL,
+    sentCabinetLines: [],
     asSent: null,
     status: null,
     notes: [],

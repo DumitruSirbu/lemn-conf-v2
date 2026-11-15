@@ -48,7 +48,6 @@ if (!isLiveTestDatabaseConfigured) announceSkippedLiveSuite(SUITE_NAME);
  * accounts' e-mail and name, or by an instant in the year 2999 that no other row holds.
  */
 const PASSWORD_HASH = `$argon2id$v=19$m=19456,t=2,p=1$${"A".repeat(22)}$${"B".repeat(43)}`;
-const ADDRESS_MARKER = "Strada Secreta 17, ap. 4 (reader live marker)";
 const REQUEST_NAME_MARKER = "Request Typed Name (reader live marker)";
 const REQUEST_PHONE_MARKER = "+37360777666";
 const REQUEST_LOCALITY_MARKER = "Request Typed Locality (reader live marker)";
@@ -62,6 +61,17 @@ const ERA_JITTER_DAYS = 200;
 const UNREADABLE_DOCUMENT = "{}";
 
 let nextEraDay = Math.floor(Math.random() * ERA_JITTER_DAYS);
+
+/** The snapshot column as the contract's request spec describes it: its total, and its `lines` member when one is given. */
+function pricedSnapshotOf(spec: {
+  readonly pricedTotal?: object;
+  readonly pricedLines?: unknown;
+}): string {
+  return JSON.stringify({
+    ...spec.pricedTotal,
+    ...(spec.pricedLines === undefined ? {} : { lines: spec.pricedLines }),
+  });
+}
 
 function randomText(alphabet: string, length: number): string {
   const bytes = randomBytes(length);
@@ -101,6 +111,7 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
       readonly role: "client" | "operator";
       readonly name: string | null;
       readonly phone: string | null;
+      readonly address: string | null;
       readonly emailNormalForm?: string;
     }): Promise<{ accountId: string; email: string }> {
       const accountId = nanoid();
@@ -111,7 +122,7 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
         insert into accounts (id, email, email_normal_form, password_hash, role, locale, privacy_notice_version,
           phone, phone_normal_form, address, name)
         values (${accountId}, ${email}, ${spec.emailNormalForm ?? email.toLowerCase()}, ${PASSWORD_HASH}, ${spec.role}, 'ro', '1',
-          ${spec.phone}, ${spec.phone}, ${ADDRESS_MARKER}, ${spec.name})
+          ${spec.phone}, ${spec.phone}, ${spec.address}, ${spec.name})
       `;
       return { accountId, email };
     }
@@ -124,21 +135,25 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
       async aClient(spec = {}): Promise<ClientAccount> {
         const name = spec.name === undefined ? `Name ${marker}` : spec.name;
         const phone = spec.phone ?? null;
+        const address =
+          spec.address === undefined ? `Strada ${marker} 17` : spec.address;
         const { accountId, email } = await insertAccount({
           role: "client",
           name,
           phone,
+          address,
           ...(spec.emailNormalForm === undefined
             ? {}
             : { emailNormalForm: spec.emailNormalForm }),
         });
-        return { accountId, email, name, phone };
+        return { accountId, email, name, phone, address };
       },
       async aStaffMember(): Promise<StaffAccount> {
         const { accountId, email } = await insertAccount({
           role: "operator",
           name: "Staff Name",
           phone: null,
+          address: null,
         });
         return { accountId, email, name: "Staff Name" };
       },
@@ -173,7 +188,7 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
             ${randomBytes(32).toString("hex")},
             ${spec.createdAt.toISOString()}::timestamptz, ${REQUEST_NAME_MARKER}, ${REQUEST_PHONE_MARKER},
             ${REQUEST_PHONE_MARKER}, ${REQUEST_LOCALITY_MARKER}, ${REQUEST_CHANNEL_MARKER}, ${REQUEST_EMAIL_MARKER},
-            '1', 'ro', '{}'::jsonb, ${JSON.stringify(spec.pricedTotal ?? {})}::jsonb)
+            '1', 'ro', '{}'::jsonb, ${pricedSnapshotOf(spec)}::jsonb)
         `;
         return { clientRequestId, reference };
       },
@@ -329,7 +344,7 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
       );
     });
 
-    it("reads nothing the client typed into a request, no postal address and no credential", async () => {
+    it("reads nothing the client typed into a request and no credential, and the profile's postal address on the kitchen alone", async () => {
       const world = await newWorld();
       const client = await world.aClient({ phone: "+37360111000" });
       const era = world.nextEra();
@@ -360,8 +375,8 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
       const text = JSON.stringify([page, reading]);
       expect(text).toContain(client.email);
       expect(text).not.toContain(request.reference);
+      expect(JSON.stringify(page)).not.toContain(`Strada ${world.marker} 17`);
       for (const forbidden of [
-        ADDRESS_MARKER,
         REQUEST_NAME_MARKER,
         REQUEST_PHONE_MARKER,
         REQUEST_LOCALITY_MARKER,

@@ -157,6 +157,7 @@ function listOf(input: {
     other: input.other,
     content: input.words,
     priceBook: input.priceBook ?? SAMPLE_PRICE_ROOT,
+    sentLines: [],
   });
   if (list.kind !== "available") {
     throw new Error("a readable pair of copies was not listed");
@@ -445,6 +446,7 @@ describe("a copy that can be read is listed although the other copy cannot (the 
         other: UNREADABLE,
         content: words,
         priceBook: SAMPLE_PRICE_ROOT,
+        sentLines: [],
       });
 
       expect(list.kind).toBe("available");

@@ -16,9 +16,11 @@ import type {
   StaffAuditReading,
   StaffKitchenClient,
   StaffKitchenDetail,
+  StaffKitchenDetailClient,
   StaffKitchenNote,
   StaffKitchenPage,
   StaffKitchenRequest,
+  StaffKitchenSentCabinetLine,
   StaffKitchenStatus,
   StaffListedKitchen,
 } from "@lemnaria/persistence";
@@ -41,6 +43,7 @@ import type {
   StaffChangedCountWire,
   StaffKitchen3dInvalidVersionWire,
   StaffKitchen3dWire,
+  StaffKitchenClientWire,
   StaffKitchenEstimatesWire,
   StaffKitchenMarkedListWire,
   StaffKitchenNoteWire,
@@ -52,6 +55,7 @@ import type {
   StaffListedKitchenMarkedWire,
   StaffNoteAddedWire,
   StaffPersonWire,
+  StaffSentCabinetLineWire,
   StaffSeenConflictWire,
   StaffSeenInvalidWire,
   StaffSeenMarkedWire,
@@ -326,7 +330,8 @@ function staffKitchenWireOf(kitchen: StaffKitchenDetail): StaffKitchenWire {
       sentAt: isoOrNull(kitchen.sentAt),
       updatedAt: kitchen.updatedAt.toISOString(),
     },
-    client: clientWireOf(kitchen.client),
+    client: kitchenClientWireOf(kitchen.client),
+    sentCabinetLines: kitchen.sentCabinetLines.map(sentCabinetLineWireOf),
     request: requestWireOf(kitchen.request),
     status: statusWireOf(kitchen.status),
     notes: kitchen.notes.map(noteWireOf),
@@ -469,8 +474,25 @@ function auditClientWireOf(
 function clientWireOf(
   client: StaffKitchenClient | null,
 ): StaffClientWire | null {
-  if (client === null) return null;
+  return client === null ? null : clientMembersWireOf(client);
+}
+
+function clientMembersWireOf(client: StaffKitchenClient): StaffClientWire {
   return { email: client.email, name: client.name, phone: client.phone };
+}
+
+/** The page's client alone carries the postal address; `clientWireOf`, the list's, never does. */
+function kitchenClientWireOf(
+  client: StaffKitchenDetailClient | null,
+): StaffKitchenClientWire | null {
+  if (client === null) return null;
+  return { ...clientMembersWireOf(client), address: client.address };
+}
+
+function sentCabinetLineWireOf(
+  line: StaffKitchenSentCabinetLine,
+): StaffSentCabinetLineWire {
+  return { placementId: line.placementId, amountMinor: line.amountMinor };
 }
 
 function requestWireOf(

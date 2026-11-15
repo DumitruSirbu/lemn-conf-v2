@@ -43,6 +43,10 @@ const CLIENT = leaky({
   name: "Ana Client",
   phone: "+37369000000",
 });
+// The list's reader type has no address; an object that carried one anyway must not send it.
+const LISTED_CLIENT = { ...CLIENT, address: "LEAK-list-address" };
+const DETAIL_CLIENT = { ...CLIENT, address: "Strada Florilor 4, ap. 2" };
+const PROFILE_ADDRESS = "Strada Florilor 4, ap. 2";
 const STAFF_PERSON = leaky({
   id: "LEAK-staff-id-00000000",
   email: "staff@example.test",
@@ -53,7 +57,7 @@ const LISTED = leaky({
   id: "kitchenid000000000001",
   name: "Bucataria",
   design: leaky(KITCHEN_L_DESIGN),
-  client: CLIENT,
+  client: LISTED_CLIENT,
   isSent: true,
   isHidden: false,
   sentAt: WHEN,
@@ -74,7 +78,11 @@ const DETAIL: StaffKitchenDetail = leaky({
   isHidden: true,
   sentAt: WHEN,
   updatedAt: WHEN,
-  client: CLIENT,
+  client: DETAIL_CLIENT,
+  sentCabinetLines: [
+    leaky({ placementId: "base-1", amountMinor: 150_000 }),
+    leaky({ placementId: "wall-1", amountMinor: 99_990 }),
+  ],
   request: leaky({ reference: "LM-2026-0042", sentAt: WHEN }),
   asSent: KITCHEN_L_DESIGN,
   status: leaky({
@@ -154,6 +162,13 @@ describe("the list answer", () => {
     ]);
     expect(keysOf(row?.client)).toEqual(["email", "name", "phone"]);
     expect(JSON.stringify(body)).not.toContain("LEAK");
+  });
+
+  it("sends no postal address on a row, even from a reader object that carries one", async () => {
+    const body = await bodyOf(staffKitchenListResponse(page));
+
+    expect(JSON.stringify(body)).not.toContain("address");
+    expect(JSON.stringify(body)).not.toContain("LEAK-list-address");
   });
 
   it("sends the menu's count as the page's own and each row's mark from the reader's judgement, never judged here", async () => {
@@ -241,6 +256,7 @@ describe("the kitchen answer", () => {
       "notes",
       "notesTruncated",
       "request",
+      "sentCabinetLines",
       "sentEstimate",
       "status",
     ]);
@@ -254,7 +270,8 @@ describe("the kitchen answer", () => {
       "sentAt",
       "updatedAt",
     ]);
-    expect(keysOf(client)).toEqual(["email", "name", "phone"]);
+    expect(keysOf(client)).toEqual(["address", "email", "name", "phone"]);
+    expect(client).toHaveProperty("address", PROFILE_ADDRESS);
     // The row this test hands in still carries a `reference`, as an older reader's would; nothing reads it, so the wire
     // does not carry it.
     expect(keysOf(request)).toEqual(["sentAt"]);
@@ -310,6 +327,46 @@ describe("the kitchen answer", () => {
       email: null,
       name: null,
     });
+  });
+});
+
+describe("the kitchen answer's sent cabinet lines and address", () => {
+  it("sends the placement id and amount of each line and no other member of a line", async () => {
+    const body = await bodyOf(staffKitchenResponse(DETAIL, ESTIMATES));
+    const lines = body.sentCabinetLines as Record<string, unknown>[];
+
+    expect(lines).toEqual([
+      { placementId: "base-1", amountMinor: 150_000 },
+      { placementId: "wall-1", amountMinor: 99_990 },
+    ]);
+    expect(lines.map(keysOf)).toEqual([
+      ["amountMinor", "placementId"],
+      ["amountMinor", "placementId"],
+    ]);
+  });
+
+  it("sends no lines for a kitchen whose reader found none, and a null address for a profile with none", async () => {
+    const body = await bodyOf(
+      staffKitchenResponse(
+        {
+          ...DETAIL,
+          sentCabinetLines: [],
+          client: { ...DETAIL_CLIENT, address: null },
+        },
+        ESTIMATES,
+      ),
+    );
+
+    expect(body.sentCabinetLines).toEqual([]);
+    expect(body.client).toHaveProperty("address", null);
+  });
+
+  it("sends a kitchen with no account as no client, and so no address", async () => {
+    const body = await bodyOf(
+      staffKitchenResponse({ ...DETAIL, client: null }, ESTIMATES),
+    );
+
+    expect(body.client).toBeNull();
   });
 });
 

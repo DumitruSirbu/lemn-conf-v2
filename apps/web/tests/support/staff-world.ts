@@ -167,6 +167,7 @@ export function plantClient(
     email: `client-${id.slice(0, 6).toLowerCase()}@example.test`,
     name: "Ana Client",
     phone: "+37369000000",
+    address: "Strada Secreta 7, Chisinau",
     ...fields,
   };
   currentStaffWorld().reader.plantAccount(client);

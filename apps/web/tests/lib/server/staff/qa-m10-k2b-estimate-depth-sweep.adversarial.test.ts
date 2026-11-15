@@ -38,6 +38,7 @@ function kitchenAtDepth(cabinetDepthMm: number): StaffKitchenDetail {
     client: null,
     request: null,
     sentTotal: STORED_TOTAL,
+    sentCabinetLines: [],
     asSent: null,
     status: null,
     notes: [],

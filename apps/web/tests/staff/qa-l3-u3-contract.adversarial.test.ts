@@ -30,13 +30,19 @@ const CLIENT = {
   email: "ana@mail.md",
   name: "Ana Popescu",
   phone: "078900555",
+  address: "Strada Florilor 4, ap. 2",
 };
 const BARE_CLIENT = {
   id: "client-account-id-002",
   email: "bare@mail.md",
   name: null,
   phone: null,
+  address: null,
 };
+const SENT_LINES = [
+  { placementId: "base-1", amountMinor: 150_000 },
+  { placementId: "wall-1", amountMinor: 99_990 },
+];
 
 type Detail = StaffKitchenDetail;
 const VARIANTS: readonly (readonly [string, Partial<Detail>])[] = [
@@ -47,7 +53,8 @@ const VARIANTS: readonly (readonly [string, Partial<Detail>])[] = [
   ],
   ["a hidden kitchen", { isHidden: true }],
   ["a kitchen with no account", { client: null }],
-  ["a client with no name and no phone", { client: BARE_CLIENT }],
+  ["a client with no name, no phone and no address", { client: BARE_CLIENT }],
+  ["no stored cabinet lines", { sentCabinetLines: [] }],
   ["a document this build cannot read", { design: null, asSent: null }],
   ["a copy as sent this build cannot read", { asSent: null }],
   ["a kitchen nobody named", { name: null }],
@@ -92,6 +99,7 @@ function detailWith(overrides: Partial<Detail>): Detail {
     client: CLIENT,
     request: { sentAt: SENT },
     sentTotal: null,
+    sentCabinetLines: SENT_LINES,
     status: { value: "contacted", change: { by: STAFF, at: CHANGED } },
     notes,
     notesTruncated: false,
@@ -134,8 +142,10 @@ describe.each(VARIANTS)("the route's answer for %s", (_, overrides) => {
             email: detail.client.email,
             name: detail.client.name,
             phone: detail.client.phone,
+            address: detail.client.address,
           },
     );
+    expect(kitchen?.sentCabinetLines).toEqual(detail.sentCabinetLines);
     expect(kitchen?.request).toEqual(
       detail.request === null
         ? null

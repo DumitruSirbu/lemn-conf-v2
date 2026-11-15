@@ -251,3 +251,13 @@ lanes merge. M10's own storage, grants and audit actions are in
 no `price-catalogue-viewed` row, because they serve no catalogue data (see [ADR 0178](0178-the-m10-dashboard-storage-lifecycle-defaults-notice-seen-and-digest.md)
 for the audit rule).
 M10 first claimed `0025`-`0031` with `0023` and `0024` reserved here (§2.3). **Superseded 2026-10-27 by ADR 0178's Amendment of that date:** M10 takes `0023`-`0029` contiguously, and this plan's later migrations take the next free numbers after M10's.
+
+## Dated note — 2026-11-15: `:64`'s "no postal address" on the staff profile block is superseded (owner Q7-3, ADR 0185)
+
+Appended; nothing above is changed. The line *"The staff profile block does **not** show the client's postal address;
+only e-mail, name and phone"* is **superseded** by the owner's answer to Q7-3 of 2026-11-14 [owner, relayed by the
+coordinator], recorded in [ADR 0185](0185-the-staff-kitchen-page-leads-with-a-read-only-link-lists-every-cabinet-in-an-accordion-and-says-when-the-price-now-differs-from-the-price-sent.md)
+decision 7: the staff kitchen **detail** page shows the account profile's `address` ("Adresă / localitate") when it is
+set, with "Sună" / "Scrie" on the profile phone and e-mail. The address travels on the detail read only; the list read,
+its statements and its search do not read it (ADR 0185, security read S1). No request personal column is read (ADR 0153
+d1 unchanged).
