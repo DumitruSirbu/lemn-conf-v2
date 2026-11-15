@@ -41,6 +41,9 @@ const THOUSANDS_SEPARATOR = " ";
 
 const ADDED_AMOUNT_SIGN = "+";
 
+/** U+2212, the arithmetic minus, never the hyphen: a hyphen at the start of a figure reads as a dash. */
+const SUBTRACTED_AMOUNT_SIGN = "\u2212";
+
 /** A figure as a surface renders it. Two fields because the label is styled apart from the amount
  *  (small, letter-spaced, uppercased by CSS), so no component splits a joined string. */
 export interface PriceFigure {
@@ -100,6 +103,29 @@ export function describeLineAmount(amountMinor: number): string {
 }
 
 /**
+ * The difference between two exact totals, signed in text and shown to the ten lei like a priced line. The magnitude is
+ * rounded up, so a difference that exists is never shown as nothing; only an exact zero carries no sign. A delta, unlike
+ * every other amount here, may be negative: it is `current - sent`, and the sign is the one fact it adds.
+ */
+export function describeSignedLineAmount(differenceMinor: number): string {
+  assertWholeMinorAmount(differenceMinor);
+  if (differenceMinor === 0) return describeLineAmount(0);
+  const sign = differenceMinor > 0 ? ADDED_AMOUNT_SIGN : SUBTRACTED_AMOUNT_SIGN;
+  return `${sign}${describeLineAmount(Math.abs(differenceMinor))}`;
+}
+
+/** The difference of two exact totals as a surface reads it: signed, to the ten lei, joined to the currency
+ *  (*"+710 MDL"*), so the join stays in this one formatter like every other figure's. */
+export function describeSignedDifference(input: {
+  readonly differenceMinor: number;
+  readonly copy: Content["price"];
+}): string {
+  return input.copy.amountWithCurrency(
+    describeSignedLineAmount(input.differenceMinor),
+  );
+}
+
+/**
  * An amount a choice adds, signed (*+9 000*), rounded through `roundUpToThousandMdl` so a delta and
  * the total it moves share one rule. The sign is arithmetic, so it lives here, not in a message leaf.
  *
@@ -132,6 +158,13 @@ function assertExactMinorAmount(amountMinor: number): void {
   if (Number.isSafeInteger(amountMinor) && amountMinor >= 0) return;
   throw new RangeError(
     `A displayed amount needs a non-negative whole count of minor units; got ${String(amountMinor)}`,
+  );
+}
+
+function assertWholeMinorAmount(amountMinor: number): void {
+  if (Number.isSafeInteger(amountMinor)) return;
+  throw new RangeError(
+    `A displayed difference needs a whole count of minor units; got ${String(amountMinor)}`,
   );
 }
 

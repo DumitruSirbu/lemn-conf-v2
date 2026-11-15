@@ -234,8 +234,15 @@ test("the version switch opens on the current copy, shows the other on press, ma
   await expect(page.getByTestId("staff-kitchen-cabinets")).toContainText(
     romanian("staffChanges.highlightNote"),
   );
+  // The state first, so a failure names it: the card is "different" only when the exact totals differ.
+  await expect(page.getByTestId("staff-kitchen-estimates")).toContainText(
+    romanian("staffChanges.estimateDiffers"),
+  );
+  await expect(
+    page.getByTestId("staff-kitchen-estimate-difference"),
+  ).toBeVisible();
   await expect(estimate(page, "sent")).toContainText(
-    romanian("staffChanges.estimateSent"),
+    romanian("staffChanges.estimateAtSendingLabel"),
   );
   await expect(estimate(page, "sent")).toContainText(/De la 59\s000 MDL/u);
   await expect(estimate(page, "current")).toContainText(/De la \d[\d\s]* MDL/u);

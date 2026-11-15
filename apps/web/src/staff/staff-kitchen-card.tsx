@@ -11,7 +11,7 @@ export function Card({
   children,
 }: {
   readonly title: string;
-  readonly tag?: string;
+  readonly tag?: string | undefined;
   /** Placement of the card in its column; the look of the box stays this component's. */
   readonly className?: string | undefined;
   readonly testId: string;

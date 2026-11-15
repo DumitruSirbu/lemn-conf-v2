@@ -20,6 +20,7 @@ import {
 } from "@/i18n/use-content";
 
 import { KitchenEstimates } from "./kitchen-estimates";
+import { copiesRelationOf } from "./kitchen-estimates-model";
 import { SeenNotice } from "./kitchen-seen-notice";
 import type { KitchenVersion } from "./kitchen-version-rows";
 import {
@@ -221,6 +222,7 @@ function ReadyKitchen({
     () => versionsOf({ asSent, design }),
     [asSent, design],
   );
+  const copies = copiesRelationOf({ versions, asSent, design });
   const shown = shownDesignOf(kitchen, chosenVersion);
   const shownVersion: KitchenVersion =
     shown?.source === "current" ? "current" : "sent";
@@ -289,7 +291,9 @@ function ReadyKitchen({
             titleRef={titleRef}
           />
           <RequestCard request={wire.request} />
-          {wire.request === null ? null : <KitchenEstimates estimates={wire} />}
+          {wire.request === null ? null : (
+            <KitchenEstimates estimates={wire} copies={copies} />
+          )}
           <ClientProfile client={wire.client} />
           <p className={styles.caption}>{copy.accessLogged}</p>
         </div>

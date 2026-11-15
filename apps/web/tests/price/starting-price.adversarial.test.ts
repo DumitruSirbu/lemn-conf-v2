@@ -480,6 +480,9 @@ describe("only these modules may go near a price, and only one of them may round
       "review/use-review.ts",
       "settings/global-settings-model.ts",
       "settings/global-settings.tsx",
+      // The price card's model compares the two estimates' exact `totalMinor` (never the printed figures, which round
+      // to the thousand) and hands the signed difference on to the formatter; it rounds nothing.
+      "staff/kitchen-estimates-model.ts",
       // The staff kitchen's two estimates are told through the formatter, as every other total is; the module derives and
       // rounds nothing.
       "staff/kitchen-estimates.tsx",

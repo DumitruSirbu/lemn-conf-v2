@@ -1740,6 +1740,18 @@ export function resolveStaffChangesCopy(translate: ContentTranslator) {
     estimate: {
       sent: translate("staffChanges.estimateSent"),
       current: translate("staffChanges.estimateCurrent"),
+      sameLabel: translate("staffChanges.estimateSameLabel"),
+      atSendingLabel: translate("staffChanges.estimateAtSendingLabel"),
+      nowLabel: translate("staffChanges.estimateNowLabel"),
+      differs: translate("staffChanges.estimateDiffers"),
+      difference: (amount: string) =>
+        translate("staffChanges.estimateDifference", { amount }),
+      notes: {
+        same: translate("staffChanges.estimateNoteSame"),
+        changed: translate("staffChanges.estimateNoteClientChanged"),
+        unchanged: translate("staffChanges.estimateNoteUnchanged"),
+        unknown: translate("staffChanges.estimateNoteUnknown"),
+      },
       sentMissing: translate("staffChanges.estimateSentMissing"),
       empty: translate("staffChanges.estimateEmpty"),
       refusals: resolveEstimateRefusals(translate),

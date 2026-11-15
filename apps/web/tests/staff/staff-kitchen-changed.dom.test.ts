@@ -304,9 +304,9 @@ describe.each(LOCALES)(
 
         const sent = textOf("staff-kitchen-estimate-sent");
         const current = textOf("staff-kitchen-estimate-current");
-        expect(sent).toContain(changes.estimateSent);
+        expect(sent).toContain(changes.estimateAtSendingLabel);
         expect(sent).toMatch(FIGURE_OF_SENT);
-        expect(current).toContain(changes.estimateCurrent);
+        expect(current).toContain(changes.estimateNowLabel);
         expect(current).toMatch(FIGURE_OF_CURRENT);
       });
 
@@ -383,6 +383,167 @@ describe.each(LOCALES)(
           ),
         ).toBeNull();
       });
+    });
+
+    describe("the price card says when the price now differs (ADR 0185 decision 5)", () => {
+      const OWNERS_SENT = 5_612_000;
+      const OWNERS_CURRENT = 5_683_000;
+
+      function priced(sentMinor: number, currentMinor: number) {
+        return {
+          sentEstimate: { totalMinor: sentMinor, currency: "MDL" },
+          currentEstimate: { totalMinor: currentMinor, currency: "MDL" },
+        };
+      }
+
+      function differenceSentence(signedAmount: string): string {
+        return sayOfChanges("estimateDifference", {
+          amount: `${signedAmount} MDL`,
+        });
+      }
+
+      it("reads the owner's case as different: both figures print 57 000, the card says it differs by +710", async () => {
+        answers(changedKitchen(priced(OWNERS_SENT, OWNERS_CURRENT)));
+
+        await mount(locale);
+
+        expect(textOf("staff-kitchen-estimate-sent")).toMatch(/57.000 MDL/u);
+        expect(textOf("staff-kitchen-estimate-current")).toMatch(/57.000 MDL/u);
+        const card = textOf("staff-kitchen-estimates");
+        expect(card).toContain(changes.estimateDiffers);
+        expect(textOf("staff-kitchen-estimate-difference")).toBe(
+          differenceSentence("+710"),
+        );
+        expect(card).not.toContain(changes.estimateNoteSame);
+        expect(has("staff-kitchen-estimate-same")).toBe(false);
+      });
+
+      it("keeps the figure and the difference in separate elements, so their text never runs together", async () => {
+        answers(changedKitchen(priced(OWNERS_SENT, OWNERS_CURRENT)));
+
+        await mount(locale);
+
+        const row = requireIn(
+          container(),
+          '[data-testid="staff-kitchen-estimate-current"] dd',
+        );
+        const figure = requireIn(row, "[data-figure]");
+        expect(figure.textContent).toMatch(/^[^\d]*57.000 MDL$/u);
+        expect(
+          figure.contains(
+            requireIn(row, '[data-testid="staff-kitchen-estimate-difference"]'),
+          ),
+        ).toBe(false);
+        expect(row.children).toHaveLength(2);
+      });
+
+      it("writes the sign of a price that fell as a minus in text", async () => {
+        answers(changedKitchen(priced(OWNERS_CURRENT, OWNERS_SENT)));
+
+        await mount(locale);
+
+        expect(textOf("staff-kitchen-estimate-difference")).toBe(
+          differenceSentence("\u2212710"),
+        );
+      });
+
+      it("shows the smallest difference, one bani, as ten lei and never as nothing", async () => {
+        answers(changedKitchen(priced(OWNERS_SENT, OWNERS_SENT + 1)));
+
+        await mount(locale);
+
+        expect(textOf("staff-kitchen-estimate-difference")).toBe(
+          differenceSentence("+10"),
+        );
+      });
+
+      it("collapses equal exact totals to one line that says the price did not change, with no marker", async () => {
+        answers(changedKitchen(priced(OWNERS_SENT, OWNERS_SENT)));
+
+        await mount(locale);
+
+        const card = textOf("staff-kitchen-estimates");
+        expect(textOf("staff-kitchen-estimate-same")).toContain(
+          changes.estimateSameLabel,
+        );
+        expect(textOf("staff-kitchen-estimate-same")).toMatch(/57.000 MDL/u);
+        expect(card).toContain(changes.estimateNoteSame);
+        expect(card).not.toContain(changes.estimateDiffers);
+        expect(has("staff-kitchen-estimate-sent")).toBe(false);
+        expect(has("staff-kitchen-estimate-difference")).toBe(false);
+      });
+
+      it.each([
+        [
+          "the client changed the kitchen",
+          {},
+          changes.estimateNoteClientChanged,
+        ],
+        [
+          "the copies are the same kitchen",
+          { kitchen: { asSent: WIRE_DESIGN } },
+          changes.estimateNoteUnchanged,
+        ],
+        [
+          "the sent copy cannot be read",
+          { kitchen: { asSent: null } },
+          changes.estimateNoteUnknown,
+        ],
+      ])(
+        "names only what is known when %s",
+        async (_situation, members, sentence) => {
+          answers(
+            changedKitchen({
+              ...priced(OWNERS_SENT, OWNERS_CURRENT),
+              ...members,
+            }),
+          );
+
+          await mount(locale);
+
+          const notes = [
+            changes.estimateNoteClientChanged,
+            changes.estimateNoteUnchanged,
+            changes.estimateNoteUnknown,
+          ];
+          const note = textOf("staff-kitchen-estimate-note");
+          expect(note).toBe(sentence);
+          expect(notes.filter((other) => other === note)).toHaveLength(1);
+        },
+      );
+
+      it.each([
+        ["the sent total is missing", { sentEstimate: null }],
+        [
+          "the current estimate is refused",
+          { currentEstimate: { refused: "UNKNOWN_BODY" } },
+        ],
+        ["the current estimate is empty", { currentEstimate: { empty: true } }],
+      ])(
+        "computes no difference and keeps its own sentences when %s",
+        async (_situation, members) => {
+          answers(
+            changedKitchen({
+              ...priced(OWNERS_SENT, OWNERS_CURRENT),
+              ...members,
+            }),
+          );
+
+          await mount(locale);
+
+          const card = textOf("staff-kitchen-estimates");
+          expect(card).not.toContain(changes.estimateDiffers);
+          expect(card).not.toContain(changes.estimateNoteSame);
+          expect(has("staff-kitchen-estimate-difference")).toBe(false);
+          expect(has("staff-kitchen-estimate-note")).toBe(false);
+          expect(textOf("staff-kitchen-estimate-sent")).toContain(
+            changes.estimateSent,
+          );
+          expect(textOf("staff-kitchen-estimate-current")).toContain(
+            changes.estimateCurrent,
+          );
+        },
+      );
     });
 
     describe("the version switch", () => {

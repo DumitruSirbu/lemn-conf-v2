@@ -2512,6 +2512,21 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     rowWasInSent: "în cea trimisă: {value}",
     estimateSent: "Estimare · trimisă",
     estimateCurrent: "Estimare · actuală",
+    // Drafted, not approved (M12 W6b; ADR 0185 decision 5): the v3 mockup's price card, whose words it writes for the two
+    // lines and the "Diferă" marker. The signed-difference line and the three notes by cause are the agent's own: the
+    // mockup's "Clientul a modificat…" is true only when the client edited, so an unchanged kitchen, and a kitchen whose
+    // copy this build cannot read, have sentences that claim nothing more than today's book and rules.
+    estimateSameLabel: "Trimis și actual",
+    estimateAtSendingLabel: "La trimitere",
+    estimateNowLabel: "Acum",
+    estimateDiffers: "Diferă",
+    estimateDifference: "Diferență: {amount}",
+    estimateNoteSame: "Prețul nu s-a schimbat de la trimitere.",
+    estimateNoteClientChanged: "Clientul a modificat bucătăria după trimitere.",
+    estimateNoteUnchanged:
+      "Bucătăria nu s-a schimbat de la trimitere; prețul de acum se calculează cu prețurile și regulile de azi.",
+    estimateNoteUnknown:
+      "Prețul de acum se calculează cu prețurile și regulile de azi.",
     highlightNote:
       "Rândurile evidențiate diferă între versiuni; nu arătăm o comparație detaliată.",
     sizeValue: "{size} mm",
