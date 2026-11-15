@@ -3552,3 +3552,9 @@ remains** for the account. **Owner:** the account-erasure wave (not scheduled).
 ## 319. `UnknownBodyError` on a current copy with an unknown build id — RECORDED 2026-11-15 (M12); PRE-EXISTING
 
 **Observed (coordinator's relay; not re-read by the scribe).** Found during M12; not caused by it. **Owner:** unassigned.
+
+## 320. Two sessions share one test database: a parallel branch's migration and concurrent schema rebuilds break the other branch's gate — RECORDED 2026-11-15 (M12 `ci:local`)
+
+**Observed (coordinator's relay of the `pnpm ci:local` run on M12; the scribe ran nothing).** The shared test database (`.env.test.local`) had migration 0031 (`presets.sort_position`, from the parallel M13 branch `claude/presets-admin-panel-54e212`, commit `f022213f`) applied, so M12's migration guard refused (44 live persistence tests). The `designs` table also lacked `write_token_hash`, likely the M13 session's tests rebuilding the schema concurrently. Result: 52 persistence live tests and 621 of 1385 e2e tests failed; format, lint, typecheck and the domain suite passed. Not caused by M12 code. Related: entry 69 (two gate runs against one test database corrupt its migration ledger).
+
+**Wanted.** Give each active branch its own test database, or serialise the gates. **Owner:** owner.

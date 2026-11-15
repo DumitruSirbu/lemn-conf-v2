@@ -698,6 +698,20 @@ says "default stands" the owner did not overturn the proposed default.
 
 ## 11. Close-out records, 2026-11-15 (scribe; coordinator-relayed; nothing run by the scribe)
 
+**Update 2026-11-15 (later) [coordinator-relayed from `git ls-remote`/`git log`; the scribe ran nothing].** The owner pushed the
+M12 work directly to `origin/main`, now `09bf9089` (no feature branch, no PR); the M12 commits are `348a157f..09bf9089`, the last
+being close-out docs plus audit fixes. This departs from WORKFLOW's "merged on GitHub" rule; recorded, not judged.
+- **Test audit done:** [`test-audits/M12-2026-11-15.md`](../test-audits/M12-2026-11-15.md): 4 "cannot fail" findings, all fixed in
+  `09bf9089` and re-proven by mutation; 3 deferrable near-duplicates.
+- **`pnpm ci:local` FAILED, not on M12 code.** The shared test database had migration 0031 (`presets.sort_position`, parallel M13
+  branch `claude/presets-admin-panel-54e212`, commit `f022213f`) applied, so this checkout's migration guard refused (44 live
+  persistence tests); the `designs` table lacked `write_token_hash` (likely the M13 session rebuilding the schema concurrently).
+  52 persistence live tests and 621 of 1385 e2e failed; format, lint, typecheck and the domain suite (482 files / 14 098 tests)
+  passed. Backlog 320. The owner will fix the test database and the tests later.
+- **e2e unverified:** the specs edited in M12 were never run green (backlog 313).
+- The "not pushed; no PR; verification not yet in" statements below are the earlier state and are superseded by this update. Still
+  owed: green `ci:local` on main, the edited e2e specs run, then archive (WORKFLOW step 7).
+
 **Status: W0-W6f committed on `fix/owner-feedback-2026-11-14`, HEAD `b48d4684`; not pushed; no PR; NOT closed and NOT
 archived.** Commits: `348a157f` W0, `359812ba` W1, `1b13a4e1` W2, `bd238d46` W3a, `563e4351` W3b, `4e0e49e6` W4, `b0f6c63a`
 W5, `b77142ee` W6a, `7e7d85ae` W6b, `483f5356` W6c, `c1083ef3` W6d with fix `390c3a6b`, `5a4bf11f` W6e, `b48d4684` W6f.

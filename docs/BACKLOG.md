@@ -350,6 +350,7 @@ status corrections, in one of these two files:
 | 317 | `generateKitchen` throws for U rooms at a 2000 mm ceiling at `HEAD` (hob has no hood) | open.md — recorded 2026-11-15 (M12 plan §10) |
 | 318 | 390 px camera presets do not frame the fridge column in generated L and linear rooms | open.md — recorded 2026-11-15 (M12 visual run); observation |
 | 319 | `UnknownBodyError` on a current copy with an unknown build id | open.md — recorded 2026-11-15 (M12); pre-existing |
+| 320 | Two sessions share one test database: a parallel branch's migration (M13 0031) and concurrent schema rebuilds break the other branch's gate | open.md — recorded 2026-11-15 (M12 `ci:local`); owner: owner |
 
 *Notes at the 8J2, 8U and 8V close (2026-10-17) on existing entries:* 145 (facing-labels flaky again), 160 (closed), 232 (the non-live recipe does not hold) carry dated notes in `open.md`.
 

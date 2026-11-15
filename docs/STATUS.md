@@ -320,7 +320,7 @@ for the owner to rule, not guessed; none is open now.
 | M8D Preset screens to the v2 mockup | W0 done; W1 in progress (2026-10-18, relayed) | Runs on this branch before its PR and before M8B (owner O-5) | Yes, [`M8D-...md`](milestones/M8D-preset-screens-to-mockup.md) | coordinator's brief (relayed) + doc-quoted plan banner |
 | M10 Manufacturer price dashboard | **Done 2026-11-11, archived** (section 1, *M10 CLOSED* entry; gate figures there). Everything after this sentence in the cell is the earlier history and is superseded. *Earlier:* **In progress** (2026-11-09, rewritten; the 2026-11-04 text was stale). Merged on `m10-price-dashboard`, pushed only up to `a6b23c18`, later commits local (corrected 2026-11-10; per the 2026-11-09 entries in section 1; the R4a/R4b merge state is not restated here): R5b, T4, T5, Q3a-Q3d, Q4, Q5a, Q5b, Q5c, Q5d, the e2e rewrite, R4c1. **Update 2026-11-10: R4c2 merged (`a9a35ce1`) and R4c3 merged and closed (`c9dd3536`); nothing in flight.** **Update 2026-11-10, latest: pushed, local and origin both `99857d26`; the final `ci:local` on this tree was in progress, result unknown.** **Update 2026-11-11: Z1 visual pass and Z2 audit done, `77fadd67` local, origin at `d3cb086b`; the final-tip `ci:local` re-run is pending; NOT archived (section 1, 2026-11-11 entry).** **Remaining:** see section 1, *Push state and Z gate, latest* (live S2/S4/S7 passed on staging; stray designs deleted; privilege test not run on staging; Z2 waits). K2a parked until K2b. **Push:** the ADR 0081 block is lifted by the owner's ruling of 2026-11-10; a green `pnpm ci:local` is still required. Open items: section 1, 2026-11-10 owner rulings | Branch `m10-price-dashboard`; runs in parallel with the open M8 work by owner instruction of 2026-10-26 (ADR 0176). Push state of the 2026-11-04 tip is not re-checked by the scribe | No (`milestones/done/M10-price-dashboard.md`; release notes: [`release-notes/m10-price-dashboard.md`](release-notes/m10-price-dashboard.md)) | coordinator's RUN results quoted in section 1 (relayed; the scribe ran nothing) |
 | M11 Owner feedback of 2026-11-07 | **Merged as PR #17** (`c48992e8` is the base of M12's branch; source: the M12 plan header, coordinator-relayed). **Not archived** (the plan is still in `milestones/`). **Scope that shipped is not recorded here:** the last STATUS record (2026-11-14) shows W0-W3b committed and W4a implemented with review fixes landed; **this page holds no record of W4a's commit, or of W4b, W4c or W5 being built**, so none is claimed. *Earlier (2026-11-13/14):* W0 `dfc9db48`, W1 `05d1dc74`, ADR acceptance `c3f504c9`, W2a `99f641e7`, W3a `0a30f012`, W2b `ea4b2a96`, W3b `ceacdaed`; push hold discharged 2026-11-14 (section 1). Open question for the coordinator: confirm W4a-W5 state and whether to archive | Branch `fix/owner-feedback-2026-11-07`; ADRs 0179-0181 Accepted | Only to confirm what shipped, [`M11-owner-feedback-2026-11-07.md`](milestones/M11-owner-feedback-2026-11-07.md) | coordinator's relay (M12 plan header) + STATUS records; the scribe ran nothing |
-| M12 Owner feedback of 2026-11-14 | **In progress** (2026-11-15): W0-W6f committed (`348a157f` to `b48d4684`), not pushed, no PR. **Open until** the test audit (in progress, result unknown), `pnpm ci:local` (running, result unknown) and the PR | Branch `fix/owner-feedback-2026-11-14`; ADRs 0182-0185 Accepted (0183 with Amendment A); e2e specs edited but not run | Yes, [`M12-owner-feedback-2026-11-14.md`](milestones/M12-owner-feedback-2026-11-14.md) | coordinator's relay of the commit list; section 1, 2026-11-15 entry (the scribe ran nothing) |
+| M12 Owner feedback of 2026-11-14 | **Built and pushed; gate owed (test database)** (2026-11-15): W0-W6f plus close-out (`348a157f..09bf9089`) pushed to `origin/main` `09bf9089` directly by the owner (no PR). Test audit done (4 cannot-fail fixed). `pnpm ci:local` failed for the shared test database, not M12 code. e2e unverified. Plan not archived | Branch `fix/owner-feedback-2026-11-14` (work now on main); ADRs 0182-0185 Accepted (0183 with Amendment A); e2e specs edited but never run green | Yes, [`M12-owner-feedback-2026-11-14.md`](milestones/M12-owner-feedback-2026-11-14.md) | coordinator's relay of the commit list; section 1, 2026-11-15 entry (the scribe ran nothing) |
 | M9 Delivery preparation | Proposed stub | No plan, no waves; inherits 8R/8S and the launch gate | When started, [`M9-delivery-preparation.md`](milestones/M9-delivery-preparation.md) | doc-quoted H:616 |
 | Adversarial review remediation | Done (S1-S12 shipped, commits db9c4024..); only SEC-001 stays open, as a launch gate tracked in `docs/backlog/open.md` and M9 | Plan archived at `milestones/done/adversarial-review-remediation.md` | No | doc-quoted H:617, 625-642; shipped state verified in git/source by a read-only analyst (coordinator-relayed) |
 | dom-003 set-width split | Done (shipped in 30283571) | Nine-module `set-width.ts` split; plan archived at `milestones/done/dom-003-set-width-split.md` | No | doc-quoted H:617, 630; commit verified in git by a read-only analyst (coordinator-relayed) |
@@ -336,17 +336,25 @@ None left. M5, M6, M6B, M7B and M7C were open or UNCLEAR in the history; the own
 
 ## 3. What is open right now
 
-**M12** (section 1, 2026-11-15 entry; plan [`M12-...md`](milestones/M12-owner-feedback-2026-11-14.md)). Waves W0-W6f are
-committed. What to do next, in order:
+**M12** (section 1, 2026-11-15 entry; plan [`M12-...md`](milestones/M12-owner-feedback-2026-11-14.md)). **Update 2026-11-15
+(later) [coordinator-relayed from `git ls-remote`/`git log`; the scribe ran nothing]:** the owner pushed the work directly to
+`origin/main` `09bf9089` (commits `348a157f..09bf9089`; no PR). This departs from WORKFLOW's "merged on GitHub" rule; recorded,
+not judged. The test audit is done ([`test-audits/M12-2026-11-15.md`](test-audits/M12-2026-11-15.md)): 4 "cannot fail" findings,
+all fixed in `09bf9089` and re-proven by mutation; 3 deferrable near-duplicates. `pnpm ci:local` **failed, not on M12 code**: the
+shared test database had migration 0031 (`presets.sort_position`, parallel M13 branch, `f022213f`) applied, so the migration guard
+refused (44 live persistence tests), and `designs` lacked `write_token_hash` (likely M13's tests rebuilding the schema
+concurrently): 52 persistence live tests and 621 of 1385 e2e failed; format, lint, typecheck and the domain suite (482 files /
+14 098 tests) passed. The e2e specs edited in M12 were never run green. (The 2026-11-15 section 1 entry's "in progress / not
+pushed" lines are the earlier state.) What to do next, in order:
 
-1. The M12 test audit (in progress; report to land in `test-audits/`). A "cannot fail" finding keeps the milestone open
-   (ADR 0152 Amendment A). It must cover the six corner tests rewritten in W1 and the two empty-slot tests rewritten in W2
-   (plan §7).
-2. `pnpm ci:local`, running; quote its result (do not assume it).
-3. Push, then the PR. Then archive the plan to `milestones/done/` (only once it has shipped) and flip this row.
+1. The owner fixes the shared test database (M12 against M13's 0031), or gives each branch its own test database (backlog 320).
+2. Re-run `pnpm ci:local` on main and run the e2e specs M12 edited (backlog 313); quote the results.
+3. Then archive the M12 plan to `milestones/done/` per WORKFLOW step 7 and flip the phase row.
 4. Close the owed dated notes in plan §10 (the scribe's list in the *Close-out records* block there).
 
-**Owner-owed, M12 (none blocks the PR):**
+**Owner-owed, M12 (already pushed; the first bullet is the gate):**
+
+- **Fix the shared test database and the failing tests** (see above; backlog 320).
 
 - **Approve the drafted copy:** W4 Russian ("Panoul de administrare" is the owner's own Romanian wording, approved); W6a-W6f Romanian
   and Russian leaves; W5 notes: the accessory page reads "Activ · Activ" (status word and badge repeat), and the hardware
