@@ -257,7 +257,8 @@ test("the version switch opens on the current copy, shows the other on press, ma
       .getByTestId("staff-kitchen-cabinets")
       .getByRole("heading", { level: 2 }),
   ).toHaveText(romanian("staffKitchen.summaryTitleSent"));
-  await expect(cabinets).toHaveCount(BODIES_NOW);
+  // The list shows the copy on screen (ADR 0185 d3): the sent copy lists only its own bodies.
+  await expect(cabinets).toHaveCount(BODIES_SENT);
   await expect(page.getByTestId("staff-kitchen-view")).toBeVisible();
   await expect(page.getByTestId("staff-kitchen-seen-notice")).toHaveText(
     romanian("staffChanges.markedSeen"),

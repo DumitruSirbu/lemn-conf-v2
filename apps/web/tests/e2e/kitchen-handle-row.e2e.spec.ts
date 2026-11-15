@@ -26,10 +26,6 @@ const ro = JSON.parse(
 const HANDLE_ORDER = ["steel", "black", "push"] as const;
 type HandleName = (typeof HANDLE_ORDER)[number];
 
-const SHOT_DIRECTORY =
-  "/private/tmp/claude-501/-Users-dimas-Documents-Personal-Projects-lemnaria-configurator-gbt/" +
-  "617e1b99-28e5-4394-a5ac-0de5ce73ed5d/scratchpad/q2-shots";
-
 const SCENE_SETTLE_MS = 2000;
 const MIN_TARGET_PX = 44;
 const SAVE_BUDGET_MS = 15_000;
@@ -143,8 +139,9 @@ async function centreHandleRow(page: Page): Promise<void> {
   });
 }
 
+/** Review shots land in the test's own output folder, which exists on every machine and CI keeps as an artifact. */
 async function shot(page: Page, name: string): Promise<void> {
-  await page.screenshot({ path: `${SHOT_DIRECTORY}/${name}.png` });
+  await page.screenshot({ path: test.info().outputPath(`${name}.png`) });
 }
 
 test("lists the handle row between colour and hardware with the three handles, steel marked", async ({

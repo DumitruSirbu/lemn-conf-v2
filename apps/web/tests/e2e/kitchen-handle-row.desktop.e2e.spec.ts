@@ -17,10 +17,6 @@ const ro = JSON.parse(
   readonly panel: { readonly handleLabels: Readonly<Record<string, string>> };
 };
 
-const SHOT_DIRECTORY =
-  "/private/tmp/claude-501/-Users-dimas-Documents-Personal-Projects-lemnaria-configurator-gbt/" +
-  "617e1b99-28e5-4394-a5ac-0de5ce73ed5d/scratchpad/q2-shots";
-
 const SCENE_SETTLE_MS = 2000;
 const SAVE_BUDGET_MS = 15_000;
 
@@ -120,7 +116,7 @@ test("shows the handle row in the centred modal, fitting the viewport, and appli
   await expect(page.getByTestId("global-settings-apply")).toBeInViewport();
 
   await centreHandleRow(page);
-  await page.screenshot({ path: `${SHOT_DIRECTORY}/desktop-1-handle-row.png` });
+  await shot(page, "desktop-1-handle-row");
 
   const figureOnBars = await figureOf(page);
   await options.nth(2).click();
@@ -137,7 +133,10 @@ test("shows the handle row in the centred modal, fitting the viewport, and appli
   await expect(options.nth(2)).toHaveAttribute("data-selected", "true");
   expect(await figureOf(page)).toBeGreaterThan(figureOnBars);
   await centreHandleRow(page);
-  await page.screenshot({
-    path: `${SHOT_DIRECTORY}/desktop-2-push-applied-reopened.png`,
-  });
+  await shot(page, "desktop-2-push-applied-reopened");
 });
+
+/** Review shots land in the test's own output folder, which exists on every machine and CI keeps as an artifact. */
+async function shot(page: Page, name: string): Promise<void> {
+  await page.screenshot({ path: test.info().outputPath(`${name}.png`) });
+}
