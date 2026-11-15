@@ -118,9 +118,69 @@ export async function openStaffKitchen(
   page: Page,
   designId: string,
 ): Promise<void> {
+  await watchSceneDraws(page);
   await page.goto(`/ro/staff/kitchens/${designId}`);
   await expect(page.getByTestId("staff-kitchen-page")).toBeVisible();
   await expect(page.getByTestId("staff-notes")).toBeVisible();
+  await waitForSceneQuiet(page);
+}
+
+/** How long the picture must go without a draw call before its first render counts as done. */
+const SCENE_QUIET_MS = 1000;
+
+/** On CI's GPU-less runner the picture's first render (environment map, shadows) holds the page for seconds. */
+const SCENE_FIRST_RENDER_BUDGET_MS = 60_000;
+
+/** The time of the page's last WebGL draw call, recorded from before any script of the page runs. */
+const LAST_DRAW_KEY = "__staffE2eLastSceneDrawAt";
+
+/**
+ * Records every WebGL draw call the page makes. The picture draws on demand, so a stretch with no draw call means its
+ * render is over. Idempotent: a page opened twice keeps one wrapper per method.
+ */
+async function watchSceneDraws(page: Page): Promise<void> {
+  await page.addInitScript((key) => {
+    const record = window as unknown as Record<string, number | boolean>;
+    if (record[`${key}Installed`] === true) return;
+    record[`${key}Installed`] = true;
+    const contexts = [WebGLRenderingContext, WebGL2RenderingContext];
+    for (const context of contexts) {
+      const methods = context.prototype as unknown as Record<string, unknown>;
+      for (const name of ["drawArrays", "drawElements"]) {
+        const draw = methods[name] as (...args: unknown[]) => unknown;
+        methods[name] = function (this: unknown, ...args: unknown[]) {
+          record[key] = performance.now();
+          return draw.apply(this, args);
+        };
+      }
+    }
+  }, LAST_DRAW_KEY);
+}
+
+/**
+ * Waits until the kitchen's picture has drawn and then gone quiet, so a test acts on a page whose main thread is free:
+ * an answer that lands while the first render runs is otherwise drawn seconds late on CI (run 43759449145). A page that
+ * shows no picture (a kitchen that cannot be read) has nothing to wait for.
+ */
+async function waitForSceneQuiet(page: Page): Promise<void> {
+  if ((await page.getByTestId("staff-kitchen-view").count()) === 0) return;
+  await expect(
+    page.getByTestId("staff-kitchen-view").locator("canvas"),
+  ).toBeVisible({ timeout: SCENE_FIRST_RENDER_BUDGET_MS });
+  await expect
+    .poll(
+      () =>
+        page.evaluate((key) => {
+          const lastDrawAt = (window as unknown as Record<string, number>)[key];
+          return lastDrawAt === undefined ? 0 : performance.now() - lastDrawAt;
+        }, LAST_DRAW_KEY),
+      {
+        message: "the kitchen's picture never finished its first render",
+        timeout: SCENE_FIRST_RENDER_BUDGET_MS,
+        intervals: [250],
+      },
+    )
+    .toBeGreaterThanOrEqual(SCENE_QUIET_MS);
 }
 
 export function noteField(page: Page): Locator {
