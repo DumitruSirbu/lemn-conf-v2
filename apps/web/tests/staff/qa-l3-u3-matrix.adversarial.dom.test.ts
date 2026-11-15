@@ -323,11 +323,13 @@ describe.each(LOCALES)(
         expect(has("staff-kitchen-current-variant")).toBe(isCurrentVariant);
         expect(has("staff-kitchen-view")).toBe(shown !== "none");
         expect(has("staff-kitchen-cannot-show")).toBe(shown === "none");
-        expect(has("staff-kitchen-summary")).toBe(shown !== "none");
+        expect(has("staff-kitchen-settings")).toBe(shown !== "none");
         if (shown === "none") return;
         expect(
-          requireIn(harness.container(), "#staff-kitchen-summary-title")
-            .textContent,
+          requireIn(
+            harness.container(),
+            '[data-testid="staff-kitchen-cabinets"] h2',
+          ).textContent,
         ).toBe(
           shown === "as-sent"
             ? words.summaryTitleSent
@@ -344,25 +346,10 @@ describe.each(LOCALES)(
     });
 
     it("describes, prices and draws the copy it says it shows and not the other one", async () => {
-      const priceOfSmall: string[] = [];
       const priceOfWhole: string[] = [];
       harness.answers(() => ({
         body: wireOf({
-          isSent: true,
-          isHidden: false,
-          client: "full",
-          hasRequest: false,
-          documents: "as-sent-only",
-          status: "none",
-          notes: "none",
-        }),
-      }));
-      await harness.mount({ locale });
-      priceOfSmall.push(summaryPrice(harness.container()));
-      harness.unmount();
-      harness.answers(() => ({
-        body: wireOf({
-          isSent: true,
+          isSent: false,
           isHidden: false,
           client: "full",
           hasRequest: false,
@@ -375,7 +362,6 @@ describe.each(LOCALES)(
       priceOfWhole.push(summaryPrice(harness.container()));
       harness.unmount();
       resetSharedStores();
-      expect(priceOfSmall[0]).not.toBe(priceOfWhole[0]);
 
       await drawEach(everyCombination(["none"]), (combination) => {
         const { shown, bodyCount } = expectationOf(combination);
@@ -385,19 +371,42 @@ describe.each(LOCALES)(
         expect(
           requireIn(container, '[data-fact="bodies"] dd').textContent,
         ).toBe(String(bodyCount));
-        // A request's kitchen states its two estimates in a card of their own, the page's one price surface.
-        if (combination.hasRequest) {
+        // A request's kitchen states its two estimates in a card of their own, the page's one price surface, and a
+        // sent copy is never priced with today's book (W6e-3): only the current copy of a draft is.
+        if (
+          combination.isSent ||
+          combination.hasRequest ||
+          shown === "as-sent"
+        ) {
           expect(allIn(container, '[data-fact="price"]')).toHaveLength(0);
         } else {
-          expect(summaryPrice(container)).toBe(
-            shown === "as-sent" ? priceOfSmall[0] : priceOfWhole[0],
-          );
+          expect(summaryPrice(container)).toBe(priceOfWhole[0]);
         }
         expect(useConfiguratorStore.getState().design.placements).toHaveLength(
           bodyCount ?? -1,
         );
         expect(useConfiguratorStore.getState().canWrite).toBe(false);
         expect(canvases.viewOnlyMounts).toBeGreaterThan(0);
+      });
+    });
+
+    it("states no today-priced figure beside the copy that was sent, outside the estimates' own 'now' (W6e-3)", async () => {
+      await drawEach(everyCombination(["none"]), (combination) => {
+        if (expectationOf(combination).shown !== "as-sent") return;
+        const page = requireIn(harness.container(), PAGE).cloneNode(true);
+        if (!(page instanceof HTMLElement)) throw new Error("no page");
+        for (const estimates of allIn(
+          page,
+          '[data-testid="staff-kitchen-estimates"]',
+        )) {
+          estimates.remove();
+        }
+
+        expect(allIn(page, '[data-fact="price"]')).toHaveLength(0);
+        // "from" is also the first letters of other words, so it is a starting price only when a figure follows it.
+        expect(page.textContent).not.toMatch(
+          new RegExp(`${CATALOGUES[locale].price.startingPrefix}\\s*\\d`, "u"),
+        );
       });
     });
 

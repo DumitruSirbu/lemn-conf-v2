@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 //
-// The first column of the staff kitchen page: the kitchen to look at and what it is made of. The picture is the review's
-// view-only canvas over a store hydrated read-only; it never mounts the editor's canvas, and it describes the design it
-// is given and no other. The canvas itself is a stub (happy-dom has no WebGL); that the real view-only stage selects
+// The picture of the staff kitchen page and the facts of its cabinet list's header (what the kitchen is made of). The
+// picture is the review's view-only canvas over a store hydrated read-only; it never mounts the editor's canvas, and it
+// describes the design it is given and no other. The canvas itself is a stub (happy-dom has no WebGL); that the real view-only stage selects
 // nothing is `tests/scene/kitchen-stage-view-only.test.ts`.
 import { KITCHEN_L_DESIGN, type Design } from "@lemnaria/configurator-domain";
 import { createTranslator } from "next-intl";
@@ -11,8 +11,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { resolveContent, resolveStaffKitchenCopy } from "@/i18n/content";
 import { useCameraPreset } from "@/scene/camera-preset-store";
+import { KitchenSettings } from "@/staff/staff-cabinet-settings";
 import {
-  StaffKitchenSummary,
   StaffKitchenView,
   describeStaffSummaryRows,
 } from "@/staff/staff-kitchen-view";
@@ -274,22 +274,20 @@ describe("the summary", () => {
     expect(valueOf(rows, "price")).toBe(NO_VALUE);
   });
 
-  it("is a card headed with the title it is told, a list of the facts, and the note that a price is not an offer", () => {
+  it("is a list of the facts, and the note that a price is not an offer when the header states the price", () => {
     screen = mountInCatalogue(
-      createElement(StaffKitchenSummary, {
+      createElement(KitchenSettings, {
         design: KITCHEN_L_DESIGN,
-        title: roMessages.staffKitchen.summaryTitleSent,
-        noValue: NO_VALUE,
+        other: undefined,
+        isShownCurrent: false,
+        omitsStartingPrice: false,
       }),
     );
     const card = requireIn(
       screen.container,
-      '[data-testid="staff-kitchen-summary"]',
+      '[data-testid="staff-kitchen-settings"]',
     );
 
-    expect(requireIn(card, "h2").textContent).toBe(
-      roMessages.staffKitchen.summaryTitleSent,
-    );
     expect(allIn(card, "dt").map((term) => term.textContent)).toEqual([
       roMessages.staffKitchen.summaryShape,
       roMessages.staffKitchen.summaryWalls,
@@ -299,8 +297,57 @@ describe("the summary", () => {
       roMessages.staffKitchen.summaryBodies,
       roMessages.staffKitchen.summaryPrice,
     ]);
-    expect(card.textContent).toContain(
+    expect(screen.container.textContent).toContain(
       roMessages.staffKitchen.summaryPriceNote,
+    );
+  });
+
+  it("words each fact of the header as describeStaffSummaryRows words it for the design shown (W6e-1)", () => {
+    screen = mountInCatalogue(
+      createElement(KitchenSettings, {
+        design: KITCHEN_L_DESIGN,
+        other: undefined,
+        isShownCurrent: false,
+        omitsStartingPrice: false,
+      }),
+    );
+
+    const drawn = allIn(screen.container, "[data-fact]").map((fact) => [
+      fact.getAttribute("data-fact"),
+      requireIn(fact, "dd").textContent,
+    ]);
+
+    expect(drawn).toEqual(
+      rowsOf(KITCHEN_L_DESIGN).map(({ key, value }) => [key, value]),
+    );
+  });
+
+  it("marks a setting that differs from the other copy and says what the sent copy had, beside the current copy (W6e-1)", () => {
+    const narrower: Design = {
+      ...KITCHEN_L_DESIGN,
+      room: {
+        ...KITCHEN_L_DESIGN.room,
+        widthMm: KITCHEN_L_DESIGN.room.widthMm - 400,
+      },
+    };
+    screen = mountInCatalogue(
+      createElement(KitchenSettings, {
+        design: KITCHEN_L_DESIGN,
+        other: narrower,
+        isShownCurrent: true,
+        omitsStartingPrice: true,
+      }),
+    );
+
+    const walls = requireIn(screen.container, '[data-fact="walls"]');
+
+    expect(walls.getAttribute("data-differs")).toBe("true");
+    expect(walls.textContent).toContain(roMessages.staffChanges.rowDiffers);
+    expect(walls.textContent).toContain(
+      roMessages.staffChanges.rowWasInSent.replace(
+        "{value}",
+        valueOf(rowsOf(narrower), "walls") ?? "",
+      ),
     );
   });
 });

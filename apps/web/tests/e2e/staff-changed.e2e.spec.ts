@@ -223,9 +223,11 @@ test("the version switch opens on the current copy, shows the other on press, ma
     ),
   });
   await expect(current).toBeChecked();
-  await expect(page.locator("#staff-kitchen-summary-title")).toHaveText(
-    romanian("staffKitchen.summaryTitleCurrent"),
-  );
+  await expect(
+    page
+      .getByTestId("staff-kitchen-cabinets")
+      .getByRole("heading", { level: 2 }),
+  ).toHaveText(romanian("staffKitchen.summaryTitleCurrent"));
   const cabinets = page.getByTestId("staff-kitchen-cabinet");
   await expect(cabinets).toHaveCount(BODIES_NOW);
   await expect(
@@ -250,9 +252,11 @@ test("the version switch opens on the current copy, shows the other on press, ma
 
   await page.getByRole("radio", { name: sentChoiceName }).check();
 
-  await expect(page.locator("#staff-kitchen-summary-title")).toHaveText(
-    romanian("staffKitchen.summaryTitleSent"),
-  );
+  await expect(
+    page
+      .getByTestId("staff-kitchen-cabinets")
+      .getByRole("heading", { level: 2 }),
+  ).toHaveText(romanian("staffKitchen.summaryTitleSent"));
   await expect(cabinets).toHaveCount(BODIES_NOW);
   await expect(page.getByTestId("staff-kitchen-view")).toBeVisible();
   await expect(page.getByTestId("staff-kitchen-seen-notice")).toHaveText(
@@ -278,9 +282,11 @@ test("a kitchen the price list cannot price says why, draws no figure for it, an
   // The server reads the document as it stands as nothing, since it holds a body no catalogue knows: with one copy to read
   // there is nothing to switch between, and the copy as sent is the one drawn.
   await expect(page.getByTestId("staff-kitchen-versions")).toHaveCount(0);
-  await expect(page.locator("#staff-kitchen-summary-title")).toHaveText(
-    romanian("staffKitchen.summaryTitleSent"),
-  );
+  await expect(
+    page
+      .getByTestId("staff-kitchen-cabinets")
+      .getByRole("heading", { level: 2 }),
+  ).toHaveText(romanian("staffKitchen.summaryTitleSent"));
   await expect(page.getByTestId("staff-kitchen-seen-notice")).toHaveText("");
   await shootForReview(page, "mobile-changed-refused");
 });

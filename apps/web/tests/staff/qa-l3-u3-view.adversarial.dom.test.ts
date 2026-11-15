@@ -16,8 +16,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { resolveContent, resolveStaffKitchenCopy } from "@/i18n/content";
 import { useCameraPreset } from "@/scene/camera-preset-store";
+import { KitchenSettings } from "@/staff/staff-cabinet-settings";
 import {
-  StaffKitchenSummary,
   StaffKitchenView,
   describeStaffSummaryRows,
 } from "@/staff/staff-kitchen-view";
@@ -405,12 +405,13 @@ describe("a kitchen of any odd but valid shape", () => {
     expect(rows.find(({ key }) => key === "bodies")?.value).toBe("0");
   });
 
-  it("renders the summary card of an overflowing kitchen with its warning inside the price row", () => {
+  it("renders the header facts of an overflowing kitchen with its warning inside the price row", () => {
     screen = mountInCatalogue(
-      createElement(StaffKitchenSummary, {
+      createElement(KitchenSettings, {
         design: OVERFLOWING_KITCHEN_L_DESIGN,
-        title: roMessages.staffKitchen.summaryTitleSent,
-        noValue: NO_VALUE,
+        other: undefined,
+        isShownCurrent: false,
+        omitsStartingPrice: false,
       }),
     );
 

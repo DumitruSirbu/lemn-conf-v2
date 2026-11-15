@@ -1,7 +1,8 @@
-/* The staff kitchen page (Lot 3 frames S3A to S3I): a phone stacks the picture, the client's column, the summary and the notes;
- * from 900 px they stand as three columns, the picture over the summary in the first. Every interactive box is at least
- * `--touch-target` tall. The marks are drawn here, so no glyph is text, and a string a client typed is isolated from the text
- * around it so a right-to-left run cannot reorder its neighbours. */
+/* The staff kitchen page (Lot 3 frames S3A to S3I): a phone stacks the picture and its link, the cabinet
+ * list, the client's cards with the line that says the access is logged, and the notes; from 900 px they stand as three
+ * columns, the picture over the cabinet list in the first and the cards in the second. Every interactive box is at
+ * least `--touch-target` tall. The marks are drawn here, so no glyph is text, and a string a client typed is isolated
+ * from the text around it so a right-to-left run cannot reorder its neighbours. */
 .page {
   --warm-surface: #f7ecdc;
   --warm-edge: #e6cfa8;
@@ -111,22 +112,19 @@
   text-wrap: pretty;
 }
 
-/* The grid is the phone's single column; the areas name where each cell stands once the columns are three. The DOM order is
- * the phone's reading order, so the Tab order follows what the person sees. */
+/* The grid is the phone's single column, in the DOM's order: the picture and its link, the cabinet list, the cards
+ * (the client, the request, the price, the status and the access line) and the notes. The same order serves every
+ * width, so the Tab order is what a person sees on a phone and, with the areas below, on a desktop. It departs from
+ * the mockup's phone order (the list after the cards) on purpose: a focus order that jumps back to the first column
+ * fails WCAG 2.4.3. */
 .columns {
   display: grid;
-  grid-template-areas:
-    "view"
-    "contact"
-    "summary"
-    "notes";
   grid-template-columns: minmax(0, 1fr);
   gap: 16px;
   align-items: start;
 }
 
 .viewCell {
-  grid-area: view;
   min-width: 0;
 }
 
@@ -200,20 +198,17 @@
 .contactColumn {
   display: flex;
   flex-direction: column;
-  grid-area: contact;
   gap: 16px;
   min-width: 0;
 }
 
-.summaryCell {
-  grid-area: summary;
+.listCell {
   min-width: 0;
 }
 
 .notesColumn {
   display: flex;
   flex-direction: column;
-  grid-area: notes;
   gap: 12px;
   min-width: 0;
 }
@@ -330,13 +325,6 @@
   border-radius: 6px;
 }
 
-.cardNote {
-  margin: 0;
-  font: 400 12px/1.45 var(--font-ui);
-  color: var(--ink-muted);
-  text-wrap: pretty;
-}
-
 .facts {
   display: flex;
   flex-direction: column;
@@ -369,22 +357,12 @@
   unicode-bidi: isolate;
 }
 
-/* A setting of the kitchen that differs between its two copies: the warm surface of a changed row, and a word. */
+/* The price card's current estimate when it differs from the one sent: the warm surface of a changed row. */
 .fact[data-differs="true"] {
   padding: 8px 10px;
   margin: -8px -10px;
   background: var(--warm-surface);
   border-radius: 8px;
-}
-
-.factMark {
-  align-self: flex-start;
-  padding: 3px 8px;
-  font: 700 11.5px/1.2 var(--font-ui);
-  color: var(--warm-ink);
-  background: var(--paper);
-  border: 1px solid var(--warm-edge);
-  border-radius: 999px;
 }
 
 .factSub {
@@ -769,12 +747,28 @@
   .columns {
     grid-template-areas:
       "view contact notes"
-      "summary contact notes";
+      "list contact notes";
     grid-template-rows: auto 1fr;
     grid-template-columns:
       minmax(0, 640px) minmax(0, 440px)
       minmax(0, 460px);
     gap: 24px;
+  }
+
+  .viewCell {
+    grid-area: view;
+  }
+
+  .contactColumn {
+    grid-area: contact;
+  }
+
+  .listCell {
+    grid-area: list;
+  }
+
+  .notesColumn {
+    grid-area: notes;
   }
 
   .picture {

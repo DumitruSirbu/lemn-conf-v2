@@ -59,13 +59,38 @@ test("the columns stack in one, the page does not scroll sideways, and the field
 }) => {
   await openStaffKitchen(page, openedId);
 
-  const view = await page.getByTestId("staff-kitchen-view").boundingBox();
-  const status = await page.getByTestId("staff-kitchen-status").boundingBox();
-  const notes = await page.getByTestId("staff-notes").boundingBox();
-  expect(view && status && notes, "every part is drawn").toBeTruthy();
-  expect(status?.x).toBe(view?.x);
-  expect(notes?.x).toBe(view?.x);
-  expect(status?.y).toBeGreaterThan((view?.y ?? 0) + (view?.height ?? 0) - 1);
+  // The one reading order of every width (ADR 0185 decision 6): the picture, the cabinet list, the client, the request, the
+  // price, the status, the access line, the notes.
+  const readingOrder = [
+    "staff-kitchen-view",
+    "staff-kitchen-cabinets",
+    "staff-kitchen-profile",
+    "staff-kitchen-request",
+    "staff-kitchen-estimates",
+    "staff-kitchen-status",
+    "staff-kitchen-access-log",
+    "staff-notes",
+  ];
+  const boxes = [];
+  for (const testId of readingOrder) {
+    boxes.push({
+      testId,
+      box: await page.getByTestId(testId).boundingBox(),
+    });
+  }
+  const view = boxes[0]?.box;
+  for (const { testId, box } of boxes) {
+    expect(box, `${testId} is drawn`).toBeTruthy();
+    expect(box?.x, `${testId} stands in the one column`).toBe(view?.x);
+  }
+  for (const [position, { testId, box }] of boxes.entries()) {
+    const above = boxes[position - 1];
+    if (above?.box === undefined || above.box === null) continue;
+    expect(
+      box?.y,
+      `${testId} stands under ${above.testId}`,
+    ).toBeGreaterThanOrEqual(above.box.y + above.box.height - 1);
+  }
   expect(await pageScrollsSideways(page), "a horizontal page scroll").toBe(
     false,
   );

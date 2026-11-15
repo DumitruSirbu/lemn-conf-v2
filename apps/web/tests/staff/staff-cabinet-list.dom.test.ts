@@ -83,6 +83,7 @@ function Harness({
       shownVersion: version,
       other: version === "current" ? sent : current,
       sentLines,
+      omitsStartingPrice: true,
     }),
   );
 }

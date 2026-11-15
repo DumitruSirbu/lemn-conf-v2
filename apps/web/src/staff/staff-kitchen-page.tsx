@@ -50,7 +50,6 @@ import {
   KitchenNotAvailable,
   LoadingKitchen,
 } from "./staff-kitchen-states";
-import { StaffKitchenSummary } from "./staff-kitchen-view";
 import { StaffNotes } from "./staff-notes";
 import {
   StaffForbiddenScreen,
@@ -69,14 +68,18 @@ import { useMarkSeen } from "./use-mark-seen";
 import { useUnhide } from "./use-unhide";
 
 // One client's kitchen (frames S3A to S3C, S3H and S3I; the desktop frames are the same page in three columns). Three
-// columns on a desktop: the kitchen and what it is made of; the status, the request, the client and the line that says the
-// access is logged; and the notes. A phone stacks them in that reading order, with the summary after the client. Every
-// string a client or a staff member typed (a name, an address, a phone, a note) is a React text child: nothing
-// here builds markup from one, and no address or phone is made a link.
+// columns on a desktop: the picture, its link and the cabinet list, headed by what the kitchen is made of; the client,
+// the request, the price, the status and the line that says the access is logged; and the notes. A phone reads the
+// picture, the link, the list, the cards, the access line and the notes: the DOM's order. One order serves every
+// width, so the focus order is what the person sees on a desktop (the list stands under the picture in the first
+// column) and on a phone. A deliberate accessibility choice (WCAG 2.4.3) that departs from the mockup's phone order,
+// which put the list after the cards. Every string a client or a staff member typed (a name, an address, a phone, a
+// note) is a React text child: nothing here builds markup from one, and no address or phone is made a link.
 //
-// What staff write here (a note, a request status, making a hidden kitchen visible again) is the three components the page
-// mounts in its columns and its banner; each makes its own request and hands the page the kitchen's new shape (`edit`) or asks
-// for it again behind the page (`refresh`), so the page is never replaced under what a person is typing.
+// What staff write here (a note, a request status, making a hidden kitchen visible again) is the three components the
+// page mounts in its columns and its banner; each makes its own request and hands the page the kitchen's new shape
+// (`edit`) or asks for it again behind the page (`refresh`), so the page is never replaced under what a person is
+// typing.
 
 export function StaffKitchenScreen({
   locale,
@@ -279,16 +282,28 @@ function ReadyKitchen({
               version={versionLabels === undefined ? undefined : shownVersion}
             />
           )}
+        </div>
+        <div className={styles.listCell}>
           {shown === undefined ? null : (
             <StaffCabinetList
               design={shown.design}
               shownVersion={shownVersion}
               other={otherCopyOf(versions, shownVersion)}
               sentLines={wire.sentCabinetLines}
+              omitsStartingPrice={isStartingPriceOmitted({
+                kitchen,
+                request: wire.request,
+                shownSource: shown.source,
+              })}
             />
           )}
         </div>
         <div className={styles.contactColumn}>
+          <ClientProfile client={wire.client} />
+          <RequestCard request={wire.request} />
+          {wire.request === null ? null : (
+            <KitchenEstimates estimates={wire} copies={copies} />
+          )}
           <RequestStatusCard
             locale={locale}
             designId={kitchen.id}
@@ -297,34 +312,9 @@ function ReadyKitchen({
             editing={editing}
             titleRef={titleRef}
           />
-          <RequestCard request={wire.request} />
-          {wire.request === null ? null : (
-            <KitchenEstimates estimates={wire} copies={copies} />
-          )}
-          <ClientProfile client={wire.client} />
-          <p className={styles.caption}>{copy.accessLogged}</p>
-        </div>
-        <div className={styles.summaryCell}>
-          {shown === undefined ? null : (
-            <StaffKitchenSummary
-              design={shown.design}
-              title={
-                shown.source === "as-sent"
-                  ? copy.summary.titleSent
-                  : copy.summary.titleCurrent
-              }
-              noValue={lists.noValue}
-              omitsPrice={wire.request !== null}
-              {...(versions === undefined
-                ? {}
-                : {
-                    comparison: {
-                      design: otherCopyOf(versions, shownVersion),
-                      isShownCurrent: shownVersion === "current",
-                    },
-                  })}
-            />
-          )}
+          <p className={styles.caption} data-testid="staff-kitchen-access-log">
+            {copy.accessLogged}
+          </p>
         </div>
         <StaffNotes
           locale={locale}
@@ -335,6 +325,22 @@ function ReadyKitchen({
         />
       </div>
     </>
+  );
+}
+
+/** Only a draft states a starting price: a kitchen ever sent has the price card's estimates, and the sent copy was not
+ *  priced with today's book (ADR 0185 decision 6, W6e-3). */
+function isStartingPriceOmitted({
+  kitchen,
+  request,
+  shownSource,
+}: {
+  readonly kitchen: StaffKitchenOpenedWire["kitchen"];
+  readonly request: StaffKitchenOpenedWire["request"];
+  readonly shownSource: "current" | "as-sent";
+}): boolean {
+  return (
+    sentAtOf(kitchen) !== null || request !== null || shownSource === "as-sent"
   );
 }
 

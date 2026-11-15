@@ -74,19 +74,48 @@ test("a sent kitchen opens in three columns, with the request, the client, the t
   await openStaffKitchen(page, openedId);
 
   const view = await page.getByTestId("staff-kitchen-view").boundingBox();
-  const summary = await page.getByTestId("staff-kitchen-summary").boundingBox();
+  const cabinets = await page
+    .getByTestId("staff-kitchen-cabinets")
+    .boundingBox();
+  const profile = await page.getByTestId("staff-kitchen-profile").boundingBox();
+  const request = await page.getByTestId("staff-kitchen-request").boundingBox();
+  const estimates = await page
+    .getByTestId("staff-kitchen-estimates")
+    .boundingBox();
   const status = await page.getByTestId("staff-kitchen-status").boundingBox();
+  const accessLog = await page
+    .getByTestId("staff-kitchen-access-log")
+    .boundingBox();
   const notes = await page.getByTestId("staff-notes").boundingBox();
   expect(
-    view && summary && status && notes,
+    view &&
+      cabinets &&
+      profile &&
+      request &&
+      estimates &&
+      status &&
+      accessLog &&
+      notes,
     "every column is drawn",
   ).toBeTruthy();
-  // The picture and the configuration share the first column; the request is in the second and the notes in the third.
-  expect(summary?.x).toBe(view?.x);
-  expect(view?.x).toBeLessThan(status?.x ?? 0);
-  expect(status?.x).toBeLessThan(notes?.x ?? 0);
-  expect(Math.abs((view?.y ?? 0) - (status?.y ?? 99_999))).toBeLessThan(40);
-  expect(Math.abs((status?.y ?? 0) - (notes?.y ?? 99_999))).toBeLessThan(40);
+  // The picture and the cabinet list share the first column, the cards and the access line the second, the notes the third.
+  expect(cabinets?.x).toBe(view?.x);
+  expect(cabinets?.y).toBeGreaterThanOrEqual(
+    (view?.y ?? 0) + (view?.height ?? 0) - 1,
+  );
+  expect(view?.x).toBeLessThan(profile?.x ?? 0);
+  expect(profile?.x).toBeLessThan(notes?.x ?? 0);
+  expect(Math.abs((view?.y ?? 0) - (profile?.y ?? 99_999))).toBeLessThan(40);
+  expect(Math.abs((profile?.y ?? 0) - (notes?.y ?? 99_999))).toBeLessThan(40);
+  // The second column reads the client, the request, the price, the status, then the access line.
+  expect(request?.x).toBe(profile?.x);
+  expect(estimates?.x).toBe(profile?.x);
+  expect(status?.x).toBe(profile?.x);
+  expect(accessLog?.x).toBe(profile?.x);
+  expect(request?.y).toBeGreaterThan(profile?.y ?? 0);
+  expect(estimates?.y).toBeGreaterThan(request?.y ?? 0);
+  expect(status?.y).toBeGreaterThan(estimates?.y ?? 0);
+  expect(accessLog?.y).toBeGreaterThan(status?.y ?? 0);
   await expect(page.getByTestId("staff-notes-count")).toHaveText(
     romanian("staffNotes.count", { count: PLANTED_NOTES.length }),
   );

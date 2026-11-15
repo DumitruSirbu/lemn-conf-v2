@@ -1,7 +1,8 @@
-/* The staff kitchen page's cabinet list (ADR 0185 decision 3): an accordion of the projection's groups, as the client's
- * review lists them. Every group header and the expand-all button are at least `--touch-target` tall (the header the
- * mockup's 52 px). A body that differs, is new or was taken out takes the warm surface and always a word: the colour only
- * agrees with it. A closed panel is `hidden`, and the class's own `display` must not undo that. */
+/* The staff kitchen page's cabinet list (ADR 0185 decisions 3 and 6): a header that says what the kitchen is made of,
+ * over an accordion of the projection's groups, as the client's review lists them. Every group header and the
+ * expand-all button are at least `--touch-target` tall (the header the mockup's 52 px). A body that differs, is new or
+ * was taken out takes the warm surface and always a word: the colour only agrees with it. A closed panel is `hidden`,
+ * and the class's own `display` must not undo that. */
 .list {
   display: flex;
   flex-direction: column;
@@ -21,6 +22,53 @@
   margin: 0;
   font: 700 15px/1.3 var(--font-ui);
   color: var(--ink);
+}
+
+/* The room, the settings of the whole kitchen and the count: one fact after another, wrapping on a phone. A setting
+ * that differs between the copies takes the warm surface and always a word (`.mark`), as a changed row does. */
+.settings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin: 0;
+}
+
+.setting {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  align-items: baseline;
+  min-width: 0;
+}
+
+.setting[data-differs="true"] {
+  padding: 6px 10px;
+  background: var(--warm-surface);
+  border-radius: 8px;
+}
+
+.settingLabel {
+  font: 400 12px/1.4 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.settingValue {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  align-items: baseline;
+  min-width: 0;
+  margin: 0;
+  font: 700 13.5px/1.4 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+  unicode-bidi: isolate;
+}
+
+.settingSub {
+  font: 400 12px/1.35 var(--font-ui);
+  color: var(--ink-muted);
 }
 
 .toggleAll {

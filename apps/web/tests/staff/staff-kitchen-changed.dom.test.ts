@@ -366,7 +366,7 @@ describe.each(LOCALES)(
         expect(has("staff-kitchen-estimates")).toBe(false);
         expect(
           container().querySelector(
-            '[data-testid="staff-kitchen-summary"] [data-fact="price"]',
+            '[data-testid="staff-kitchen-settings"] [data-fact="price"]',
           ),
         ).not.toBeNull();
       });
@@ -379,7 +379,7 @@ describe.each(LOCALES)(
         expect(has("staff-kitchen-estimates")).toBe(true);
         expect(
           container().querySelector(
-            '[data-testid="staff-kitchen-summary"] [data-fact="price"]',
+            '[data-testid="staff-kitchen-settings"] [data-fact="price"]',
           ),
         ).toBeNull();
       });
@@ -559,7 +559,7 @@ describe.each(LOCALES)(
         expect(textOf("staff-kitchen-versions")).toContain(
           changes.versionLabel,
         );
-        expect(textOf("staff-kitchen-summary")).toContain(
+        expect(textOf("staff-kitchen-cabinets")).toContain(
           kitchen.summaryTitleCurrent,
         );
         expect(textOf("staff-kitchen-versions")).toContain(
@@ -574,7 +574,7 @@ describe.each(LOCALES)(
 
         const [sent] = versionChoices();
         expect(sent?.checked).toBe(true);
-        expect(textOf("staff-kitchen-summary")).toContain(
+        expect(textOf("staff-kitchen-cabinets")).toContain(
           kitchen.summaryTitleSent,
         );
       });
@@ -594,7 +594,7 @@ describe.each(LOCALES)(
         await settle();
 
         expect(sent?.checked).toBe(true);
-        expect(textOf("staff-kitchen-summary")).toContain(
+        expect(textOf("staff-kitchen-cabinets")).toContain(
           kitchen.summaryTitleSent,
         );
         expect(canvases.viewOnlyMounts).toBeGreaterThan(mountsBefore);
@@ -684,7 +684,7 @@ describe.each(LOCALES)(
         const differing = () =>
           allIn(
             container(),
-            '[data-testid="staff-kitchen-summary"] [data-differs]',
+            '[data-testid="staff-kitchen-settings"] [data-differs]',
           );
 
         expect(differing().map((fact) => fact.dataset.fact)).toEqual(["walls"]);
@@ -719,7 +719,7 @@ describe.each(LOCALES)(
         expect(
           allIn(
             container(),
-            '[data-testid="staff-kitchen-summary"] [data-differs]',
+            '[data-testid="staff-kitchen-settings"] [data-differs]',
           ),
         ).toHaveLength(0);
       });

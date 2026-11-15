@@ -198,7 +198,7 @@ const FEWER_BODIES_DESIGN: unknown = {
 function factOf(key: string): string {
   return requireIn(
     container(),
-    `[data-testid="staff-kitchen-summary"] [data-fact="${key}"] dd`,
+    `[data-testid="staff-kitchen-settings"] [data-fact="${key}"] dd`,
   ).textContent;
 }
 
@@ -276,7 +276,8 @@ describe.each(LOCALES)("the kitchen page in %s", (locale) => {
 
     it("heads the summary as the configuration that was sent and says nothing of a current variant", () => {
       expect(
-        requireIn(container(), "#staff-kitchen-summary-title").textContent,
+        requireIn(container(), '[data-testid="staff-kitchen-cabinets"] h2')
+          .textContent,
       ).toBe(words.summaryTitleSent);
       expect(has("staff-kitchen-current-variant")).toBe(false);
     });
@@ -313,6 +314,56 @@ describe.each(LOCALES)("the kitchen page in %s", (locale) => {
 
     it("says the access is logged", () => {
       expect(page().textContent).toContain(words.accessLogged);
+    });
+
+    it("stands in the DOM in the one order of every width: the picture, the cabinets, the client, the request, the price, the status, the access line, the notes (W6e-2)", () => {
+      const readingOrder = [
+        "staff-kitchen-view",
+        "staff-kitchen-cabinets",
+        "staff-kitchen-profile",
+        "staff-kitchen-request",
+        "staff-kitchen-estimates",
+        "staff-kitchen-status",
+        "staff-kitchen-access-log",
+        "staff-notes",
+      ];
+
+      const elements = readingOrder.map((testId) => ({
+        testId,
+        element: requireIn(container(), `[data-testid="${testId}"]`),
+      }));
+
+      elements.forEach(({ testId, element }, position) => {
+        const next = elements[position + 1];
+        if (next === undefined) return;
+        expect(
+          element.compareDocumentPosition(next.element) &
+            Node.DOCUMENT_POSITION_FOLLOWING,
+          `${testId} comes before ${next.testId}`,
+        ).toBeTruthy();
+      });
+    });
+
+    it("says what the kitchen is made of in the cabinet list's header, and draws no summary card of its own (W6e-1)", () => {
+      for (const key of [
+        "shape",
+        "walls",
+        "material",
+        "hardware",
+        "finish",
+        "bodies",
+      ]) {
+        expect(
+          container().querySelector(
+            `[data-testid="staff-kitchen-cabinets"] [data-fact="${key}"] dd`,
+          )?.textContent,
+          key,
+        ).toBeTruthy();
+      }
+      expect(has("staff-kitchen-summary")).toBe(false);
+      expect(
+        container().querySelector("#staff-kitchen-summary-title"),
+      ).toBeNull();
     });
 
     it("leads the language links to this kitchen in the other language, not to the list", () => {
@@ -440,7 +491,8 @@ describe.each(LOCALES)("the kitchen page in %s", (locale) => {
     it("shows the current document and says it is the current variant", () => {
       expect(textOf("staff-kitchen-current-variant")).toBe(words.viewCurrent);
       expect(
-        requireIn(container(), "#staff-kitchen-summary-title").textContent,
+        requireIn(container(), '[data-testid="staff-kitchen-cabinets"] h2')
+          .textContent,
       ).toBe(words.summaryTitleCurrent);
       expect(canvases.viewOnlyMounts).toBeGreaterThan(0);
     });
@@ -456,7 +508,9 @@ describe.each(LOCALES)("the kitchen page in %s", (locale) => {
 
       await mount(locale);
 
-      expect(textOf("staff-kitchen-summary")).toContain(words.summaryTitleSent);
+      expect(textOf("staff-kitchen-cabinets")).toContain(
+        words.summaryTitleSent,
+      );
       expect(factOf("bodies")).toBe(String(FEWER_BODIES));
       expect(has("staff-kitchen-current-variant")).toBe(false);
     });
@@ -471,7 +525,7 @@ describe.each(LOCALES)("the kitchen page in %s", (locale) => {
       await mount(locale);
 
       expect(factOf("bodies")).toBe(String(FEWER_BODIES));
-      expect(textOf("staff-kitchen-summary")).toContain(
+      expect(textOf("staff-kitchen-cabinets")).toContain(
         words.summaryTitleCurrent,
       );
     });
@@ -578,7 +632,7 @@ describe.each(LOCALES)("the kitchen page in %s", (locale) => {
       expect(notice).toContain(words.cannotShowTitle);
       expect(notice).toContain(words.cannotShowBody);
       expect(has("staff-kitchen-view")).toBe(false);
-      expect(has("staff-kitchen-summary")).toBe(false);
+      expect(has("staff-kitchen-settings")).toBe(false);
       expect(canvases.viewOnlyMounts).toBe(0);
     });
 

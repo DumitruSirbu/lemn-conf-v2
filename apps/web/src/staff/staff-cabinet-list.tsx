@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
+import { useId, useMemo, useState, type ReactNode } from "react";
 
 import type { Design } from "@lemnaria/configurator-domain";
 
@@ -20,12 +20,14 @@ import {
   type CabinetListGroup,
   type CabinetListRow,
 } from "./staff-cabinet-list-model";
+import { KitchenSettings } from "./staff-cabinet-settings";
 import { useIsDesktop } from "./staff-kitchens-list";
 import type { StaffSentCabinetLineWire } from "./staff-kitchens-wire-contract";
 
-// Every cabinet of the copy on screen, in an accordion of the client's review groups (ADR 0185 decisions 3 and 4). The
-// words are the model's and the catalogue's. What staff opened or closed lives here, in memory, while the page is open:
-// the list stays mounted across a version switch, and nothing is stored.
+// Every cabinet of the copy on screen, in an accordion of the client's review groups (ADR 0185 decisions 3 and 4),
+// under a header that says what the kitchen is made of (decision 6). The words are the model's and the catalogue's.
+// What staff opened or closed lives here, in memory, while the page is open: the list stays mounted across a version
+// switch, and nothing is stored.
 
 /** At a desktop width the first two groups start open, on a phone the first (mockup `Bucatarii clienti`, `:210`). */
 const DEFAULT_OPEN_GROUPS_ON_DESKTOP = 2;
@@ -38,6 +40,8 @@ export interface StaffCabinetListProps {
   readonly other: Design | undefined;
   /** What the sent request stored for each cabinet: the sent copy's amounts. */
   readonly sentLines: readonly StaffSentCabinetLineWire[];
+  /** Leaves the header's starting price out: only a draft states one (see `KitchenSettingsProps`). */
+  readonly omitsStartingPrice: boolean;
 }
 
 export function StaffCabinetList({
@@ -45,6 +49,7 @@ export function StaffCabinetList({
   shownVersion,
   other,
   sentLines,
+  omitsStartingPrice,
 }: StaffCabinetListProps) {
   const content = useContent();
   const priceBook = usePriceBookRoot();
@@ -62,20 +67,48 @@ export function StaffCabinetList({
   const expansion = useGroupExpansion(
     list.kind === "available" ? list.groups.map((group) => group.key) : [],
   );
-  const copy = useStaffChangesCopy().cabinets;
+  const settings = (
+    <KitchenSettings
+      design={design}
+      other={other}
+      isShownCurrent={shownVersion === "current"}
+      omitsStartingPrice={omitsStartingPrice}
+    />
+  );
   if (list.kind === "unavailable") {
-    return (
-      <p className={styles.unavailable} data-testid="staff-kitchen-cabinets">
-        {copy.unavailable}
-      </p>
-    );
+    return <UnavailableList shownVersion={shownVersion} settings={settings} />;
   }
   return (
     <AvailableList
       list={list}
       shownVersion={shownVersion}
       expansion={expansion}
+      settings={settings}
     />
+  );
+}
+
+function UnavailableList({
+  shownVersion,
+  settings,
+}: {
+  readonly shownVersion: KitchenVersion;
+  readonly settings: ReactNode;
+}) {
+  const copy = useStaffChangesCopy().cabinets;
+  const titleId = `${useId()}-title`;
+  return (
+    <section
+      className={styles.list}
+      aria-labelledby={titleId}
+      data-testid="staff-kitchen-cabinets"
+    >
+      <div className={styles.head}>
+        <ListTitle id={titleId} shownVersion={shownVersion} />
+      </div>
+      {settings}
+      <p className={styles.unavailable}>{copy.unavailable}</p>
+    </section>
   );
 }
 
@@ -83,13 +116,14 @@ function AvailableList({
   list,
   shownVersion,
   expansion,
+  settings,
 }: {
   readonly list: AvailableCabinetList;
   readonly shownVersion: KitchenVersion;
   readonly expansion: GroupExpansion;
+  readonly settings: ReactNode;
 }) {
   const copy = useStaffChangesCopy().cabinets;
-  const { summary } = useStaffKitchenCopy();
   const baseId = useId();
   const titleId = `${baseId}-title`;
   const isOpen = (group: CabinetListGroup): boolean =>
@@ -102,9 +136,7 @@ function AvailableList({
       data-testid="staff-kitchen-cabinets"
     >
       <div className={styles.head}>
-        <h2 id={titleId} className={styles.title}>
-          {shownVersion === "sent" ? summary.titleSent : summary.titleCurrent}
-        </h2>
+        <ListTitle id={titleId} shownVersion={shownVersion} />
         {list.groups.length === 0 ? null : (
           <button
             type="button"
@@ -118,6 +150,7 @@ function AvailableList({
           </button>
         )}
       </div>
+      {settings}
       {list.groups.map((group) => (
         <CabinetGroup
           key={group.key}
@@ -133,6 +166,22 @@ function AvailableList({
         <p className={styles.note}>{copy.highlightNote}</p>
       ) : null}
     </section>
+  );
+}
+
+/** Says which copy of the kitchen the list and its header describe. */
+function ListTitle({
+  id,
+  shownVersion,
+}: {
+  readonly id: string;
+  readonly shownVersion: KitchenVersion;
+}) {
+  const { summary } = useStaffKitchenCopy();
+  return (
+    <h2 id={id} className={styles.title}>
+      {shownVersion === "sent" ? summary.titleSent : summary.titleCurrent}
+    </h2>
   );
 }
 

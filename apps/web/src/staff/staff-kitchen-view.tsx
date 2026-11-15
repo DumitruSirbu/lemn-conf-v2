@@ -13,12 +13,7 @@ import {
 
 import { describeKitchenPrice } from "@/account/kitchens/kitchen-summary";
 import type { Content, StaffKitchenCopy } from "@/i18n/content";
-import {
-  useContent,
-  useStaffChangesCopy,
-  useStaffKitchenCopy,
-} from "@/i18n/use-content";
-import { usePriceBookRoot } from "@/price/price-book-provider";
+import { useContent, useStaffKitchenCopy } from "@/i18n/use-content";
 import { priceFloorOf, type PriceBookRoot } from "@/price/price-book-root";
 import { KitchenPicture } from "@/review/review-scene";
 import { useCameraPreset } from "@/scene/camera-preset-store";
@@ -35,7 +30,8 @@ import {
 
 import styles from "./staff-kitchen.module.css";
 
-// The first column of the staff kitchen page (frames S3B, S3C): the kitchen to look at, and what it is made of.
+// The kitchen to look at, at the head of the staff kitchen page's first column (frames S3B, S3C); what it is made of is
+// the cabinet list's header (`staff-cabinet-settings.tsx`).
 //
 // The view is the review's own picture, `KitchenPicture` over the view-only canvas: it mounts no orbit controls and picks
 // nothing, so no gesture on it can select a body or change the document, and it mounts no editor screen (the single-mount
@@ -169,7 +165,7 @@ function KitchenScene({
   );
 }
 
-/** One line of the summary: the label, the value the person reads and, under the price, the flagged total's sentence. */
+/** One fact of the kitchen: the label, the value the person reads and, under the price, the flagged total's sentence. */
 export interface StaffSummaryRow {
   readonly key:
     | "shape"
@@ -185,7 +181,7 @@ export interface StaffSummaryRow {
 }
 
 /**
- * What the design is made of, as the rows of the frames' "Configurația trimisă" card. Every value is a word the
+ * What the design is made of, as the facts in the header of the cabinet list. Every value is a word the
  * configurator already says of the same fact (the room's shape, the palette's finish name, the price book's tier names),
  * and the price is the starting figure of the kitchen as it stands, by the one rule of every price surface. A fact
  * that cannot be told (a kitchen the price book refuses, a design with no default colour) is `noValue`.
@@ -273,179 +269,4 @@ function finishNameOf(
   return finish.kind === "palette-entry"
     ? content.finishName(finish.entryId)
     : content.globalSettings.pillColourValue(finish.value);
-}
-
-/** The facts of the summary that are settings of the whole kitchen, which a change of the cabinets does not show. */
-const COMPARED_FACTS: readonly StaffSummaryRow["key"][] = [
-  "shape",
-  "walls",
-  "material",
-  "hardware",
-  "finish",
-];
-
-/** The other copy of the kitchen, so the facts that differ between the two are marked. `isShownCurrent` says the copy on
- *  screen is the one as it stands now, which is the one that tells what the sent copy had. */
-export interface SummaryComparison {
-  readonly design: Design;
-  readonly isShownCurrent: boolean;
-}
-
-/** The card under the picture. `title` says which copy of the kitchen it describes. A page that states the kitchen's two
- *  estimates itself leaves the card's own starting price out (`omitsPrice`): it prices the copy on screen with today's
- *  book, which the sent copy was not priced with, so beside the estimates it would be a third figure to contradict them. */
-export function StaffKitchenSummary({
-  design,
-  title,
-  noValue,
-  omitsPrice = false,
-  comparison,
-}: {
-  readonly design: Design;
-  readonly title: string;
-  readonly noValue: string;
-  readonly omitsPrice?: boolean;
-  readonly comparison?: SummaryComparison;
-}) {
-  const copy = useStaffKitchenCopy();
-  const rows = useSummaryRows({ design, noValue, omitsPrice });
-  const differing = useDifferingFacts({
-    rows,
-    otherDesign: comparison?.design,
-    noValue,
-  });
-  return (
-    <section
-      className={styles.card}
-      aria-labelledby="staff-kitchen-summary-title"
-      data-testid="staff-kitchen-summary"
-    >
-      <h2 id="staff-kitchen-summary-title" className={styles.cardTitle}>
-        {title}
-      </h2>
-      <dl className={styles.facts}>
-        {rows.map((row) => (
-          <SummaryFact
-            key={row.key}
-            row={row}
-            sentValue={
-              comparison?.isShownCurrent === true
-                ? differing.get(row.key)
-                : undefined
-            }
-            isDiffering={differing.has(row.key)}
-          />
-        ))}
-      </dl>
-      {omitsPrice ? null : (
-        <p className={styles.cardNote}>{copy.summary.priceNote}</p>
-      )}
-    </section>
-  );
-}
-
-function useSummaryRows({
-  design,
-  noValue,
-  omitsPrice,
-}: {
-  readonly design: Design;
-  readonly noValue: string;
-  readonly omitsPrice: boolean;
-}): readonly StaffSummaryRow[] {
-  const copy = useStaffKitchenCopy();
-  const content = useContent();
-  const priceBook = usePriceBookRoot();
-  return useMemo(
-    () =>
-      describeStaffSummaryRows({
-        design,
-        priceBook,
-        copy,
-        content,
-        noValue,
-      }).filter((row) => !(omitsPrice && row.key === "price")),
-    [design, priceBook, copy, content, noValue, omitsPrice],
-  );
-}
-
-/**
- * The settings of the kitchen that read differently in the other copy, by fact, with what the other copy says. A fact
- * either copy cannot tell (the dash) is not compared: a kitchen the price book cannot price would otherwise differ from
- * every one it can.
- */
-function useDifferingFacts({
-  rows,
-  otherDesign,
-  noValue,
-}: {
-  readonly rows: readonly StaffSummaryRow[];
-  readonly otherDesign: Design | undefined;
-  readonly noValue: string;
-}): ReadonlyMap<StaffSummaryRow["key"], string> {
-  const copy = useStaffKitchenCopy();
-  const content = useContent();
-  const priceBook = usePriceBookRoot();
-  const otherRows = useMemo(
-    () =>
-      otherDesign === undefined
-        ? []
-        : describeStaffSummaryRows({
-            design: otherDesign,
-            priceBook,
-            copy,
-            content,
-            noValue,
-          }),
-    [otherDesign, priceBook, copy, content, noValue],
-  );
-  return useMemo(() => {
-    const differing = new Map<StaffSummaryRow["key"], string>();
-    for (const row of rows) {
-      const other = otherRows.find(({ key }) => key === row.key)?.value;
-      const isDiffering =
-        COMPARED_FACTS.includes(row.key) &&
-        other !== undefined &&
-        row.value !== noValue &&
-        other !== noValue &&
-        other !== row.value;
-      if (isDiffering) differing.set(row.key, other);
-    }
-    return differing;
-  }, [rows, otherRows, noValue]);
-}
-
-/** One line of the summary. A fact that differs between the copies takes a mark, and beside the current copy it says what
- *  the sent one had (`sentValue`). */
-function SummaryFact({
-  row,
-  isDiffering,
-  sentValue,
-}: {
-  readonly row: StaffSummaryRow;
-  readonly isDiffering: boolean;
-  readonly sentValue: string | undefined;
-}) {
-  const changes = useStaffChangesCopy().cabinets;
-  return (
-    <div
-      className={styles.fact}
-      data-fact={row.key}
-      data-differs={isDiffering ? "true" : undefined}
-    >
-      <dt className={styles.factLabel}>{row.label}</dt>
-      <dd className={styles.factValue}>
-        {row.value}
-        {row.sub === undefined ? null : (
-          <span className={styles.factSub}>{row.sub}</span>
-        )}
-        {isDiffering ? (
-          <span className={styles.factMark}>{changes.differs}</span>
-        ) : null}
-        {sentValue === undefined ? null : (
-          <span className={styles.factSub}>{changes.wasInSent(sentValue)}</span>
-        )}
-      </dd>
-    </div>
-  );
 }

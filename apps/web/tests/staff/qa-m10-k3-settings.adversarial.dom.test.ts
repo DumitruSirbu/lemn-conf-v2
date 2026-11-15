@@ -49,7 +49,7 @@ const CONTEXT: StaffShellContext = {
 };
 const KITCHEN_ADDRESS = `/api/staff/kitchens/${STAFF_KITCHEN_ID}`;
 const SUMMARY_DIFFERENCES =
-  '[data-testid="staff-kitchen-summary"] [data-differs]';
+  '[data-testid="staff-kitchen-settings"] [data-differs]';
 
 let screen: MountedScreen | undefined;
 let server: StaffKitchensServer;

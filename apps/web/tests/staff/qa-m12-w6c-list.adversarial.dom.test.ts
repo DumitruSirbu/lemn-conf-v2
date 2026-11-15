@@ -10,10 +10,13 @@ import {
   projectDesignForDisplay,
   type Design,
 } from "@lemnaria/configurator-domain";
+import { createTranslator } from "next-intl";
 import { act, createElement, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+import { resolveContent } from "@/i18n/content";
 import { StaffCabinetList } from "@/staff/staff-cabinet-list";
+import { describeCabinetList } from "@/staff/staff-cabinet-list-model";
 import type { KitchenVersion } from "@/staff/kitchen-version-rows";
 import { NO_PRICE_BOOK, type PriceBookRoot } from "@/price/price-book-root";
 
@@ -93,6 +96,7 @@ function Harness({
       shownVersion: version,
       other: version === "current" ? sent : current,
       sentLines: [],
+      omitsStartingPrice: true,
     }),
   );
 }
@@ -329,7 +333,9 @@ describe.each(["ro", "ru"] as const)(
       expect(container.textContent).not.toMatch(/(^|\s)0(\s|$)/u);
     });
 
-    it("never reads the book for the sent copy on screen, and draws no amount on it", () => {
+    // The header of the list names the kitchen's material and hardware by the book's tiers (ADR 0185 decision 6), so the
+    // book is read for those words; it is the rows that are never priced with it.
+    it("never reads the book for the sent copy's rows, and gives no row an amount", () => {
       const unreadable = {
         kind: "active",
         versionId: "unread",
@@ -338,19 +344,23 @@ describe.each(["ro", "ru"] as const)(
         },
         availability: { revision: "0", disabled: [] },
       } as unknown as PriceBookRoot;
-
-      const container = mount({
+      const translate = createTranslator({
         locale,
-        firstVersion: "sent",
-        priceBook: unreadable,
+        messages: MESSAGES[locale] as typeof roMessages,
       });
 
-      expect(
-        allIn(container, '[data-testid="staff-kitchen-cabinet-amount"]'),
-      ).toHaveLength(0);
-      expect(allIn(container, "li").length).toBe(
-        KITCHEN_L_DESIGN.placements.length,
-      );
+      const list = describeCabinetList({
+        shown: { design: KITCHEN_L_DESIGN, version: "sent" },
+        other: undefined,
+        content: resolveContent(translate),
+        priceBook: unreadable,
+        sentLines: [],
+      });
+
+      if (list.kind !== "available") throw new Error("the list is unavailable");
+      const rows = list.groups.flatMap((group) => group.rows);
+      expect(rows).toHaveLength(KITCHEN_L_DESIGN.placements.length);
+      expect(rows.filter((row) => row.amountText !== undefined)).toEqual([]);
     });
 
     it("draws every current amount as digits with a thousands group of the locale and no fraction, at ten lei", () => {

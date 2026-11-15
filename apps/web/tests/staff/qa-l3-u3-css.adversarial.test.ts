@@ -27,7 +27,7 @@ const GRID_CELL_CLASSES = [
   "header",
   "viewCell",
   "contactColumn",
-  "summaryCell",
+  "listCell",
 ] as const;
 
 function ruleOf(css: string, className: string): string {
@@ -201,8 +201,18 @@ describe("the grid", () => {
       /grid-template-columns:\s*minmax\(0,\s*1fr\)/,
     );
     expect(css).toMatch(
-      /@media \(min-width: 900px\)[\s\S]*grid-template-areas:[\s\S]*"view contact notes"[\s\S]*"summary contact notes"/,
+      /@media \(min-width: 900px\)[\s\S]*grid-template-areas:[\s\S]*"view contact notes"[\s\S]*"list contact notes"/,
     );
+  });
+
+  it("keeps the areas to the desktop, so the phone stacks the cells in the DOM's order (W6e-2)", () => {
+    const beforeDesktop = css.slice(
+      0,
+      css.indexOf("@media (min-width: 900px)"),
+    );
+
+    expect(beforeDesktop).not.toMatch(/grid-area:|grid-template-areas:/);
+    expect(css).not.toMatch(/display:\s*contents|\border:\s*\d/);
   });
 
   it("hides nothing from the eye or the ear by display or visibility, so a state is not drawn and then removed by style", () => {
