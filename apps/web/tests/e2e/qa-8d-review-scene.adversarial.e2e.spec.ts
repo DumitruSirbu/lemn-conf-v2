@@ -55,6 +55,13 @@ const VIEW_SETTLE_MS = 1800;
 const STILL_SCENE_MAX_CHANGED_PIXELS = 60;
 const MOVED_VIEW_MIN_CHANGED_PIXELS = 4000;
 const PIXEL_NOISE_FLOOR = 12;
+/** Where the taps cross the scene: the wall view's base run, at seven tenths of the picture's height. */
+const SCENE_TAP_HEIGHT_SHARE = 0.7;
+const SCENE_TAP_OFFSETS = [-120, -60, 0, 60, 120] as const;
+/** A touch is a finger, not a point: a tap this close to the link may still be taken as the link's. */
+const LINK_TAP_MARGIN_PX = 12;
+/** Enough taps that some land on a body, so "nothing changed" is not trivially true. */
+const MIN_SCENE_TAPS = 4;
 /** These journeys wait out a dozen camera eases; on a busy machine that passes the default half minute. */
 const LONG_JOURNEY_TIMEOUT_MS = 120_000;
 const MOMENTUM_SETTLE_MS = 900;
@@ -80,6 +87,39 @@ async function settledScene(
 ): Promise<CapturedPatch> {
   await page.waitForTimeout(VIEW_SETTLE_MS);
   return capturePatch(page, clip);
+}
+
+/** Points across the scene's lower half, the wall view's base run, with any point on the 3D link left out. */
+async function tapsOffTheLink(
+  page: Page,
+  clip: PixelRect,
+): Promise<readonly { readonly x: number; readonly y: number }[]> {
+  const link = await page
+    .getByRole("link", { name: VIEW_IN_3D, exact: true })
+    .boundingBox();
+  const y = clip.y + clip.height * SCENE_TAP_HEIGHT_SHARE;
+  return SCENE_TAP_OFFSETS.map((offsetX) => ({
+    x: clip.x + clip.width / 2 + offsetX,
+    y,
+  })).filter((point) => link === null || !isWithin(point, link));
+}
+
+function isWithin(
+  point: { readonly x: number; readonly y: number },
+  box: {
+    readonly x: number;
+    readonly y: number;
+    readonly width: number;
+    readonly height: number;
+  },
+): boolean {
+  const margin = LINK_TAP_MARGIN_PX;
+  return (
+    point.x >= box.x - margin &&
+    point.x <= box.x + box.width + margin &&
+    point.y >= box.y - margin &&
+    point.y <= box.y + box.height + margin
+  );
 }
 
 function chips(page: Page): Locator {
@@ -188,10 +228,10 @@ test("a thumb swipe that starts on the scene scrolls the page, and neither a sid
 });
 
 /**
- * A known flake (backlog 195, 162): on a CI runner's software WebGL the still-scene count has read ~32 700 changed
- * pixels against at most 60 (CI run 38574379483, mobile shard 5/9) and passed alone. Owner's ruling 2026-10-14: this one
- * test is retried once on CI only, so a pass on the retry is reported "flaky" and not hidden. The assertions are
- * unchanged, a failure on both attempts is still a red, and no other test in the file is retried.
+ * Recorded as a known flake (backlog 195, 162): on CI the still-scene count read ~32 700 changed pixels against at most 60
+ * and passed locally. The cause, found 2026-11-16 from CI run 43833618446's trace, was the test's own right-most tap: it
+ * landed on the 3D link in the picture's corner under CI's font metrics and opened the editor. The taps now keep off the
+ * link. Owner's ruling 2026-10-14 (retried once on CI only) is left as it stands until the owner lifts it.
  */
 test.describe(
   "known flake, backlog 195",
@@ -211,11 +251,14 @@ test.describe(
       const requests = recordRequests(page);
 
       // Across the lower half of the scene, where the base run stands in the wall view: some of these land on a body.
-      for (const offsetX of [-120, -60, 0, 60, 120]) {
-        await page.touchscreen.tap(
-          clip.x + clip.width / 2 + offsetX,
-          clip.y + clip.height * 0.7,
-        );
+      // None may land on the 3D link in the picture's corner, which is a real way out of the review.
+      const taps = await tapsOffTheLink(page, clip);
+      expect(
+        taps.length,
+        "taps left once the link's are dropped",
+      ).toBeGreaterThanOrEqual(MIN_SCENE_TAPS);
+      for (const tap of taps) {
+        await page.touchscreen.tap(tap.x, tap.y);
       }
 
       expect(
